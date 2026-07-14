@@ -6,9 +6,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from pycoder.bus.protocol import CapabilityDefinition, ExecutionMode, SideEffect
+from pycoder.bus.protocol import (CapabilityCategory, CapabilityDefinition,
+                                  ExecutionMode, SideEffect)
 from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 from pycoder.capabilities.degradation import wrap_handler
+
+_CT = CapabilityCategory.PLUGIN
 
 
 def register(registry: Any) -> None:
@@ -87,6 +90,7 @@ def _reg(registry, cid, name, desc, schema, handler):
         CapabilityDefinition(
             id=cid, name=name, description=desc,
             permission=TOOL_PERMISSIONS.get(cid),
+            category=_CT,
             execution=ExecutionMode.SYNC,
             side_effects=[SideEffect.NETWORK if "sync" in cid or "update" in cid
                           or "install" in cid or "search" in cid

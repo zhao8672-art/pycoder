@@ -9,9 +9,12 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from pycoder.bus.protocol import CapabilityDefinition, ExecutionMode, SideEffect
+from pycoder.bus.protocol import (CapabilityCategory, CapabilityDefinition,
+                                  ExecutionMode, SideEffect)
 from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 from pycoder.capabilities.degradation import wrap_handler
+
+_CT = CapabilityCategory.SYSTEM
 
 
 def register(registry: Any) -> None:
@@ -50,6 +53,7 @@ def register(registry: Any) -> None:
             id="tools.env.languages", name="列出语言运行时",
             description="列出系统中所有可用的编程语言运行时",
             permission=TOOL_PERMISSIONS["tools.env.languages"],
+            category=_CT,
             execution=ExecutionMode.SYNC,
             side_effects=[SideEffect.NONE],
             schema={"type": "object", "properties": {}},
@@ -63,6 +67,7 @@ def _reg(registry, cid, name, desc, schema, required, handler):
     registry.register(
         CapabilityDefinition(
             id=cid, name=name, description=desc,
+            category=_CT,
             permission=TOOL_PERMISSIONS.get(cid),
             execution=ExecutionMode.SYNC,
             side_effects=[SideEffect.PROCESS],

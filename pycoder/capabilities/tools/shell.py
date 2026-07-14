@@ -6,9 +6,12 @@ import subprocess as sp
 from pathlib import Path
 from typing import Any
 
-from pycoder.bus.protocol import CapabilityDefinition, ExecutionMode, SideEffect
+from pycoder.bus.protocol import (CapabilityCategory, CapabilityDefinition,
+                                  ExecutionMode, SideEffect)
 from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 from pycoder.capabilities.degradation import wrap_handler
+
+_CT = CapabilityCategory.SYSTEM
 
 
 def register(registry: Any) -> None:
@@ -17,6 +20,7 @@ def register(registry: Any) -> None:
             id="tools.shell.run_terminal", name="终端命令",
             description="在终端中执行 shell 命令并获取输出和退出码",
             permission=TOOL_PERMISSIONS["tools.shell.run_terminal"],
+            category=_CT,
             execution=ExecutionMode.SYNC,
             side_effects=[SideEffect.PROCESS, SideEffect.FILE_WRITE],
             schema={

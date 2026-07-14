@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from pycoder.bus.protocol import CapabilityDefinition, ExecutionMode, SideEffect
+from pycoder.bus.protocol import (CapabilityCategory, CapabilityDefinition,
+                                  ExecutionMode, SideEffect)
 from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 from pycoder.capabilities.degradation import wrap_handler
+
+_CT = CapabilityCategory.SYSTEM
 
 
 def register(registry: Any) -> None:
@@ -15,6 +18,7 @@ def register(registry: Any) -> None:
             id="tools.agent.list_configs", name="Agent 配置",
             description="列出 PyCoder 系统 Agent 角色的详细配置",
             permission=TOOL_PERMISSIONS["tools.agent.list_configs"],
+            category=_CT,
             execution=ExecutionMode.SYNC,
             side_effects=[SideEffect.NONE],
             schema={"type": "object", "properties": {}},

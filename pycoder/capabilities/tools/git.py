@@ -7,9 +7,12 @@ import subprocess as sp
 from pathlib import Path
 from typing import Any
 
-from pycoder.bus.protocol import CapabilityDefinition, ExecutionMode, SideEffect
+from pycoder.bus.protocol import (CapabilityCategory, CapabilityDefinition,
+                                  ExecutionMode, SideEffect)
 from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 from pycoder.capabilities.degradation import wrap_handler
+
+_CT = CapabilityCategory.SYSTEM
 
 
 def register(registry: Any) -> None:
@@ -35,6 +38,7 @@ def _reg(registry, cid, name, desc, schema, required, handler):
     registry.register(
         CapabilityDefinition(
             id=cid, name=name, description=desc,
+            category=_CT,
             permission=TOOL_PERMISSIONS.get(cid),
             execution=ExecutionMode.SYNC,
             side_effects=[SideEffect.NONE],

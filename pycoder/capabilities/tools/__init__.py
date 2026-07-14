@@ -32,15 +32,28 @@ def register_all_tools(registry: Any) -> int:
 
     count_before = registry.count
 
-    files.register(registry)
-    search.register(registry)
-    exec_mod.register(registry)
-    quality.register(registry)
-    git.register(registry)
-    shell.register(registry)
-    env.register(registry)
-    testing.register(registry)
-    marketplace.register(registry)
-    agent.register(registry)
+    modules = [
+        ("files", files),
+        ("search", search),
+        ("exec_mod", exec_mod),
+        ("quality", quality),
+        ("git", git),
+        ("shell", shell),
+        ("env", env),
+        ("testing", testing),
+        ("marketplace", marketplace),
+        ("agent", agent),
+    ]
+
+    for name, mod in modules:
+        try:
+            mod.register(registry)
+        except Exception as e:
+            import logging, traceback
+            logging.getLogger(__name__).error(
+                "tools_registration_failed module=%s error=%s trace=%s",
+                name, e, traceback.format_exc(),
+            )
+            raise
 
     return registry.count - count_before
