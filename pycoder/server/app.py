@@ -76,6 +76,13 @@ from pycoder.server.routers.session_search import router as session_search_route
 from pycoder.server.routers.dep_api import router as dep_api_router
 from pycoder.server.routers.env_api import router as env_api_router
 
+# 系统能力升级: 新增模块 API 路由
+from pycoder.server.routers.workspace_api import router as workspace_api_router
+from pycoder.server.routers.knowledge_api import router as knowledge_api_router
+from pycoder.server.routers.memory_api import router as memory_api_router
+from pycoder.server.routers.notify_api import router as notify_api_router
+from pycoder.server.routers.notify_api import ws_router as notify_ws_router
+
 _logger = _logging.getLogger("pycoder.server.app")
 
 _API_KEY_ENV = os.environ.get("PYCODER_API_KEY", "").strip()
@@ -545,6 +552,13 @@ app.include_router(v2_evolution_ws_router)  # V2 进化 WebSocket
 app.include_router(session_search_router)
 app.include_router(dep_api_router)
 app.include_router(env_api_router)
+
+# 系统能力升级: 新增模块 API 路由
+app.include_router(workspace_api_router)
+app.include_router(knowledge_api_router)
+app.include_router(memory_api_router)
+app.include_router(notify_api_router)
+app.include_router(notify_ws_router)  # WebSocket 通知端点
 
 # WebSocket（独立挂载）
 app.include_router(collab_ws_router)
