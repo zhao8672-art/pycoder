@@ -1,4 +1,5 @@
 """Session search API — FTS-based full-text search over chat history"""
+
 from fastapi import APIRouter, Query
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
@@ -13,11 +14,13 @@ async def search_messages(
     """Search across session messages with keyword matching"""
     try:
         from pycoder.server.session_store import get_session_store
+
         store = get_session_store()
         sessions = store.list_sessions(limit=200)
         results = []
 
         import time as _time
+
         cutoff = _time.time()
         if time == "today":
             cutoff -= 86400
@@ -33,13 +36,15 @@ async def search_messages(
             messages = store.get_messages(s.id, limit=100)
             for m in messages:
                 if q_lower in m.content.lower():
-                    results.append({
-                        "sessionId": s.id,
-                        "sessionTitle": s.title or s.id[:8],
-                        "matchedContent": m.content[:200],
-                        "timestamp": m.timestamp,
-                        "role": m.role,
-                    })
+                    results.append(
+                        {
+                            "sessionId": s.id,
+                            "sessionTitle": s.title or s.id[:8],
+                            "matchedContent": m.content[:200],
+                            "timestamp": m.timestamp,
+                            "role": m.role,
+                        }
+                    )
                     if len(results) >= limit:
                         break
             if len(results) >= limit:

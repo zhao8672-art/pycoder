@@ -27,12 +27,13 @@ from dataclasses import dataclass
 @dataclass
 class ContextScore:
     """消息重要性评分"""
-    score: float = 0.0           # 0-1 综合重要性
-    is_decision: bool = False    # 是否关键决策
-    is_milestone: bool = False   # 是否阶段里程碑
-    is_file_ref: bool = False    # 是否包含文件引用
-    is_error: bool = False       # 是否错误信息
-    tokens: int = 0              # 估算 token 数
+
+    score: float = 0.0  # 0-1 综合重要性
+    is_decision: bool = False  # 是否关键决策
+    is_milestone: bool = False  # 是否阶段里程碑
+    is_file_ref: bool = False  # 是否包含文件引用
+    is_error: bool = False  # 是否错误信息
+    tokens: int = 0  # 估算 token 数
 
 
 class ContextWindowManager:
@@ -140,9 +141,7 @@ class ContextWindowManager:
         # 关键决策记录
         if self._scores[idx].is_decision:
             snippet = str(msg.get("content", ""))[:120]
-            self._decision_log.append(
-                f"[{time.strftime('%H:%M')}] {snippet}"
-            )
+            self._decision_log.append(f"[{time.strftime('%H:%M')}] {snippet}")
 
         # 里程碑记录
         if self._scores[idx].is_milestone:
@@ -186,10 +185,7 @@ class ContextWindowManager:
             removed_content.append(f"[{role}] {content}")
 
         # 构建保留的消息列表（保持原始顺序）
-        kept_messages = [
-            self._messages[i] for i in range(len(self._messages))
-            if i in kept_indices
-        ]
+        kept_messages = [self._messages[i] for i in range(len(self._messages)) if i in kept_indices]
 
         # 生成淘汰消息摘要
         summary = ""
@@ -224,10 +220,7 @@ class ContextWindowManager:
         基于关键词重叠度的简单关联算法。
         """
         # 提取当前内容的关键词
-        current_words = {
-            w.lower()
-            for w in re.findall(r"[\u4e00-\u9fff\w]{2,}", current_content)
-        }
+        current_words = {w.lower() for w in re.findall(r"[\u4e00-\u9fff\w]{2,}", current_content)}
 
         if not current_words or not self._messages:
             return []
@@ -235,10 +228,7 @@ class ContextWindowManager:
         scored: list[tuple[float, dict]] = []
         for _i, msg in enumerate(self._messages):
             content = str(msg.get("content", ""))
-            msg_words = {
-                w.lower()
-                for w in re.findall(r"[\u4e00-\u9fff\w]{2,}", content)
-            }
+            msg_words = {w.lower() for w in re.findall(r"[\u4e00-\u9fff\w]{2,}", content)}
             if not msg_words:
                 continue
             overlap = len(current_words & msg_words) / max(len(current_words), 1)
@@ -257,14 +247,10 @@ class ContextWindowManager:
         parts: list[str] = []
 
         if self._decision_log:
-            parts.append("### 关键决策\n" + "\n".join(
-                f"- {d}" for d in self._decision_log[-5:]
-            ))
+            parts.append("### 关键决策\n" + "\n".join(f"- {d}" for d in self._decision_log[-5:]))
 
         if self._milestones:
-            parts.append("### 里程碑\n" + "\n".join(
-                f"- {m}" for m in self._milestones[-5:]
-            ))
+            parts.append("### 里程碑\n" + "\n".join(f"- {m}" for m in self._milestones[-5:]))
 
         stats = (
             f"### 统计\n"

@@ -59,9 +59,7 @@ def merge_results(
     clean = re.sub(r"\n{3,}", "\n\n", clean).strip()
 
     # ── 附加执行摘要 ──
-    modes_summary = "、".join(
-        f"{r.mode}({'✅' if r.success else '❌'})" for r in results
-    )
+    modes_summary = "、".join(f"{r.mode}({'✅' if r.success else '❌'})" for r in results)
 
     # 故障处理
     failed = [r for r in results if not r.success]
@@ -69,8 +67,7 @@ def merge_results(
     if failed:
         issues_lines = [f"- {r.mode}: {r.error} (耗时{r.duration_ms}ms)" for r in failed]
         footer += (
-            "\n\n⚠️ 故障处理:\n"
-            + "\n".join(issues_lines) + "\n\n"
+            "\n\n⚠️ 故障处理:\n" + "\n".join(issues_lines) + "\n\n"
             "建议操作:\n"
             "1. 检查网络连接是否正常\n"
             "2. 验证 API Key 是否有效\n"

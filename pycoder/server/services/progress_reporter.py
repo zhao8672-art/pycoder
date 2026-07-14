@@ -31,16 +31,18 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StageDef:
     """阶段定义"""
+
     id: str
-    label: str                 # 中文名称
-    description: str           # 详细描述
+    label: str  # 中文名称
+    description: str  # 详细描述
 
 
 @dataclass
 class Milestone:
     """里程碑节点"""
-    step: str                  # 步骤名称
-    status: str = "pending"    # pending | active | done | error
+
+    step: str  # 步骤名称
+    status: str = "pending"  # pending | active | done | error
 
 
 class ProgressReporter:
@@ -50,11 +52,11 @@ class ProgressReporter:
         self._stages: list[StageDef] = []
         self._milestones: list[Milestone] = []
         self._current_idx: int = 0
-        self._stage_status: dict[str, str] = {}   # stage_id → pending/active/done/error
+        self._stage_status: dict[str, str] = {}  # stage_id → pending/active/done/error
         self._start_time: float = 0.0
-        self._stage_times: dict[str, float] = {}   # stage_id → elapsed seconds
+        self._stage_times: dict[str, float] = {}  # stage_id → elapsed seconds
         self._callback: Callable[[dict], Awaitable[None]] | None = None
-        self._total_eta_seconds: int = 60          # 总预估秒数，随执行动态调整
+        self._total_eta_seconds: int = 60  # 总预估秒数，随执行动态调整
 
     def set_callback(self, callback: Callable[[dict], Awaitable[None]]) -> None:
         """设置进度事件回调（通常连接到 WebSocket 发送）"""
@@ -94,10 +96,12 @@ class ProgressReporter:
 
         milestones_data = []
         for m in self._milestones:
-            milestones_data.append({
-                "step": m.step,
-                "status": m.status,
-            })
+            milestones_data.append(
+                {
+                    "step": m.step,
+                    "status": m.status,
+                }
+            )
 
         event = {
             "type": "progress",

@@ -3,6 +3,7 @@
 复用现有 Scheduler 框架，注册定时知识更新任务。
 支持自动批量更新、状态追踪和错误恢复。
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -29,7 +30,9 @@ class KnowledgeUpdateScheduler:
         self._fetcher = fetcher
         self._index = index
         self._scheduler = scheduler
-        self._update_status: dict[str, dict] = {}  # source_id -> {last_update, last_error, update_count}
+        self._update_status: dict[str, dict] = (
+            {}
+        )  # source_id -> {last_update, last_error, update_count}
         self._auto_task: asyncio.Task | None = None
         self._running = False
 
@@ -40,18 +43,22 @@ class KnowledgeUpdateScheduler:
         try:
             from pycoder.server.scheduler import ScheduledTask
 
-            self._scheduler.add_task(ScheduledTask(
-                id="knowledge-python-docs",
-                name="Python 文档每日更新",
-                trigger="interval",
-                config={"seconds": 86400},
-            ))
-            self._scheduler.add_task(ScheduledTask(
-                id="knowledge-security",
-                name="安全公告定期检查",
-                trigger="interval",
-                config={"seconds": 21600},
-            ))
+            self._scheduler.add_task(
+                ScheduledTask(
+                    id="knowledge-python-docs",
+                    name="Python 文档每日更新",
+                    trigger="interval",
+                    config={"seconds": 86400},
+                )
+            )
+            self._scheduler.add_task(
+                ScheduledTask(
+                    id="knowledge-security",
+                    name="安全公告定期检查",
+                    trigger="interval",
+                    config={"seconds": 21600},
+                )
+            )
         except ImportError:
             pass
 
@@ -110,7 +117,9 @@ class KnowledgeUpdateScheduler:
                 count = await self.run_update(source.id, fetch_fn=fetch_fn)
                 results[source.id] = count
             except (OSError, RuntimeError) as e:
-                logger.warning("knowledge_update_all_source_failed: source=%s error=%s", source.id, e)
+                logger.warning(
+                    "knowledge_update_all_source_failed: source=%s error=%s", source.id, e
+                )
                 results[source.id] = 0
         return results
 
@@ -157,11 +166,14 @@ class KnowledgeUpdateScheduler:
             更新状态字典
         """
         if source_id:
-            return self._update_status.get(source_id, {
-                "last_update": None,
-                "last_error": None,
-                "update_count": 0,
-            })
+            return self._update_status.get(
+                source_id,
+                {
+                    "last_update": None,
+                    "last_error": None,
+                    "update_count": 0,
+                },
+            )
         return {
             "sources": dict(self._update_status),
             "total_sources": len(self._fetcher.list_sources()),
@@ -173,9 +185,7 @@ class KnowledgeUpdateScheduler:
         if not self._running or not self._auto_task:
             return None
         all_updates = [
-            s.get("last_update")
-            for s in self._update_status.values()
-            if s.get("last_update")
+            s.get("last_update") for s in self._update_status.values() if s.get("last_update")
         ]
         if not all_updates:
             return time.time() + self.DEFAULT_INTERVAL_SECONDS

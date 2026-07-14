@@ -44,6 +44,7 @@ _INSTALLED_REGISTRY = Path.home() / ".pycoder" / "installed_skills.json"
 @dataclass
 class AutoFulfillReport:
     """一次自动补全的完整报告"""
+
     task_message: str = ""
     detected_needs: list[dict] = field(default_factory=list)  # serialized CapabilityNeed
     evaluated_candidates: list[dict] = field(default_factory=list)
@@ -122,12 +123,14 @@ class AutoPluginManager:
                 installed_skill_ids=installed,
             )
             report.detected_needs = [n.__dict__ for n in needs]
-            await self._emit({
-                "type": "auto_plugin_detected",
-                "needs": report.detected_needs,
-                "count": len(needs),
-                "message": f"🔍 检测到 {len(needs)} 个缺失能力",
-            })
+            await self._emit(
+                {
+                    "type": "auto_plugin_detected",
+                    "needs": report.detected_needs,
+                    "count": len(needs),
+                    "message": f"🔍 检测到 {len(needs)} 个缺失能力",
+                }
+            )
 
             if not needs:
                 report.duration_ms = (time.monotonic() - t0) * 1000
@@ -156,11 +159,13 @@ class AutoPluginManager:
                 report.duration_ms = (time.monotonic() - t0) * 1000
                 return report
 
-            await self._emit({
-                "type": "auto_plugin_evaluated",
-                "best": best.__dict__,
-                "message": f"📊 最佳候选: {best.name} (评分 {best.overall_score})",
-            })
+            await self._emit(
+                {
+                    "type": "auto_plugin_evaluated",
+                    "best": best.__dict__,
+                    "message": f"📊 最佳候选: {best.name} (评分 {best.overall_score})",
+                }
+            )
 
             # 阶段 5: 安装（跳过已安装的）
             need_map = {n.capability: n for n in needs}
@@ -179,7 +184,9 @@ class AutoPluginManager:
 
                 # 安装
                 install_result = await self.installer.install(
-                    r.candidate_id, candidate_map.get(r.candidate_id, {}), source,
+                    r.candidate_id,
+                    candidate_map.get(r.candidate_id, {}),
+                    source,
                 )
                 report.install_results.append(install_result.__dict__)
 
@@ -192,18 +199,19 @@ class AutoPluginManager:
 
                     if not validation.passed:
                         report.errors.append(
-                            f"{r.candidate_id}: 安装成功但验证未通过 "
-                            f"(评分 {validation.score})",
+                            f"{r.candidate_id}: 安装成功但验证未通过 " f"(评分 {validation.score})",
                         )
 
-                    await self._emit({
-                        "type": "auto_plugin_installed",
-                        "id": r.candidate_id,
-                        "name": install_result.name,
-                        "version": install_result.version,
-                        "validation_score": validation.score,
-                        "message": f"✅ 已安装 {install_result.name} v{install_result.version}",
-                    })
+                    await self._emit(
+                        {
+                            "type": "auto_plugin_installed",
+                            "id": r.candidate_id,
+                            "name": install_result.name,
+                            "version": install_result.version,
+                            "validation_score": validation.score,
+                            "message": f"✅ 已安装 {install_result.name} v{install_result.version}",
+                        }
+                    )
                 else:
                     report.failed_count += 1
                     report.errors.append(
@@ -225,6 +233,7 @@ class AutoPluginManager:
         """从 Skills Market 获取候选详情"""
         try:
             from pycoder.server.skills_market_v2 import EnhancedSkillsMarketManager
+
             market = EnhancedSkillsMarketManager()
             result = market.search(query=need.capability, limit=5)
             items = result.get("items", []) if isinstance(result, dict) else result

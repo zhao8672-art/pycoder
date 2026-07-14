@@ -1,4 +1,5 @@
 """多语言 LSP 模块 — 统一管理多语言 LSP 服务器"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -7,8 +8,11 @@ from pycoder.lsp.diagnostics import AggregatedDiagnostic, DiagnosticsAggregator
 from pycoder.lsp.lsp_manager import LSPManager, LSPServerConfig, LSPStatus
 
 __all__ = [
-    "LSPManager", "LSPServerConfig", "LSPStatus",
-    "DiagnosticsAggregator", "AggregatedDiagnostic",
+    "LSPManager",
+    "LSPServerConfig",
+    "LSPStatus",
+    "DiagnosticsAggregator",
+    "AggregatedDiagnostic",
     "register_capabilities",
 ]
 
@@ -24,10 +28,12 @@ def register_capabilities(registry: Any) -> None:
         SideEffect,
         TrustLevel,
     )
+
     manager = LSPManager(Path.cwd())
 
     def _start_language(params: dict, ctx: dict) -> dict:
         from asyncio import run
+
         success = run(manager.start(params["language"]))
         return {"success": success, "language": params["language"]}
 
@@ -68,7 +74,10 @@ def register_capabilities(registry: Any) -> None:
             schema={
                 "type": "object",
                 "properties": {
-                    "language": {"type": "string", "description": "语言标识符 (python/typescript/java/cpp/go)"},
+                    "language": {
+                        "type": "string",
+                        "description": "语言标识符 (python/typescript/java/cpp/go)",
+                    },
                 },
                 "required": ["language"],
             },
@@ -161,8 +170,14 @@ def register_capabilities(registry: Any) -> None:
             schema={
                 "type": "object",
                 "properties": {
-                    "file_path": {"type": "string", "description": "文件路径（指定则只扫描单个文件）"},
-                    "workspace_path": {"type": "string", "description": "工作区路径（不指定文件时扫描整个工作区）"},
+                    "file_path": {
+                        "type": "string",
+                        "description": "文件路径（指定则只扫描单个文件）",
+                    },
+                    "workspace_path": {
+                        "type": "string",
+                        "description": "工作区路径（不指定文件时扫描整个工作区）",
+                    },
                 },
             },
             tags=["lsp", "diagnostics", "errors", "diagnostic", "诊断"],

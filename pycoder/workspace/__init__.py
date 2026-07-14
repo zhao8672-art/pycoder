@@ -1,4 +1,5 @@
 """跨工作区模块 — 安全跨工作区数据共享与交互"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -7,7 +8,10 @@ from pycoder.workspace.share_sandbox import ShareSandbox
 from pycoder.workspace.workspace_registry import ShareLevel, WorkspaceEntry, WorkspaceRegistry
 
 __all__ = [
-    "WorkspaceRegistry", "WorkspaceEntry", "ShareLevel", "ShareSandbox",
+    "WorkspaceRegistry",
+    "WorkspaceEntry",
+    "ShareLevel",
+    "ShareSandbox",
     "register_capabilities",
 ]
 
@@ -27,7 +31,9 @@ def register_capabilities(registry: Any) -> None:
 
     def _register_workspace(params: dict, ctx: dict) -> dict:
         entry = WorkspaceEntry(
-            id=params["id"], path=params["path"], name=params["name"],
+            id=params["id"],
+            path=params["path"],
+            name=params["name"],
         )
         ws_registry.register(entry)
         return {"success": True, "workspace_id": params["id"]}
@@ -45,13 +51,16 @@ def register_capabilities(registry: Any) -> None:
         return {"content": content}
 
     def _write_shared_file(params: dict, ctx: dict) -> dict:
-        ws_sandbox.write_file(params["caller_ws"], params["target_ws"], params["rel_path"], params["content"])
+        ws_sandbox.write_file(
+            params["caller_ws"], params["target_ws"], params["rel_path"], params["content"]
+        )
         return {"success": True}
 
     def _set_share_policy(params: dict, ctx: dict) -> dict:
         level = ShareLevel[params["share_level"]]
         ws_registry.set_share_policy(
-            params["workspace_id"], level,
+            params["workspace_id"],
+            level,
             params.get("allowed_workspaces", []),
             params.get("shared_paths", []),
         )
@@ -92,7 +101,10 @@ def register_capabilities(registry: Any) -> None:
             schema={
                 "type": "object",
                 "properties": {
-                    "caller_id": {"type": "string", "description": "调用方工作区 ID（用于过滤可访问的）"},
+                    "caller_id": {
+                        "type": "string",
+                        "description": "调用方工作区 ID（用于过滤可访问的）",
+                    },
                 },
             },
             tags=["workspace", "list", "工作区", "列表"],
@@ -161,7 +173,10 @@ def register_capabilities(registry: Any) -> None:
                 "type": "object",
                 "properties": {
                     "workspace_id": {"type": "string", "description": "工作区 ID"},
-                    "share_level": {"type": "string", "description": "共享级别: NONE/READ/READ_WRITE"},
+                    "share_level": {
+                        "type": "string",
+                        "description": "共享级别: NONE/READ/READ_WRITE",
+                    },
                     "allowed_workspaces": {"type": "array", "items": {"type": "string"}},
                     "shared_paths": {"type": "array", "items": {"type": "string"}},
                 },

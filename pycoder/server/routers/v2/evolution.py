@@ -90,15 +90,18 @@ async def start_watcher(request: Request, req: dict | None = None):
     _get_evolution_engine(request)
     try:
         from pycoder.server.scheduler import ScheduledTask, get_scheduler
+
         scheduler = get_scheduler()
-        scheduler.add_task(ScheduledTask(
-            id="evo-watch",
-            name="自我进化监控",
-            trigger="interval",
-            config={"seconds": payload.get("interval", 300)},
-            action="python:pycoder.server.app._scheduled_self_scan",
-            action_args={},
-        ))
+        scheduler.add_task(
+            ScheduledTask(
+                id="evo-watch",
+                name="自我进化监控",
+                trigger="interval",
+                config={"seconds": payload.get("interval", 300)},
+                action="python:pycoder.server.app._scheduled_self_scan",
+                action_args={},
+            )
+        )
         return {"success": True, "active": True, "interval": payload.get("interval", 300)}
     except ImportError:
         return {"success": False, "error": "调度器不可用"}
@@ -108,6 +111,7 @@ async def start_watcher(request: Request, req: dict | None = None):
 async def stop_watcher(request: Request):
     try:
         from pycoder.server.scheduler import get_scheduler
+
         scheduler = get_scheduler()
         scheduler.remove_task("evo-watch")
         return {"success": True, "active": False}
@@ -119,6 +123,7 @@ async def stop_watcher(request: Request):
 async def watch_status(request: Request):
     try:
         from pycoder.server.scheduler import get_scheduler
+
         scheduler = get_scheduler()
         task = scheduler.get_task("evo-watch")
         return {"success": True, "active": task is not None and task.enabled}
@@ -134,42 +139,61 @@ async def watch_status(request: Request):
 @router.post("/optimize/analyze-usage")
 async def analyze_usage(days: int = 30):
     from pycoder.capabilities.self_evo.learning.self_optimizer import get_self_optimizer
+
     opt = get_self_optimizer()
     report = opt.analyze_usage(days=days)
     return {
-        "success": True, "sessions": report.total_sessions,
-        "topics": report.top_topics[:10], "errors": report.top_error_types[:10],
-        "hints": report.optimization_hints, "common": report.common_issues,
+        "success": True,
+        "sessions": report.total_sessions,
+        "topics": report.top_topics[:10],
+        "errors": report.top_error_types[:10],
+        "hints": report.optimization_hints,
+        "common": report.common_issues,
     }
 
 
 @router.post("/optimize/prompts")
 async def optimize_prompts():
     from pycoder.capabilities.self_evo.learning.self_optimizer import get_self_optimizer
+
     opt = get_self_optimizer()
     results = opt.optimize_prompts()
-    return {"success": True, "results": [
-        {"agent": r.agent_id, "lines": r.original_lines, "issues": len(r.changes),
-         "changes": r.changes, "expected": r.expected_improvement}
-        for r in results
-    ]}
+    return {
+        "success": True,
+        "results": [
+            {
+                "agent": r.agent_id,
+                "lines": r.original_lines,
+                "issues": len(r.changes),
+                "changes": r.changes,
+                "expected": r.expected_improvement,
+            }
+            for r in results
+        ],
+    }
 
 
 @router.post("/optimize/heal")
 async def auto_heal(target: str = "pycoder", dry_run: bool = False):
     from pycoder.capabilities.self_evo.learning.self_optimizer import get_self_optimizer
+
     opt = get_self_optimizer()
     report = await opt.auto_heal(dry_run=dry_run)
     return {
-        "success": True, "task_id": report.task_id,
-        "issues_found": report.issues_found, "fixes_applied": report.fixes_applied,
-        "test_passed": report.test_passed, "error": report.error, "dry_run": dry_run,
+        "success": True,
+        "task_id": report.task_id,
+        "issues_found": report.issues_found,
+        "fixes_applied": report.fixes_applied,
+        "test_passed": report.test_passed,
+        "error": report.error,
+        "dry_run": dry_run,
     }
 
 
 @router.get("/optimize/report")
 async def optimization_report():
     from pycoder.capabilities.self_evo.learning.self_optimizer import get_self_optimizer
+
     opt = get_self_optimizer()
     return {"success": True, "report": opt.generate_optimization_markdown()}
 
@@ -224,7 +248,11 @@ async def clear_token(request: Request):
 async def token_status(request: Request):
     if hasattr(request.app.state.v2_engine, "permission"):
         trust = request.app.state.v2_engine.permission.get_trust_report()
-        return {"success": True, "trust_level": trust.get("level", 0), "label": trust.get("label", "")}
+        return {
+            "success": True,
+            "trust_level": trust.get("level", 0),
+            "label": trust.get("label", ""),
+        }
     return {"success": True, "exists": False}
 
 
@@ -286,7 +314,9 @@ async def ws_evolution(ws: WebSocket):
                 await ws.send_json({"type": "approvals", "approvals": pending})
 
             else:
-                await ws.send_json({"type": "error", "message": f"Unknown message type: {msg_type}"})
+                await ws.send_json(
+                    {"type": "error", "message": f"Unknown message type: {msg_type}"}
+                )
 
     except WebSocketDisconnect:
         log.info("evolution_ws_disconnect")

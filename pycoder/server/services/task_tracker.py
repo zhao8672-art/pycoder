@@ -31,26 +31,27 @@ from enum import Enum
 
 class TaskPhase(Enum):
     """任务阶段"""
-    INIT = "init"              # 任务初始化中
-    ANALYZING = "analyzing"    # 分析需求
-    PLANNING = "planning"      # 规划步骤
-    EXECUTING = "executing"    # 执行中
-    VERIFYING = "verifying"    # 验证结果
-    DONE = "done"              # 完成
-    FAILED = "failed"          # 失败
-    IDLE = "idle"              # 无任务
+
+    INIT = "init"  # 任务初始化中
+    ANALYZING = "analyzing"  # 分析需求
+    PLANNING = "planning"  # 规划步骤
+    EXECUTING = "executing"  # 执行中
+    VERIFYING = "verifying"  # 验证结果
+    DONE = "done"  # 完成
+    FAILED = "failed"  # 失败
+    IDLE = "idle"  # 无任务
 
 
 @dataclass
 class TaskAnchor:
     """上下文锚点 —— 注入每次 LLM 调用的固定前缀，防止上下文漂移"""
 
-    goal: str                  # 一句话任务目标
-    parameters: dict           # 关键参数 (技术栈/语言/约束)
-    current_phase: str         # 当前阶段
+    goal: str  # 一句话任务目标
+    parameters: dict  # 关键参数 (技术栈/语言/约束)
+    current_phase: str  # 当前阶段
     completed_steps: list[str]  # 已完成步骤摘要
-    next_step: str             # 下一步
-    last_decision: str         # 最近关键决策
+    next_step: str  # 下一步
+    last_decision: str  # 最近关键决策
     drift_warnings: list[str]  # 偏离警告列表
 
     def to_prompt(self, max_length: int = 500) -> str:
@@ -61,36 +62,31 @@ class TaskAnchor:
             f"**阶段**: {self.current_phase}",
         ]
         if self.parameters:
-            params_str = ", ".join(
-                f"{k}={v}" for k, v in list(self.parameters.items())[:6]
-            )
+            params_str = ", ".join(f"{k}={v}" for k, v in list(self.parameters.items())[:6])
             lines.append(f"**参数**: {params_str}")
         if self.completed_steps:
-            lines.append(
-                f"**已完成**: {' → '.join(self.completed_steps[-5:])}"
-            )
+            lines.append(f"**已完成**: {' → '.join(self.completed_steps[-5:])}")
         if self.next_step:
             lines.append(f"**下一步**: {self.next_step[:200]}")
         if self.last_decision:
             lines.append(f"**最近决策**: {self.last_decision[:150]}")
         if self.drift_warnings:
-            lines.append(
-                f"**⚠️ 偏离提醒**: {'; '.join(self.drift_warnings[-3:])}"
-            )
+            lines.append(f"**⚠️ 偏离提醒**: {'; '.join(self.drift_warnings[-3:])}")
 
         result = "\n".join(lines)
         if len(result) > max_length:
-            result = result[:max_length - 50] + "\n...(锚点截断)"
+            result = result[: max_length - 50] + "\n...(锚点截断)"
         return result
 
 
 @dataclass
 class SubTask:
     """子任务"""
+
     id: str
     description: str
-    status: str = "pending"   # pending / active / done / failed
-    priority: int = 5          # 1=最高, 10=最低 (越小越高)
+    status: str = "pending"  # pending / active / done / failed
+    priority: int = 5  # 1=最高, 10=最低 (越小越高)
     retries: int = 0
     max_retries: int = 2
     started_at: float = 0.0
@@ -155,10 +151,12 @@ class TaskTracker:
     def record_decision(self, decision: str) -> None:
         """记录关键决策点"""
         self._last_decision = decision
-        self._decisions.append((
-            time.strftime("%H:%M:%S"),
-            decision,
-        ))
+        self._decisions.append(
+            (
+                time.strftime("%H:%M:%S"),
+                decision,
+            )
+        )
 
     # ══════════════════════════════════════════════════════
     # 子任务管理
@@ -234,9 +232,7 @@ class TaskTracker:
 
     def add_drift_warning(self, warning: str) -> None:
         """添加偏离警告"""
-        self._drift_warnings.append(
-            f"[{time.strftime('%H:%M:%S')}] {warning[:150]}"
-        )
+        self._drift_warnings.append(f"[{time.strftime('%H:%M:%S')}] {warning[:150]}")
         # 最多保留 10 条
         if len(self._drift_warnings) > 10:
             self._drift_warnings = self._drift_warnings[-10:]

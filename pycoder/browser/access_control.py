@@ -2,6 +2,7 @@
 
 安全控制浏览器访问范围，防止恶意利用和内部网络探测。
 """
+
 from __future__ import annotations
 
 import fnmatch
@@ -13,11 +14,26 @@ from urllib.parse import urlparse
 @dataclass
 class BrowserAccessPolicy:
     """浏览器访问策略"""
-    allowed_domains: list[str] = field(default_factory=lambda: [
-        "github.com", "*.github.com", "python.org", "*.python.org", "pypi.org", "*.pypi.org",
-        "docs.python.org", "npmjs.com", "*.npmjs.com", "rust-lang.org", "*.rust-lang.org",
-        "stackoverflow.com", "*.stackoverflow.com", "wikipedia.org", "*.wikipedia.org",
-    ])
+
+    allowed_domains: list[str] = field(
+        default_factory=lambda: [
+            "github.com",
+            "*.github.com",
+            "python.org",
+            "*.python.org",
+            "pypi.org",
+            "*.pypi.org",
+            "docs.python.org",
+            "npmjs.com",
+            "*.npmjs.com",
+            "rust-lang.org",
+            "*.rust-lang.org",
+            "stackoverflow.com",
+            "*.stackoverflow.com",
+            "wikipedia.org",
+            "*.wikipedia.org",
+        ]
+    )
     blocked_domains: list[str] = field(default_factory=list)
     max_requests_per_minute: int = 60
     max_content_size_mb: int = 10
@@ -64,9 +80,7 @@ class BrowserAccessControl:
         window = now - 60
         if domain not in self._rate_limiter:
             self._rate_limiter[domain] = []
-        self._rate_limiter[domain] = [
-            t for t in self._rate_limiter[domain] if t > window
-        ]
+        self._rate_limiter[domain] = [t for t in self._rate_limiter[domain] if t > window]
         if len(self._rate_limiter[domain]) >= self._policy.max_requests_per_minute:
             return False
         self._rate_limiter[domain].append(now)
@@ -81,6 +95,7 @@ class BrowserAccessControl:
         if not hostname:
             return False
         import ipaddress
+
         try:
             ip = ipaddress.ip_address(hostname)
             return ip.is_private or ip.is_loopback or ip.is_link_local

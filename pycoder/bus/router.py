@@ -19,9 +19,10 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RouteDecision:
     """路由决策结果"""
+
     capability_id: str
     handler_id: str
-    confidence: float = 1.0        # 置信度 0-1
+    confidence: float = 1.0  # 置信度 0-1
     alternatives: list[str] = field(default_factory=list)
     suggestion: str = ""
     fallback_used: bool = False
@@ -136,7 +137,11 @@ class IntelligentRouter:
             if records:
                 summary[cap_id] = {
                     "avg_latency_ms": sum(records) / len(records),
-                    "p95_latency_ms": sorted(records)[int(len(records) * 0.95)] if len(records) >= 20 else max(records),
+                    "p95_latency_ms": (
+                        sorted(records)[int(len(records) * 0.95)]
+                        if len(records) >= 20
+                        else max(records)
+                    ),
                     "error_count": self._error_counts.get(cap_id, 0),
                     "total_calls": len(records),
                 }
@@ -156,14 +161,18 @@ class IntelligentRouter:
         # 根据关键词推荐类别
         if any(w in query_lower for w in ["编辑", "写", "read", "write", "edit"]):
             editor_caps = self._registry.list_by_category(
-                __import__('pycoder.bus.protocol', fromlist=['CapabilityCategory']).CapabilityCategory.EDITOR
+                __import__(
+                    "pycoder.bus.protocol", fromlist=["CapabilityCategory"]
+                ).CapabilityCategory.EDITOR
             )
             if editor_caps:
                 return f"可用编辑器能力: {', '.join(c.id for c in editor_caps[:5])}"
 
         if any(w in query_lower for w in ["git", "shell", "执行", "命令", "commit"]):
             system_caps = self._registry.list_by_category(
-                __import__('pycoder.bus.protocol', fromlist=['CapabilityCategory']).CapabilityCategory.SYSTEM
+                __import__(
+                    "pycoder.bus.protocol", fromlist=["CapabilityCategory"]
+                ).CapabilityCategory.SYSTEM
             )
             if system_caps:
                 return f"可用系统能力: {', '.join(c.id for c in system_caps[:5])}"
@@ -181,4 +190,5 @@ class IntelligentRouter:
             return False
         # 使用内置的 SequenceMatcher
         from difflib import SequenceMatcher
+
         return SequenceMatcher(None, a, b).ratio() > threshold

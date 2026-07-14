@@ -141,7 +141,11 @@ def _register_git_operations(registry: Any) -> None:
                 "type": "object",
                 "properties": {
                     "message": {"type": "string", "description": "提交信息"},
-                    "files": {"type": "array", "items": {"type": "string"}, "description": "要提交的文件"},
+                    "files": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "要提交的文件",
+                    },
                 },
                 "required": ["message"],
             },
@@ -178,7 +182,11 @@ def _register_package_operations(registry: Any) -> None:
             schema={
                 "type": "object",
                 "properties": {
-                    "packages": {"type": "array", "items": {"type": "string"}, "description": "要安装的包名列表"},
+                    "packages": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "要安装的包名列表",
+                    },
                     "manager": {"type": "string", "description": "包管理器: pip / npm / poetry"},
                     "dev": {"type": "boolean", "description": "是否安装为开发依赖"},
                 },
@@ -232,21 +240,25 @@ async def _list_directory(params: dict[str, Any], context: dict[str, Any]) -> di
         for item in sorted(path.rglob("*")):
             if pattern and not item.match(pattern):
                 continue
-            items.append({
-                "name": item.name,
-                "path": str(item.relative_to(path)),
-                "type": "directory" if item.is_dir() else "file",
-                "size": item.stat().st_size if item.is_file() else 0,
-            })
+            items.append(
+                {
+                    "name": item.name,
+                    "path": str(item.relative_to(path)),
+                    "type": "directory" if item.is_dir() else "file",
+                    "size": item.stat().st_size if item.is_file() else 0,
+                }
+            )
     else:
         for item in sorted(path.iterdir()):
             if pattern and not item.match(pattern):
                 continue
-            items.append({
-                "name": item.name,
-                "type": "directory" if item.is_dir() else "file",
-                "size": item.stat().st_size if item.is_file() else 0,
-            })
+            items.append(
+                {
+                    "name": item.name,
+                    "type": "directory" if item.is_dir() else "file",
+                    "size": item.stat().st_size if item.is_file() else 0,
+                }
+            )
 
     return {
         "path": str(path.absolute()),
@@ -258,6 +270,7 @@ async def _list_directory(params: dict[str, Any], context: dict[str, Any]) -> di
 async def _watch_files(params: dict[str, Any], context: dict[str, Any]):
     """监听文件变化（占位）"""
     from pycoder.bus.protocol import CapabilityEvent
+
     yield CapabilityEvent(
         trace_id=context.get("trace_id", ""),
         event_type="done",
@@ -299,7 +312,9 @@ async def _git_status(params: dict[str, Any], context: dict[str, Any]) -> dict[s
     """Git 状态"""
     result = subprocess.run(
         ["git", "status", "--porcelain"],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     return {"status": result.stdout, "has_changes": bool(result.stdout.strip())}
 
@@ -308,11 +323,15 @@ async def _git_diff(params: dict[str, Any], context: dict[str, Any]) -> dict[str
     """Git 差异"""
     result = subprocess.run(
         ["git", "diff", "--stat"],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     result2 = subprocess.run(
         ["git", "diff"],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     return {
         "stat": result.stdout,
@@ -332,7 +351,9 @@ async def _git_commit(params: dict[str, Any], context: dict[str, Any]) -> dict[s
     subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     result = subprocess.run(
         ["git", "commit", "-m", message],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
 
     return {
@@ -345,7 +366,9 @@ async def _git_push(params: dict[str, Any], context: dict[str, Any]) -> dict[str
     """Git 推送"""
     result = subprocess.run(
         ["git", "push"],
-        capture_output=True, text=True, timeout=60,
+        capture_output=True,
+        text=True,
+        timeout=60,
     )
     return {
         "success": result.returncode == 0,
@@ -378,9 +401,12 @@ async def _list_packages(params: dict[str, Any], context: dict[str, Any]) -> dic
     """列出已安装包"""
     result = subprocess.run(
         ["pip", "list", "--format=json"],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     import json
+
     try:
         packages = json.loads(result.stdout)
         return {"count": len(packages), "packages": packages[:100]}
@@ -391,6 +417,7 @@ async def _list_packages(params: dict[str, Any], context: dict[str, Any]) -> dic
 async def _detect_environment(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """检测项目环境"""
     import sys
+
     return {
         "python_version": sys.version,
         "executable": sys.executable,

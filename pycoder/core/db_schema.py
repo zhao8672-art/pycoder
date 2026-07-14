@@ -29,6 +29,7 @@ UNIFIED_DB_PATH = Path.home() / ".pycoder" / "unified.db"
 def _get_env_db_path() -> Path:
     """读取环境变量覆盖"""
     import os
+
     env_path = os.environ.get("PYCODER_DB_PATH", "")
     if env_path:
         return Path(env_path)
@@ -310,23 +311,25 @@ CREATE INDEX IF NOT EXISTS idx_plugin_data_plugin ON plugin_data(plugin_id, key)
 # 表名常量（供 DAL 引用）
 # ══════════════════════════════════════════════════════════
 
+
 class Tables:
     """统一数据库表名常量"""
-    DB_VERSION          = "db_version"
-    SESSIONS            = "sessions"
-    MESSAGES            = "messages"
-    MEMORY_ITEMS        = "memory_items"
-    EVO_ERROR_PATTERNS  = "evolution_error_patterns"
-    EVO_FIX_HISTORY     = "evolution_fix_history"
-    EVO_RECORDS         = "evolution_records"
-    EVO_QUALITY         = "evolution_quality_snapshots"
-    EVO_LEARNING        = "evolution_learning_events"
-    CLOUD_USERS         = "cloud_users"
-    CLOUD_API_KEYS      = "cloud_api_keys"
-    CLOUD_USAGE_LOG     = "cloud_usage_log"
-    TEAM_WORKSPACES     = "team_workspaces"
-    TEAM_MEMBERS        = "team_members"
-    TEAM_REVIEW         = "team_review_requests"
-    TEAM_ACTIVITIES     = "team_activities"
-    APP_CONFIG          = "app_config"
-    PLUGIN_DATA         = "plugin_data"
+
+    DB_VERSION = "db_version"
+    SESSIONS = "sessions"
+    MESSAGES = "messages"
+    MEMORY_ITEMS = "memory_items"
+    EVO_ERROR_PATTERNS = "evolution_error_patterns"
+    EVO_FIX_HISTORY = "evolution_fix_history"
+    EVO_RECORDS = "evolution_records"
+    EVO_QUALITY = "evolution_quality_snapshots"
+    EVO_LEARNING = "evolution_learning_events"
+    CLOUD_USERS = "cloud_users"
+    CLOUD_API_KEYS = "cloud_api_keys"
+    CLOUD_USAGE_LOG = "cloud_usage_log"
+    TEAM_WORKSPACES = "team_workspaces"
+    TEAM_MEMBERS = "team_members"
+    TEAM_REVIEW = "team_review_requests"
+    TEAM_ACTIVITIES = "team_activities"
+    APP_CONFIG = "app_config"
+    PLUGIN_DATA = "plugin_data"

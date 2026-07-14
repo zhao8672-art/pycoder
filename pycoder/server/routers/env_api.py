@@ -7,6 +7,7 @@
   GET  /api/env/tools/{name}/guide — 获取安装指南
   POST /api/env/tools/{name}/install — 触发自动安装
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
@@ -30,12 +31,10 @@ async def get_env_report():
     return {
         "all_ok": report["all_ok"],
         "required_missing": [
-            {"name": s.name, "error": s.error}
-            for s in report["required_missing"]
+            {"name": s.name, "error": s.error} for s in report["required_missing"]
         ],
         "optional_missing": [
-            {"name": s.name, "error": s.error}
-            for s in report["optional_missing"]
+            {"name": s.name, "error": s.error} for s in report["optional_missing"]
         ],
         "version_issues": [
             {"name": s.name, "version": s.version, "error": s.error}
@@ -43,8 +42,10 @@ async def get_env_report():
         ],
         "all_statuses": [
             {
-                "name": s.name, "installed": s.installed,
-                "version": s.version, "meets_minimum": s.meets_minimum,
+                "name": s.name,
+                "installed": s.installed,
+                "version": s.version,
+                "meets_minimum": s.meets_minimum,
                 "error": s.error,
             }
             for s in report["all_statuses"]
@@ -59,8 +60,10 @@ async def list_tools():
     return {
         "tools": [
             {
-                "name": r.name, "installed": r.installed,
-                "version": r.version, "meets_minimum": r.meets_minimum,
+                "name": r.name,
+                "installed": r.installed,
+                "version": r.version,
+                "meets_minimum": r.meets_minimum,
                 "error": r.error,
             }
             for r in results

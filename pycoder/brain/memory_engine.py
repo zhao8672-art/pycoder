@@ -26,9 +26,10 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MemoryItem:
     """记忆条目"""
+
     key: str
     content: str
-    importance: float = 0.5    # 0-1, 重要度
+    importance: float = 0.5  # 0-1, 重要度
     timestamp: float = field(default_factory=time.time)
     access_count: int = 0
     tags: list[str] = field(default_factory=list)
@@ -48,7 +49,9 @@ class WorkingMemory:
         self._items: OrderedDict[str, MemoryItem] = OrderedDict()
         self._max_items = max_items
 
-    def add(self, key: str, content: str, importance: float = 0.5, tags: list[str] | None = None) -> None:
+    def add(
+        self, key: str, content: str, importance: float = 0.5, tags: list[str] | None = None
+    ) -> None:
         """添加记忆"""
         if key in self._items:
             item = self._items[key]
@@ -109,10 +112,13 @@ class WorkingMemory:
         if not self._items:
             return
 
-        min_key = min(self._items.keys(), key=lambda k: (
-            self._items[k].importance,
-            self._items[k].access_count,
-        ))
+        min_key = min(
+            self._items.keys(),
+            key=lambda k: (
+                self._items[k].importance,
+                self._items[k].access_count,
+            ),
+        )
         self._items.pop(min_key)
 
 
@@ -137,12 +143,14 @@ class ProjectKnowledge:
 
     def add_adr(self, title: str, decision: str, context: str = "") -> None:
         """添加架构决策记录"""
-        self._adr.append({
-            "title": title,
-            "decision": decision,
-            "context": context,
-            "timestamp": time.time(),
-        })
+        self._adr.append(
+            {
+                "title": title,
+                "decision": decision,
+                "context": context,
+                "timestamp": time.time(),
+            }
+        )
 
     def set_convention(self, name: str, rule: str) -> None:
         """设置项目约定"""
@@ -191,8 +199,9 @@ class MemoryEngine:
         self._persist_dir = Path.home() / ".pycoder" / "memory"
         self._load_all()
 
-    def remember(self, key: str, content: str, level: str = "working",
-                 importance: float = 0.5) -> None:
+    def remember(
+        self, key: str, content: str, level: str = "working", importance: float = 0.5
+    ) -> None:
         """记录信息到指定记忆层级"""
         if level == "working":
             self.working.add(key, content, importance)
@@ -203,9 +212,13 @@ class MemoryEngine:
             self._long_term[key] = {"content": content, "timestamp": time.time()}
             self._save_long_term()
         elif level == "episodic":
-            self._episodic.append({
-                "key": key, "content": content, "timestamp": time.time(),
-            })
+            self._episodic.append(
+                {
+                    "key": key,
+                    "content": content,
+                    "timestamp": time.time(),
+                }
+            )
 
     def recall(self, query: str, level: str = "all") -> list[str]:
         """从记忆中检索相关信息"""

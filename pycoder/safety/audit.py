@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AuditRecord:
     """单条审计记录"""
+
     # 基础信息
     trace_id: str
     timestamp: float = field(default_factory=time.time)
@@ -34,7 +35,7 @@ class AuditRecord:
     capability_id: str = ""
     params_summary: str = ""
     permission_level: int = 0
-    decision: str = ""            # 允许/拒绝/需要确认
+    decision: str = ""  # 允许/拒绝/需要确认
     user_confirmed: bool = False
 
     # 结果信息
@@ -56,6 +57,7 @@ class AuditRecord:
     def __post_init__(self):
         if not self.iso_time:
             from datetime import datetime
+
             self.iso_time = datetime.fromtimestamp(self.timestamp).isoformat()
 
     def to_dict(self) -> dict[str, Any]:
@@ -176,7 +178,7 @@ class AuditTrail:
         if until is not None:
             records = [r for r in records if r.timestamp <= until]
 
-        return records[offset:offset + limit]
+        return records[offset : offset + limit]
 
     def get_recent(self, limit: int = 50) -> list[AuditRecord]:
         """获取最近的审计记录"""
@@ -225,7 +227,9 @@ class AuditTrail:
             "user_confirmed_rate": confirmed_count / max(total, 1),
             "rollback_rate": rollback_count / max(total, 1),
             "avg_duration_ms": sum(r.duration_ms for r in records) / max(total, 1),
-            "top_capabilities": sorted(by_capability.items(), key=lambda x: x[1], reverse=True)[:10],
+            "top_capabilities": sorted(by_capability.items(), key=lambda x: x[1], reverse=True)[
+                :10
+            ],
             "decision_distribution": dict(by_decision),
             "time_range": time_range,
             "anomalies": self._detect_anomalies(records),

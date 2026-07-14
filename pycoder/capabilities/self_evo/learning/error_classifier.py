@@ -25,31 +25,32 @@ from enum import Enum
 
 
 class ErrorCategory(Enum):
-    SYNTAX = "syntax"             # 语法错误
-    LOGIC = "logic"               # 逻辑 bug
-    RUNTIME = "runtime"           # 运行时异常
-    SECURITY = "security"         # 安全漏洞
-    PERFORMANCE = "performance"   # 性能问题
-    STYLE = "style"               # 代码规范
-    UNKNOWN = "unknown"           # 未分类
+    SYNTAX = "syntax"  # 语法错误
+    LOGIC = "logic"  # 逻辑 bug
+    RUNTIME = "runtime"  # 运行时异常
+    SECURITY = "security"  # 安全漏洞
+    PERFORMANCE = "performance"  # 性能问题
+    STYLE = "style"  # 代码规范
+    UNKNOWN = "unknown"  # 未分类
 
 
 @dataclass
 class ErrorTicket:
     """错误工单"""
+
     id: str = ""
     error_signature: str = ""
     error_message: str = ""
     category: ErrorCategory = ErrorCategory.UNKNOWN
     file_path: str = ""
     line_number: int = 0
-    severity: str = "medium"      # critical / high / medium / low
+    severity: str = "medium"  # critical / high / medium / low
     occurrences: int = 1
     first_seen: float = 0.0
     last_seen: float = 0.0
     fix_strategy: str = ""
-    fix_status: str = "open"      # open / fixed / verified / closed
-    verified_by: str = ""         # test / human / auto
+    fix_status: str = "open"  # open / fixed / verified / closed
+    verified_by: str = ""  # test / human / auto
     verified_at: float = 0.0
 
 
@@ -142,8 +143,9 @@ class ErrorClassifier:
     # 工单管理
     # ══════════════════════════════════════════════════════
 
-    def open_ticket(self, error_signature: str, error_message: str,
-                    file_path: str = "", line: int = 0) -> ErrorTicket:
+    def open_ticket(
+        self, error_signature: str, error_message: str, file_path: str = "", line: int = 0
+    ) -> ErrorTicket:
         """创建或更新错误工单"""
         sig = error_signature[:200]
 
@@ -204,10 +206,7 @@ class ErrorClassifier:
             "repeat_count": count,
             "severity": severity,
             "last_status": ticket.fix_status if ticket else "unknown",
-            "suggestion": (
-                "升级为热规则自动修复" if count >= 3
-                else "正常监控"
-            ),
+            "suggestion": ("升级为热规则自动修复" if count >= 3 else "正常监控"),
         }
 
     def get_recurrence_report(self) -> list[dict]:
@@ -221,9 +220,9 @@ class ErrorClassifier:
 
     @staticmethod
     def _calc_severity(error_message: str) -> str:
-        if re.search(r'critical|fatal|crash|panic', error_message, re.I):
+        if re.search(r"critical|fatal|crash|panic", error_message, re.I):
             return "critical"
-        if re.search(r'SyntaxError|ImportError|security|injection', error_message, re.I):
+        if re.search(r"SyntaxError|ImportError|security|injection", error_message, re.I):
             return "high"
         return "medium"
 

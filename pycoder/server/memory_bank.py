@@ -103,10 +103,7 @@ class MemoryBank:
 
     def update_tech_context(self, tech_stack: str, dependencies: str = "") -> None:
         """更新技术栈上下文"""
-        content = (
-            f"# Tech Context\n\n"
-            f"## 技术栈\n\n{tech_stack}\n\n"
-        )
+        content = f"# Tech Context\n\n" f"## 技术栈\n\n{tech_stack}\n\n"
         if dependencies:
             content += f"## 依赖\n\n{dependencies}\n"
         self._write("tech_context.md", content)
@@ -138,9 +135,7 @@ class MemoryBank:
 
     def has_memory(self) -> bool:
         """检查是否已有任何记忆"""
-        return any(
-            (self._memory_dir / f).exists() for f in self.MEMORY_FILES.values()
-        )
+        return any((self._memory_dir / f).exists() for f in self.MEMORY_FILES.values())
 
     def list_memories(self) -> list[dict[str, str]]:
         """列出所有记忆文件及其大小"""

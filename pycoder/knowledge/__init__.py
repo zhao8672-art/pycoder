@@ -1,4 +1,5 @@
 """知识更新模块 — 动态知识获取与 RAG 检索"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -8,8 +9,11 @@ from pycoder.knowledge.knowledge_index import KnowledgeIndex
 from pycoder.knowledge.update_scheduler import KnowledgeUpdateScheduler
 
 __all__ = [
-    "KnowledgeFetcher", "KnowledgeSource", "KnowledgeChunk",
-    "KnowledgeIndex", "KnowledgeUpdateScheduler",
+    "KnowledgeFetcher",
+    "KnowledgeSource",
+    "KnowledgeChunk",
+    "KnowledgeIndex",
+    "KnowledgeUpdateScheduler",
     "register_capabilities",
 ]
 
@@ -30,7 +34,7 @@ def register_capabilities(registry: Any) -> None:
 
     def _search_knowledge(params: dict, ctx: dict) -> dict:
         query = params["query"]
-        results = index.search(query) if hasattr(index, 'search') else []
+        results = index.search(query) if hasattr(index, "search") else []
         return {"results": results, "query": query}
 
     def _fetch_source(params: dict, ctx: dict) -> dict:
@@ -153,7 +157,10 @@ def register_capabilities(registry: Any) -> None:
             schema={
                 "type": "object",
                 "properties": {
-                    "source_id": {"type": "string", "description": "知识源 ID（可选，不指定则更新全部）"},
+                    "source_id": {
+                        "type": "string",
+                        "description": "知识源 ID（可选，不指定则更新全部）",
+                    },
                 },
             },
             tags=["knowledge", "update", "trigger", "更新"],

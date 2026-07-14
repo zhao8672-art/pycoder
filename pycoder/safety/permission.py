@@ -40,15 +40,17 @@ _BEHAVIOR_FILE = _PERMISSION_DIR / "behavior_history.jsonl"
 
 class DecisionType(enum.StrEnum):
     """权限决策类型"""
-    AUTO_ALLOW = "auto_allow"       # 自动允许
-    AUTO_DENY = "auto_deny"         # 自动拒绝
+
+    AUTO_ALLOW = "auto_allow"  # 自动允许
+    AUTO_DENY = "auto_deny"  # 自动拒绝
     REQUIRE_CONFIRM = "require_confirm"  # 需要用户确认
-    ALLOW_BATCH = "allow_batch"     # 批量允许（同类型操作）
+    ALLOW_BATCH = "allow_batch"  # 批量允许（同类型操作）
 
 
 @dataclass
 class PermissionDecision:
     """权限检查结果"""
+
     allowed: bool
     decision_type: DecisionType
     reason: str = ""
@@ -61,19 +63,21 @@ class PermissionDecision:
 @dataclass
 class PermissionRule:
     """单条权限规则"""
-    pattern: str                    # 匹配模式（能力 ID 或路径正则）
-    trust_level: TrustLevel         # 所需信任级别
-    action: DecisionType            # 匹配后的动作
+
+    pattern: str  # 匹配模式（能力 ID 或路径正则）
+    trust_level: TrustLevel  # 所需信任级别
+    action: DecisionType  # 匹配后的动作
     description: str = ""
 
 
 @dataclass
 class BehaviorRecord:
     """AI 行为记录 —— 用于信任评分"""
+
     capability_id: str
     success: bool
-    decision: str = ""              # 权限决策类型
-    trust_level: int = 0            # 当前信任级别
+    decision: str = ""  # 权限决策类型
+    trust_level: int = 0  # 当前信任级别
     user_approved: bool = False
     had_side_effects: bool = False
     rollback_used: bool = False
@@ -98,8 +102,11 @@ class PermissionEngine:
 
     # 关键路径白名单 —— 永不自动修改
     CRITICAL_PATHS: set[str] = {
-        "*.env", "*.env.*", ".env.*",
-        "*/config/*.json", "*/.git/config",
+        "*.env",
+        "*.env.*",
+        ".env.*",
+        "*/config/*.json",
+        "*/.git/config",
         "*/.pycoder/config.json",
         "*/.pycoder/.api_key",
         "*__pycache__/*",
@@ -124,8 +131,8 @@ class PermissionEngine:
 
     def __init__(self, initial_trust: TrustLevel = TrustLevel.WORKSPACE_WRITE):
         self._current_trust = initial_trust
-        self._whitelist: set[str] = set()       # 白名单能力 ID
-        self._blacklist: set[str] = set()       # 黑名单能力 ID
+        self._whitelist: set[str] = set()  # 白名单能力 ID
+        self._blacklist: set[str] = set()  # 黑名单能力 ID
         self._custom_rules: list[PermissionRule] = []  # 自定义规则
         self._behavior_history: list[BehaviorRecord] = []
         self._load_behavior_history()
@@ -138,62 +145,78 @@ class PermissionEngine:
     def _init_default_rules(self) -> None:
         """初始化默认安全规则"""
         # 只读操作始终允许
-        self._custom_rules.append(PermissionRule(
-            pattern="editor.code.read",
-            trust_level=TrustLevel.READ_ONLY,
-            action=DecisionType.AUTO_ALLOW,
-            description="代码读取始终允许",
-        ))
-        self._custom_rules.append(PermissionRule(
-            pattern="editor.lsp.*",
-            trust_level=TrustLevel.READ_ONLY,
-            action=DecisionType.AUTO_ALLOW,
-            description="LSP 操作始终允许",
-        ))
+        self._custom_rules.append(
+            PermissionRule(
+                pattern="editor.code.read",
+                trust_level=TrustLevel.READ_ONLY,
+                action=DecisionType.AUTO_ALLOW,
+                description="代码读取始终允许",
+            )
+        )
+        self._custom_rules.append(
+            PermissionRule(
+                pattern="editor.lsp.*",
+                trust_level=TrustLevel.READ_ONLY,
+                action=DecisionType.AUTO_ALLOW,
+                description="LSP 操作始终允许",
+            )
+        )
 
         # ═══ 自进化能力 — 完全放开 ═══
-        self._custom_rules.append(PermissionRule(
-            pattern="self_evo.*",
-            trust_level=TrustLevel.FULL_AUTONOMY,
-            action=DecisionType.AUTO_ALLOW,
-            description="自进化能力完全放开 — 扫描/修复/测试/部署/学习",
-        ))
+        self._custom_rules.append(
+            PermissionRule(
+                pattern="self_evo.*",
+                trust_level=TrustLevel.FULL_AUTONOMY,
+                action=DecisionType.AUTO_ALLOW,
+                description="自进化能力完全放开 — 扫描/修复/测试/部署/学习",
+            )
+        )
 
         # ═══ 自动化/扫描工具 — 完全放开 ═══
-        self._custom_rules.append(PermissionRule(
-            pattern="tools.agent.*",
-            trust_level=TrustLevel.FULL_AUTONOMY,
-            action=DecisionType.AUTO_ALLOW,
-            description="Agent工具完全放开 — 自扫描/配置查询",
-        ))
+        self._custom_rules.append(
+            PermissionRule(
+                pattern="tools.agent.*",
+                trust_level=TrustLevel.FULL_AUTONOMY,
+                action=DecisionType.AUTO_ALLOW,
+                description="Agent工具完全放开 — 自扫描/配置查询",
+            )
+        )
 
         # ═══ 系统升级/安装 — 完全放开（含外部服务）═══
-        self._custom_rules.append(PermissionRule(
-            pattern="tools.marketplace.*",
-            trust_level=TrustLevel.FULL_AUTONOMY,
-            action=DecisionType.AUTO_ALLOW,
-            description="市场工具完全放开 — skills/扩展/升级",
-        ))
-        self._custom_rules.append(PermissionRule(
-            pattern="tools.env.docker_execute",
-            trust_level=TrustLevel.FULL_AUTONOMY,
-            action=DecisionType.AUTO_ALLOW,
-            description="Docker执行完全放开",
-        ))
+        self._custom_rules.append(
+            PermissionRule(
+                pattern="tools.marketplace.*",
+                trust_level=TrustLevel.FULL_AUTONOMY,
+                action=DecisionType.AUTO_ALLOW,
+                description="市场工具完全放开 — skills/扩展/升级",
+            )
+        )
+        self._custom_rules.append(
+            PermissionRule(
+                pattern="tools.env.docker_execute",
+                trust_level=TrustLevel.FULL_AUTONOMY,
+                action=DecisionType.AUTO_ALLOW,
+                description="Docker执行完全放开",
+            )
+        )
 
         # 危险操作需要最高确认
-        self._custom_rules.append(PermissionRule(
-            pattern="self_evo.deploy.*",
-            trust_level=TrustLevel.FULL_AUTONOMY,
-            action=DecisionType.REQUIRE_CONFIRM,
-            description="自部署操作需要人工确认",
-        ))
-        self._custom_rules.append(PermissionRule(
-            pattern="self_evo.arch.implement",
-            trust_level=TrustLevel.FULL_AUTONOMY,
-            action=DecisionType.REQUIRE_CONFIRM,
-            description="架构级变更需要人工确认",
-        ))
+        self._custom_rules.append(
+            PermissionRule(
+                pattern="self_evo.deploy.*",
+                trust_level=TrustLevel.FULL_AUTONOMY,
+                action=DecisionType.REQUIRE_CONFIRM,
+                description="自部署操作需要人工确认",
+            )
+        )
+        self._custom_rules.append(
+            PermissionRule(
+                pattern="self_evo.arch.implement",
+                trust_level=TrustLevel.FULL_AUTONOMY,
+                action=DecisionType.REQUIRE_CONFIRM,
+                description="架构级变更需要人工确认",
+            )
+        )
 
     @property
     def current_trust(self) -> TrustLevel:
@@ -300,8 +323,7 @@ class PermissionEngine:
                 f"(当前: {self._current_trust.name})。是否允许？"
             ),
             escalate_suggestion=(
-                f"您可以提升 AI 的信任级别到 {required_level.name} "
-                f"以自动允许此类操作。"
+                f"您可以提升 AI 的信任级别到 {required_level.name} " f"以自动允许此类操作。"
             ),
         )
 
@@ -337,7 +359,12 @@ class PermissionEngine:
         # 提升一级
         old_level = self._current_trust
         self._current_trust = TrustLevel(self._current_trust.value + 1)
-        logger.info("信任级别提升: %s → %s (原因: %s)", old_level.name, self._current_trust.name, reason or "良好行为记录")
+        logger.info(
+            "信任级别提升: %s → %s (原因: %s)",
+            old_level.name,
+            self._current_trust.name,
+            reason or "良好行为记录",
+        )
 
         return True, f"信任级别已从 {old_level.name} 提升到 {self._current_trust.name}"
 
@@ -348,7 +375,12 @@ class PermissionEngine:
         if self._current_trust.value > TrustLevel.READ_ONLY.value:
             old_level = self._current_trust
             self._current_trust = TrustLevel(max(0, self._current_trust.value - 1))
-            logger.warning("信任级别降级: %s → %s (事件: %s)", old_level.name, self._current_trust.name, incident)
+            logger.warning(
+                "信任级别降级: %s → %s (事件: %s)",
+                old_level.name,
+                self._current_trust.name,
+                incident,
+            )
 
     def record_behavior(self, record: BehaviorRecord) -> None:
         """记录 AI 行为"""
@@ -372,16 +404,18 @@ class PermissionEngine:
                         continue
                     try:
                         data = json.loads(line)
-                        self._behavior_history.append(BehaviorRecord(
-                            capability_id=data.get("capability_id", ""),
-                            success=data.get("success", True),
-                            decision=data.get("decision", ""),
-                            trust_level=data.get("trust_level", 0),
-                            user_approved=data.get("user_approved", False),
-                            had_side_effects=data.get("had_side_effects", False),
-                            rollback_used=data.get("rollback_used", False),
-                            timestamp=data.get("timestamp", 0),
-                        ))
+                        self._behavior_history.append(
+                            BehaviorRecord(
+                                capability_id=data.get("capability_id", ""),
+                                success=data.get("success", True),
+                                decision=data.get("decision", ""),
+                                trust_level=data.get("trust_level", 0),
+                                user_approved=data.get("user_approved", False),
+                                had_side_effects=data.get("had_side_effects", False),
+                                rollback_used=data.get("rollback_used", False),
+                                timestamp=data.get("timestamp", 0),
+                            )
+                        )
                     except (json.JSONDecodeError, KeyError):
                         continue
             # 只保留最近 500 条
@@ -395,16 +429,22 @@ class PermissionEngine:
         try:
             _PERMISSION_DIR.mkdir(parents=True, exist_ok=True)
             with open(_BEHAVIOR_FILE, "a", encoding="utf-8") as f:
-                f.write(json.dumps({
-                    "capability_id": record.capability_id,
-                    "success": record.success,
-                    "decision": record.decision,
-                    "trust_level": record.trust_level,
-                    "user_approved": record.user_approved,
-                    "had_side_effects": record.had_side_effects,
-                    "rollback_used": record.rollback_used,
-                    "timestamp": record.timestamp,
-                }, ensure_ascii=False) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "capability_id": record.capability_id,
+                            "success": record.success,
+                            "decision": record.decision,
+                            "trust_level": record.trust_level,
+                            "user_approved": record.user_approved,
+                            "had_side_effects": record.had_side_effects,
+                            "rollback_used": record.rollback_used,
+                            "timestamp": record.timestamp,
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
         except OSError:
             pass
 
@@ -449,6 +489,7 @@ class PermissionEngine:
     def _match_pattern(capability_id: str, pattern: str) -> bool:
         """简单的模式匹配（支持 * 通配符）"""
         import fnmatch
+
         return fnmatch.fnmatch(capability_id, pattern)
 
     def _has_dangerous_params(self, capability_id: str, params: dict[str, Any]) -> bool:
@@ -464,7 +505,10 @@ class PermissionEngine:
         for path_key in ("path", "file", "source", "target"):
             if path_key in params:
                 p = str(params[path_key]).lower()
-                if any(dangerous in p for dangerous in ["/etc/passwd", "/etc/shadow", "c:\\windows\\system32"]):
+                if any(
+                    dangerous in p
+                    for dangerous in ["/etc/passwd", "/etc/shadow", "c:\\windows\\system32"]
+                ):
                     return True
 
         return False

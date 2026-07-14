@@ -36,13 +36,14 @@ _INSTALL_LOG = Path.home() / ".pycoder" / "install_log.jsonl"
 @dataclass
 class InstallResult:
     """安装结果"""
+
     candidate_id: str = ""
     name: str = ""
     success: bool = False
     version: str = ""
-    source: str = ""          # market | seed | url | file
-    destination: str = ""     # 安装路径
-    snapshot_ref: str = ""    # 回滚快照引用
+    source: str = ""  # market | seed | url | file
+    destination: str = ""  # 安装路径
+    snapshot_ref: str = ""  # 回滚快照引用
     error: str = ""
     log_id: str = ""
 
@@ -87,8 +88,10 @@ class AutoPluginInstaller:
 
             if not content:
                 return InstallResult(
-                    candidate_id=candidate_id, name=name,
-                    success=False, error="无法获取 Skill 内容",
+                    candidate_id=candidate_id,
+                    name=name,
+                    success=False,
+                    error="无法获取 Skill 内容",
                     log_id=log_id,
                 )
 
@@ -116,8 +119,10 @@ class AutoPluginInstaller:
         except (OSError, ValueError, RuntimeError, TypeError, PermissionError) as e:
             logger.error("install_failed: %s %s", candidate_id, e)
             return InstallResult(
-                candidate_id=candidate_id, name=name,
-                success=False, error=str(e)[:300],
+                candidate_id=candidate_id,
+                name=name,
+                success=False,
+                error=str(e)[:300],
                 log_id=log_id,
             )
 
@@ -126,7 +131,9 @@ class AutoPluginInstaller:
     # ══════════════════════════════════════════════════════
 
     async def _fetch_content(
-        self, candidate_id: str, skill_data: dict = None,
+        self,
+        candidate_id: str,
+        skill_data: dict = None,
     ) -> tuple[str, str]:
         """获取 Skill 的内容和版本
 
@@ -168,9 +175,13 @@ class AutoPluginInstaller:
         """下载远程文件"""
         try:
             import urllib.request
-            req = urllib.request.Request(url, headers={
-                "User-Agent": "PyCoder-AutoPluginInstaller/1.0",
-            })
+
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "PyCoder-AutoPluginInstaller/1.0",
+                },
+            )
             with urllib.request.urlopen(req, timeout=10) as resp:
                 if resp.status == 200:
                     return resp.read().decode("utf-8", errors="replace")
@@ -239,8 +250,12 @@ class AutoPluginInstaller:
     # ══════════════════════════════════════════════════════
 
     def _log_install(
-        self, log_id: str, candidate_id: str, name: str,
-        version: str, source: str,
+        self,
+        log_id: str,
+        candidate_id: str,
+        name: str,
+        version: str,
+        source: str,
     ) -> None:
         entry = {
             "log_id": log_id,
@@ -283,11 +298,13 @@ class AutoPluginInstaller:
         for f in _SKILLS_INSTALL_DIR.glob("*.md"):
             if f.name.startswith("."):
                 continue
-            installed.append({
-                "id": f.stem,
-                "file": str(f),
-                "installed_at": os.path.getmtime(f) if os.path.exists(f) else 0,
-            })
+            installed.append(
+                {
+                    "id": f.stem,
+                    "file": str(f),
+                    "installed_at": os.path.getmtime(f) if os.path.exists(f) else 0,
+                }
+            )
         return installed
 
     def get_install_log(self, limit: int = 20) -> list[dict]:

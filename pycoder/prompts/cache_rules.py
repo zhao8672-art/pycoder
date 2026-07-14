@@ -132,6 +132,7 @@ def _hash_prefix(messages: list[dict], prefix_len: int = 2) -> str:
 def _json_stable_dumps(obj, sort_keys: bool = True) -> str:
     """稳定的 JSON 序列化，确保相同结构相同序列"""
     import json
+
     return json.dumps(obj, ensure_ascii=False, sort_keys=sort_keys)
 
 

@@ -21,6 +21,7 @@ from typing import Any
 # resource 模块仅在 Unix 系统可用
 try:
     import resource  # noqa: F401
+
     _HAS_RESOURCE = True
 except ImportError:
     _HAS_RESOURCE = False
@@ -31,12 +32,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SandboxConfig:
     """沙箱配置"""
-    max_cpu_percent: float = 30.0        # CPU 使用率上限
-    max_memory_mb: int = 512             # 内存上限
-    max_disk_mb: int = 100               # 磁盘写入上限
-    max_timeout_seconds: float = 60.0    # 超时
-    allow_network: bool = False          # 是否允许网络
-    allow_file_write: bool = False       # 是否允许文件写入
+
+    max_cpu_percent: float = 30.0  # CPU 使用率上限
+    max_memory_mb: int = 512  # 内存上限
+    max_disk_mb: int = 100  # 磁盘写入上限
+    max_timeout_seconds: float = 60.0  # 超时
+    allow_network: bool = False  # 是否允许网络
+    allow_file_write: bool = False  # 是否允许文件写入
     allowed_paths: list[str] = field(default_factory=list)  # 允许的文件路径
     network_whitelist: list[str] = field(default_factory=list)  # 域名白名单
 
@@ -44,6 +46,7 @@ class SandboxConfig:
 @dataclass
 class SandboxResult:
     """沙箱执行结果"""
+
     success: bool
     output: str = ""
     error: str = ""
@@ -170,15 +173,59 @@ class CodeSandbox:
     """
 
     ALLOWED_BUILTINS = {
-        "abs", "all", "any", "ascii", "bin", "bool", "bytes",
-        "chr", "complex", "dict", "divmod", "enumerate", "filter",
-        "float", "format", "frozenset", "hash", "hex", "int",
-        "isinstance", "issubclass", "iter", "len", "list", "map",
-        "max", "min", "next", "object", "oct", "ord", "pow",
-        "range", "repr", "reversed", "round", "set", "slice",
-        "sorted", "str", "sum", "tuple", "type", "zip",
-        "True", "False", "None", "Exception", "ValueError",
-        "TypeError", "KeyError", "IndexError", "StopIteration",
+        "abs",
+        "all",
+        "any",
+        "ascii",
+        "bin",
+        "bool",
+        "bytes",
+        "chr",
+        "complex",
+        "dict",
+        "divmod",
+        "enumerate",
+        "filter",
+        "float",
+        "format",
+        "frozenset",
+        "hash",
+        "hex",
+        "int",
+        "isinstance",
+        "issubclass",
+        "iter",
+        "len",
+        "list",
+        "map",
+        "max",
+        "min",
+        "next",
+        "object",
+        "oct",
+        "ord",
+        "pow",
+        "range",
+        "repr",
+        "reversed",
+        "round",
+        "set",
+        "slice",
+        "sorted",
+        "str",
+        "sum",
+        "tuple",
+        "type",
+        "zip",
+        "True",
+        "False",
+        "None",
+        "Exception",
+        "ValueError",
+        "TypeError",
+        "KeyError",
+        "IndexError",
+        "StopIteration",
     }
 
     def __init__(self, timeout: float = 5.0):
@@ -283,7 +330,9 @@ class SandboxManager:
         self._sandboxes: dict[str, ProcessSandbox | CodeSandbox | PluginSandbox] = {}
         self._configs: dict[str, SandboxConfig] = {}
 
-    def create_process_sandbox(self, name: str, config: SandboxConfig | None = None) -> ProcessSandbox:
+    def create_process_sandbox(
+        self, name: str, config: SandboxConfig | None = None
+    ) -> ProcessSandbox:
         """创建进程沙箱"""
         sandbox = ProcessSandbox(config)
         self._sandboxes[name] = sandbox
@@ -296,7 +345,9 @@ class SandboxManager:
         self._sandboxes[name] = sandbox
         return sandbox
 
-    def create_plugin_sandbox(self, name: str, plugin_name: str, config: SandboxConfig | None = None) -> PluginSandbox:
+    def create_plugin_sandbox(
+        self, name: str, plugin_name: str, config: SandboxConfig | None = None
+    ) -> PluginSandbox:
         """创建插件沙箱"""
         sandbox = PluginSandbox(plugin_name, config)
         self._sandboxes[name] = sandbox

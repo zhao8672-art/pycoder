@@ -29,11 +29,12 @@ from dataclasses import dataclass
 @dataclass
 class DriftReport:
     """偏离检测报告"""
+
     is_drifting: bool
-    similarity: float        # 0-1 与目标的语义相似度
-    warning: str             # 提醒文本
-    suggested_action: str    # 建议操作 (refocus/confirm_new_goal/self_correct)
-    last_check_at: str       # 检查时间
+    similarity: float  # 0-1 与目标的语义相似度
+    warning: str  # 提醒文本
+    suggested_action: str  # 建议操作 (refocus/confirm_new_goal/self_correct)
+    last_check_at: str  # 检查时间
 
 
 class DriftDetector:
@@ -46,7 +47,7 @@ class DriftDetector:
     def __init__(self, sensitivity: float = 0.25, check_every_n: int = 5):
         self._goal: str = ""
         self._goal_keywords: set[str] = set()
-        self._sensitivity = sensitivity   # 相似度阈值，低于此值触发提醒
+        self._sensitivity = sensitivity  # 相似度阈值，低于此值触发提醒
         self._check_every_n = check_every_n  # 每 N 轮检查一次
         self._round_count: int = 0
         self._drift_count: int = 0
@@ -76,10 +77,43 @@ class DriftDetector:
     # ══════════════════════════════════════════════════════
 
     _STOP_WORDS = {
-        "的", "了", "是", "在", "和", "也", "都", "就", "但", "而",
-        "及", "与", "或", "着", "过", "之", "从", "对", "被",
-        "the", "a", "an", "is", "are", "was", "were", "be", "been",
-        "to", "of", "in", "for", "on", "with", "at", "by", "from",
+        "的",
+        "了",
+        "是",
+        "在",
+        "和",
+        "也",
+        "都",
+        "就",
+        "但",
+        "而",
+        "及",
+        "与",
+        "或",
+        "着",
+        "过",
+        "之",
+        "从",
+        "对",
+        "被",
+        "the",
+        "a",
+        "an",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "to",
+        "of",
+        "in",
+        "for",
+        "on",
+        "with",
+        "at",
+        "by",
+        "from",
     }
 
     @classmethod
@@ -118,7 +152,7 @@ class DriftDetector:
     def _extract_bigrams(text: str) -> set[tuple]:
         """提取 2-gram 用于短语匹配"""
         words = re.findall(r"[a-zA-Z\u4e00-\u9fff]+", text.lower())
-        return {tuple(words[i:i + 2]) for i in range(len(words) - 1)}
+        return {tuple(words[i : i + 2]) for i in range(len(words) - 1)}
 
     # ══════════════════════════════════════════════════════
     # 偏离检测
@@ -183,8 +217,7 @@ class DriftDetector:
     def generate_review_prompt(self) -> str:
         """生成任务回顾提示文本（注入 LLM 调用）"""
         elapsed = int(
-            (time.monotonic() - self._session_start_time)
-            if self._session_start_time > 0 else 0
+            (time.monotonic() - self._session_start_time) if self._session_start_time > 0 else 0
         )
         lines = [
             "## 🔄 任务回顾",
@@ -200,9 +233,7 @@ class DriftDetector:
                 f"请确认当前方向是否仍然正确"
             )
 
-        lines.append(
-            "请基于以上信息，输出当前任务的进展状态和下一步计划。"
-        )
+        lines.append("请基于以上信息，输出当前任务的进展状态和下一步计划。")
         return "\n".join(lines)
 
     def reset(self) -> None:

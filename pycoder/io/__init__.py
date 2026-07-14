@@ -1,4 +1,5 @@
 """智能 IO 模块 — 大文件智能读取与索引"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -8,7 +9,11 @@ from pycoder.io.file_indexer import FileIndex, FileIndexer, SymbolDef
 from pycoder.io.smart_reader import SmartReader
 
 __all__ = [
-    "FileIndexer", "FileIndex", "SymbolDef", "SmartReader", "ChunkCache",
+    "FileIndexer",
+    "FileIndex",
+    "SymbolDef",
+    "SmartReader",
+    "ChunkCache",
     "register_capabilities",
 ]
 
@@ -43,6 +48,7 @@ def register_capabilities(registry: Any) -> None:
 
     def _search_symbol(params: dict, ctx: dict) -> dict:
         from pycoder.io.file_indexer import FileIndexer
+
         indexer = FileIndexer()
         full_path = Path.cwd() / params["file_path"]
         index = indexer.index_file(full_path)
@@ -53,7 +59,10 @@ def register_capabilities(registry: Any) -> None:
         return {
             "file_path": params["file_path"],
             "symbol_name": symbol_name,
-            "matches": [{"name": s.name, "kind": s.kind, "start_line": s.start_line, "end_line": s.end_line} for s in matches],
+            "matches": [
+                {"name": s.name, "kind": s.kind, "start_line": s.start_line, "end_line": s.end_line}
+                for s in matches
+            ],
         }
 
     registry.register(

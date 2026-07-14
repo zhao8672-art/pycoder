@@ -1,4 +1,5 @@
 """会话记忆模块 — 跨会话上下文自动保存与恢复"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -6,7 +7,8 @@ from typing import Any
 from pycoder.memory.session_memory import SessionMemory, SessionMemoryEngine
 
 __all__ = [
-    "SessionMemoryEngine", "SessionMemory",
+    "SessionMemoryEngine",
+    "SessionMemory",
     "register_capabilities",
 ]
 

@@ -51,6 +51,7 @@ class SubprocessSandbox:
 
         # 向后兼容：未注入时惰性导入 (DEPRECATED, v1.0 移除)
         import logging
+
         logging.getLogger(__name__).warning(
             "SubprocessSandbox 未通过 DI 注入 run_fn。"
             "请使用 registry.register(CodeSandbox, SubprocessSandbox(run_fn=...))。"

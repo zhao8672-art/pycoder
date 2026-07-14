@@ -1,4 +1,5 @@
 """跨工作区 API — 工作区注册、共享文件读取、共享策略管理"""
+
 from __future__ import annotations
 
 import logging

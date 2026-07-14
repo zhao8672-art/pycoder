@@ -20,13 +20,16 @@ logger = logging.getLogger(__name__)
 @dataclass
 class HealthReport:
     """健康检查报告"""
+
     overall_ok: bool
     mode_status: dict[str, bool]
     issues: list[str]
     suggestions: list[str]
 
 
-def check_mode_health(mode_name: str, duration_ms: int, success: bool, error: str = "") -> HealthReport:
+def check_mode_health(
+    mode_name: str, duration_ms: int, success: bool, error: str = ""
+) -> HealthReport:
     """检查单个模式执行后的健康状况。
 
     Args:

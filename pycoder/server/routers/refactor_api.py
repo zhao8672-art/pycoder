@@ -79,8 +79,7 @@ async def refactor_analyze(req: dict):
     return {
         "success": result.success,
         "issues": [
-            {"type": i.type, "severity": i.severity, "message": i.message}
-            for i in result.issues
+            {"type": i.type, "severity": i.severity, "message": i.message} for i in result.issues
         ],
         "summary": result.summary,
     }

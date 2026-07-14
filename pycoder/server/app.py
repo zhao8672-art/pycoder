@@ -214,6 +214,7 @@ async def lifespan(app: FastAPI):
     try:
         from pycoder.plugins.base import PluginRegistry
         from pycoder.plugins.hermes_plugin import HermesPlugin
+
         reg = PluginRegistry()
         reg.register(HermesPlugin())
         global _plugin_registry
@@ -226,6 +227,7 @@ async def lifespan(app: FastAPI):
     # ── 自动升级检查：恢复中断的升级 ──
     try:
         from pycoder.capabilities.self_evo.upgrade import check_pending_on_startup
+
         result = check_pending_on_startup()
         if result and result.get("status") == "pending":
             _logger.info("auto_upgrade_pending: %s", result)
@@ -268,12 +270,12 @@ def _check_environment_tools() -> None:
             return
 
         for tool in report["required_missing"]:
-            _logger.warning("env_tool_missing: name=%s, required=True, error=%s",
-                            tool.name, tool.error)
+            _logger.warning(
+                "env_tool_missing: name=%s, required=True, error=%s", tool.name, tool.error
+            )
 
         for tool in report["version_issues"]:
-            _logger.warning("env_tool_version_low: name=%s, version=%s",
-                            tool.name, tool.version)
+            _logger.warning("env_tool_version_low: name=%s, version=%s", tool.name, tool.version)
 
         for tool in report["optional_missing"]:
             _logger.info("env_tool_optional_missing: name=%s", tool.name)
@@ -416,6 +418,7 @@ def get_plugin_registry():
     try:
         from pycoder.plugins.base import PluginRegistry
         from pycoder.plugins.hermes_plugin import HermesPlugin
+
         _plugin_registry = PluginRegistry()
         _plugin_registry.register(HermesPlugin())
         _logger.info("plugin_registry_auto_init: registered=hermes")
@@ -631,9 +634,7 @@ async def v2_engine_status():
         "by_category": engine.registry.count_by_category(),
         "trust_level": engine.permission.current_trust.name,
         "consciousness_mode": (
-            engine.consciousness.mode.value
-            if engine.config.enable_consciousness
-            else "disabled"
+            engine.consciousness.mode.value if engine.config.enable_consciousness else "disabled"
         ),
         "self_evo_enabled": engine.config.enable_self_evo,
         "modules_loaded": len(engine.modules._loaded) if hasattr(engine.modules, "_loaded") else 0,

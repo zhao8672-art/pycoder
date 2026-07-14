@@ -1,4 +1,5 @@
 """浏览器增强模块 — MCP 浏览器工具优化"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -8,8 +9,11 @@ from pycoder.browser.browser_pool import BrowserInstance, BrowserPool
 from pycoder.browser.proxy_manager import ProxyCacheManager
 
 __all__ = [
-    "BrowserPool", "BrowserInstance", "ProxyCacheManager",
-    "BrowserAccessControl", "BrowserAccessPolicy",
+    "BrowserPool",
+    "BrowserInstance",
+    "ProxyCacheManager",
+    "BrowserAccessControl",
+    "BrowserAccessPolicy",
     "register_capabilities",
 ]
 
@@ -33,6 +37,7 @@ def register_capabilities(registry: Any) -> None:
 
     def _check_rate_limit(params: dict, ctx: dict) -> dict:
         from urllib.parse import urlparse
+
         parsed = urlparse(params["url"])
         domain = parsed.netloc or parsed.hostname or ""
         allowed = acl.check_rate_limit(domain)
@@ -40,20 +45,23 @@ def register_capabilities(registry: Any) -> None:
 
     def _set_access_policy(params: dict, ctx: dict) -> dict:
         from pycoder.browser.access_control import BrowserAccessPolicy
+
         acl._policy = BrowserAccessPolicy(
             allowed_domains=params.get("allowed_domains", acl._policy.allowed_domains),
             blocked_domains=params.get("blocked_domains", acl._policy.blocked_domains),
-            max_requests_per_minute=params.get("max_requests_per_minute", acl._policy.max_requests_per_minute),
+            max_requests_per_minute=params.get(
+                "max_requests_per_minute", acl._policy.max_requests_per_minute
+            ),
             block_private_ips=params.get("block_private_ips", acl._policy.block_private_ips),
         )
         return {"success": True}
 
     def _get_cache(params: dict, ctx: dict) -> dict:
-        cached = cache.get(params["url"]) if hasattr(cache, 'get') else None
+        cached = cache.get(params["url"]) if hasattr(cache, "get") else None
         return {"cached": cached is not None, "content": cached}
 
     def _set_cache(params: dict, ctx: dict) -> dict:
-        if hasattr(cache, 'set'):
+        if hasattr(cache, "set"):
             cache.set(params["url"], params["content"])
         return {"success": True}
 

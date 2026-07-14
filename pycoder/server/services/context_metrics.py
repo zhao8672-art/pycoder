@@ -29,10 +29,11 @@ from dataclasses import dataclass, field
 @dataclass
 class MetricsSnapshot:
     """指标快照"""
-    continuity_score: int = 0        # 0-100
-    anchor_hit_rate: float = 0.0     # 0-1
-    drift_rate: float = 0.0          # 0-1
-    context_relevance: float = 0.0   # 0-1
+
+    continuity_score: int = 0  # 0-100
+    anchor_hit_rate: float = 0.0  # 0-1
+    drift_rate: float = 0.0  # 0-1
+    context_relevance: float = 0.0  # 0-1
     total_anchors: int = 0
     total_anchors_hit: int = 0
     total_drift_checks: int = 0
@@ -100,12 +101,14 @@ class ContextMetrics:
             rating: 1-5 评分
             comment: 自由文本意见
         """
-        self._user_feedback.append({
-            "type": feedback_type,
-            "rating": rating,
-            "comment": comment,
-            "timestamp": time.time(),
-        })
+        self._user_feedback.append(
+            {
+                "type": feedback_type,
+                "rating": rating,
+                "comment": comment,
+                "timestamp": time.time(),
+            }
+        )
 
     # ══════════════════════════════════════════════════════
     # A/B 测试
@@ -141,22 +144,18 @@ class ContextMetrics:
         snapshot = MetricsSnapshot(
             total_anchors=total_anchors,
             total_anchors_hit=self._anchor_hits,
-            anchor_hit_rate=(
-                self._anchor_hits / max(total_anchors, 1)
-            ),
+            anchor_hit_rate=(self._anchor_hits / max(total_anchors, 1)),
             total_drift_checks=self._drift_checks,
             total_drift_detected=self._drift_detected,
-            drift_rate=(
-                self._drift_detected / max(self._drift_checks, 1)
-            ),
+            drift_rate=(self._drift_detected / max(self._drift_checks, 1)),
             context_relevance=self._calc_relevance(),
             avg_response_time_ms=(
                 int(sum(self._response_times) / max(len(self._response_times), 1))
-                if self._response_times else 0
+                if self._response_times
+                else 0
             ),
             session_duration_s=(
-                int(time.monotonic() - self._session_start)
-                if self._session_start > 0 else 0
+                int(time.monotonic() - self._session_start) if self._session_start > 0 else 0
             ),
             continuity_score=self._calc_continuity(),
             notes=list(self._notes[-5:]),
@@ -176,7 +175,8 @@ class ContextMetrics:
         drift_rate = self._drift_detected / max(self._drift_checks, 1)
         relevance = (
             self._context_injections / max(total_anchors, 1)
-            if self._context_injections > 0 else 0.5
+            if self._context_injections > 0
+            else 0.5
         )
 
         # 锚点命中率贡献 40%

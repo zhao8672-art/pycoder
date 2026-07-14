@@ -30,15 +30,16 @@ from pathlib import Path
 @dataclass
 class EvaluationResult:
     """单次评估结果"""
+
     candidate_id: str = ""
     name: str = ""
-    overall_score: float = 0.0       # 0-100 综合分
-    quality_score: float = 0.0       # 0-40  质量与社区评分
-    compatibility: float = 0.0       # 0-25  环境兼容性
-    security_score: float = 0.0      # 0-20  安全检查
-    maintenance: float = 0.0         # 0-15  维护活跃度
+    overall_score: float = 0.0  # 0-100 综合分
+    quality_score: float = 0.0  # 0-40  质量与社区评分
+    compatibility: float = 0.0  # 0-25  环境兼容性
+    security_score: float = 0.0  # 0-20  安全检查
+    maintenance: float = 0.0  # 0-15  维护活跃度
     warnings: list[str] = None
-    passed: bool = False             # ≥60 分通过
+    passed: bool = False  # ≥60 分通过
 
 
 class AutoPluginEvaluator:
@@ -162,6 +163,7 @@ class AutoPluginEvaluator:
 
         # 最近 6 个月有更新: +2
         import datetime
+
         pushed = data.get("pushed_at")
         if pushed:
             try:
@@ -233,9 +235,7 @@ class AutoPluginEvaluator:
 
     def _save_cache(self) -> None:
         self._CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        data = {"evaluations": {
-            k: v.__dict__ for k, v in self._eval_cache.items()
-        }}
+        data = {"evaluations": {k: v.__dict__ for k, v in self._eval_cache.items()}}
         self._CONFIG_PATH.write_text(
             json.dumps(data, ensure_ascii=False, indent=2),
             encoding="utf-8",

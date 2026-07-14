@@ -78,9 +78,7 @@ class SelfEvolutionEngine(_V2SelfEvolutionEngine):
 
     def _git_stash_backup(self) -> str:
         """创建 .evobak 备份并记录到清单"""
-        backup_id = hashlib.sha256(
-            f"{time.time()}:{uuid.uuid4()}".encode()
-        ).hexdigest()[:12]
+        backup_id = hashlib.sha256(f"{time.time()}:{uuid.uuid4()}".encode()).hexdigest()[:12]
         pycoder_dir = self._project_root / "pycoder"
         backed_up: list[str] = []
 
@@ -96,11 +94,13 @@ class SelfEvolutionEngine(_V2SelfEvolutionEngine):
                     pass
 
         manifest = self._load_backup_manifest()
-        manifest["backups"].append({
-            "id": backup_id,
-            "files": backed_up,
-            "timestamp": time.time(),
-        })
+        manifest["backups"].append(
+            {
+                "id": backup_id,
+                "files": backed_up,
+                "timestamp": time.time(),
+            }
+        )
         self._save_backup_manifest(manifest)
         return backup_id
 
@@ -229,7 +229,10 @@ class SelfEvolutionEngine(_V2SelfEvolutionEngine):
         """异步静态分析（ruff 优先）"""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "ruff", "check", "--output-format", "json",
+                "ruff",
+                "check",
+                "--output-format",
+                "json",
                 str(self._project_root / "pycoder"),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -284,6 +287,7 @@ class SelfEvolutionEngine(_V2SelfEvolutionEngine):
             )
         except (ImportError, RuntimeError, OSError, ValueError, TypeError) as e:
             import logging
+
             logging.getLogger(__name__).debug("record_learning_failed: %s", e)
 
     # ══════════════════════════════════════════════════════
@@ -296,7 +300,11 @@ class SelfEvolutionEngine(_V2SelfEvolutionEngine):
 
     def start_watcher(self, interval: int = 300) -> dict:
         if self._watch_active:
-            return {"success": True, "message": "自动监控已在运行", "interval": self._watch_interval}
+            return {
+                "success": True,
+                "message": "自动监控已在运行",
+                "interval": self._watch_interval,
+            }
         self._watch_interval = max(interval, 60)
         self._watch_active = True
         self._last_watch_hash = self._compute_project_hash()
@@ -317,6 +325,7 @@ class SelfEvolutionEngine(_V2SelfEvolutionEngine):
     async def _watch_loop(self) -> None:
         """后台监控循环"""
         import logging
+
         log = logging.getLogger(__name__)
         while self._watch_active:
             try:
@@ -342,9 +351,11 @@ class SelfEvolutionEngine(_V2SelfEvolutionEngine):
         return self._stats.to_dict()
 
     def list_tasks(self, limit: int = 20) -> list[dict]:
-        return [
-            t.to_dict() for t in self._tasks[-limit:]
-        ] if hasattr(self, "_tasks") else super().list_tasks(limit=limit)
+        return (
+            [t.to_dict() for t in self._tasks[-limit:]]
+            if hasattr(self, "_tasks")
+            else super().list_tasks(limit=limit)
+        )
 
     def get_task(self, task_id: str) -> dict | None:
         if hasattr(self, "_tasks"):

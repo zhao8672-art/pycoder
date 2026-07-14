@@ -3,6 +3,7 @@
 管理 LSP 服务器的启动/停止/健康检查/按需懒加载。
 支持 5 种语言：Python, TypeScript/JavaScript, Java, C++, Go。
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -25,6 +26,7 @@ class LSPStatus(Enum):
 @dataclass
 class LSPServerConfig:
     """LSP 服务器配置"""
+
     language: str
     command: list[str]
     file_extensions: list[str]
@@ -146,7 +148,4 @@ class LSPManager:
 
     def get_supported_extensions(self) -> dict[str, list[str]]:
         """获取支持的文件扩展名映射"""
-        return {
-            lang: state.config.file_extensions
-            for lang, state in self._servers.items()
-        }
+        return {lang: state.config.file_extensions for lang, state in self._servers.items()}

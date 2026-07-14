@@ -3,6 +3,7 @@
 在沙箱隔离的前提下，通过路径白名单 + 边界检查实现安全跨工作区读写。
 只读共享直接读取，读写共享使用 copy-on-write 临时层。
 """
+
 from __future__ import annotations
 
 import shutil
@@ -66,8 +67,7 @@ class ShareSandbox:
 
         return resolved.read_text(encoding="utf-8")
 
-    def write_file(self, caller_ws: str, target_ws: str, rel_path: str,
-                   content: str) -> None:
+    def write_file(self, caller_ws: str, target_ws: str, rel_path: str, content: str) -> None:
         """向目标工作区写入（copy-on-write 临时层）
 
         Args:
@@ -90,9 +90,7 @@ class ShareSandbox:
             raise PermissionError(f"路径 {rel_path} 不在共享白名单中")
 
         if target_ws not in self._temp_layers:
-            self._temp_layers[target_ws] = Path(
-                tempfile.mkdtemp(prefix="ws_share_")
-            )
+            self._temp_layers[target_ws] = Path(tempfile.mkdtemp(prefix="ws_share_"))
 
         layer_path = self._temp_layers[target_ws] / rel_path
         layer_path.parent.mkdir(parents=True, exist_ok=True)
@@ -137,7 +135,4 @@ class ShareSandbox:
     def _is_path_allowed(rel_path: str, allowed: list[str]) -> bool:
         if not allowed:
             return True  # 空列表 = 允许全部
-        return any(
-            rel_path == p.rstrip("/") or rel_path.startswith(p)
-            for p in allowed
-        )
+        return any(rel_path == p.rstrip("/") or rel_path.startswith(p) for p in allowed)

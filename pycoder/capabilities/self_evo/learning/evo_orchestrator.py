@@ -54,16 +54,17 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EvolutionCycleReport:
     """一次进化周期的完整报告"""
+
     cycle_id: str = ""
     files_scanned: int = 0
     files_cached: int = 0
     issues_found: int = 0
-    hot_rule_fixes: int = 0        # 热规则命中
-    llm_fixes: int = 0              # LLM 深度修复
+    hot_rule_fixes: int = 0  # 热规则命中
+    llm_fixes: int = 0  # LLM 深度修复
     fixes_applied: int = 0
     fixes_verified: int = 0
     quality_scores: list[float] = field(default_factory=list)
-    grade_trend: str = "stable"     # improving / stable / declining
+    grade_trend: str = "stable"  # improving / stable / declining
     duration_ms: float = 0.0
     error: str = ""
     warnings: list[str] = field(default_factory=list)
@@ -108,9 +109,9 @@ class EvoOrchestrator:
             # ── 阶段 1: 增量扫描（缓存命中则跳过）──
             changed_files = self.cache.get_changed_files(target_dir)
             cached_count = 0
-            all_files = len(list(__import__('pathlib').Path(target_dir).rglob("*.py")))
+            all_files = len(list(__import__("pathlib").Path(target_dir).rglob("*.py")))
 
-            if hasattr(self.cache, '_scans'):
+            if hasattr(self.cache, "_scans"):
                 cached_count = len(self.cache._scans)
 
             if not changed_files:
@@ -132,7 +133,7 @@ class EvoOrchestrator:
                 return report
 
             # ── 阶段 3: 错误分类 + 热规则优先修复 ──
-            for issue in issues[:max_fixes * 2]:
+            for issue in issues[: max_fixes * 2]:
                 ticket = self.classifier.open_ticket(
                     error_signature=issue.get("title", "")[:200],
                     error_message=issue.get("description", ""),
@@ -146,13 +147,16 @@ class EvoOrchestrator:
                 if hot_rule and hot_rule.success_rate >= 0.8:
                     report.hot_rule_fixes += 1
                     self.cache.register_hot_rule(
-                        ticket.error_signature, hot_rule.fix_template, hot_rule.success_rate,
+                        ticket.error_signature,
+                        hot_rule.fix_template,
+                        hot_rule.success_rate,
                     )
                     self.classifier.mark_fixed(ticket.error_signature, "hot_rule")
 
             # ── 阶段 4: LLM 深度修复（仅复杂问题）──
             complex_issues = [
-                i for i in issues
+                i
+                for i in issues
                 if i.get("severity") in ("critical", "high")
                 and not self.cache.find_rule(i.get("title", ""))
             ][:max_fixes]
@@ -161,9 +165,7 @@ class EvoOrchestrator:
                 for issue in complex_issues:
                     try:
                         original = self._read_file(issue["file"])
-                        fix_proposal = await self.engine.generate_fix(
-                            self._to_code_issue(issue)
-                        )
+                        fix_proposal = await self.engine.generate_fix(self._to_code_issue(issue))
                         result = await self.engine.apply_fix(fix_proposal)
                         if result and result.success:
                             report.llm_fixes += 1
@@ -172,7 +174,8 @@ class EvoOrchestrator:
                             # 修复质量评估
                             modified = self._read_file(issue["file"])
                             grade = self.evaluator.evaluate_fix(
-                                original, modified or "",
+                                original,
+                                modified or "",
                                 result.test_result or "",
                             )
                             report.quality_scores.append(grade.total)
@@ -180,7 +183,8 @@ class EvoOrchestrator:
                             # 二次验证
                             if grade.passed and result.test_passed:
                                 self.classifier.verify_fix(
-                                    issue.get("title", ""), "test",
+                                    issue.get("title", ""),
+                                    "test",
                                 )
                                 report.fixes_verified += 1
                                 report.tickets_closed += 1
@@ -231,17 +235,24 @@ class EvoOrchestrator:
             # 实际扫描（通过 engine 或 AST）
             try:
                 from pathlib import Path
+
                 source = Path(fpath).read_text(encoding="utf-8", errors="replace")
                 import ast
+
                 tree = ast.parse(source)
                 file_issues = self._scan_ast(tree, fpath, source)
                 issues.extend(file_issues)
                 self.cache.mark_scanned(fpath, fhash, file_issues)
             except SyntaxError as e:
-                issues.append({
-                    "file": fpath, "line": 1, "severity": "critical",
-                    "issue_type": "bug", "title": f"语法错误: {e}",
-                })
+                issues.append(
+                    {
+                        "file": fpath,
+                        "line": 1,
+                        "severity": "critical",
+                        "issue_type": "bug",
+                        "title": f"语法错误: {e}",
+                    }
+                )
             except (OSError, ValueError, AttributeError):
                 pass
         return issues
@@ -250,26 +261,37 @@ class EvoOrchestrator:
     def _scan_ast(tree, fpath: str, source: str) -> list[dict]:
         """AST 静态扫描"""
         import ast
+
         issues: list[dict] = []
         for node in ast.walk(tree):
             if isinstance(node, ast.ExceptHandler) and node.type is None:
-                issues.append({
-                    "file": fpath, "line": node.lineno, "severity": "high",
-                    "issue_type": "bug", "title": "裸 except 吞掉所有异常",
-                })
+                issues.append(
+                    {
+                        "file": fpath,
+                        "line": node.lineno,
+                        "severity": "high",
+                        "issue_type": "bug",
+                        "title": "裸 except 吞掉所有异常",
+                    }
+                )
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
                 if node.func.id in ("eval", "exec"):
-                    issues.append({
-                        "file": fpath, "line": node.lineno, "severity": "critical",
-                        "issue_type": "security",
-                        "title": f"使用了危险函数 '{node.func.id}'",
-                    })
+                    issues.append(
+                        {
+                            "file": fpath,
+                            "line": node.lineno,
+                            "severity": "critical",
+                            "issue_type": "security",
+                            "title": f"使用了危险函数 '{node.func.id}'",
+                        }
+                    )
         return issues
 
     @staticmethod
     def _read_file(file_path: str) -> str:
         try:
             from pathlib import Path
+
             return Path(file_path).read_text(encoding="utf-8", errors="replace")
         except (OSError, ValueError):
             return ""
@@ -279,6 +301,7 @@ class EvoOrchestrator:
         """将 dict 转换为 CodeIssue"""
         try:
             from pycoder.capabilities.self_evo.engine import CodeIssue
+
             return CodeIssue(
                 file=issue.get("file", ""),
                 line=issue.get("line", 0),
@@ -299,9 +322,7 @@ class EvoOrchestrator:
         return {
             "cycle_count": self._cycle_count,
             "total_fixes": self._total_fixes,
-            "avg_latency_ms": (
-                self._total_latency_ms // max(self._cycle_count, 1)
-            ),
+            "avg_latency_ms": (self._total_latency_ms // max(self._cycle_count, 1)),
             "cache": self.cache.get_stats(),
             "evaluator_trend": self.evaluator.get_trend(),
             "classifier": self.classifier.get_stats(),

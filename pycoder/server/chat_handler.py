@@ -348,20 +348,24 @@ async def _run_chat_stream(
     audit_trace_id = str(uuid.uuid4())
     try:
         from pycoder.server.app import get_v2_engine
+
         v2_engine = get_v2_engine()
         if v2_engine:
             from pycoder.safety.audit import AuditRecord
-            v2_engine.audit.log(AuditRecord(
-                trace_id=audit_trace_id,
-                capability_id="chat.send_message",
-                params_summary=message[:200],
-                permission_level=0,
-                decision="auto_allow",
-                user_confirmed=False,
-                success=True,
-                session_id=session_id or "",
-                caller="user",
-            ))
+
+            v2_engine.audit.log(
+                AuditRecord(
+                    trace_id=audit_trace_id,
+                    capability_id="chat.send_message",
+                    params_summary=message[:200],
+                    permission_level=0,
+                    decision="auto_allow",
+                    user_confirmed=False,
+                    success=True,
+                    session_id=session_id or "",
+                    caller="user",
+                )
+            )
     except (ImportError, AttributeError, TypeError, ValueError) as e:
         logger.debug("audit_log_failed", extra={"error": str(e)})
 

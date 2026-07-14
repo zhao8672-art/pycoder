@@ -27,22 +27,24 @@ logger = logging.getLogger(__name__)
 
 class OperatingMode(enum.StrEnum):
     """AI 运行模式"""
-    IDLE = "idle"          # 低功耗监听，仅处理关键事件
-    AWARE = "aware"        # 主动感知，分析变化，预判需求
-    FOCUSED = "focused"    # 全速运行，执行复杂任务
-    REFLECT = "reflect"    # 回顾已完成任务，总结经验
+
+    IDLE = "idle"  # 低功耗监听，仅处理关键事件
+    AWARE = "aware"  # 主动感知，分析变化，预判需求
+    FOCUSED = "focused"  # 全速运行，执行复杂任务
+    REFLECT = "reflect"  # 回顾已完成任务，总结经验
 
 
 @dataclass
 class SystemEvent:
     """系统事件"""
-    event_type: str              # 事件类型
-    source: str = ""             # 事件来源
-    summary: str = ""            # 摘要
-    severity: str = "info"       # info / warning / error / critical
+
+    event_type: str  # 事件类型
+    source: str = ""  # 事件来源
+    summary: str = ""  # 摘要
+    severity: str = "info"  # info / warning / error / critical
     data: dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=time.time)
-    auto_fixable: bool = False   # 是否可以自动修复
+    auto_fixable: bool = False  # 是否可以自动修复
 
 
 class ConsciousnessEngine:
@@ -61,9 +63,9 @@ class ConsciousnessEngine:
         self._event_queue: asyncio.Queue[SystemEvent] = asyncio.Queue()
         self._handlers: dict[str, list[Callable]] = defaultdict(list)
         self._attention_thresholds: dict[str, int] = {
-            "file_save": 5,       # 5 次保存后合并为一次分析
-            "error": 1,           # 错误立即处理
-            "warning": 2,         # 警告累积 2 次处理
+            "file_save": 5,  # 5 次保存后合并为一次分析
+            "error": 1,  # 错误立即处理
+            "warning": 2,  # 警告累积 2 次处理
         }
         self._event_buffers: dict[str, list[SystemEvent]] = defaultdict(list)
         self._last_action_time: float = 0.0
@@ -154,9 +156,7 @@ class ConsciousnessEngine:
         return {
             "mode": self._mode.value,
             "queue_size": self._event_queue.qsize(),
-            "buffered_events": {
-                k: len(v) for k, v in self._event_buffers.items()
-            },
+            "buffered_events": {k: len(v) for k, v in self._event_buffers.items()},
             "last_action_seconds_ago": time.time() - self._last_action_time,
         }
 

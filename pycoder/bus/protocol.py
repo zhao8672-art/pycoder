@@ -24,48 +24,63 @@ from typing import Any, Protocol
 
 class CapabilityCategory(enum.StrEnum):
     """能力所属的功能域"""
-    EDITOR = "editor"       # 编辑器能力：代码编辑、LSP、重构
-    SYSTEM = "system"       # 系统能力：文件操作、Shell、Git
-    SELF_EVO = "self_evo"   # 自进化能力：代码分析、自修复
-    PLUGIN = "plugin"       # 动态插件能力
+
+    EDITOR = "editor"  # 编辑器能力：代码编辑、LSP、重构
+    SYSTEM = "system"  # 系统能力：文件操作、Shell、Git
+    SELF_EVO = "self_evo"  # 自进化能力：代码分析、自修复
+    PLUGIN = "plugin"  # 动态插件能力
 
 
 class ExecutionMode(enum.StrEnum):
     """能力执行的三种模式"""
-    SYNC = "sync"           # 同步执行，立即返回结果
-    STREAM = "stream"       # 流式执行，逐块返回
-    ASYNC = "async"         # 异步执行，返回 task_id
+
+    SYNC = "sync"  # 同步执行，立即返回结果
+    STREAM = "stream"  # 流式执行，逐块返回
+    ASYNC = "async"  # 异步执行，返回 task_id
 
 
 class SideEffect(enum.StrEnum):
     """操作的副作用类型"""
-    NONE = "none"               # 无副作用（只读）
-    FILE_READ = "file_read"     # 读取文件
-    FILE_WRITE = "file_write"   # 写入文件
-    FILE_DELETE = "file_delete" # 删除文件
-    NETWORK = "network"         # 网络请求
-    PROCESS = "process"         # 进程操作
-    SYSTEM = "system"           # 系统级操作
-    SELF_MODIFY = "self_modify" # 修改自身代码
+
+    NONE = "none"  # 无副作用（只读）
+    FILE_READ = "file_read"  # 读取文件
+    FILE_WRITE = "file_write"  # 写入文件
+    FILE_DELETE = "file_delete"  # 删除文件
+    NETWORK = "network"  # 网络请求
+    PROCESS = "process"  # 进程操作
+    SYSTEM = "system"  # 系统级操作
+    SELF_MODIFY = "self_modify"  # 修改自身代码
 
 
 class TrustLevel(int, enum.Enum):
     """五级渐进信任模型"""
-    READ_ONLY = 0           # 只读：文件读取、代码分析
-    WORKSPACE_WRITE = 1     # 工作区写入：创建/编辑文件
-    PROJECT_WRITE = 2       # 项目写入：Git、测试、Shell
-    SYSTEM_ACCESS = 3       # 系统访问：包管理、网络
-    FULL_AUTONOMY = 4       # 完全自主：修改自身代码、重启服务
+
+    READ_ONLY = 0  # 只读：文件读取、代码分析
+    WORKSPACE_WRITE = 1  # 工作区写入：创建/编辑文件
+    PROJECT_WRITE = 2  # 项目写入：Git、测试、Shell
+    SYSTEM_ACCESS = 3  # 系统访问：包管理、网络
+    FULL_AUTONOMY = 4  # 完全自主：修改自身代码、重启服务
 
 
 # 权限级别到副作用类型的映射
 PERMISSION_SIDE_EFFECT_MAP: dict[TrustLevel, set[SideEffect]] = {
     TrustLevel.READ_ONLY: {SideEffect.NONE, SideEffect.FILE_READ},
     TrustLevel.WORKSPACE_WRITE: {SideEffect.NONE, SideEffect.FILE_READ, SideEffect.FILE_WRITE},
-    TrustLevel.PROJECT_WRITE: {SideEffect.NONE, SideEffect.FILE_READ, SideEffect.FILE_WRITE,
-                                SideEffect.FILE_DELETE, SideEffect.PROCESS},
-    TrustLevel.SYSTEM_ACCESS: {SideEffect.NONE, SideEffect.FILE_READ, SideEffect.FILE_WRITE,
-                                SideEffect.FILE_DELETE, SideEffect.PROCESS, SideEffect.NETWORK},
+    TrustLevel.PROJECT_WRITE: {
+        SideEffect.NONE,
+        SideEffect.FILE_READ,
+        SideEffect.FILE_WRITE,
+        SideEffect.FILE_DELETE,
+        SideEffect.PROCESS,
+    },
+    TrustLevel.SYSTEM_ACCESS: {
+        SideEffect.NONE,
+        SideEffect.FILE_READ,
+        SideEffect.FILE_WRITE,
+        SideEffect.FILE_DELETE,
+        SideEffect.PROCESS,
+        SideEffect.NETWORK,
+    },
     TrustLevel.FULL_AUTONOMY: set(SideEffect),  # 所有副作用
 }
 
@@ -78,6 +93,7 @@ PERMISSION_SIDE_EFFECT_MAP: dict[TrustLevel, set[SideEffect]] = {
 @dataclass
 class RetryPolicy:
     """重试策略"""
+
     max_retries: int = 2
     backoff_multiplier: float = 1.5
     retryable_exceptions: tuple[type[Exception], ...] = (TimeoutError, ConnectionError)
@@ -100,11 +116,12 @@ class CapabilityDefinition:
             side_effects=[SideEffect.FILE_READ],
         )
     """
-    id: str                              # 唯一标识，使用点分隔命名: "domain.subdomain.action"
-    name: str                            # 人类可读的名称
-    description: str                     # 功能描述（供 AI 理解能力用途）
-    category: CapabilityCategory         # 所属功能域
-    permission: TrustLevel               # 所需的最低权限级别
+
+    id: str  # 唯一标识，使用点分隔命名: "domain.subdomain.action"
+    name: str  # 人类可读的名称
+    description: str  # 功能描述（供 AI 理解能力用途）
+    category: CapabilityCategory  # 所属功能域
+    permission: TrustLevel  # 所需的最低权限级别
     execution: ExecutionMode = ExecutionMode.SYNC  # 执行模式
     side_effects: list[SideEffect] = field(default_factory=lambda: [SideEffect.NONE])
 
@@ -112,7 +129,7 @@ class CapabilityDefinition:
     version: str = "1.0.0"
     timeout_ms: int = 30000
     retry_policy: RetryPolicy | None = None
-    rollback_support: bool = False       # 是否支持回滚
+    rollback_support: bool = False  # 是否支持回滚
     schema: dict[str, Any] = field(default_factory=dict)  # JSON Schema
     tags: list[str] = field(default_factory=list)
     deprecated: bool = False
@@ -126,7 +143,8 @@ class CapabilityDefinition:
         return {
             "name": self.id.replace(".", "_"),
             "description": self.description,
-            "inputSchema": self.schema or {
+            "inputSchema": self.schema
+            or {
                 "type": "object",
                 "properties": {},
             },
@@ -138,9 +156,15 @@ class CapabilityDefinition:
             "id": self.id,
             "name": self.name,
             "description": self.description,
-            "category": self.category.value if hasattr(self.category, 'value') else str(self.category),
-            "permission": self.permission.name if hasattr(self.permission, 'name') else str(self.permission),
-            "execution": self.execution.value if hasattr(self.execution, 'value') else str(self.execution),
+            "category": (
+                self.category.value if hasattr(self.category, "value") else str(self.category)
+            ),
+            "permission": (
+                self.permission.name if hasattr(self.permission, "name") else str(self.permission)
+            ),
+            "execution": (
+                self.execution.value if hasattr(self.execution, "value") else str(self.execution)
+            ),
             "tags": self.tags,
             "version": self.version,
             "deprecated": self.deprecated,
@@ -150,6 +174,7 @@ class CapabilityDefinition:
 @dataclass
 class CapabilityCall:
     """一次能力调用的请求"""
+
     capability_id: str
     params: dict[str, Any]
     trace_id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -162,6 +187,7 @@ class CapabilityCall:
 @dataclass
 class CapabilityResult:
     """能力调用的结果"""
+
     trace_id: str
     capability_id: str
     success: bool
@@ -170,15 +196,16 @@ class CapabilityResult:
     error_code: str | None = None
     duration_ms: float = 0.0
     side_effects_applied: list[SideEffect] = field(default_factory=list)
-    rollback_id: str | None = None      # 如果支持回滚，提供回滚 ID
+    rollback_id: str | None = None  # 如果支持回滚，提供回滚 ID
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class CapabilityEvent:
     """流式执行中的单个事件"""
+
     trace_id: str
-    event_type: str                     # "data" | "progress" | "error" | "done"
+    event_type: str  # "data" | "progress" | "error" | "done"
     data: Any = None
     progress_pct: float = 0.0
     message: str = ""
@@ -188,6 +215,7 @@ class CapabilityEvent:
 @dataclass
 class CallTrace:
     """全链路追踪记录"""
+
     trace_id: str
     capability_id: str
     params_summary: str
@@ -269,6 +297,7 @@ class ProtocolAdapter(Protocol):
 
 class MCPAdapter:
     """MCP (Model Context Protocol) v2 适配器"""
+
     protocol_name = "mcp_v2"
 
     async def translate_request(self, raw_request: dict[str, Any]) -> CapabilityCall:
@@ -290,6 +319,7 @@ class MCPAdapter:
 
 class GRPCAdapter:
     """gRPC 适配器（高性能内部通信）"""
+
     protocol_name = "grpc"
 
     async def translate_request(self, raw_request: Any) -> CapabilityCall:
@@ -310,6 +340,7 @@ class GRPCAdapter:
 
 class InternalAdapter:
     """内部模块直接调用适配器 —— 零开销"""
+
     protocol_name = "internal"
 
     async def translate_request(self, raw_request: CapabilityCall) -> CapabilityCall:

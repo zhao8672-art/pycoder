@@ -71,6 +71,7 @@ class UnifiedAgentLoop:
         # 构建系统提示词（注入缓存优化规则）
         system_prompt = strategy.system_prompt
         from pycoder.prompts.cache_rules import inject_cache_rules
+
         system_prompt = inject_cache_rules(system_prompt, lang="zh")
         if context:
             system_prompt += f"\n\n## 上下文\n{context}"
@@ -91,9 +92,7 @@ class UnifiedAgentLoop:
             '格式: {"tool_calls": [{"name": "工具名", "params": {}}]}'
         )
         if strategy.enable_rumination:
-            analysis_prompt += (
-                "\n\n每完成3步工具调用后，进行反思复盘。"
-            )
+            analysis_prompt += "\n\n每完成3步工具调用后，进行反思复盘。"
 
         response_text = ""
 
@@ -112,8 +111,7 @@ class UnifiedAgentLoop:
                 prompt = analysis_prompt
             elif self._last_iteration_had_tools:
                 prompt = (
-                    "以上是工具执行结果。如需继续请输出 JSON 工具调用。"
-                    "已完成请直接输出总结。"
+                    "以上是工具执行结果。如需继续请输出 JSON 工具调用。" "已完成请直接输出总结。"
                 )
             else:
                 # 上一轮没有工具调用 → 用强制指令
@@ -170,10 +168,14 @@ class UnifiedAgentLoop:
             if not parsed.tool_calls and not parsed.file_blocks:
                 if iteration == 1:
                     parsed.completion = False
-                    logger.info("agent_loop_p0_no_tools_and_no_files iteration=1 len=%d", len(response_text))
+                    logger.info(
+                        "agent_loop_p0_no_tools_and_no_files iteration=1 len=%d", len(response_text)
+                    )
                 elif iteration == 2:
                     parsed.completion = False
-                    logger.info("agent_loop_p1_no_tools_and_no_files iteration=2 len=%d", len(response_text))
+                    logger.info(
+                        "agent_loop_p1_no_tools_and_no_files iteration=2 len=%d", len(response_text)
+                    )
 
             # 3. 完成信号检测
             if parsed.completion:
@@ -217,10 +219,10 @@ class UnifiedAgentLoop:
                 if iteration == 1:
                     p0_msg = (
                         "(系统提示：上一轮输出没有包含任何 JSON 工具调用。"
-                        "你必须以 {\"tool_calls\": [...]} 格式输出工具调用。"
+                        '你必须以 {"tool_calls": [...]} 格式输出工具调用。'
                         "不要用文字描述你要做什么，直接输出 JSON 格式的工具调用。"
-                        "例如：{\"tool_calls\": [{\"name\": \"list_files\", \"params\": {\"path\": \".\"}}, "
-                        "{\"name\": \"git_status\", \"params\": {}}]}"
+                        '例如：{"tool_calls": [{"name": "list_files", "params": {"path": "."}}, '
+                        '{"name": "git_status", "params": {}}]}'
                         "这是第一次警告。)"
                     )
                     bridge.add_message("assistant", p0_msg)
@@ -231,7 +233,7 @@ class UnifiedAgentLoop:
                         "(第二次警告：你仍然没有调用任何工具！"
                         "你被设计为必须使用 JSON 格式调用工具。"
                         "输出格式必须是："
-                        "{\"tool_calls\": [{\"name\": \"工具名\", \"params\": {}}]}"
+                        '{"tool_calls": [{"name": "工具名", "params": {}}]}'
                         "不要输出任何文字描述，直接输出 JSON。"
                         "如果第三次仍然不调用工具，任务将标记为失败。)"
                     )

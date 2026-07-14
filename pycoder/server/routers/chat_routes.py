@@ -21,6 +21,7 @@ async def inline_completion(req: Request):
         prefix = str(body.get("prefix", ""))[-200:]
         max_tokens = min(int(body.get("maxTokens", 30)), 50)
         from pycoder.server.chat_bridge import ChatBridge
+
         bridge = ChatBridge()
         bridge.config.max_tokens = max_tokens
         bridge.config.temperature = 0.2

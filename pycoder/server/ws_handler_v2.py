@@ -93,15 +93,22 @@ async def websocket_chat_v2(ws: WebSocket):
                     if ssid:
                         share_mgr.join(client_id, ssid, ws.send_text)
                         count = share_mgr.get_shared_sessions(ssid)
-                        await ws.send_json({
-                            "type": "session_share_status", "share_session_id": ssid,
-                            "shared_count": count,
-                        })
+                        await ws.send_json(
+                            {
+                                "type": "session_share_status",
+                                "share_session_id": ssid,
+                                "shared_count": count,
+                            }
+                        )
                 else:
                     share_mgr.leave(client_id)
-                    await ws.send_json({
-                        "type": "session_share_status", "share_session_id": "", "shared_count": 0,
-                    })
+                    await ws.send_json(
+                        {
+                            "type": "session_share_status",
+                            "share_session_id": "",
+                            "shared_count": 0,
+                        }
+                    )
                 continue
 
             if msg_type == "switch_session":
@@ -113,34 +120,45 @@ async def websocket_chat_v2(ws: WebSocket):
 
             if msg_type == "list_sessions":
                 sessions = store.list_sessions(limit=20)
-                await ws.send_json({
-                    "type": "session_list",
-                    "sessions": [s.to_dict() for s in sessions],
-                })
+                await ws.send_json(
+                    {
+                        "type": "session_list",
+                        "sessions": [s.to_dict() for s in sessions],
+                    }
+                )
                 continue
 
             if msg_type == "history":
                 sid = msg.get("session_id", session_id)
                 messages = store.get_messages(sid)
-                await ws.send_json({
-                    "type": "history", "session_id": sid,
-                    "messages": [m.to_dict() for m in messages],
-                })
+                await ws.send_json(
+                    {
+                        "type": "history",
+                        "session_id": sid,
+                        "messages": [m.to_dict() for m in messages],
+                    }
+                )
                 continue
 
             # ── V2 专用消息: 列出能力 ──
             if msg_type == "v2_capabilities":
                 if v2:
                     caps = v2.registry.list_all()
-                    await ws.send_json({
-                        "type": "v2_capabilities",
-                        "capabilities": [c.to_dict() for c in caps],
-                        "total": len(caps),
-                    })
+                    await ws.send_json(
+                        {
+                            "type": "v2_capabilities",
+                            "capabilities": [c.to_dict() for c in caps],
+                            "total": len(caps),
+                        }
+                    )
                 else:
-                    await ws.send_json({
-                        "type": "v2_capabilities", "capabilities": [], "total": 0,
-                    })
+                    await ws.send_json(
+                        {
+                            "type": "v2_capabilities",
+                            "capabilities": [],
+                            "total": 0,
+                        }
+                    )
                 continue
 
             # ── V2 专用消息: 直接调用能力 ──
@@ -148,39 +166,48 @@ async def websocket_chat_v2(ws: WebSocket):
                 cap_id = msg.get("capability_id", "")
                 cap_params = msg.get("params", {})
                 if not cap_id:
-                    await ws.send_json({"type": "error", "message": "v2_call requires 'capability_id'"})
+                    await ws.send_json(
+                        {"type": "error", "message": "v2_call requires 'capability_id'"}
+                    )
                     continue
                 if v2:
                     try:
                         result = await v2.call(cap_id, cap_params)
                         # 如果能力未找到，自动尝试 v1. 前缀
-                        if (not getattr(result, "success", True) and
-                                not cap_id.startswith("v1.")):
+                        if not getattr(result, "success", True) and not cap_id.startswith("v1."):
                             try:
-                                alt = await v2.call(
-                                    f"v1.{cap_id}", cap_params
-                                )
+                                alt = await v2.call(f"v1.{cap_id}", cap_params)
                                 if getattr(alt, "success", False):
                                     result = alt
                             except Exception:
                                 pass
-                        await ws.send_json({
+                        await ws.send_json(
+                            {
+                                "type": "v2_call_result",
+                                "capability_id": cap_id,
+                                "success": getattr(result, "success", False),
+                                "data": getattr(result, "data", None),
+                                "error": getattr(result, "error", ""),
+                            }
+                        )
+                    except Exception as e:
+                        await ws.send_json(
+                            {
+                                "type": "v2_call_result",
+                                "capability_id": cap_id,
+                                "success": False,
+                                "error": str(e),
+                            }
+                        )
+                else:
+                    await ws.send_json(
+                        {
                             "type": "v2_call_result",
                             "capability_id": cap_id,
-                            "success": getattr(result, "success", False),
-                            "data": getattr(result, "data", None),
-                            "error": getattr(result, "error", ""),
-                        })
-                    except Exception as e:
-                        await ws.send_json({
-                            "type": "v2_call_result", "capability_id": cap_id,
-                            "success": False, "error": str(e),
-                        })
-                else:
-                    await ws.send_json({
-                        "type": "v2_call_result", "capability_id": cap_id,
-                        "success": False, "error": "V2 engine not available",
-                    })
+                            "success": False,
+                            "error": "V2 engine not available",
+                        }
+                    )
                 continue
 
             # ── execute_plan / agent 模式（委托给 V1 handler）──
@@ -189,11 +216,14 @@ async def websocket_chat_v2(ws: WebSocket):
                     plan_content = msg.get("plan", "")
                     model = msg.get("model", current_model)
                     if not plan_content:
-                        await ws.send_json({"type": "error", "message": "execute_plan requires 'plan' field"})
+                        await ws.send_json(
+                            {"type": "error", "message": "execute_plan requires 'plan' field"}
+                        )
                         continue
                     from pycoder.server.services.agent_orchestrator import (
                         agent_chat_stream as agent_stream,
                     )
+
                     async for event in agent_stream(plan_content, model=model):
                         await ws.send_json(event)
                         await asyncio.sleep(0)
@@ -207,23 +237,32 @@ async def websocket_chat_v2(ws: WebSocket):
                 file_path = msg.get("path", "")
                 file_content = msg.get("content", "")
                 if not file_path:
-                    await ws.send_json({"type": "error", "message": "write_file requires 'path' field"})
+                    await ws.send_json(
+                        {"type": "error", "message": "write_file requires 'path' field"}
+                    )
                     continue
                 # V2: 通过能力总线执行写文件
                 if v2:
-                    result = await v2.call("editor.file.write", {"path": file_path, "content": file_content})
+                    result = await v2.call(
+                        "editor.file.write", {"path": file_path, "content": file_content}
+                    )
                     if result.success:
-                        await ws.send_json({"type": "file_write_result", "success": True, "path": file_path})
+                        await ws.send_json(
+                            {"type": "file_write_result", "success": True, "path": file_path}
+                        )
                     else:
-                        await ws.send_json({"type": "error", "message": result.error or "Write failed"})
+                        await ws.send_json(
+                            {"type": "error", "message": result.error or "Write failed"}
+                        )
                 else:
                     result = await _execute_hermes_write(file_path, file_content)
                     await ws.send_json({"type": "file_write_result", **result})
                 continue
 
             if msg_type in ("project_tree", "file_open", "diff_preview", "git_status"):
-                await _handle_legacy_file_ops(msg_type, msg, ws, v2,
-                                              _get_project_tree, _get_diff_preview, _get_git_status)
+                await _handle_legacy_file_ops(
+                    msg_type, msg, ws, v2, _get_project_tree, _get_diff_preview, _get_git_status
+                )
                 continue
 
             # ── MCP 工具调用（V2: 通过能力总线）──
@@ -280,17 +319,20 @@ async def _handle_chat_v2(msg: dict, ws: WebSocket, session_id: str, current_mod
     if v2:
         try:
             from pycoder.safety.audit import AuditRecord
-            v2.audit.log(AuditRecord(
-                trace_id=str(uuid.uuid4()),
-                capability_id="chat.send_message",
-                params_summary=message[:200],
-                permission_level=0,
-                decision="auto_allow",
-                user_confirmed=False,
-                success=True,
-                session_id=session_id,
-                caller="user",
-            ))
+
+            v2.audit.log(
+                AuditRecord(
+                    trace_id=str(uuid.uuid4()),
+                    capability_id="chat.send_message",
+                    params_summary=message[:200],
+                    permission_level=0,
+                    decision="auto_allow",
+                    user_confirmed=False,
+                    success=True,
+                    session_id=session_id,
+                    caller="user",
+                )
+            )
         except (ImportError, AttributeError, TypeError, ValueError):
             pass
 
@@ -313,6 +355,7 @@ async def _handle_chat_v2(msg: dict, ws: WebSocket, session_id: str, current_mod
             store.add_message(session_id, "assistant", final_content)
         except (OSError, ValueError, RuntimeError) as e:
             import logging
+
             logging.getLogger(__name__).warning(
                 "save_message_failed",
                 extra={"session_id": session_id, "error": str(e)},
@@ -332,15 +375,17 @@ async def _handle_mcp_v2(msg_type: str, msg: dict, ws: WebSocket, v2):
             tools = await mgr.list_remote_tools(server_name)
             remote_tools.extend(tools)
 
-        await ws.send_json({
-            "type": "mcp_tools",
-            "builtin": builtin,
-            "remote": remote_tools,
-            "connected_servers": mgr.connected_servers,
-            "total": len(builtin) + len(remote_tools),
-            # V2: 额外返回 V2 总线中的能力数
-            "v2_capabilities": v2.registry.count if v2 else 0,
-        })
+        await ws.send_json(
+            {
+                "type": "mcp_tools",
+                "builtin": builtin,
+                "remote": remote_tools,
+                "connected_servers": mgr.connected_servers,
+                "total": len(builtin) + len(remote_tools),
+                # V2: 额外返回 V2 总线中的能力数
+                "v2_capabilities": v2.registry.count if v2 else 0,
+            }
+        )
         return
 
     if msg_type == "mcp_call":
@@ -356,13 +401,16 @@ async def _handle_mcp_v2(msg_type: str, msg: dict, ws: WebSocket, v2):
             v2_id = f"v1.{tool_name}" if not tool_name.startswith("v1.") else tool_name
             try:
                 result = await v2.call(v2_id, tool_args)
-                await ws.send_json({
-                    "type": "mcp_result", "tool": tool_name,
-                    "success": result.success,
-                    "output": result.data,
-                    "error": result.error,
-                    "via": "v2_bus",
-                })
+                await ws.send_json(
+                    {
+                        "type": "mcp_result",
+                        "tool": tool_name,
+                        "success": result.success,
+                        "output": result.data,
+                        "error": result.error,
+                        "via": "v2_bus",
+                    }
+                )
                 return
             except (AttributeError, TypeError, ValueError):
                 pass  # 回退到 V1 路径
@@ -376,18 +424,28 @@ async def _handle_mcp_v2(msg_type: str, msg: dict, ws: WebSocket, v2):
                 server_name, remote_tool = parts
                 mgr = get_mcp_client_manager()
                 result = await mgr.call_remote_tool(server_name, remote_tool, tool_args)
-                await ws.send_json({
-                    "type": "mcp_result", "tool": tool_name,
-                    "success": result.success, "output": result.output, "error": result.error,
-                })
+                await ws.send_json(
+                    {
+                        "type": "mcp_result",
+                        "tool": tool_name,
+                        "success": result.success,
+                        "output": result.output,
+                        "error": result.error,
+                    }
+                )
             else:
                 await ws.send_json({"type": "error", "message": f"无效的外部工具引用: {tool_name}"})
         else:
             result = await call_builtin_tool(tool_name, tool_args)
-            await ws.send_json({
-                "type": "mcp_result", "tool": tool_name,
-                "success": result.success, "output": result.output, "error": result.error,
-            })
+            await ws.send_json(
+                {
+                    "type": "mcp_result",
+                    "tool": tool_name,
+                    "success": result.success,
+                    "output": result.output,
+                    "error": result.error,
+                }
+            )
         return
 
     # mcp_connect / mcp_disconnect
@@ -396,9 +454,12 @@ async def _handle_mcp_v2(msg_type: str, msg: dict, ws: WebSocket, v2):
         command = msg.get("command", "")
         cmd_args = msg.get("args", [])
         if not server_name or not command:
-            await ws.send_json({"type": "error", "message": "mcp_connect requires 'name' and 'command'"})
+            await ws.send_json(
+                {"type": "error", "message": "mcp_connect requires 'name' and 'command'"}
+            )
             return
         from pycoder.server.mcp_tools import get_mcp_client_manager
+
         mgr = get_mcp_client_manager()
         ok = await mgr.connect_stdio(server_name, command, *cmd_args)
         await ws.send_json({"type": "mcp_connect_result", "name": server_name, "success": ok})
@@ -410,13 +471,15 @@ async def _handle_mcp_v2(msg_type: str, msg: dict, ws: WebSocket, v2):
             await ws.send_json({"type": "error", "message": "mcp_disconnect requires 'name'"})
             return
         from pycoder.server.mcp_tools import get_mcp_client_manager
+
         mgr = get_mcp_client_manager()
         await mgr.disconnect(server_name)
         await ws.send_json({"type": "mcp_disconnect_result", "name": server_name, "success": True})
 
 
-async def _handle_legacy_file_ops(msg_type, msg, ws, v2,
-                                   _get_project_tree, _get_diff_preview, _get_git_status):
+async def _handle_legacy_file_ops(
+    msg_type, msg, ws, v2, _get_project_tree, _get_diff_preview, _get_git_status
+):
     """V2 文件操作 — 委托给能力总线或回退 V1"""
     try:
         if msg_type == "project_tree":
@@ -435,10 +498,16 @@ async def _handle_legacy_file_ops(msg_type, msg, ws, v2,
                 return
             content = target.read_text(encoding="utf-8")
             stat = target.stat()
-            await ws.send_json({
-                "type": "file_open", "path": str(target), "name": target.name,
-                "content": content, "size": stat.st_size, "modified_at": stat.st_mtime,
-            })
+            await ws.send_json(
+                {
+                    "type": "file_open",
+                    "path": str(target),
+                    "name": target.name,
+                    "content": content,
+                    "size": stat.st_size,
+                    "modified_at": stat.st_mtime,
+                }
+            )
         elif msg_type == "diff_preview":
             diff_data = await _get_diff_preview(msg.get("file"), msg.get("staged", False))
             await ws.send_json({"type": "diff_preview", **diff_data})
@@ -457,10 +526,12 @@ async def _handle_inline_edit(msg: dict, ws: WebSocket):
     request_id = msg.get("request_id", "")
 
     if not code_snippet or not instruction:
-        await ws.send_json({
-            "type": "error",
-            "message": "inline_edit requires 'code' and 'instruction'",
-        })
+        await ws.send_json(
+            {
+                "type": "error",
+                "message": "inline_edit requires 'code' and 'instruction'",
+            }
+        )
         return
 
     prompt = (
@@ -490,8 +561,10 @@ async def _handle_inline_edit(msg: dict, ws: WebSocket):
         elif event.event_type == "done":
             result = event.content or result
 
-    await ws.send_json({
-        "type": "inline_edit_result",
-        "code": result.strip(),
-        "request_id": request_id,
-    })
+    await ws.send_json(
+        {
+            "type": "inline_edit_result",
+            "code": result.strip(),
+            "request_id": request_id,
+        }
+    )

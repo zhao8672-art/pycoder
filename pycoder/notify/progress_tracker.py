@@ -2,6 +2,7 @@
 
 维护任务进度快照历史，基于近期速率预估剩余时间。
 """
+
 from __future__ import annotations
 
 import time
@@ -11,6 +12,7 @@ from dataclasses import dataclass, field
 @dataclass
 class ProgressSnapshot:
     """进度快照"""
+
     progress: float
     message: str
     timestamp: float = field(default_factory=time.time)
@@ -33,9 +35,12 @@ class ProgressTracker:
         """记录进度快照"""
         if task_id not in self._snapshots:
             self._snapshots[task_id] = []
-        self._snapshots[task_id].append(ProgressSnapshot(
-            progress=progress, message=message,
-        ))
+        self._snapshots[task_id].append(
+            ProgressSnapshot(
+                progress=progress,
+                message=message,
+            )
+        )
 
     def estimate_remaining(self, task_id: str) -> float | None:
         """预估剩余时间（秒）
@@ -64,8 +69,7 @@ class ProgressTracker:
     def get_history(self, task_id: str) -> list[dict]:
         """获取进度历史"""
         return [
-            {"progress": s.progress, "message": s.message,
-             "timestamp": s.timestamp}
+            {"progress": s.progress, "message": s.message, "timestamp": s.timestamp}
             for s in self._snapshots.get(task_id, [])
         ]
 
@@ -75,8 +79,7 @@ class ProgressTracker:
         if not snaps:
             return None
         s = snaps[-1]
-        return {"progress": s.progress, "message": s.message,
-                "timestamp": s.timestamp}
+        return {"progress": s.progress, "message": s.message, "timestamp": s.timestamp}
 
     def clear(self, task_id: str):
         """清除某任务的进度记录"""

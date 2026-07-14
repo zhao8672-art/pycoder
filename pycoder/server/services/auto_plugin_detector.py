@@ -84,12 +84,13 @@ _TECH_STACK_SKILLS: dict[str, list[str]] = {
 @dataclass
 class CapabilityNeed:
     """能力需求描述"""
-    capability: str          # 能力名称 (如 "code-review")
-    name: str                # 人类可读名称 (如 "Code Review Skill")
-    need_type: str           # "plugin" | "skill" | "extension"
-    reason: str              # 为什么需要
-    confidence: float        # 0-1 置信度
-    tech_stack: str = ""     # 关联的技术栈
+
+    capability: str  # 能力名称 (如 "code-review")
+    name: str  # 人类可读名称 (如 "Code Review Skill")
+    need_type: str  # "plugin" | "skill" | "extension"
+    reason: str  # 为什么需要
+    confidence: float  # 0-1 置信度
+    tech_stack: str = ""  # 关联的技术栈
 
 
 class AutoPluginDetector:
@@ -138,13 +139,15 @@ class AutoPluginDetector:
             recommended = _TASK_SKILL_MAP.get(task_type, [])
             for skill_id in recommended:
                 if skill_id not in installed_set:
-                    needs.append(CapabilityNeed(
-                        capability=skill_id,
-                        name=self._to_readable_name(skill_id),
-                        need_type="skill",
-                        reason=f"任务类型「{task_type}」推荐关联 Skill",
-                        confidence=0.7,
-                    ))
+                    needs.append(
+                        CapabilityNeed(
+                            capability=skill_id,
+                            name=self._to_readable_name(skill_id),
+                            need_type="skill",
+                            reason=f"任务类型「{task_type}」推荐关联 Skill",
+                            confidence=0.7,
+                        )
+                    )
 
         # 2. 技术栈检测 → 推荐 Skills
         tech_stacks = self._detect_tech_stack(message)
@@ -154,14 +157,16 @@ class AutoPluginDetector:
                 if skill_id not in installed_set and not any(
                     n.capability == skill_id for n in needs
                 ):
-                    needs.append(CapabilityNeed(
-                        capability=skill_id,
-                        name=self._to_readable_name(skill_id),
-                        need_type="skill",
-                        reason=f"技术栈「{ts}」推荐关联 Skill",
-                        confidence=0.75,
-                        tech_stack=ts,
-                    ))
+                    needs.append(
+                        CapabilityNeed(
+                            capability=skill_id,
+                            name=self._to_readable_name(skill_id),
+                            need_type="skill",
+                            reason=f"技术栈「{ts}」推荐关联 Skill",
+                            confidence=0.75,
+                            tech_stack=ts,
+                        )
+                    )
 
         # 3. 从 Skills Market 搜索匹配
         try:
@@ -203,11 +208,14 @@ class AutoPluginDetector:
     # ══════════════════════════════════════════════════════
 
     async def _search_market(
-        self, message: str, installed_set: set[str],
+        self,
+        message: str,
+        installed_set: set[str],
     ) -> list[CapabilityNeed]:
         """通过 Skills Market 搜索相关技能"""
         try:
             from pycoder.server.skills_market_v2 import EnhancedSkillsMarketManager
+
             market = EnhancedSkillsMarketManager()
 
             # 提取关键词
@@ -225,21 +233,27 @@ class AutoPluginDetector:
                         if isinstance(item, dict):
                             sid = item.get("id", "")
                             sname = item.get("name", "") or item.get("id", "")
-                        if sid and sid not in installed_set and not any(
-                            n.capability == sid for n in needs
+                        if (
+                            sid
+                            and sid not in installed_set
+                            and not any(n.capability == sid for n in needs)
                         ):
-                            needs.append(CapabilityNeed(
-                                capability=sid,
-                                name=sname,
-                                need_type="skill",
-                                reason=f"关键词「{kw}」搜索推荐",
-                                confidence=0.6,
-                            ))
+                            needs.append(
+                                CapabilityNeed(
+                                    capability=sid,
+                                    name=sname,
+                                    need_type="skill",
+                                    reason=f"关键词「{kw}」搜索推荐",
+                                    confidence=0.6,
+                                )
+                            )
             return needs
         except (ImportError, AttributeError, TypeError, ValueError) as e:
             import logging
+
             logging.getLogger(__name__).debug(
-                "market_search_failed: %s", e,
+                "market_search_failed: %s",
+                e,
             )
             return []
 

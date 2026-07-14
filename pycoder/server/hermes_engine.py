@@ -5,8 +5,6 @@ Hermes structured task engine (simplified shim).
 
 from __future__ import annotations
 
-from pathlib import Path
-
 
 async def _execute_hermes_write(file_path: str, file_content: str) -> dict:
     """执行文件写入 (kept for backward compatibility)"""

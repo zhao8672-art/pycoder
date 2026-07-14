@@ -3,6 +3,7 @@
 使用 SQLite 持久化缓存，避免重复解析。
 支持增量更新：文件内容哈希不变时复用缓存。
 """
+
 from __future__ import annotations
 
 import ast
@@ -14,8 +15,9 @@ from pathlib import Path
 @dataclass
 class SymbolDef:
     """符号定义"""
+
     name: str
-    kind: str   # "function" | "class" | "method" | "import"
+    kind: str  # "function" | "class" | "method" | "import"
     start_line: int
     end_line: int
     parent: str = ""
@@ -24,6 +26,7 @@ class SymbolDef:
 @dataclass
 class FileIndex:
     """文件索引"""
+
     path: str
     content_hash: str
     total_lines: int
@@ -110,19 +113,23 @@ class FileIndexer:
             tree = ast.parse(source)
             for node in ast.walk(tree):
                 if isinstance(node, ast.FunctionDef):
-                    symbols.append(SymbolDef(
-                        name=node.name,
-                        kind="function",
-                        start_line=node.lineno,
-                        end_line=node.end_lineno or node.lineno,
-                    ))
+                    symbols.append(
+                        SymbolDef(
+                            name=node.name,
+                            kind="function",
+                            start_line=node.lineno,
+                            end_line=node.end_lineno or node.lineno,
+                        )
+                    )
                 elif isinstance(node, ast.ClassDef):
-                    symbols.append(SymbolDef(
-                        name=node.name,
-                        kind="class",
-                        start_line=node.lineno,
-                        end_line=node.end_lineno or node.lineno,
-                    ))
+                    symbols.append(
+                        SymbolDef(
+                            name=node.name,
+                            kind="class",
+                            start_line=node.lineno,
+                            end_line=node.end_lineno or node.lineno,
+                        )
+                    )
         except SyntaxError:
             pass
         return symbols

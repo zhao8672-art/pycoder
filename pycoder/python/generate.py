@@ -32,10 +32,20 @@ def _infer_name(description: str) -> str:
     cleaned = re.sub(r"^(FastAPI|Flask|Django|Express|Spring\s*Boot)\s+", "", description)
     # 提取中文实体名映射为英文
     entity_map = {
-        "用户": "user", "图书": "book", "商品": "product", "订单": "order",
-        "文章": "article", "产品": "product", "项目": "project", "任务": "task",
-        "学生": "student", "老师": "teacher", "课程": "course", "日志": "log",
-        "分类": "category", "标签": "tag",
+        "用户": "user",
+        "图书": "book",
+        "商品": "product",
+        "订单": "order",
+        "文章": "article",
+        "产品": "product",
+        "项目": "project",
+        "任务": "task",
+        "学生": "student",
+        "老师": "teacher",
+        "课程": "course",
+        "日志": "log",
+        "分类": "category",
+        "标签": "tag",
     }
     for cn, en in entity_map.items():
         if cn in cleaned:

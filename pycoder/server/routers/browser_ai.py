@@ -215,6 +215,7 @@ async def browser_action(req: BrowserAction):
     # 导航前进行安全访问控制检查
     if req.action == "navigate" and req.url:
         from pycoder.browser.access_control import BrowserAccessControl
+
         acl = BrowserAccessControl()
         allowed, reason = acl.check_url(req.url)
         if not allowed:
@@ -222,6 +223,7 @@ async def browser_action(req: BrowserAction):
 
         # 速率限制检查
         from urllib.parse import urlparse
+
         parsed = urlparse(req.url)
         domain = parsed.netloc or parsed.hostname or ""
         if domain and not acl.check_rate_limit(domain):
@@ -269,6 +271,7 @@ async def check_url_access(url: str):
         {"allowed": bool, "reason": str}
     """
     from pycoder.browser.access_control import BrowserAccessControl
+
     acl = BrowserAccessControl()
     allowed, reason = acl.check_url(url)
     return {"allowed": allowed, "reason": reason}

@@ -64,7 +64,10 @@ def _register_scan_capabilities(registry: Any) -> None:
                     "path": {"type": "string", "description": "要扫描的目录或文件路径"},
                     "scan_types": {
                         "type": "array",
-                        "items": {"type": "string", "enum": ["bug", "performance", "security", "style", "complexity"]},
+                        "items": {
+                            "type": "string",
+                            "enum": ["bug", "performance", "security", "style", "complexity"],
+                        },
                         "description": "扫描类型",
                     },
                     "severity_filter": {
@@ -261,7 +264,10 @@ async def _scan_code(params: dict[str, Any], context: dict[str, Any]) -> dict[st
     files_scanned = 0
 
     for py_file in scan_path.rglob("*.py"):
-        if any(skip in str(py_file) for skip in ["__pycache__", ".git", "node_modules", "venv", ".venv"]):
+        if any(
+            skip in str(py_file)
+            for skip in ["__pycache__", ".git", "node_modules", "venv", ".venv"]
+        ):
             continue
 
         try:
@@ -283,12 +289,14 @@ async def _scan_code(params: dict[str, Any], context: dict[str, Any]) -> dict[st
 
             files_scanned += 1
         except SyntaxError:
-            issues.append({
-                "file": str(py_file),
-                "type": "syntax_error",
-                "severity": "critical",
-                "message": "文件包含语法错误",
-            })
+            issues.append(
+                {
+                    "file": str(py_file),
+                    "type": "syntax_error",
+                    "severity": "critical",
+                    "message": "文件包含语法错误",
+                }
+            )
         except (OSError, UnicodeDecodeError):
             continue
 
@@ -310,34 +318,46 @@ def _detect_bugs(tree: ast.AST, filepath: str, source: str) -> list[dict[str, An
     # 裸 except
     for node in ast.walk(tree):
         if isinstance(node, ast.ExceptHandler) and node.type is None:
-            issues.append({
-                "file": filepath, "line": node.lineno,
-                "type": "bare_except", "severity": "high",
-                "message": "裸 except 吞掉所有异常，应指定具体异常类型",
-                "suggestion": "将 'except:' 替换为 'except Exception as e:'",
-            })
+            issues.append(
+                {
+                    "file": filepath,
+                    "line": node.lineno,
+                    "type": "bare_except",
+                    "severity": "high",
+                    "message": "裸 except 吞掉所有异常，应指定具体异常类型",
+                    "suggestion": "将 'except:' 替换为 'except Exception as e:'",
+                }
+            )
 
         # 可变默认参数
         if isinstance(node, ast.FunctionDef):
             for default in node.args.defaults + node.args.kw_defaults:
                 if isinstance(default, (ast.List, ast.Dict, ast.Set)):
-                    issues.append({
-                        "file": filepath, "line": node.lineno,
-                        "type": "mutable_default", "severity": "medium",
-                        "message": f"函数 '{node.name}' 使用了可变默认参数",
-                        "suggestion": "将默认值改为 None，在函数体内初始化",
-                    })
+                    issues.append(
+                        {
+                            "file": filepath,
+                            "line": node.lineno,
+                            "type": "mutable_default",
+                            "severity": "medium",
+                            "message": f"函数 '{node.name}' 使用了可变默认参数",
+                            "suggestion": "将默认值改为 None，在函数体内初始化",
+                        }
+                    )
 
         # 不必要的 f-string
         if isinstance(node, ast.JoinedStr) and len(node.values) == 1:
             val = node.values[0]
             if isinstance(val, ast.Constant) and isinstance(val.value, str):
                 if not any(c in val.value for c in "{}"):
-                    issues.append({
-                        "file": filepath, "line": node.lineno,
-                        "type": "unnecessary_fstring", "severity": "low",
-                        "message": "不必要的 f-string（不包含插值）",
-                    })
+                    issues.append(
+                        {
+                            "file": filepath,
+                            "line": node.lineno,
+                            "type": "unnecessary_fstring",
+                            "severity": "low",
+                            "message": "不必要的 f-string（不包含插值）",
+                        }
+                    )
 
     return issues
 
@@ -351,27 +371,36 @@ def _detect_complexity(tree: ast.AST, filepath: str) -> list[dict[str, Any]]:
             # 简单的圈复杂度估算
             complexity = 1
             for child in ast.walk(node):
-                if isinstance(child, (ast.If, ast.While, ast.For, ast.ExceptHandler,
-                                       ast.And, ast.Or, ast.Try)):
+                if isinstance(
+                    child, (ast.If, ast.While, ast.For, ast.ExceptHandler, ast.And, ast.Or, ast.Try)
+                ):
                     complexity += 1
 
             if complexity > 15:
-                issues.append({
-                    "file": filepath, "line": node.lineno,
-                    "type": "high_complexity", "severity": "medium",
-                    "message": f"函数 '{node.name}' 圈复杂度为 {complexity}（建议 < 15）",
-                    "suggestion": "考虑将复杂逻辑拆分为多个小函数",
-                })
+                issues.append(
+                    {
+                        "file": filepath,
+                        "line": node.lineno,
+                        "type": "high_complexity",
+                        "severity": "medium",
+                        "message": f"函数 '{node.name}' 圈复杂度为 {complexity}（建议 < 15）",
+                        "suggestion": "考虑将复杂逻辑拆分为多个小函数",
+                    }
+                )
 
             # 函数长度
             end_line = node.end_lineno or node.lineno
             length = end_line - node.lineno + 1
             if length > 100:
-                issues.append({
-                    "file": filepath, "line": node.lineno,
-                    "type": "long_function", "severity": "low",
-                    "message": f"函数 '{node.name}' 长度为 {length} 行（建议 < 100）",
-                })
+                issues.append(
+                    {
+                        "file": filepath,
+                        "line": node.lineno,
+                        "type": "long_function",
+                        "severity": "low",
+                        "message": f"函数 '{node.name}' 长度为 {length} 行（建议 < 100）",
+                    }
+                )
 
     return issues
 
@@ -387,34 +416,50 @@ def _detect_security(tree: ast.AST, filepath: str, source: str) -> list[dict[str
         # 危险函数调用
         if isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name) and node.func.id in dangerous_calls:
-                issues.append({
-                    "file": filepath, "line": node.lineno,
-                    "type": "dangerous_call", "severity": "critical",
-                    "message": f"使用了危险函数 '{node.func.id}'",
-                    "suggestion": "避免使用 eval/exec，寻找安全的替代方案",
-                })
+                issues.append(
+                    {
+                        "file": filepath,
+                        "line": node.lineno,
+                        "type": "dangerous_call",
+                        "severity": "critical",
+                        "message": f"使用了危险函数 '{node.func.id}'",
+                        "suggestion": "避免使用 eval/exec，寻找安全的替代方案",
+                    }
+                )
 
         # 危险模块导入
         if isinstance(node, ast.Import):
             for alias in node.names:
                 if alias.name in dangerous_imports:
-                    issues.append({
-                        "file": filepath, "line": node.lineno,
-                        "type": "dangerous_import", "severity": "high",
-                        "message": f"导入了存在安全风险的模块 '{alias.name}'",
-                    })
+                    issues.append(
+                        {
+                            "file": filepath,
+                            "line": node.lineno,
+                            "type": "dangerous_import",
+                            "severity": "high",
+                            "message": f"导入了存在安全风险的模块 '{alias.name}'",
+                        }
+                    )
 
     # 硬编码密钥检测
     import re
+
     for i, line in enumerate(source.split("\n"), 1):
-        if re.search(r'(api_key|API_KEY|password|PASSWORD|secret|SECRET|token|TOKEN)\s*=\s*["\'][^"\']+["\']', line):
+        if re.search(
+            r'(api_key|API_KEY|password|PASSWORD|secret|SECRET|token|TOKEN)\s*=\s*["\'][^"\']+["\']',
+            line,
+        ):
             if "os.environ" not in line and "os.getenv" not in line:
-                issues.append({
-                    "file": filepath, "line": i,
-                    "type": "hardcoded_secret", "severity": "critical",
-                    "message": "检测到硬编码的密钥/密码",
-                    "suggestion": "使用环境变量或配置文件存储敏感信息",
-                })
+                issues.append(
+                    {
+                        "file": filepath,
+                        "line": i,
+                        "type": "hardcoded_secret",
+                        "severity": "critical",
+                        "message": "检测到硬编码的密钥/密码",
+                        "suggestion": "使用环境变量或配置文件存储敏感信息",
+                    }
+                )
 
     return issues
 
@@ -425,13 +470,21 @@ def _detect_style(tree: ast.AST, filepath: str, source: str) -> list[dict[str, A
 
     # 检测使用 print() 而不是 logging
     for node in ast.walk(tree):
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print":
-            issues.append({
-                "file": filepath, "line": node.lineno,
-                "type": "use_print", "severity": "low",
-                "message": "使用 print() 调试，生产代码中应使用 logging",
-                "suggestion": "将 print() 替换为 logger.info() 或 logger.debug()",
-            })
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "print"
+        ):
+            issues.append(
+                {
+                    "file": filepath,
+                    "line": node.lineno,
+                    "type": "use_print",
+                    "severity": "low",
+                    "message": "使用 print() 调试，生产代码中应使用 logging",
+                    "suggestion": "将 print() 替换为 logger.info() 或 logger.debug()",
+                }
+            )
 
     return issues
 
@@ -439,6 +492,7 @@ def _detect_style(tree: ast.AST, filepath: str, source: str) -> list[dict[str, A
 def _count_severity(issues: list[dict[str, Any]]) -> dict[str, int]:
     """统计严重度分布"""
     from collections import Counter
+
     return dict(Counter(i.get("severity", "info") for i in issues))
 
 
@@ -454,16 +508,18 @@ async def _generate_fix(params: dict[str, Any], context: dict[str, Any]) -> dict
     issues: list[CodeIssue] = []
     if "issue" in params:
         raw = params["issue"]
-        issues.append(CodeIssue(
-            file=raw.get("file", ""),
-            line=raw.get("line", 0),
-            severity=raw.get("severity", "medium"),
-            issue_type=raw.get("issue_type", raw.get("type", "bug")),
-            title=raw.get("title", raw.get("message", "未知问题")),
-            description=raw.get("description", ""),
-            suggestion=raw.get("suggestion", ""),
-            code_snippet=raw.get("code_snippet", ""),
-        ))
+        issues.append(
+            CodeIssue(
+                file=raw.get("file", ""),
+                line=raw.get("line", 0),
+                severity=raw.get("severity", "medium"),
+                issue_type=raw.get("issue_type", raw.get("type", "bug")),
+                title=raw.get("title", raw.get("message", "未知问题")),
+                description=raw.get("description", ""),
+                suggestion=raw.get("suggestion", ""),
+                code_snippet=raw.get("code_snippet", ""),
+            )
+        )
 
     if not issues:
         return {
@@ -496,14 +552,16 @@ async def _generate_fix(params: dict[str, Any], context: dict[str, Any]) -> dict
                     f"请提供精确的修复方案，只输出修复后的代码，不要解释。"
                 )
                 response = await llm.chat(prompt)
-                fixes.append({
-                    "file": issue.file,
-                    "line": issue.line,
-                    "issue_type": issue.issue_type,
-                    "title": issue.title,
-                    "fix_code": response[:2000],
-                    "source": "llm",
-                })
+                fixes.append(
+                    {
+                        "file": issue.file,
+                        "line": issue.line,
+                        "issue_type": issue.issue_type,
+                        "title": issue.title,
+                        "fix_code": response[:2000],
+                        "source": "llm",
+                    }
+                )
                 continue
             except Exception as e:
                 logger.warning("LLM 修复生成失败: %s，回退模板", e)
@@ -585,10 +643,14 @@ async def _apply_fix(params: dict[str, Any], context: dict[str, Any]) -> dict[st
 async def _run_self_tests(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """运行 Pycoder 自身测试"""
     import subprocess
+
     try:
         result = subprocess.run(
             ["pytest", "tests/", "-x", "--tb=short", "-q"],
-            capture_output=True, text=True, timeout=300, cwd=".",
+            capture_output=True,
+            text=True,
+            timeout=300,
+            cwd=".",
         )
         return {
             "success": result.returncode == 0,
@@ -602,10 +664,14 @@ async def _run_self_tests(params: dict[str, Any], context: dict[str, Any]) -> di
 async def _check_coverage(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """检查测试覆盖率"""
     import subprocess
+
     try:
         result = subprocess.run(
             ["pytest", "--cov=pycoder", "--cov-report=term", "tests/", "-q"],
-            capture_output=True, text=True, timeout=300, cwd=".",
+            capture_output=True,
+            text=True,
+            timeout=300,
+            cwd=".",
         )
         return {"output": result.stdout[-3000:]}
     except Exception as e:
@@ -644,19 +710,23 @@ async def _analyze_architecture(params: dict[str, Any], context: dict[str, Any])
         "dependency_graph": {k: list(set(v)) for k, v in modules.items()},
         "most_depended_on": sorted(
             [(k, sum(1 for v in modules.values() if k in v)) for k in modules],
-            key=lambda x: x[1], reverse=True,
+            key=lambda x: x[1],
+            reverse=True,
         )[:10],
     }
 
 
 async def _profile_performance(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """性能分析"""
-    return {"message": "性能分析需要在实际运行环境中进行，请使用 'system.shell.execute' 配合 cProfile"}
+    return {
+        "message": "性能分析需要在实际运行环境中进行，请使用 'system.shell.execute' 配合 cProfile"
+    }
 
 
 async def _hot_reload(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """热重载模块"""
     import importlib
+
     module_name = params.get("module", "")
     if not module_name:
         return {"success": False, "error": "请指定要重载的模块名称"}
@@ -672,10 +742,13 @@ async def _hot_reload(params: dict[str, Any], context: dict[str, Any]) -> dict[s
 async def _rollback_changes(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """回滚自进化变更"""
     import subprocess
+
     try:
         result = subprocess.run(
             ["git", "stash"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         return {
             "success": result.returncode == 0,
@@ -752,7 +825,8 @@ def _template_fix_for_issue(issue: CodeIssue) -> dict[str, Any]:
     title = issue.title.lower()
     if "裸 except" in title:
         return {
-            "file": issue.file, "line": issue.line,
+            "file": issue.file,
+            "line": issue.line,
             "issue_type": issue.issue_type,
             "title": issue.title,
             "old_code": "except:",
@@ -761,7 +835,8 @@ def _template_fix_for_issue(issue: CodeIssue) -> dict[str, Any]:
         }
     if "可变默认参数" in title or "mutable default" in title:
         return {
-            "file": issue.file, "line": issue.line,
+            "file": issue.file,
+            "line": issue.line,
             "issue_type": issue.issue_type,
             "title": issue.title,
             "fix_code": "    # TODO: 将可变默认参数改为 None，在函数体内初始化",
@@ -769,14 +844,16 @@ def _template_fix_for_issue(issue: CodeIssue) -> dict[str, Any]:
         }
     if "硬编码" in title or "hardcoded" in title:
         return {
-            "file": issue.file, "line": issue.line,
+            "file": issue.file,
+            "line": issue.line,
             "issue_type": issue.issue_type,
             "title": issue.title,
             "fix_code": "    # TODO: 替换为环境变量 os.getenv('KEY')",
             "source": "template",
         }
     return {
-        "file": issue.file, "line": issue.line,
+        "file": issue.file,
+        "line": issue.line,
         "issue_type": issue.issue_type,
         "title": issue.title,
         "fix_code": f"    # TODO: {issue.suggestion or '需要手动修复'}",
@@ -787,10 +864,14 @@ def _template_fix_for_issue(issue: CodeIssue) -> dict[str, Any]:
 async def _run_tests_and_report() -> dict[str, Any]:
     """运行测试并返回简要报告"""
     import subprocess
+
     try:
         result = subprocess.run(
             ["pytest", "tests/", "-x", "--tb=short", "-q"],
-            capture_output=True, text=True, timeout=300, cwd=".",
+            capture_output=True,
+            text=True,
+            timeout=300,
+            cwd=".",
         )
         return {
             "passed": result.returncode == 0,

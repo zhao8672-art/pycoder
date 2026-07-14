@@ -19,16 +19,15 @@ Pycoder V2 中央编排引擎
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
-from pycoder.brain.agent_swarm import AgentSwarmOrchestrator, AgentTask
-from pycoder.brain.consciousness import ConsciousnessEngine, OperatingMode, SystemEvent
+from pycoder.brain.agent_swarm import AgentSwarmOrchestrator
+from pycoder.brain.consciousness import ConsciousnessEngine, OperatingMode
 from pycoder.brain.memory_engine import MemoryEngine
-from pycoder.brain.task_planner import ExecutionPlan, TaskPlanner
+from pycoder.brain.task_planner import TaskPlanner
 from pycoder.bus.monitor import BusMonitor
 from pycoder.bus.protocol import (
     CapabilityCall,
@@ -48,7 +47,7 @@ from pycoder.capabilities import (
 from pycoder.modules import ModuleLoader
 from pycoder.safety.audit import AuditRecord, AuditTrail
 from pycoder.safety.circuit_breaker import CircuitBreakerRegistry
-from pycoder.safety.permission import DecisionType, PermissionDecision, PermissionEngine
+from pycoder.safety.permission import DecisionType, PermissionEngine
 from pycoder.safety.rollback import RollbackManager
 from pycoder.safety.sandbox import SandboxManager
 
@@ -58,12 +57,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class V2EngineConfig:
     """V2 引擎配置"""
+
     workspace_root: str = "."
     initial_trust: TrustLevel = TrustLevel.WORKSPACE_WRITE
-    enable_consciousness: bool = True     # 是否启��意识引擎（持续感知）
-    enable_self_evo: bool = True          # 是否启用自进化能力
-    audit_log_path: str = ""              # 审计日志路径
-    snapshot_dir: str = ""                # 快照目录
+    enable_consciousness: bool = True  # 是否启��意识引擎（持续感知）
+    enable_self_evo: bool = True  # 是否启用自进化能力
+    audit_log_path: str = ""  # 审计日志路径
+    snapshot_dir: str = ""  # 快照目录
 
 
 class V2Engine:
@@ -130,10 +130,12 @@ class V2Engine:
             # 初始化自我进化引擎
             try:
                 from pycoder.capabilities.self_evo.engine import SelfEvolutionEngine
+
                 # 尝试注入 LLM provider
                 llm = None
                 try:
                     from pycoder.server.chat_bridge import ChatBridge
+
                     bridge = ChatBridge()
                     llm = bridge  # ChatBridge 可作为 LLM provider
                 except (ImportError, AttributeError, TypeError, ValueError):
@@ -148,6 +150,7 @@ class V2Engine:
         logger.info("注册跨工作区能力...")
         try:
             from pycoder.workspace import register_capabilities as register_workspace
+
             register_workspace(self.registry)
         except Exception as e:
             logger.warning("跨工作区能力注册失败: %s", e)
@@ -155,6 +158,7 @@ class V2Engine:
         logger.info("注册浏览器增强能力...")
         try:
             from pycoder.browser import register_capabilities as register_browser
+
             register_browser(self.registry)
         except Exception as e:
             logger.warning("浏览器增强能力注册失败: %s", e)
@@ -162,6 +166,7 @@ class V2Engine:
         logger.info("注册知识更新能力...")
         try:
             from pycoder.knowledge import register_capabilities as register_knowledge
+
             register_knowledge(self.registry)
         except Exception as e:
             logger.warning("知识更新能力注册失败: %s", e)
@@ -169,6 +174,7 @@ class V2Engine:
         logger.info("注册多语言 LSP 能力...")
         try:
             from pycoder.lsp import register_capabilities as register_lsp
+
             register_lsp(self.registry)
         except Exception as e:
             logger.warning("多语言 LSP 能力注册失败: %s", e)
@@ -176,6 +182,7 @@ class V2Engine:
         logger.info("注册环境工具能力...")
         try:
             from pycoder.env import register_capabilities as register_env
+
             register_env(self.registry)
         except Exception as e:
             logger.warning("环境工具能力注册失败: %s", e)
@@ -183,6 +190,7 @@ class V2Engine:
         logger.info("注册智能 IO 能力...")
         try:
             from pycoder.io import register_capabilities as register_io
+
             register_io(self.registry)
         except Exception as e:
             logger.warning("智能 IO 能力注册失败: %s", e)
@@ -190,6 +198,7 @@ class V2Engine:
         logger.info("注册会话记忆能力...")
         try:
             from pycoder.memory import register_capabilities as register_memory
+
             register_memory(self.registry)
         except Exception as e:
             logger.warning("会话记忆能力注册失败: %s", e)
@@ -197,6 +206,7 @@ class V2Engine:
         logger.info("注册通知与任务调度能力...")
         try:
             from pycoder.notify import register_capabilities as register_notify
+
             register_notify(self.registry)
         except Exception as e:
             logger.warning("通知与任务调度能力注册失败: %s", e)
@@ -213,6 +223,7 @@ class V2Engine:
         # 3. V1→V2 工具迁移：通过 capabilities/tools/ 统一注册
         try:
             from pycoder.capabilities.tools import register_all_tools
+
             tool_count = register_all_tools(self.registry)
             logger.info("V1 工具迁移完成: %d tools", tool_count)
         except Exception as e:
@@ -329,10 +340,13 @@ class V2Engine:
         # 7. 执行
         try:
             async with breaker:
-                result = await self.registry.call(call, {
-                    "caller": caller,
-                    "permission_level": definition.permission.value,
-                })
+                result = await self.registry.call(
+                    call,
+                    {
+                        "caller": caller,
+                        "permission_level": definition.permission.value,
+                    },
+                )
         except Exception as e:
             result = CapabilityResult(
                 trace_id=call.trace_id,
@@ -346,22 +360,24 @@ class V2Engine:
         self.monitor.end_trace(trace, result)
 
         # 9. 审计记录
-        self.audit.log(AuditRecord(
-            trace_id=call.trace_id,
-            capability_id=route.capability_id,
-            params_summary=self.monitor._summarize_params(params),
-            permission_level=definition.permission.value,
-            decision=DecisionType.AUTO_ALLOW.value,
-            user_confirmed=False,
-            success=result.success,
-            error=result.error,
-            duration_ms=result.duration_ms,
-            caller=caller,
-        ))
+        self.audit.log(
+            AuditRecord(
+                trace_id=call.trace_id,
+                capability_id=route.capability_id,
+                params_summary=self.monitor._summarize_params(params),
+                permission_level=definition.permission.value,
+                decision=DecisionType.AUTO_ALLOW.value,
+                user_confirmed=False,
+                success=result.success,
+                error=result.error,
+                duration_ms=result.duration_ms,
+                caller=caller,
+            )
+        )
 
         # 10. 记录行为
         self.permission.record_behavior(
-            __import__('pycoder.safety.permission', fromlist=['BehaviorRecord']).BehaviorRecord(
+            __import__("pycoder.safety.permission", fromlist=["BehaviorRecord"]).BehaviorRecord(
                 capability_id=call.capability_id,
                 success=result.success,
                 had_side_effects=bool(definition.side_effects),
@@ -481,6 +497,7 @@ class V2Engine:
         paths = self.input_transformer.extract_paths(params)
         for path in paths:
             import os
+
             if os.path.exists(path) and os.path.isfile(path):
                 try:
                     self.rollback.snapshot_file(path)

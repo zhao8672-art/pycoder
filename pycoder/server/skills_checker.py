@@ -9,16 +9,31 @@ Skills 可用性检测 — 判断技能是否需要外部 API Key / 特定环境
 from __future__ import annotations
 
 EXTERNAL_API_PATTERNS = [
-    "openai", "api_key", "api key", "token", "secret",
-    "bearer", "authorization", "muapi",
-    "huggingface", "hugging face",
-    "stripe", "twilio", "sendgrid",
-    "aws_", "gcp_", "azure_",
+    "openai",
+    "api_key",
+    "api key",
+    "token",
+    "secret",
+    "bearer",
+    "authorization",
+    "muapi",
+    "huggingface",
+    "hugging face",
+    "stripe",
+    "twilio",
+    "sendgrid",
+    "aws_",
+    "gcp_",
+    "azure_",
 ]
 
 EXTERNAL_API_KEYWORDS = [
-    "需要 API", "需要密钥", "api_key", "token",
-    "requires", "api key",
+    "需要 API",
+    "需要密钥",
+    "api_key",
+    "token",
+    "requires",
+    "api key",
 ]
 
 

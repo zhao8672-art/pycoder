@@ -29,32 +29,34 @@ from dataclasses import dataclass
 from pathlib import Path
 
 CACHE_DIR = Path.home() / ".pycoder" / "evo_cache"
-MAX_CACHE_SIZE = 500        # 最多缓存 500 个文件
-MAX_HOT_RULES = 100         # 最多保留 100 条热规则
-CACHE_TTL_SECONDS = 3600    # 缓存有效期 1h
+MAX_CACHE_SIZE = 500  # 最多缓存 500 个文件
+MAX_HOT_RULES = 100  # 最多保留 100 条热规则
+CACHE_TTL_SECONDS = 3600  # 缓存有效期 1h
 
 
 @dataclass
 class CachedScan:
     """文件扫描缓存条目"""
+
     file_path: str
-    content_hash: str        # SHA256 前 12 位
+    content_hash: str  # SHA256 前 12 位
     issues_found: int
-    issues_json: str         # JSON 序列化的 CodeIssue 列表
-    scanned_at: float        # 扫描时间戳
+    issues_json: str  # JSON 序列化的 CodeIssue 列表
+    scanned_at: float  # 扫描时间戳
     line_count: int = 0
 
 
 @dataclass
 class HotRule:
     """热规则 — 高频使用的修复规则"""
+
     rule_id: str
     error_signature: str
     fix_template: str
-    success_rate: float      # 成功率 0-1
+    success_rate: float  # 成功率 0-1
     use_count: int
     last_used: float
-    priority: float = 0.0    # 综合优先级(越大越优先)
+    priority: float = 0.0  # 综合优先级(越大越优先)
 
 
 class EvoCache:
@@ -165,16 +167,17 @@ class EvoCache:
     # ══════════════════════════════════════════════════════
 
     def register_hot_rule(
-        self, error_signature: str, fix_template: str, success_rate: float = 1.0,
+        self,
+        error_signature: str,
+        fix_template: str,
+        success_rate: float = 1.0,
     ) -> None:
         """注册/更新热规则"""
         for rule in self._hot_rules:
             if rule.error_signature == error_signature:
                 rule.use_count += 1
                 rule.last_used = time.time()
-                rule.success_rate = (
-                    rule.success_rate * 0.8 + success_rate * 0.2
-                )  # 指数移动平均
+                rule.success_rate = rule.success_rate * 0.8 + success_rate * 0.2  # 指数移动平均
                 rule.priority = self._calc_priority(rule)
                 return
 

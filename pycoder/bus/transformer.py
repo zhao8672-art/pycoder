@@ -52,11 +52,16 @@ class InputTransformer:
             (is_safe, sanitized_command)
         """
         dangerous_patterns = [
-            "rm -rf /", "rm -rf ~", "rm -rf .",
+            "rm -rf /",
+            "rm -rf ~",
+            "rm -rf .",
             ":(){ :|:& };:",  # fork bomb
-            "> /dev/sda", "dd if=",
-            "chmod 777 /", "chown -R",
-            "mkfs.", "format c:",
+            "> /dev/sda",
+            "dd if=",
+            "chmod 777 /",
+            "chown -R",
+            "mkfs.",
+            "format c:",
         ]
 
         for pattern in dangerous_patterns:
@@ -177,7 +182,9 @@ class OutputTransformer:
             "output": "\n".join(lines[:max_lines]) if truncated else output,
             "lines_count": len(lines),
             "truncated": truncated,
-            "first_error": OutputTransformer._extract_first_error(output) if exit_code != 0 else None,
+            "first_error": (
+                OutputTransformer._extract_first_error(output) if exit_code != 0 else None
+            ),
         }
 
     @staticmethod
@@ -237,8 +244,11 @@ class OutputTransformer:
         if hasattr(obj, "to_dict"):
             return obj.to_dict()
         if hasattr(obj, "__dict__"):
-            return {k: OutputTransformer.to_json_safe(v) for k, v in obj.__dict__.items()
-                    if not k.startswith("_")}
+            return {
+                k: OutputTransformer.to_json_safe(v)
+                for k, v in obj.__dict__.items()
+                if not k.startswith("_")
+            }
         return str(obj)
 
     @staticmethod

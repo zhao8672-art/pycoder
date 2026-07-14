@@ -72,9 +72,7 @@ class Registry:
             self._factories[proto] = factory
             self._instances.pop(proto, None)  # 覆盖实例
         else:
-            raise ValueError(
-                f"注册 {proto.__name__} 时必须提供 implementation= 或 factory= 参数"
-            )
+            raise ValueError(f"注册 {proto.__name__} 时必须提供 implementation= 或 factory= 参数")
 
     def register_instance(self, proto: type[T], implementation: T) -> None:
         """便捷方法: 注册已创建的实例"""

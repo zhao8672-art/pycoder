@@ -17,18 +17,20 @@ logger = logging.getLogger(__name__)
 
 class CircuitState(enum.StrEnum):
     """熔断器状态"""
-    CLOSED = "closed"            # 正常，允许调用
-    OPEN = "open"                # 熔断，拒绝调用
-    HALF_OPEN = "half_open"      # 半开，探测性尝试
+
+    CLOSED = "closed"  # 正常，允许调用
+    OPEN = "open"  # 熔断，拒绝调用
+    HALF_OPEN = "half_open"  # 半开，探测性尝试
 
 
 @dataclass
 class CircuitConfig:
     """熔断器配置"""
-    failure_threshold: int = 5           # 连续失败 N 次后熔断
-    success_threshold: int = 3           # 半开状态下连续成功 N 次后恢复
-    timeout_seconds: float = 60.0        # 熔断持续时间
-    half_open_max_requests: int = 1      # 半开状态下允许的探测请求数
+
+    failure_threshold: int = 5  # 连续失败 N 次后熔断
+    success_threshold: int = 3  # 半开状态下连续成功 N 次后恢复
+    timeout_seconds: float = 60.0  # 熔断持续时间
+    half_open_max_requests: int = 1  # 半开状态下允许的探测请求数
     error_types: tuple[type[Exception], ...] = (Exception,)  # 计为失败的异常类型
 
 
@@ -127,7 +129,8 @@ class CircuitBreaker:
                 self._transition_to(CircuitState.OPEN)
                 logger.error(
                     "熔断器 '%s' 已断开! 连续 %d 次失败",
-                    self.name, self._failure_count,
+                    self.name,
+                    self._failure_count,
                 )
 
     def reset(self) -> None:
@@ -180,7 +183,10 @@ class CircuitBreaker:
             self._half_open_requests = 0
 
         logger.debug(
-            "熔断器 '%s': %s → %s", self.name, old_state.value, new_state.value,
+            "熔断器 '%s': %s → %s",
+            self.name,
+            old_state.value,
+            new_state.value,
         )
 
     async def __aenter__(self) -> CircuitBreaker:

@@ -2,6 +2,7 @@
 
 收集各语言 LSP 诊断信息，按严重度/文件/语言过滤，标记错误时推送系统事件。
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -56,13 +57,13 @@ class DiagnosticsAggregator:
         if self._consciousness and diagnostics:
             errors = [d for d in diagnostics if d.severity == "error"]
             if errors:
-                await self._consciousness.perceive(
-                    type="lsp_errors", data=errors
-                )
+                await self._consciousness.perceive(type="lsp_errors", data=errors)
 
         return diagnostics
 
-    async def scan_workspace(self, file_extensions: list[str] | None = None) -> list[AggregatedDiagnostic]:
+    async def scan_workspace(
+        self, file_extensions: list[str] | None = None
+    ) -> list[AggregatedDiagnostic]:
         """扫描整个工作区
 
         Returns:

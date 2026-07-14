@@ -29,23 +29,25 @@ class TaskStatus(enum.StrEnum):
 
 class ExecutionStrategy(enum.StrEnum):
     """执行策略"""
-    SINGLE_AGENT = "single_agent"        # 单 Agent 顺序执行
+
+    SINGLE_AGENT = "single_agent"  # 单 Agent 顺序执行
     PARALLEL_AGENTS = "parallel_agents"  # 多 Agent 并行
-    SDLC_PIPELINE = "sdlc_pipeline"      # 全 SDLC 流水线
-    AUTO = "auto"                        # 自动选择
+    SDLC_PIPELINE = "sdlc_pipeline"  # 全 SDLC 流水线
+    AUTO = "auto"  # 自动选择
 
 
 @dataclass
 class Task:
     """单个任务"""
+
     task_id: str
     description: str
     status: TaskStatus = TaskStatus.PENDING
     dependencies: list[str] = field(default_factory=list)
     estimated_tokens: int = 0
     estimated_minutes: float = 0.0
-    risk_level: str = "low"     # low / medium / high
-    assigned_to: str = ""       # 分配的 Agent 角色
+    risk_level: str = "low"  # low / medium / high
+    assigned_to: str = ""  # 分配的 Agent 角色
     result: Any = None
     error: str | None = None
     retries: int = 0
@@ -55,6 +57,7 @@ class Task:
 @dataclass
 class ExecutionPlan:
     """执行计划"""
+
     plan_id: str
     tasks: list[Task]
     strategy: ExecutionStrategy
@@ -194,49 +197,175 @@ class TaskPlanner:
         # 检测意图模式
         if any(w in intent_lower for w in ["创建", "新建", "添加", "add", "create"]):
             if any(w in intent_lower for w in ["api", "接口", "endpoint"]):
-                tasks.extend([
-                    Task("1", "定义数据模型", estimated_tokens=500, estimated_minutes=2),
-                    Task("2", "创建 API 路由", estimated_tokens=800, estimated_minutes=3, dependencies=["1"]),
-                    Task("3", "实现业务逻辑", estimated_tokens=1000, estimated_minutes=5, dependencies=["1"]),
-                    Task("4", "添加输入验证", estimated_tokens=400, estimated_minutes=2, dependencies=["2"]),
-                    Task("5", "编写测试用例", estimated_tokens=600, estimated_minutes=5, dependencies=["2", "3"]),
-                ])
+                tasks.extend(
+                    [
+                        Task("1", "定义数据模型", estimated_tokens=500, estimated_minutes=2),
+                        Task(
+                            "2",
+                            "创建 API 路由",
+                            estimated_tokens=800,
+                            estimated_minutes=3,
+                            dependencies=["1"],
+                        ),
+                        Task(
+                            "3",
+                            "实现业务逻辑",
+                            estimated_tokens=1000,
+                            estimated_minutes=5,
+                            dependencies=["1"],
+                        ),
+                        Task(
+                            "4",
+                            "添加输入验证",
+                            estimated_tokens=400,
+                            estimated_minutes=2,
+                            dependencies=["2"],
+                        ),
+                        Task(
+                            "5",
+                            "编写测试用例",
+                            estimated_tokens=600,
+                            estimated_minutes=5,
+                            dependencies=["2", "3"],
+                        ),
+                    ]
+                )
             elif any(w in intent_lower for w in ["组件", "component", "页面", "page"]):
-                tasks.extend([
-                    Task("1", "设计组件结构", estimated_tokens=300, estimated_minutes=2),
-                    Task("2", "实现组件逻辑", estimated_tokens=800, estimated_minutes=5, dependencies=["1"]),
-                    Task("3", "添加样式", estimated_tokens=300, estimated_minutes=3, dependencies=["2"]),
-                    Task("4", "编写测试", estimated_tokens=400, estimated_minutes=3, dependencies=["2"]),
-                ])
+                tasks.extend(
+                    [
+                        Task("1", "设计组件结构", estimated_tokens=300, estimated_minutes=2),
+                        Task(
+                            "2",
+                            "实现组件逻辑",
+                            estimated_tokens=800,
+                            estimated_minutes=5,
+                            dependencies=["1"],
+                        ),
+                        Task(
+                            "3",
+                            "添加样式",
+                            estimated_tokens=300,
+                            estimated_minutes=3,
+                            dependencies=["2"],
+                        ),
+                        Task(
+                            "4",
+                            "编写测试",
+                            estimated_tokens=400,
+                            estimated_minutes=3,
+                            dependencies=["2"],
+                        ),
+                    ]
+                )
             else:
-                tasks.extend([
-                    Task("1", "分析需求和影响范围", estimated_tokens=300, estimated_minutes=1),
-                    Task("2", "实现功能代码", estimated_tokens=800, estimated_minutes=5, dependencies=["1"]),
-                    Task("3", "编写测试", estimated_tokens=500, estimated_minutes=3, dependencies=["2"]),
-                    Task("4", "运行测试验证", estimated_tokens=100, estimated_minutes=2, dependencies=["3"]),
-                ])
+                tasks.extend(
+                    [
+                        Task("1", "分析需求和影响范围", estimated_tokens=300, estimated_minutes=1),
+                        Task(
+                            "2",
+                            "实现功能代码",
+                            estimated_tokens=800,
+                            estimated_minutes=5,
+                            dependencies=["1"],
+                        ),
+                        Task(
+                            "3",
+                            "编写测试",
+                            estimated_tokens=500,
+                            estimated_minutes=3,
+                            dependencies=["2"],
+                        ),
+                        Task(
+                            "4",
+                            "运行测试验证",
+                            estimated_tokens=100,
+                            estimated_minutes=2,
+                            dependencies=["3"],
+                        ),
+                    ]
+                )
         elif any(w in intent_lower for w in ["修复", "fix", "bug", "错误"]):
-            tasks.extend([
-                Task("1", "定位问题根因", estimated_tokens=400, estimated_minutes=2),
-                Task("2", "生成修复方案", estimated_tokens=500, estimated_minutes=3, dependencies=["1"]),
-                Task("3", "实施修复", estimated_tokens=400, estimated_minutes=2, dependencies=["2"]),
-                Task("4", "验证修复 + 回归测试", estimated_tokens=300, estimated_minutes=3, dependencies=["3"]),
-            ])
+            tasks.extend(
+                [
+                    Task("1", "定位问题根因", estimated_tokens=400, estimated_minutes=2),
+                    Task(
+                        "2",
+                        "生成修复方案",
+                        estimated_tokens=500,
+                        estimated_minutes=3,
+                        dependencies=["1"],
+                    ),
+                    Task(
+                        "3",
+                        "实施修复",
+                        estimated_tokens=400,
+                        estimated_minutes=2,
+                        dependencies=["2"],
+                    ),
+                    Task(
+                        "4",
+                        "验证修复 + 回归测试",
+                        estimated_tokens=300,
+                        estimated_minutes=3,
+                        dependencies=["3"],
+                    ),
+                ]
+            )
         elif any(w in intent_lower for w in ["重构", "refactor", "优化", "optimize"]):
-            tasks.extend([
-                Task("1", "分析现有代码结构", estimated_tokens=500, estimated_minutes=3),
-                Task("2", "设计重构方案", estimated_tokens=600, estimated_minutes=3, dependencies=["1"]),
-                Task("3", "分步实施重构", estimated_tokens=1200, estimated_minutes=8, dependencies=["2"]),
-                Task("4", "验证重构结果", estimated_tokens=500, estimated_minutes=5, dependencies=["3"]),
-            ])
+            tasks.extend(
+                [
+                    Task("1", "分析现有代码结构", estimated_tokens=500, estimated_minutes=3),
+                    Task(
+                        "2",
+                        "设计重构方案",
+                        estimated_tokens=600,
+                        estimated_minutes=3,
+                        dependencies=["1"],
+                    ),
+                    Task(
+                        "3",
+                        "分步实施重构",
+                        estimated_tokens=1200,
+                        estimated_minutes=8,
+                        dependencies=["2"],
+                    ),
+                    Task(
+                        "4",
+                        "验证重构结果",
+                        estimated_tokens=500,
+                        estimated_minutes=5,
+                        dependencies=["3"],
+                    ),
+                ]
+            )
         else:
             # 通用分解
-            tasks.extend([
-                Task("1", "理解需求", estimated_tokens=300, estimated_minutes=1),
-                Task("2", "设计方案", estimated_tokens=500, estimated_minutes=2, dependencies=["1"]),
-                Task("3", "实现方案", estimated_tokens=800, estimated_minutes=5, dependencies=["2"]),
-                Task("4", "测试验证", estimated_tokens=400, estimated_minutes=3, dependencies=["3"]),
-            ])
+            tasks.extend(
+                [
+                    Task("1", "理解需求", estimated_tokens=300, estimated_minutes=1),
+                    Task(
+                        "2",
+                        "设计方案",
+                        estimated_tokens=500,
+                        estimated_minutes=2,
+                        dependencies=["1"],
+                    ),
+                    Task(
+                        "3",
+                        "实现方案",
+                        estimated_tokens=800,
+                        estimated_minutes=5,
+                        dependencies=["2"],
+                    ),
+                    Task(
+                        "4",
+                        "测试验证",
+                        estimated_tokens=400,
+                        estimated_minutes=3,
+                        dependencies=["3"],
+                    ),
+                ]
+            )
 
         return tasks
 

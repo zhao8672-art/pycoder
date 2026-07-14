@@ -87,6 +87,7 @@ class PluginExecutor:
             registry: PluginRegistry | None = None
             try:
                 from pycoder.server.app import get_plugin_registry
+
                 registry = get_plugin_registry()
             except (ImportError, AttributeError):
                 pass
@@ -95,6 +96,7 @@ class PluginExecutor:
                 # 备选：直接从插件模块创建
                 try:
                     from pycoder.plugins.hermes_plugin import HermesPlugin
+
                     registry = PluginRegistry()
                     registry.register(HermesPlugin())
                 except (ImportError, AttributeError, TypeError) as e:
@@ -142,7 +144,9 @@ class PluginExecutor:
             except Exception as e:
                 elapsed_ms = int((time.monotonic() - start) * 1000)
                 matching_results[pid] = {
-                    "success": False, "error": str(e), "duration_ms": elapsed_ms,
+                    "success": False,
+                    "error": str(e),
+                    "duration_ms": elapsed_ms,
                 }
                 await self._emit_plugin_event(pid, pid, "error", elapsed_ms, str(e))
 
@@ -178,8 +182,9 @@ class PluginExecutor:
             # 搜索相关技能（使用关键词匹配）
             # 提取消息中的关键词
             import re
+
             # 去除常见停用词后提取有效关键词
-            words = re.findall(r'[\u4e00-\u9fff\w]+', message)
+            words = re.findall(r"[\u4e00-\u9fff\w]+", message)
             keywords = [w for w in words if len(w) > 1]
 
             matched_skills = []
@@ -206,6 +211,7 @@ class PluginExecutor:
                 try:
                     # 查找技能源码文件
                     from pathlib import Path
+
                     skill_dir = Path.home() / ".pycoder" / "skills"
                     skill_file = skill_dir / f"{sid}.md"
                     if not skill_file.exists():
@@ -217,7 +223,8 @@ class PluginExecutor:
                     skill_content = ""
                     if skill_file.exists():
                         skill_content = skill_file.read_text(
-                            encoding="utf-8", errors="ignore",
+                            encoding="utf-8",
+                            errors="ignore",
                         )[:3000]
 
                     # 将技能知识注入共享上下文，供 AI 参考
@@ -245,7 +252,8 @@ class PluginExecutor:
                 except Exception as e:
                     elapsed_ms = int((time.monotonic() - start) * 1000)
                     skill_results[sid] = {
-                        "success": False, "error": str(e),
+                        "success": False,
+                        "error": str(e),
                         "duration_ms": elapsed_ms,
                     }
                     await self._emit_plugin_event(sid, sname, "error", elapsed_ms, str(e))
@@ -268,8 +276,9 @@ class PluginExecutor:
         两个任务并发执行以最大化效率。
         """
         # 发送扫描开始事件
-        logger.info("plugin_execute_all_start: msg=%.60s cb_set=%s",
-                     message, bool(self._plugin_callback))
+        logger.info(
+            "plugin_execute_all_start: msg=%.60s cb_set=%s", message, bool(self._plugin_callback)
+        )
         await self._emit_plugin_event("__scanner__", "后台扫描", "start")
 
         try:
@@ -278,7 +287,9 @@ class PluginExecutor:
             skill_task = self.execute_matching_skills(message, shared_context)
 
             plugin_results, skill_results = await asyncio.gather(
-                plugin_task, skill_task, return_exceptions=True,
+                plugin_task,
+                skill_task,
+                return_exceptions=True,
             )
 
             # 合并结果
@@ -288,7 +299,8 @@ class PluginExecutor:
                 all_results.update(plugin_results)
             else:
                 all_results["__plugin_error__"] = {
-                    "error": str(plugin_results), "success": False,
+                    "error": str(plugin_results),
+                    "success": False,
                 }
 
             if isinstance(skill_results, dict):
@@ -296,7 +308,8 @@ class PluginExecutor:
                     all_results[f"skill:{k}"] = v
             else:
                 all_results["__skill_error__"] = {
-                    "error": str(skill_results), "success": False,
+                    "error": str(skill_results),
+                    "success": False,
                 }
         except Exception as e:
             all_results = {"__fatal__": {"error": str(e), "success": False}}

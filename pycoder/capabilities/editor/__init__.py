@@ -314,11 +314,13 @@ async def _search_code(params: dict[str, Any], context: dict[str, Any]) -> dict[
             content = file_path.read_text(encoding="utf-8", errors="replace")
             for i, line in enumerate(content.split("\n"), 1):
                 if pattern.search(line):
-                    results.append({
-                        "file": str(file_path.relative_to(search_path)),
-                        "line": i,
-                        "content": line.strip()[:200],
-                    })
+                    results.append(
+                        {
+                            "file": str(file_path.relative_to(search_path)),
+                            "line": i,
+                            "content": line.strip()[:200],
+                        }
+                    )
                     if len(results) >= max_results:
                         break
         except (OSError, UnicodeDecodeError):

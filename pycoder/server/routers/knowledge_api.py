@@ -1,4 +1,5 @@
 """知识更新 API — 知识源管理、手动触发更新、知识检索"""
+
 from __future__ import annotations
 
 import logging

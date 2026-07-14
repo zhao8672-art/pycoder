@@ -7,6 +7,7 @@
 - 指数退避重试策略
 - 并发控制（最多 3 个任务同时执行）
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -41,6 +42,7 @@ class _QueueItem:
 @dataclass
 class EnhancedTask:
     """增强任务定义"""
+
     id: str
     name: str
     trigger: TaskTrigger = TaskTrigger.IMMEDIATE
@@ -143,7 +145,7 @@ class EnhancedScheduler:
                 task.error = str(e)
                 if attempt < task.max_retries:
                     await self._notify("task_retrying", task, attempt=attempt + 1)
-                    await asyncio.sleep(task.retry_delay * (2 ** attempt))
+                    await asyncio.sleep(task.retry_delay * (2**attempt))
                 else:
                     task.status = TaskStatus.FAILED
                     task.completed_at = time.time()
@@ -151,8 +153,7 @@ class EnhancedScheduler:
 
     async def _trigger_dependents(self, completed_task_id: str):
         for task in self._tasks.values():
-            if (task.trigger == TaskTrigger.DEPENDENCY
-                    and completed_task_id in task.depends_on):
+            if task.trigger == TaskTrigger.DEPENDENCY and completed_task_id in task.depends_on:
                 all_done = all(
                     self._tasks[dep_id].status == TaskStatus.DONE
                     for dep_id in task.depends_on
@@ -161,8 +162,7 @@ class EnhancedScheduler:
                 if all_done:
                     await self._enqueue(task)
 
-    async def update_progress(self, task_id: str, progress: float,
-                              message: str = ""):
+    async def update_progress(self, task_id: str, progress: float, message: str = ""):
         task = self._tasks.get(task_id)
         if task:
             task.progress = min(1.0, max(0.0, progress))
@@ -183,21 +183,29 @@ class EnhancedScheduler:
 
     def list_tasks(self, status: TaskStatus | None = None) -> list[dict]:
         return [
-            {"id": t.id, "name": t.name, "status": t.status.value,
-             "progress": t.progress, "progress_message": t.progress_message,
-             "error": t.error}
+            {
+                "id": t.id,
+                "name": t.name,
+                "status": t.status.value,
+                "progress": t.progress,
+                "progress_message": t.progress_message,
+                "error": t.error,
+            }
             for t in self._tasks.values()
             if status is None or t.status == status
         ]
 
     async def _notify(self, event: str, task: EnhancedTask, **extra):
         if self._hub:
-            await self._hub.send(event, {
-                "task_id": task.id,
-                "task_name": task.name,
-                "status": task.status.value,
-                "progress": task.progress,
-                "progress_message": task.progress_message,
-                "error": task.error,
-                **extra,
-            })
+            await self._hub.send(
+                event,
+                {
+                    "task_id": task.id,
+                    "task_name": task.name,
+                    "status": task.status.value,
+                    "progress": task.progress,
+                    "progress_message": task.progress_message,
+                    "error": task.error,
+                    **extra,
+                },
+            )

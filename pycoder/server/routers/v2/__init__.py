@@ -162,15 +162,18 @@ async def apply_fix(request: Request, body: ApplyRequest):
 
         # 记录进化
         from pycoder.capabilities.self_evo.engine import EvolutionRecord
-        engine.evolution.record_evolution(EvolutionRecord(
-            action="apply_fix",
-            issue_type=issue.issue_type,
-            file=issue.file,
-            success=result.success,
-            fix_description=proposal.reasoning[:200],
-            test_result="passed" if result.test_passed else "failed",
-            lessons=f"{'成功' if result.success else '失败'}: {result.error or ''}",
-        ))
+
+        engine.evolution.record_evolution(
+            EvolutionRecord(
+                action="apply_fix",
+                issue_type=issue.issue_type,
+                file=issue.file,
+                success=result.success,
+                fix_description=proposal.reasoning[:200],
+                test_result="passed" if result.test_passed else "failed",
+                lessons=f"{'成功' if result.success else '失败'}: {result.error or ''}",
+            )
+        )
 
         return {
             "success": result.success,
@@ -209,6 +212,7 @@ async def list_capabilities(request: Request, category: str = "", search: str = 
         caps = engine.registry.search(search)
     elif category:
         from pycoder.bus.protocol import CapabilityCategory
+
         try:
             cat = CapabilityCategory(category)
             caps = engine.registry.list_by_category(cat)
@@ -297,4 +301,5 @@ async def v2_stats(request: Request):
 def _count_severity(issues: list) -> dict[str, int]:
     """统计各严重度的问题数"""
     from collections import Counter
+
     return dict(Counter(i.severity for i in issues))

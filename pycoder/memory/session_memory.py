@@ -3,6 +3,7 @@
 每次会话自动记录关键决策、活跃文件、任务进度。
 会话结束时生成 LLM 摘要，下次启动时自动加载。
 """
+
 from __future__ import annotations
 
 import json
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SessionMemory:
     """会话记忆"""
+
     session_id: str
     workspace: str
     created_at: str
@@ -163,14 +165,16 @@ class SessionMemoryEngine:
         )[:limit]:
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
-                sessions.append({
-                    "session_id": data.get("session_id"),
-                    "created_at": data.get("created_at"),
-                    "summary": data.get("summary", "")[:200],
-                    "message_count": data.get("message_count", 0),
-                    "task_progress": data.get("task_progress", ""),
-                })
-            except (json.JSONDecodeError, OSError) as _m_err:
+                sessions.append(
+                    {
+                        "session_id": data.get("session_id"),
+                        "created_at": data.get("created_at"),
+                        "summary": data.get("summary", "")[:200],
+                        "message_count": data.get("message_count", 0),
+                        "task_progress": data.get("task_progress", ""),
+                    }
+                )
+            except (json.JSONDecodeError, OSError):
                 continue
         return sessions
 
@@ -214,12 +218,14 @@ class SessionMemoryEngine:
                 data = json.loads(f.read_text(encoding="utf-8"))
                 text = json.dumps(data, ensure_ascii=False).lower()
                 if query.lower() in text:
-                    results.append({
-                        "session_id": data.get("session_id"),
-                        "created_at": data.get("created_at"),
-                        "summary": data.get("summary", "")[:200],
-                        "task_progress": data.get("task_progress", ""),
-                    })
+                    results.append(
+                        {
+                            "session_id": data.get("session_id"),
+                            "created_at": data.get("created_at"),
+                            "summary": data.get("summary", "")[:200],
+                            "task_progress": data.get("task_progress", ""),
+                        }
+                    )
             except (json.JSONDecodeError, OSError):
                 pass
         return results
@@ -272,13 +278,9 @@ class SessionMemoryEngine:
             if self._current_session.task_progress:
                 parts.append(f"任务进度: {self._current_session.task_progress}")
             if self._current_session.key_decisions:
-                parts.append(
-                    f"关键决策: {'; '.join(self._current_session.key_decisions[-3:])}"
-                )
+                parts.append(f"关键决策: {'; '.join(self._current_session.key_decisions[-3:])}")
             if self._current_session.active_files:
-                parts.append(
-                    f"活跃文件: {', '.join(self._current_session.active_files[-5:])}"
-                )
+                parts.append(f"活跃文件: {', '.join(self._current_session.active_files[-5:])}")
             return " | ".join(parts) if parts else "无"
 
         prompt = (

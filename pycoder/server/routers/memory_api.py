@@ -1,4 +1,5 @@
 """会话记忆管理 API — 历史会话列表、搜索、导出、删除"""
+
 from __future__ import annotations
 
 import logging
@@ -68,6 +69,8 @@ async def get_current_session():
 
 
 @router.get("/search")
-async def search_memories(q: str = Query("", description="搜索关键词"), limit: int = Query(10, ge=1, le=50)):
+async def search_memories(
+    q: str = Query("", description="搜索关键词"), limit: int = Query(10, ge=1, le=50)
+):
     """搜索会话记忆"""
     return {"sessions": _engine.search_sessions(q, limit)}

@@ -21,46 +21,38 @@ TOOL_PERMISSIONS: dict[str, TrustLevel] = {
     "tools.file.write": WW,
     "tools.file.create_directory": WW,
     "tools.file.delete": PW,
-
     # ── 搜索 ──
     "tools.search.text": RL,
     "tools.search.quick_open": RL,
-
     # ── 代码执行 ──
     "tools.exec.python": WW,
     "tools.exec.code": WW,
     "tools.exec.multilang": PW,
     "tools.exec.debug_python": PW,
     "tools.exec.profile_python": PW,
-
     # ── 代码质量 ──
     "tools.quality.code_review": RL,
     "tools.quality.format_code": PW,
     "tools.quality.security_scan": PW,
     "tools.quality.dependency_analysis": PW,
-
     # ── Git ──
     "tools.git.status": RL,
     "tools.git.log": RL,
     "tools.git.diff_branch": RL,
     "tools.git.resolve_conflict": PW,
-
     # ── Shell ──
     "tools.shell.run_terminal": PW,
-
     # ── 环境 ──
     "tools.env.python": RL,
     "tools.env.docker_status": RL,
     "tools.env.docker_execute": SA,
     "tools.env.languages": RL,
-
     # ── 测试 ──
     "tools.testing.generate_tests": PW,
     "tools.testing.test_integration": PW,
     "tools.testing.test_e2e": PW,
     "tools.testing.test_performance": PW,
     "tools.testing.generate_pipeline": PW,
-
     # ── Skills 市场 ──
     "tools.marketplace.skills_search": RL,
     "tools.marketplace.skills_recommendations": RL,
@@ -73,17 +65,14 @@ TOOL_PERMISSIONS: dict[str, TrustLevel] = {
     "tools.marketplace.skills_update": PW,
     "tools.marketplace.skills_market": RL,
     "tools.marketplace.snippets": RL,
-
     # ── 扩展管理 ──
     "tools.marketplace.extensions_search": RL,
     "tools.marketplace.extensions_installed": RL,
     "tools.marketplace.extensions_install": PW,
     "tools.marketplace.extensions_uninstall": PW,
     "tools.marketplace.extensions_refresh": PW,
-
     # ── 系统升级 ──
     "tools.marketplace.system_upgrade": SA,
-
     # ── Agent ──
     "tools.agent.list_configs": RL,
 }
@@ -101,10 +90,8 @@ def get_permission(capability_id: str) -> TrustLevel:
     if capability_id in TOOL_PERMISSIONS:
         return TOOL_PERMISSIONS[capability_id]
     # 回退：根据 ID 前缀推断
-    if any(kw in capability_id
-           for kw in (".read", ".list", ".status", ".search", ".log")):
+    if any(kw in capability_id for kw in (".read", ".list", ".status", ".search", ".log")):
         return RL
-    if any(kw in capability_id
-           for kw in (".write", ".create", ".format")):
+    if any(kw in capability_id for kw in (".write", ".create", ".format")):
         return WW
     return PW  # 默认项目级

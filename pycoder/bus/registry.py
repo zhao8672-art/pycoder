@@ -158,11 +158,17 @@ class CapabilityRegistry:
 
     def list_by_category(self, category: CapabilityCategory) -> list[CapabilityDefinition]:
         """按功能域列出能力"""
-        return [self._definitions[cid] for cid in self._by_category.get(category, []) if cid in self._definitions]
+        return [
+            self._definitions[cid]
+            for cid in self._by_category.get(category, [])
+            if cid in self._definitions
+        ]
 
     def list_by_tag(self, tag: str) -> list[CapabilityDefinition]:
         """按标签列出能力"""
-        return [self._definitions[cid] for cid in self._by_tag.get(tag, []) if cid in self._definitions]
+        return [
+            self._definitions[cid] for cid in self._by_tag.get(tag, []) if cid in self._definitions
+        ]
 
     def search(self, query: str) -> list[CapabilityDefinition]:
         """
@@ -258,7 +264,7 @@ class CapabilityRegistry:
                 keywords.extend(cn_words)
 
         # 英文关键词提取
-        en_words = re.findall(r'[a-z_]+', desc)
+        en_words = re.findall(r"[a-z_]+", desc)
         keywords.extend(w for w in en_words if len(w) > 2)
 
         return list(dict.fromkeys(keywords))  # 去重保序
@@ -309,6 +315,7 @@ class CapabilityRegistry:
             )
 
         import time
+
         start = time.monotonic()
 
         try:
@@ -475,9 +482,7 @@ class CapabilityRegistry:
         """获取注册表统计信息"""
         return {
             "total_capabilities": self.count,
-            "categories": {
-                cat.value: len(ids) for cat, ids in self._by_category.items()
-            },
+            "categories": {cat.value: len(ids) for cat, ids in self._by_category.items()},
             "execution_modes": {
                 "sync": len(self._sync_handlers),
                 "stream": len(self._stream_handlers),

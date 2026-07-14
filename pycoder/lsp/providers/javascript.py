@@ -2,6 +2,7 @@
 
 提供 JS/TS 文件的诊断、补全、引用查找等 LSP 能力。
 """
+
 from __future__ import annotations
 
 import logging

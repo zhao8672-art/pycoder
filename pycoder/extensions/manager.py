@@ -45,6 +45,7 @@ def _safe_extract_archive(archive, target: Path, fmt: str = "tar"):
                 raise ValueError(f"检测到路径穿越攻击: {info.filename}")
             archive.extract(info, str(target))
 
+
 # ── 种子扩展源代码 ──────────────────────────────────
 
 _SEED_PACKAGES: dict[str, dict] = {
@@ -610,9 +611,7 @@ class ExtensionManager:
             encoding="utf-8",
         )
         (target / "extension.py").write_text(
-            f'"""{ext_data.get("name", ext_id)} — 元数据占位扩展"""\n'
-            f'\n'
-            f'__all__ = []\n',
+            f'"""{ext_data.get("name", ext_id)} — 元数据占位扩展"""\n' f"\n" f"__all__ = []\n",
             encoding="utf-8",
         )
 
@@ -1022,8 +1021,10 @@ class ExtensionManager:
                 manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError) as e:
                 import logging as _lg
+
                 _lg.getLogger(__name__).warning(
-                    "extensions_config_load_failed error=%s", e,
+                    "extensions_config_load_failed error=%s",
+                    e,
                 )
 
         # 解析贡献点

@@ -197,9 +197,7 @@ class RepoMap:
 
     # ── 依赖图构建 ──
 
-    def _build_dependency_graph(
-        self, all_tags: dict[str, list[CodeTag]]
-    ) -> dict[str, set[str]]:
+    def _build_dependency_graph(self, all_tags: dict[str, list[CodeTag]]) -> dict[str, set[str]]:
         """构建文件→文件的有向依赖图。
 
         如果文件 A 导入了模块 M，且模块 M 对应仓库内文件 B，

@@ -120,9 +120,7 @@ def process_all_tags_since(start_tag):
                 "end_tag": end_tag,
                 "end_date": end_date.strftime("%Y-%m-%d"),
                 "file_counts": all_file_counts,
-                "grand_total": dict(sorted(
-                        grand_total.items(), key=itemgetter(1), reverse=True
-                    )),
+                "grand_total": dict(sorted(grand_total.items(), key=itemgetter(1), reverse=True)),
                 "total_lines": total_lines,
                 "aider_total": aider_total,
                 "aider_percentage": round(aider_percentage, 2),

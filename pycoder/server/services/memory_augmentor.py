@@ -36,16 +36,17 @@ from dataclasses import dataclass, field
 @dataclass
 class LongTermMemory:
     """长期记忆条目"""
+
     id: int = 0
-    project: str = ""          # 所属项目
-    key: str = ""              # 记忆键
-    content: str = ""          # 记忆内容
+    project: str = ""  # 所属项目
+    key: str = ""  # 记忆键
+    content: str = ""  # 记忆内容
     tags: list[str] = field(default_factory=list)  # 标签
-    importance: float = 0.5    # 重要性 0-1
-    access_count: int = 0      # 引用次数
-    created_at: float = 0.0    # 创建时间
+    importance: float = 0.5  # 重要性 0-1
+    access_count: int = 0  # 引用次数
+    created_at: float = 0.0  # 创建时间
     last_accessed: float = 0.0  # 最后访问时间
-    ttl_days: int = 90         # 过期天数
+    ttl_days: int = 90  # 过期天数
 
 
 class MemoryAugmentor:
@@ -54,6 +55,7 @@ class MemoryAugmentor:
     def __init__(self, db_path: str | None = None):
         if db_path is None:
             from pycoder.server.unified_db import get_db_path
+
             db_path = str(get_db_path())
         self._db_path = db_path
         self._lock = threading.Lock()
@@ -109,8 +111,7 @@ class MemoryAugmentor:
             conn = sqlite3.connect(self._db_path)
             # 先查是否存在
             existing = conn.execute(
-                "SELECT id, access_count FROM long_term_memory "
-                "WHERE project = ? AND key = ?",
+                "SELECT id, access_count FROM long_term_memory " "WHERE project = ? AND key = ?",
                 (project, key),
             ).fetchone()
 
@@ -128,8 +129,7 @@ class MemoryAugmentor:
                     "(project, key, content, tags, importance, access_count, "
                     "created_at, last_accessed, ttl_days) "
                     "VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)",
-                    (project, key, content[:5000], tags_json, importance,
-                     now, now, ttl_days),
+                    (project, key, content[:5000], tags_json, importance, now, now, ttl_days),
                 )
                 mem_id = cursor.lastrowid or 0
 
@@ -207,15 +207,17 @@ class MemoryAugmentor:
                     tags = json.loads(row[4])
                 except (json.JSONDecodeError, TypeError):
                     tags = []
-                results.append({
-                    "id": row[0],
-                    "project": row[1],
-                    "key": row[2],
-                    "content": row[3],
-                    "tags": tags,
-                    "importance": row[5],
-                    "access_count": row[6],
-                })
+                results.append(
+                    {
+                        "id": row[0],
+                        "project": row[1],
+                        "key": row[2],
+                        "content": row[3],
+                        "tags": tags,
+                        "importance": row[5],
+                        "access_count": row[6],
+                    }
+                )
 
             return results
 
@@ -294,9 +296,31 @@ class MemoryAugmentor:
     # ══════════════════════════════════════════════════════
 
     _STOP_WORDS = {
-        "的", "了", "是", "在", "和", "也", "都", "就", "但",
-        "the", "a", "an", "is", "are", "was", "be", "to", "of",
-        "in", "for", "on", "with", "at", "by", "from",
+        "的",
+        "了",
+        "是",
+        "在",
+        "和",
+        "也",
+        "都",
+        "就",
+        "但",
+        "the",
+        "a",
+        "an",
+        "is",
+        "are",
+        "was",
+        "be",
+        "to",
+        "of",
+        "in",
+        "for",
+        "on",
+        "with",
+        "at",
+        "by",
+        "from",
     }
 
     @classmethod
@@ -307,12 +331,10 @@ class MemoryAugmentor:
     def get_stats(self) -> dict:
         with self._lock:
             conn = sqlite3.connect(self._db_path)
-            total = conn.execute(
-                "SELECT COUNT(*) FROM long_term_memory"
-            ).fetchone()[0]
-            avg_importance = conn.execute(
-                "SELECT AVG(importance) FROM long_term_memory"
-            ).fetchone()[0] or 0.0
+            total = conn.execute("SELECT COUNT(*) FROM long_term_memory").fetchone()[0]
+            avg_importance = (
+                conn.execute("SELECT AVG(importance) FROM long_term_memory").fetchone()[0] or 0.0
+            )
             conn.close()
         return {
             "total_memories": total,

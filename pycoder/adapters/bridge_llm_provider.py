@@ -40,8 +40,15 @@ class BridgeLLMProvider:
     def configure(self, **kwargs) -> None:
         """配置 ChatBridge（model / api_key / max_tokens / system_prompt 等）"""
         bridge_kwargs = {}
-        for k in ("model", "api_key", "api_base", "temperature", "reasoning_effort",
-                   "enable_thinking", "enable_cache"):
+        for k in (
+            "model",
+            "api_key",
+            "api_base",
+            "temperature",
+            "reasoning_effort",
+            "enable_thinking",
+            "enable_cache",
+        ):
             if k in kwargs:
                 bridge_kwargs[k] = kwargs[k]
         if bridge_kwargs:

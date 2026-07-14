@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Snapshot:
     """文件快照"""
+
     snapshot_id: str
     file_path: str
     backup_path: str
@@ -201,7 +202,8 @@ class RollbackManager:
         """清理过期快照"""
         cutoff = time.time() - self._snapshot_ttl
         expired = [
-            sid for sid, s in self._snapshots.items()
+            sid
+            for sid, s in self._snapshots.items()
             if s.timestamp < cutoff and sid not in self._active_snapshots
         ]
 

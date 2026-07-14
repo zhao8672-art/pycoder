@@ -440,7 +440,8 @@ async def execute_with_v2_brain(
         v2.consciousness.set_mode(OperatingMode.FOCUSED)
         plan: ExecutionPlan = await v2.planner.plan(user_request)
         yield {
-            "type": "phase", "phase": "decomposing",
+            "type": "phase",
+            "phase": "decomposing",
             "message": f"📋 V2 大脑规划完成: {len(plan.tasks)} 个任务",
         }
 
@@ -448,12 +449,14 @@ async def execute_with_v2_brain(
         agent_tasks = []
         for t in plan.tasks:
             role = _map_task_to_role(t.title)
-            agent_tasks.append(_AgentTask(
-                task_id=t.id,
-                role=role,
-                prompt=t.description,
-                dependencies=list(t.depends_on),
-            ))
+            agent_tasks.append(
+                _AgentTask(
+                    task_id=t.id,
+                    role=role,
+                    prompt=t.description,
+                    dependencies=list(t.depends_on),
+                )
+            )
 
         results = await v2.orchestrator.execute(agent_tasks, parallel=True)
         codes: dict[str, str] = {}
@@ -483,10 +486,13 @@ async def execute_with_v2_brain(
 
         # ── 阶段 4: 质量门禁（通过 V2 安全子系统） ──
         yield {"type": "phase", "phase": "quality_gate", "message": "🛡️ V2 质量门禁..."}
-        gate_result = await v2.call("self_evo.code.quality_check", {
-            "files": [r.files_modified for r in results if r.files_modified],
-            "results": {r.task_id: r.success for r in results},
-        })
+        gate_result = await v2.call(
+            "self_evo.code.quality_check",
+            {
+                "files": [r.files_modified for r in results if r.files_modified],
+                "results": {r.task_id: r.success for r in results},
+            },
+        )
         yield {
             "type": "quality_gate",
             "passed": gate_result.success,

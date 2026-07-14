@@ -202,6 +202,7 @@ def unpack(archive: str | Path, target_dir: str | Path | None = None) -> str:
 
     # 安全解包（防止路径穿越）
     from pycoder.extensions.manager import _safe_extract_archive
+
     with zipfile.ZipFile(archive_path, "r") as zf:
         _safe_extract_archive(zf, target, fmt="zip")
 

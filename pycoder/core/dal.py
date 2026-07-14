@@ -140,7 +140,9 @@ class DAL:
 
             if current < DB_VERSION:
                 logger.info(
-                    "dal_upgrade_needed: from=%d to=%d", current, DB_VERSION,
+                    "dal_upgrade_needed: from=%d to=%d",
+                    current,
+                    DB_VERSION,
                 )
                 # 执行升级迁移（当前 v2）
                 if current < 2:
@@ -189,25 +191,21 @@ class DAL:
                 continue
 
             # 检查新表是否已有数据
-            count = conn.execute(
-                f"SELECT COUNT(*) FROM {new_table}"
-            ).fetchone()[0]
+            count = conn.execute(f"SELECT COUNT(*) FROM {new_table}").fetchone()[0]
             if count > 0:
                 continue  # 已经迁移过
 
             try:
                 old_conn = sqlite3.connect(str(old_path))
-                old_rows = old_conn.execute(
-                    f"SELECT * FROM {old_table}"
-                ).fetchall()
+                old_rows = old_conn.execute(f"SELECT * FROM {old_table}").fetchall()
 
                 if not old_rows:
                     old_conn.close()
                     continue
 
-                columns = [d[0] for d in old_conn.execute(
-                    f"PRAGMA table_info({old_table})"
-                ).fetchall()]
+                columns = [
+                    d[0] for d in old_conn.execute(f"PRAGMA table_info({old_table})").fetchall()
+                ]
 
                 for row in old_rows:
                     data = dict(zip(columns, row, strict=False))
@@ -226,12 +224,18 @@ class DAL:
                 old_conn.close()
                 logger.info(
                     "dal_migrated: %s.%s → %s (%d rows)",
-                    old_file, old_table, new_table, len(old_rows),
+                    old_file,
+                    old_table,
+                    new_table,
+                    len(old_rows),
                 )
             except Exception as e:
                 logger.warning(
                     "dal_migrate_failed: %s.%s → %s: %s",
-                    old_file, old_table, new_table, e,
+                    old_file,
+                    old_table,
+                    new_table,
+                    e,
                 )
 
         if migrated_count > 0:
@@ -527,15 +531,10 @@ class DAL:
         conflict = ", ".join(conflict_columns)
 
         if update_columns:
-            set_clause = ", ".join(
-                f"{c} = excluded.{c}" for c in update_columns
-            )
+            set_clause = ", ".join(f"{c} = excluded.{c}" for c in update_columns)
         else:
             # 更新所有非冲突列
-            set_clause = ", ".join(
-                f"{c} = excluded.{c}"
-                for c in data if c not in conflict_columns
-            )
+            set_clause = ", ".join(f"{c} = excluded.{c}" for c in data if c not in conflict_columns)
 
         sql = (
             f"INSERT INTO {table} ({columns}) VALUES ({placeholders}) "
@@ -615,9 +614,12 @@ class DAL:
 
     def table_row_count(self, table: str) -> int:
         try:
-            return self.execute_value(
-                f"SELECT COUNT(*) FROM {table}",
-            ) or 0
+            return (
+                self.execute_value(
+                    f"SELECT COUNT(*) FROM {table}",
+                )
+                or 0
+            )
         except (sqlite3.Error, OSError, ValueError) as e:
             logger.debug("dal_table_row_count_failed: table=%s error=%s", table, e)
             return 0
@@ -634,14 +636,10 @@ class DAL:
         """获取数据库元信息"""
         info: dict = {"path": str(self._db_path), "tables": {}, "version": 0}
 
-        row = self.execute_one(
-            "SELECT version FROM db_version ORDER BY version DESC LIMIT 1"
-        )
+        row = self.execute_one("SELECT version FROM db_version ORDER BY version DESC LIMIT 1")
         info["version"] = row[0] if row else 0
 
-        tables = self.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-        )
+        tables = self.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
         for t in tables:
             name = t[0]
             count = self.table_row_count(name)

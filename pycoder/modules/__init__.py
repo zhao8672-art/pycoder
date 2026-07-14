@@ -22,10 +22,11 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ModuleManifest:
     """模块清单 —— 每个动态模块必须提供"""
-    id: str                    # 唯一标识
-    name: str                  # 显示名称
-    version: str               # 语义化版本
-    description: str           # 功能描述
+
+    id: str  # 唯一标识
+    name: str  # 显示名称
+    version: str  # 语义化版本
+    description: str  # 功能描述
     author: str = ""
     capabilities: list[str] = field(default_factory=list)
     dependencies: list[str] = field(default_factory=list)
@@ -94,7 +95,11 @@ class ModuleLoader:
             # 查找 DynamicModule 的子类实例
             for attr_name in dir(mod):
                 attr = getattr(mod, attr_name)
-                if isinstance(attr, type) and issubclass(attr, DynamicModule) and attr is not DynamicModule:
+                if (
+                    isinstance(attr, type)
+                    and issubclass(attr, DynamicModule)
+                    and attr is not DynamicModule
+                ):
                     instance = attr()
                     break
 
@@ -106,7 +111,7 @@ class ModuleLoader:
             self._loaded_modules[module_path] = instance
             self._module_states[module_path] = "loaded"
 
-            if hasattr(instance, 'manifest'):
+            if hasattr(instance, "manifest"):
                 self._manifests[module_path] = instance.manifest
 
             logger.info("模块已加载: %s", module_path)

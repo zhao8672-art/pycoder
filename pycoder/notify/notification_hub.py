@@ -5,6 +5,7 @@
 - Desktop：系统桌面通知（Windows/macOS/Linux）
 - Webhook：HTTP POST 回调
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -36,8 +37,9 @@ class NotificationHub:
         self._webhook_urls: list[str] = []
         self._enabled_channels: set[str] = {"websocket"}
 
-    async def send(self, event: str, data: dict,
-                   priority: NotificationPriority = NotificationPriority.NORMAL):
+    async def send(
+        self, event: str, data: dict, priority: NotificationPriority = NotificationPriority.NORMAL
+    ):
         """发送通知到所有启用的渠道"""
         tasks = []
         if "websocket" in self._enabled_channels:
@@ -61,11 +63,11 @@ class NotificationHub:
                 except Exception:
                     clients.discard(ws)
 
-    async def _send_desktop(self, event: str, data: dict,
-                            priority: NotificationPriority):
+    async def _send_desktop(self, event: str, data: dict, priority: NotificationPriority):
         if priority in (NotificationPriority.CRITICAL, NotificationPriority.IMPORTANT):
             try:
                 from plyer import notification
+
                 notification.notify(
                     title=f"PyCoder - {event}",
                     message=data.get("progress_message", data.get("task_name", "")),
@@ -78,6 +80,7 @@ class NotificationHub:
         for url in self._webhook_urls:
             try:
                 import httpx
+
                 async with httpx.AsyncClient() as client:
                     await client.post(
                         url,

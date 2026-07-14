@@ -6,8 +6,7 @@ import subprocess as sp
 from pathlib import Path
 from typing import Any
 
-from pycoder.bus.protocol import (CapabilityCategory, CapabilityDefinition,
-                                  ExecutionMode, SideEffect)
+from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, ExecutionMode, SideEffect
 from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 from pycoder.capabilities.degradation import wrap_handler
 
@@ -17,7 +16,8 @@ _CT = CapabilityCategory.SYSTEM
 def register(registry: Any) -> None:
     registry.register(
         CapabilityDefinition(
-            id="tools.shell.run_terminal", name="终端命令",
+            id="tools.shell.run_terminal",
+            name="终端命令",
             description="在终端中执行 shell 命令并获取输出和退出码",
             permission=TOOL_PERMISSIONS["tools.shell.run_terminal"],
             category=_CT,
@@ -44,14 +44,26 @@ async def _handle_run_terminal(params: dict, context: dict) -> dict:
     cwd = params.get("cwd") or str(Path.cwd())
     try:
         import sys as _sys
+
         if _sys.platform == "win32":
-            proc = sp.run(["powershell.exe", "-Command", cmd],
-                          capture_output=True, text=True, timeout=timeout, cwd=cwd)
+            proc = sp.run(
+                ["powershell.exe", "-Command", cmd],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=cwd,
+            )
         else:
-            proc = sp.run(["bash", "-c", cmd],
-                          capture_output=True, text=True, timeout=timeout, cwd=cwd)
-        return {"success": proc.returncode == 0, "exit_code": proc.returncode,
-                "stdout": proc.stdout[:8000], "stderr": proc.stderr[:4000], "cwd": cwd}
+            proc = sp.run(
+                ["bash", "-c", cmd], capture_output=True, text=True, timeout=timeout, cwd=cwd
+            )
+        return {
+            "success": proc.returncode == 0,
+            "exit_code": proc.returncode,
+            "stdout": proc.stdout[:8000],
+            "stderr": proc.stderr[:4000],
+            "cwd": cwd,
+        }
     except sp.TimeoutExpired:
         return {"success": False, "error": f"命令超时 ({timeout}s)", "exit_code": -1}
     except Exception as e:

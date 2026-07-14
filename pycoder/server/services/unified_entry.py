@@ -38,28 +38,31 @@ logger = logging.getLogger(__name__)
 
 class TaskCategory(Enum):
     """任务分类"""
-    CHAT = "chat"         # A类: 简单问答、概念解释、闲聊 → 普通聊天模式
-    HERMES = "hermes"      # B类: 工具操作、文件修改、诊断修复 → Hermes 结构化工作法
-    AGENT = "agent"       # C类: 系统工程、多文件开发、架构设计 → 多Agent团队协作
+
+    CHAT = "chat"  # A类: 简单问答、概念解释、闲聊 → 普通聊天模式
+    HERMES = "hermes"  # B类: 工具操作、文件修改、诊断修复 → Hermes 结构化工作法
+    AGENT = "agent"  # C类: 系统工程、多文件开发、架构设计 → 多Agent团队协作
 
 
 @dataclass
 class ParsedIntent:
     """意图解析结果"""
+
     raw_input: str
-    surface_text: str           # 表层文字内容
-    core_need: str              # 核心真实需求
-    ambiguity: str = ""         # 信息缺失/歧义说明
+    surface_text: str  # 表层文字内容
+    core_need: str  # 核心真实需求
+    ambiguity: str = ""  # 信息缺失/歧义说明
     task_category: TaskCategory = TaskCategory.CHAT
     beautified_command: str = ""  # 标准化后的任务指令
     sub_intents: list[ParsedIntent] = field(default_factory=list)
-    has_risk: bool = False       # 是否包含高风险操作
-    risk_description: str = ""   # 风险说明
+    has_risk: bool = False  # 是否包含高风险操作
+    risk_description: str = ""  # 风险说明
 
 
 @dataclass
 class ModeResult:
     """单模式执行结果"""
+
     mode: TaskCategory
     success: bool
     content: str = ""
@@ -71,6 +74,7 @@ class ModeResult:
 @dataclass
 class UnifiedResult:
     """统一入口最终结果"""
+
     original_input: str
     intent: ParsedIntent
     dispatched_modes: list[str]
@@ -84,32 +88,55 @@ class UnifiedResult:
 
 _TASK_PATTERNS: list[tuple[str, TaskCategory, str]] = [
     # ── B类: 工具操作（hermes）──
-    ("修改|更改|改成|修复|修复bug|添加|增加|删除|更新|优化|重构|改进", TaskCategory.HERMES,
-     "任务涉及代码/文件修改，需要结构化执行"),
-    ("安装|卸载|配置|设置|运行|执行|测试|调试|编译", TaskCategory.HERMES,
-     "任务涉及工具/环境操作，需要执行步骤"),
-    ("写一个|生成一个|创建一个|新建一个", TaskCategory.HERMES,
-     "任务涉及代码生成，需要产出文件"),
-    ("检查|诊断|分析|查看|排查|审查|review", TaskCategory.HERMES,
-     "任务涉及检查/分析操作，需要读取上下文"),
-    ("提交|commit|push|pull|merge|branch|stash", TaskCategory.HERMES,
-     "任务涉及 Git 操作"),
-
+    (
+        "修改|更改|改成|修复|修复bug|添加|增加|删除|更新|优化|重构|改进",
+        TaskCategory.HERMES,
+        "任务涉及代码/文件修改，需要结构化执行",
+    ),
+    (
+        "安装|卸载|配置|设置|运行|执行|测试|调试|编译",
+        TaskCategory.HERMES,
+        "任务涉及工具/环境操作，需要执行步骤",
+    ),
+    ("写一个|生成一个|创建一个|新建一个", TaskCategory.HERMES, "任务涉及代码生成，需要产出文件"),
+    (
+        "检查|诊断|分析|查看|排查|审查|review",
+        TaskCategory.HERMES,
+        "任务涉及检查/分析操作，需要读取上下文",
+    ),
+    ("提交|commit|push|pull|merge|branch|stash", TaskCategory.HERMES, "任务涉及 Git 操作"),
     # ── C类: 系统工程（agent）──
-    ("开发|搭建|构建|实现.*系统|实现.*项目|实现.*平台|实现.*应用|实现.*服务", TaskCategory.AGENT,
-     "任务涉及完整系统开发，需要多角色协作"),
-    ("设计.*架构|规划.*项目|整体.*重构|全栈|全部重写", TaskCategory.AGENT,
-     "任务涉及架构设计/全面重构，需要团队协作"),
-    ("多.*步骤|复杂.*任务|完整.*流程|全套|整合", TaskCategory.AGENT,
-     "任务涉及多步骤复杂操作，需要多 Agent 协作"),
-    ("从零|从头|搭建.*框架|初始化.*项目|scaffold", TaskCategory.AGENT,
-     "任务涉及项目初始化搭建，需要完整规划"),
-
+    (
+        "开发|搭建|构建|实现.*系统|实现.*项目|实现.*平台|实现.*应用|实现.*服务",
+        TaskCategory.AGENT,
+        "任务涉及完整系统开发，需要多角色协作",
+    ),
+    (
+        "设计.*架构|规划.*项目|整体.*重构|全栈|全部重写",
+        TaskCategory.AGENT,
+        "任务涉及架构设计/全面重构，需要团队协作",
+    ),
+    (
+        "多.*步骤|复杂.*任务|完整.*流程|全套|整合",
+        TaskCategory.AGENT,
+        "任务涉及多步骤复杂操作，需要多 Agent 协作",
+    ),
+    (
+        "从零|从头|搭建.*框架|初始化.*项目|scaffold",
+        TaskCategory.AGENT,
+        "任务涉及项目初始化搭建，需要完整规划",
+    ),
     # ── A类: 简单问答（chat）── 默认兜底
-    ("问|什么是|解释|什么意思|为什么|如何理解|介绍|是什么|区别|对比|比较", TaskCategory.CHAT,
-     "纯知识问答，无需工具操作"),
-    ("能不能|可以吗|怎么办|有没有|是否|推荐|建议|评价|怎么样", TaskCategory.CHAT,
-     "咨询/建议类，无需执行操作"),
+    (
+        "问|什么是|解释|什么意思|为什么|如何理解|介绍|是什么|区别|对比|比较",
+        TaskCategory.CHAT,
+        "纯知识问答，无需工具操作",
+    ),
+    (
+        "能不能|可以吗|怎么办|有没有|是否|推荐|建议|评价|怎么样",
+        TaskCategory.CHAT,
+        "咨询/建议类，无需执行操作",
+    ),
 ]
 
 
@@ -123,18 +150,22 @@ def _classify_intent(message: str) -> tuple[TaskCategory, str]:
     # ── P1: 复杂度前置判断（在正则之前）──
     # 多步骤指示词 → 强制 AGENT
     multi_step_patterns = [
-        r"系统.*自检", r"全面.*(检查|诊断|审查|测试)",
-        r"逐一", r"逐个", r"依次",
-        r"先.*再.*然后", r"第一.*第二.*第三",
+        r"系统.*自检",
+        r"全面.*(检查|诊断|审查|测试)",
+        r"逐一",
+        r"逐个",
+        r"依次",
+        r"先.*再.*然后",
+        r"第一.*第二.*第三",
     ]
     for pat in multi_step_patterns:
         if re.search(pat, msg):
             return TaskCategory.AGENT, "检测到多步骤任务描述，启用 Agent 团队协作"
 
     # 长消息（≥150 字符）+ 多动词 → AGENT
-    action_verbs = len(re.findall(
-        r"检查|分析|修改|创建|优化|测试|部署|构建|搜索|审查|诊断|重构", msg
-    ))
+    action_verbs = len(
+        re.findall(r"检查|分析|修改|创建|优化|测试|部署|构建|搜索|审查|诊断|重构", msg)
+    )
     if len(msg) >= 150 and action_verbs >= 3:
         return TaskCategory.AGENT, f"长消息含 {action_verbs} 个动作词，启用 Agent 团队协作"
 
@@ -148,7 +179,7 @@ def _classify_intent(message: str) -> tuple[TaskCategory, str]:
             return category, reason
 
     # 包含文件路径或代码语法的默认为 B 类
-    if re.search(r'\.py|\.ts|\.js|\.json|\.html|\.css|\.md', message):
+    if re.search(r"\.py|\.ts|\.js|\.json|\.html|\.css|\.md", message):
         return TaskCategory.HERMES, "消息涉及具体文件，判断为工具操作"
 
     # 长消息默认 hermes（大概率是具体任务）
@@ -224,6 +255,7 @@ class UnifiedEntryAgent:
         - process_stream 在每次 yield 之间检查队列并消费
         """
         import asyncio
+
         queue: asyncio.Queue[dict] = asyncio.Queue()
 
         async def _callback(event: dict) -> None:
@@ -282,9 +314,7 @@ class UnifiedEntryAgent:
                         lines: list[str] = []
                         for m in history_msgs[-20:]:
                             role_label = "用户" if m.role == "user" else "助手"
-                            lines.append(
-                                f"{role_label}: {str(m.content)[:500]}"
-                            )
+                            lines.append(f"{role_label}: {str(m.content)[:500]}")
                         history_context = "\n".join(lines)
                         logger.debug(
                             "unified_history_loaded",
@@ -428,6 +458,7 @@ class UnifiedEntryAgent:
             from pycoder.server.services.auto_plugin_manager import (
                 get_plugin_manager,
             )
+
             ap_mgr = get_plugin_manager()
             ap_bg_task = asyncio.create_task(
                 ap_mgr.auto_fulfill(user_message),
@@ -466,8 +497,13 @@ class UnifiedEntryAgent:
                                 mode_content = ev.get("content") or mode_content
                                 success = True
                                 yield ev
-                            elif etype in ("error", "agent_status", "agent_step",
-                                           "progress", "plugin_event"):
+                            elif etype in (
+                                "error",
+                                "agent_status",
+                                "agent_step",
+                                "progress",
+                                "plugin_event",
+                            ):
                                 yield ev
                             else:
                                 yield ev
@@ -487,8 +523,13 @@ class UnifiedEntryAgent:
                                 mode_content = ev.get("content") or mode_content
                                 success = True
                                 yield ev
-                            elif etype in ("error", "agent_status", "agent_step",
-                                           "progress", "plugin_event"):
+                            elif etype in (
+                                "error",
+                                "agent_status",
+                                "agent_step",
+                                "progress",
+                                "plugin_event",
+                            ):
                                 yield ev
                             else:
                                 yield ev
@@ -516,16 +557,25 @@ class UnifiedEntryAgent:
                                 max_iter = ev.get("max", 0)
                                 tool_calls = ev.get("tool_calls", [])
                                 if status_text == "analyzing":
-                                    yield {"type": "agent_status", "status": "started",
-                                           "message": "🔍 正在分析任务..."}
+                                    yield {
+                                        "type": "agent_status",
+                                        "status": "started",
+                                        "message": "🔍 正在分析任务...",
+                                    }
                                 elif status_text == "thinking":
                                     pct = int(iteration / max(max_iter, 1) * 100) if max_iter else 0
-                                    yield {"type": "agent_status", "status": "working",
-                                           "message": f"🧠 思考中 ({iteration}/{max_iter}, {pct}%)"}
+                                    yield {
+                                        "type": "agent_status",
+                                        "status": "working",
+                                        "message": f"🧠 思考中 ({iteration}/{max_iter}, {pct}%)",
+                                    }
                                 elif status_text == "executing":
                                     tools_str = ", ".join(tool_calls[:5]) if tool_calls else "工具"
-                                    yield {"type": "agent_status", "status": "working",
-                                           "message": f"⚡ 执行: {tools_str}..."}
+                                    yield {
+                                        "type": "agent_status",
+                                        "status": "working",
+                                        "message": f"⚡ 执行: {tools_str}...",
+                                    }
                             elif ev.get("type") == "tool_result":
                                 # agent_loop 的工具结果 → 转发为 agent_step
                                 yield {
@@ -559,14 +609,16 @@ class UnifiedEntryAgent:
                 yield ev
 
             elapsed = int(time.monotonic() * 1000) - start
-            results.append(ModeResult(
-                mode=mode,
-                success=success,
-                content=mode_content,
-                error="" if success else f"执行失败，已重试 {retry_count} 次",
-                duration_ms=elapsed,
-                retries=retry_count,
-            ))
+            results.append(
+                ModeResult(
+                    mode=mode,
+                    success=success,
+                    content=mode_content,
+                    error="" if success else f"执行失败，已重试 {retry_count} 次",
+                    duration_ms=elapsed,
+                    retries=retry_count,
+                )
+            )
 
         # ── 等待后台插件/技能执行完成（最多等10s）──
         if bg_task is not None:
@@ -624,6 +676,7 @@ class UnifiedEntryAgent:
             from pycoder.server.services.context_orchestrator import (
                 get_orchestrator,
             )
+
             orch = get_orchestrator()
             if orch and merged:
                 orch.add_assistant_response(merged[:2000])
@@ -659,17 +712,20 @@ class UnifiedEntryAgent:
         issues: list[str] = []
 
         # 检测模糊代词
-        if re.search(r'这个|那个|它|那个文件|刚才的|上面的', message):
+        if re.search(r"这个|那个|它|那个文件|刚才的|上面的", message):
             issues.append("含模糊代词（这个/那个/它），缺少具体对象引用")
 
         # 检测未指定文件路径
-        if re.search(r'修改|修复|改|优化|重构', message) and not re.search(r'\.\w{1,5}\b|\S+/\S+', message):
+        if re.search(r"修改|修复|改|优化|重构", message) and not re.search(
+            r"\.\w{1,5}\b|\S+/\S+", message
+        ):
             issues.append("提到修改/修复但未指定具体文件")
 
         # 检测未指定技术栈
-        if re.search(r'写|生成|开发|创建.*项目|搭建', message) and not re.search(
-            r'python|fastapi|flask|django|react|vue|node|spring|go|rust|java|typescript|javascript',
-            message, re.IGNORECASE
+        if re.search(r"写|生成|开发|创建.*项目|搭建", message) and not re.search(
+            r"python|fastapi|flask|django|react|vue|node|spring|go|rust|java|typescript|javascript",
+            message,
+            re.IGNORECASE,
         ):
             issues.append("涉及开发但未指定技术栈/框架")
 
@@ -691,10 +747,14 @@ class UnifiedEntryAgent:
             return [{"mode": TaskCategory.CHAT, "reason": "简单问答/知识咨询，直接文字回复"}]
 
         elif category == TaskCategory.HERMES:
-            return [{"mode": TaskCategory.HERMES, "reason": "工具操作/代码修改，使用结构化5步工作法"}]
+            return [
+                {"mode": TaskCategory.HERMES, "reason": "工具操作/代码修改，使用结构化5步工作法"}
+            ]
 
         elif category == TaskCategory.AGENT:
-            return [{"mode": TaskCategory.AGENT, "reason": "系统工程/多步骤开发，启用多Agent团队协作"}]
+            return [
+                {"mode": TaskCategory.AGENT, "reason": "系统工程/多步骤开发，启用多Agent团队协作"}
+            ]
 
         return [{"mode": TaskCategory.CHAT, "reason": "默认聊天模式"}]
 
@@ -730,22 +790,23 @@ class UnifiedEntryAgent:
                     if retry_count >= max_retries:
                         break
 
-            results.append(ModeResult(
-                mode=mode,
-                success=success,
-                content=content,
-                error=error,
-                duration_ms=int(time.monotonic() * 1000) - start,
-                retries=retry_count,
-            ))
+            results.append(
+                ModeResult(
+                    mode=mode,
+                    success=success,
+                    content=content,
+                    error=error,
+                    duration_ms=int(time.monotonic() * 1000) - start,
+                    retries=retry_count,
+                )
+            )
 
         return results
 
-    async def _execute_chat_sync(
-        self, context: str, history_context: str = ""
-    ) -> str:
+    async def _execute_chat_sync(self, context: str, history_context: str = "") -> str:
         """同步执行普通聊天模式。"""
         from pycoder.server.chat_bridge import ChatBridge
+
         bridge = ChatBridge()
         if self.api_key:
             bridge.configure(model=self.model, api_key=self.api_key)
@@ -759,12 +820,11 @@ class UnifiedEntryAgent:
         finally:
             await bridge.close()
 
-    async def _execute_hermes_sync(
-        self, context: str, history_context: str = ""
-    ) -> str:
+    async def _execute_hermes_sync(self, context: str, history_context: str = "") -> str:
         """同步执行 Hermes 模式。"""
         from pycoder.prompts.loader import get_prompt
         from pycoder.server.chat_bridge import ChatBridge
+
         bridge = ChatBridge()
         if self.api_key:
             bridge.configure(model=self.model, api_key=self.api_key)
@@ -781,12 +841,11 @@ class UnifiedEntryAgent:
         finally:
             await bridge.close()
 
-    async def _execute_agent_sync(
-        self, context: str, history_context: str = ""
-    ) -> str:
+    async def _execute_agent_sync(self, context: str, history_context: str = "") -> str:
         """同步执行 Agent 模式。"""
         from pycoder.server.chat_bridge import ChatBridge
         from pycoder.server.services.agent_strategies import UNIFIED_SYSTEM_PROMPT
+
         bridge = ChatBridge()
         if self.api_key:
             bridge.configure(model=self.model, api_key=self.api_key)
@@ -801,24 +860,19 @@ class UnifiedEntryAgent:
         finally:
             await bridge.close()
 
-    async def _execute_chat_stream(
-        self, message: str, context: str, history_context: str = ""
-    ):
+    async def _execute_chat_stream(self, message: str, context: str, history_context: str = ""):
         """流式执行普通聊天模式。"""
         from pycoder.server.chat_bridge import ChatBridge
+
         bridge = ChatBridge()
         if self.api_key:
             bridge.configure(model=self.model, api_key=self.api_key)
         effective_message = message
         if history_context:
-            effective_message = (
-                f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
-            )
+            effective_message = f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
         try:
-            yield {"type": "agent_status", "status": "started",
-                   "message": "🔍 正在分析您的问题..."}
-            yield {"type": "agent_status", "status": "working",
-                   "message": "🧠 AI 正在生成回复..."}
+            yield {"type": "agent_status", "status": "started", "message": "🔍 正在分析您的问题..."}
+            yield {"type": "agent_status", "status": "working", "message": "🧠 AI 正在生成回复..."}
             full = ""
             token_count = 0
             tool_indicators: list[str] = []
@@ -830,12 +884,17 @@ class UnifiedEntryAgent:
                         tool_indicators.append(ev.content.strip()[:80])
                     yield {"type": "token", "data": ev.content, "content": ev.content}
                     if token_count % 15 == 0:
-                        yield {"type": "progress", "phase": "llm",
-                               "stage": f"AI 生成中... ({token_count} tokens)",
-                               "current_step": 2, "total_steps": 6,
-                               "percent": min(40 + token_count // 10, 65),
-                               "elapsed_seconds": 0, "eta_seconds": 0,
-                               "milestones": []}
+                        yield {
+                            "type": "progress",
+                            "phase": "llm",
+                            "stage": f"AI 生成中... ({token_count} tokens)",
+                            "current_step": 2,
+                            "total_steps": 6,
+                            "percent": min(40 + token_count // 10, 65),
+                            "elapsed_seconds": 0,
+                            "eta_seconds": 0,
+                            "milestones": [],
+                        }
                 elif ev.event_type == "reasoning":
                     yield {"type": "reasoning", "content": ev.content}
                 elif ev.event_type == "done":
@@ -843,24 +902,23 @@ class UnifiedEntryAgent:
                     # P4: 附加工具调用统计
                     tool_count = full.count("🔧 执行")
                     if tool_count > 0:
-                        final = final.rstrip() + (
-                            f"\n\n---\n⚡ 本次执行工具 {tool_count} 次"
-                        )
-                    yield {"type": "done", "content": final,
-                           "tool_calls_count": tool_count}
+                        final = final.rstrip() + (f"\n\n---\n⚡ 本次执行工具 {tool_count} 次")
+                    yield {"type": "done", "content": final, "tool_calls_count": tool_count}
                 elif ev.event_type == "error":
                     yield {"type": "error", "message": ev.content}
-            yield {"type": "agent_status", "status": "completed",
-                   "message": f"✅ 回复生成完成 ({len(full)} 字符, ~{token_count} tokens)"}
+            yield {
+                "type": "agent_status",
+                "status": "completed",
+                "message": f"✅ 回复生成完成 ({len(full)} 字符, ~{token_count} tokens)",
+            }
         finally:
             await bridge.close()
 
-    async def _execute_hermes_stream(
-        self, message: str, context: str, history_context: str = ""
-    ):
+    async def _execute_hermes_stream(self, message: str, context: str, history_context: str = ""):
         """流式执行 Hermes 结构化工作模式。"""
         from pycoder.prompts.loader import get_prompt
         from pycoder.server.chat_bridge import ChatBridge
+
         bridge = ChatBridge()
         if self.api_key:
             bridge.configure(model=self.model, api_key=self.api_key)
@@ -870,14 +928,15 @@ class UnifiedEntryAgent:
         # 注入会话历史上下文（仅作为 chat_stream 参数，不重复 add_message）
         effective_message = message
         if history_context:
-            effective_message = (
-                f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
-            )
+            effective_message = f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
         try:
             # ── 开始: 通知用户正在执行 ──
             yield {"type": "agent_status", "status": "started", "message": "🔍 正在诊断分析..."}
-            yield {"type": "agent_status", "status": "working",
-                   "message": "🧠 AI 正在执行 Hermes 5步工作法..."}
+            yield {
+                "type": "agent_status",
+                "status": "working",
+                "message": "🧠 AI 正在执行 Hermes 5步工作法...",
+            }
             full = ""
             token_count = 0
             tool_indicators: list[str] = []
@@ -893,12 +952,17 @@ class UnifiedEntryAgent:
                     yield {"type": "token", "data": ev.content, "content": ev.content}
                     # 每 ~15 tokens 发送一次进度心跳
                     if token_count % 15 == 0:
-                        yield {"type": "progress", "phase": "llm",
-                               "stage": f"Hermes 执行中... ({token_count} tokens)",
-                               "current_step": 2, "total_steps": 6,
-                               "percent": min(40 + token_count // 10, 65),
-                               "elapsed_seconds": 0, "eta_seconds": 0,
-                               "milestones": []}
+                        yield {
+                            "type": "progress",
+                            "phase": "llm",
+                            "stage": f"Hermes 执行中... ({token_count} tokens)",
+                            "current_step": 2,
+                            "total_steps": 6,
+                            "percent": min(40 + token_count // 10, 65),
+                            "elapsed_seconds": 0,
+                            "eta_seconds": 0,
+                            "milestones": [],
+                        }
                 elif ev.event_type == "reasoning":
                     yield {"type": "reasoning", "content": ev.content}
                 elif ev.event_type == "done":
@@ -908,12 +972,14 @@ class UnifiedEntryAgent:
                     # P2: 首次调用未执行任何工具 → 强化提示词重试一次
                     if not has_tools and not _hermes_retried:
                         _hermes_retried = True
-                        yield {"type": "agent_status", "status": "working",
-                               "message": "⚠️ AI 未调用任何工具执行实际操作，自动强化指令并重试..."}
+                        yield {
+                            "type": "agent_status",
+                            "status": "working",
+                            "message": "⚠️ AI 未调用任何工具执行实际操作，自动强化指令并重试...",
+                        }
                         # 强化系统提示词
                         bridge.config.system_prompt = (
-                            (hermes_prompt or "") +
-                            "\n\n## 🚨 紧急指令 (最高优先级)\n"
+                            (hermes_prompt or "") + "\n\n## 🚨 紧急指令 (最高优先级)\n"
                             "上一条回复你没有调用任何函数工具！这是严重违规。\n"
                             "你必须立即调用 write_file / run_terminal / search / "
                             "code_review / git_status / file_list 等工具来实际执行任务。\n"
@@ -930,9 +996,7 @@ class UnifiedEntryAgent:
                                 retry_full += ev2.content
                                 retry_tokens += len(ev2.content)
                                 if "🔧" in ev2.content or "📋" in ev2.content:
-                                    tool_indicators.append(
-                                        ev2.content.strip()[:80]
-                                    )
+                                    tool_indicators.append(ev2.content.strip()[:80])
                                 yield ev2
                             elif ev2.event_type == "done":
                                 full = retry_full or ev2.content or full
@@ -941,17 +1005,12 @@ class UnifiedEntryAgent:
                             elif ev2.event_type == "error":
                                 yield ev2
                                 break
-                        has_tools = (
-                            "🔧" in full or "📋" in full or
-                            '"function"' in full
-                        )
+                        has_tools = "🔧" in full or "📋" in full or '"function"' in full
 
                     # 附加工具调用摘要
                     tool_count_final = full.count("🔧 执行")
                     if tool_count_final > 0:
-                        tools_summary = "\n".join(
-                            f"  • {t}" for t in tool_indicators[:5]
-                        )
+                        tools_summary = "\n".join(f"  • {t}" for t in tool_indicators[:5])
                         final = (
                             f"{full}\n\n---\n"
                             f"⚡ Hermes 执行完毕 | 工具调用: "
@@ -964,19 +1023,19 @@ class UnifiedEntryAgent:
                             f"⚠️ Hermes 重试后仍未检测到工具调用，"
                             f"本次任务可能未完全执行。"
                         )
-                    yield {"type": "done", "content": final,
-                           "tool_calls_count": tool_count_final}
+                    yield {"type": "done", "content": final, "tool_calls_count": tool_count_final}
                 elif ev.event_type == "error":
                     yield {"type": "error", "message": ev.content}
             # ── 完成: 通知用户 ──
-            yield {"type": "agent_status", "status": "completed",
-                   "message": f"✅ Hermes 5步执行完成 ({len(full)} 字符, ~{token_count} tokens)"}
+            yield {
+                "type": "agent_status",
+                "status": "completed",
+                "message": f"✅ Hermes 5步执行完成 ({len(full)} 字符, ~{token_count} tokens)",
+            }
         finally:
             await bridge.close()
 
-    async def _execute_agent_stream(
-        self, message: str, context: str, history_context: str = ""
-    ):
+    async def _execute_agent_stream(self, message: str, context: str, history_context: str = ""):
         """流式执行 Agent 团队协作模式。"""
         from pycoder.server.services.agent_orchestrator import agent_chat_stream
 
@@ -1019,13 +1078,8 @@ class UnifiedEntryAgent:
         cleaned = self._strip_internal_markers(raw_content)
 
         # ── 附加执行摘要（客户友好格式）──
-        modes_summary = "、".join(
-            f"{r.mode.value}({'✅' if r.success else '❌'})" for r in results
-        )
-        footer = (
-            f"\n\n---\n"
-            f"🔧 调度模式: {modes_summary}"
-        )
+        modes_summary = "、".join(f"{r.mode.value}({'✅' if r.success else '❌'})" for r in results)
+        footer = f"\n\n---\n" f"🔧 调度模式: {modes_summary}"
 
         return cleaned + footer
 
@@ -1033,6 +1087,7 @@ class UnifiedEntryAgent:
     def _strip_internal_markers(text: str) -> str:
         """去除 LLM 输出中的内部调度标记，保留面向用户的干净内容。"""
         import re
+
         # 已知的内部标记块（含中英文变体）
         marker_patterns = [
             r"【原始用户输入】.*?(?=【|$)",

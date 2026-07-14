@@ -40,38 +40,54 @@ class ParsedIntent:
 
 CATEGORY_RULES: list[tuple[str, TaskCategory, str]] = [
     # B类: 工具操作 → hermes
-    ("修改|更改|改成|修复|修复bug|添加|增加|删除|更新|优化|改|调整|替换",
-     TaskCategory.HERMES, "任务涉及代码/文件修改"),
-    ("安装|卸载|配置|设置|运行|执行|测试|调试|编译|构建|打包",
-     TaskCategory.HERMES, "任务涉及工具/环境操作"),
-    ("写一个|生成一个|创建一个|新建一个|做一个|实现一个",
-     TaskCategory.HERMES, "任务涉及代码生成"),
-    ("检查|诊断|分析|查看|排查|审查|review|查找|搜索",
-     TaskCategory.HERMES, "任务涉及检查/分析"),
-    ("提交|commit|push|pull|merge|branch|stash|rebase",
-     TaskCategory.HERMES, "任务涉及 Git 操作"),
-    ("运行|启动|停止|重启|kill",
-     TaskCategory.HERMES, "任务涉及进程管理"),
-
+    (
+        "修改|更改|改成|修复|修复bug|添加|增加|删除|更新|优化|改|调整|替换",
+        TaskCategory.HERMES,
+        "任务涉及代码/文件修改",
+    ),
+    (
+        "安装|卸载|配置|设置|运行|执行|测试|调试|编译|构建|打包",
+        TaskCategory.HERMES,
+        "任务涉及工具/环境操作",
+    ),
+    ("写一个|生成一个|创建一个|新建一个|做一个|实现一个", TaskCategory.HERMES, "任务涉及代码生成"),
+    ("检查|诊断|分析|查看|排查|审查|review|查找|搜索", TaskCategory.HERMES, "任务涉及检查/分析"),
+    ("提交|commit|push|pull|merge|branch|stash|rebase", TaskCategory.HERMES, "任务涉及 Git 操作"),
+    ("运行|启动|停止|重启|kill", TaskCategory.HERMES, "任务涉及进程管理"),
     # C类: 系统工程 → agent
-    ("开发.*系统|开发.*项目|开发.*平台|开发.*应用|开发.*服务|搭建.*系统",
-     TaskCategory.AGENT, "任务涉及完整系统开发"),
-    ("设计.*架构|规划.*项目|整体.*重构|全栈|全部重写|完整.*改造",
-     TaskCategory.AGENT, "任务涉及架构设计/全面重构"),
-    ("多.*步骤|复杂.*任务|完整.*流程|全套|整合|集成",
-     TaskCategory.AGENT, "任务涉及多步骤复杂操作"),
-    ("从零|从头|搭建.*框架|初始化.*项目|scaffold|skycaffold",
-     TaskCategory.AGENT, "任务涉及项目初始化"),
-    ("实现.*功能|实现.*模块|实现.*接口.*数据库|实现.*前后端",
-     TaskCategory.AGENT, "任务涉及多模块开发"),
-
+    (
+        "开发.*系统|开发.*项目|开发.*平台|开发.*应用|开发.*服务|搭建.*系统",
+        TaskCategory.AGENT,
+        "任务涉及完整系统开发",
+    ),
+    (
+        "设计.*架构|规划.*项目|整体.*重构|全栈|全部重写|完整.*改造",
+        TaskCategory.AGENT,
+        "任务涉及架构设计/全面重构",
+    ),
+    ("多.*步骤|复杂.*任务|完整.*流程|全套|整合|集成", TaskCategory.AGENT, "任务涉及多步骤复杂操作"),
+    (
+        "从零|从头|搭建.*框架|初始化.*项目|scaffold|skycaffold",
+        TaskCategory.AGENT,
+        "任务涉及项目初始化",
+    ),
+    (
+        "实现.*功能|实现.*模块|实现.*接口.*数据库|实现.*前后端",
+        TaskCategory.AGENT,
+        "任务涉及多模块开发",
+    ),
     # A类: 简单问答 → chat（默认兜底）
-    ("问|什么是|解释|什么意思|为什么|如何理解|介绍|是什么|区别|对比|比较|区别是什么",
-     TaskCategory.CHAT, "纯知识问答"),
-    ("能不能|可以吗|怎么办|有没有|是否|推荐|建议|评价|怎么样|如何选择",
-     TaskCategory.CHAT, "咨询/建议类"),
-    ("你好|谢谢|帮助|help|功能|能用什么|你会什么|你是谁",
-     TaskCategory.CHAT, "元对话/自我介绍"),
+    (
+        "问|什么是|解释|什么意思|为什么|如何理解|介绍|是什么|区别|对比|比较|区别是什么",
+        TaskCategory.CHAT,
+        "纯知识问答",
+    ),
+    (
+        "能不能|可以吗|怎么办|有没有|是否|推荐|建议|评价|怎么样|如何选择",
+        TaskCategory.CHAT,
+        "咨询/建议类",
+    ),
+    ("你好|谢谢|帮助|help|功能|能用什么|你会什么|你是谁", TaskCategory.CHAT, "元对话/自我介绍"),
 ]
 
 
@@ -126,11 +142,15 @@ class IntentParser:
             return TaskCategory.CHAT, "短消息判断为简单问答"
 
         # 有具体文件路径 → hermes
-        if re.search(r'\.(?:py|ts|js|json|html|css|md|yaml|yml|toml|cfg|ini|env)\b', message):
+        if re.search(r"\.(?:py|ts|js|json|html|css|md|yaml|yml|toml|cfg|ini|env)\b", message):
             scores[TaskCategory.HERMES] += 2
 
         # 长消息无明确操作 → hermes
-        if len(message) > 100 and scores[TaskCategory.HERMES] == 0 and scores[TaskCategory.AGENT] == 0:
+        if (
+            len(message) > 100
+            and scores[TaskCategory.HERMES] == 0
+            and scores[TaskCategory.AGENT] == 0
+        ):
             scores[TaskCategory.HERMES] += 1
             return TaskCategory.HERMES, "长消息判断为有具体操作需求"
 
@@ -149,15 +169,18 @@ class IntentParser:
     def _detect_ambiguity(self, message: str) -> str:
         issues: list[str] = []
 
-        if re.search(r'这个|那个|它|那个文件|刚才的|上面的|下面', message):
+        if re.search(r"这个|那个|它|那个文件|刚才的|上面的|下面", message):
             issues.append("含模糊代词，缺少具体对象引用")
 
-        if re.search(r'修改|修复|优化|重构', message) and not re.search(r'\.\w{1,5}\b|\S+/\S+', message):
+        if re.search(r"修改|修复|优化|重构", message) and not re.search(
+            r"\.\w{1,5}\b|\S+/\S+", message
+        ):
             issues.append("提到修改操作但未指定目标文件")
 
-        if re.search(r'写|生成|开发|创建.*项目|搭建', message) and not re.search(
-            r'python|fastapi|flask|django|react|vue|node|spring|go|rust|java|typescript|javascript',
-            message, re.IGNORECASE
+        if re.search(r"写|生成|开发|创建.*项目|搭建", message) and not re.search(
+            r"python|fastapi|flask|django|react|vue|node|spring|go|rust|java|typescript|javascript",
+            message,
+            re.IGNORECASE,
         ):
             issues.append("涉及开发但未指定技术栈/框架，将默认使用 Python")
 
@@ -173,7 +196,7 @@ class IntentParser:
 
         elif category == TaskCategory.AGENT:
             if "技术栈" not in beautified and not re.search(
-                r'python|react|vue|node|spring|go', beautified, re.IGNORECASE
+                r"python|react|vue|node|spring|go", beautified, re.IGNORECASE
             ):
                 beautified += "\n默认技术栈: Python 3.12+, FastAPI, Pydantic v2"
 

@@ -21,17 +21,19 @@ logger = logging.getLogger(__name__)
 
 class AgentRole(enum.StrEnum):
     """预定义的 Agent 角色"""
-    ARCHITECT = "architect"        # 架构师：设计系统结构
-    DEVELOPER = "developer"        # 开发：编写代码
-    REVIEWER = "reviewer"          # 审查：代码审查
-    TESTER = "tester"              # 测试：编写和运行测试
-    DEVOPS = "devops"              # 运维：部署和配置
-    ANALYST = "analyst"            # 分析：需求分析和文档
+
+    ARCHITECT = "architect"  # 架构师：设计系统结构
+    DEVELOPER = "developer"  # 开发：编写代码
+    REVIEWER = "reviewer"  # 审查：代码审查
+    TESTER = "tester"  # 测试：编写和运行测试
+    DEVOPS = "devops"  # 运维：部署和配置
+    ANALYST = "analyst"  # 分析：需求分析和文档
 
 
 @dataclass
 class AgentTask:
     """分配给 Agent 的任务"""
+
     task_id: str
     role: AgentRole
     prompt: str
@@ -42,6 +44,7 @@ class AgentTask:
 @dataclass
 class AgentResult:
     """Agent 执行结果"""
+
     task_id: str
     role: AgentRole
     success: bool
@@ -95,9 +98,9 @@ class AgentSwarmOrchestrator:
         while len(completed) < len(tasks):
             # 找到所有可执行的任务（依赖已满足）
             ready = [
-                t for t in tasks
-                if t.task_id not in completed
-                and all(d in completed for d in t.dependencies)
+                t
+                for t in tasks
+                if t.task_id not in completed and all(d in completed for d in t.dependencies)
             ]
 
             if not ready:
@@ -107,9 +110,7 @@ class AgentSwarmOrchestrator:
 
             if parallel and len(ready) > 1:
                 # 并行执行
-                batch_results = await asyncio.gather(*[
-                    self._execute_single(t) for t in ready
-                ])
+                batch_results = await asyncio.gather(*[self._execute_single(t) for t in ready])
                 for r in batch_results:
                     results.append(r)
                     completed.add(r.task_id)
@@ -135,6 +136,7 @@ class AgentSwarmOrchestrator:
         这里是框架实现，具体逻辑在 services/ 中。
         """
         import time
+
         start = time.monotonic()
 
         try:
@@ -201,11 +203,13 @@ class AgentSwarmOrchestrator:
             else:
                 role = AgentRole.DEVELOPER
 
-            agent_tasks.append(AgentTask(
-                task_id=task.task_id,
-                role=role,
-                prompt=task.description,
-                dependencies=task.dependencies,
-            ))
+            agent_tasks.append(
+                AgentTask(
+                    task_id=task.task_id,
+                    role=role,
+                    prompt=task.description,
+                    dependencies=task.dependencies,
+                )
+            )
 
         return agent_tasks

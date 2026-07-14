@@ -46,8 +46,8 @@ def _beautify_hermes(message: str) -> str:
         message = message.rstrip() + "。"
 
     # 如果涉及修改但未指定文件，添加探查提示
-    if re.search(r'修改|修复|优化|重构|调整', message) and not re.search(
-        r'[./]\w+\.\w{1,6}', message
+    if re.search(r"修改|修复|优化|重构|调整", message) and not re.search(
+        r"[./]\w+\.\w{1,6}", message
     ):
         message += "\n\n请先读取相关文件了解上下文后再进行修改。"
 
@@ -57,8 +57,11 @@ def _beautify_hermes(message: str) -> str:
 def _beautify_agent(message: str) -> str:
     """美化 Agent 团队协作指令。"""
     # 补齐技术栈默认值
-    if not re.search(r'python|react|vue|node|spring|go|rust|java|typescript|docker|k8s|mysql|postgres|redis|mongodb',
-                     message, re.IGNORECASE):
+    if not re.search(
+        r"python|react|vue|node|spring|go|rust|java|typescript|docker|k8s|mysql|postgres|redis|mongodb",
+        message,
+        re.IGNORECASE,
+    ):
         message += "\n\n默认技术约束:\n- 后端: Python 3.12+, FastAPI, Pydantic v2\n- 数据库: SQLite（开发）/ PostgreSQL（生产）\n- 编码规范: PEP 8, type hints, 中文注释"
 
     # 补齐交付物约束

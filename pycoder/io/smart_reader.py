@@ -7,6 +7,7 @@
 - 内容概览：符号表 + 前 N 行预览
 - 符号定位：搜索符号名 → 返回其所在代码区域
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,20 +19,24 @@ from pycoder.io.file_indexer import FileIndex, FileIndexer
 class SmartReader:
     """智能文件读取器"""
 
-    MAX_CHUNK_TOKENS = 8000   # 单段最大 token 数（约 2000 行）
-    PREVIEW_LINES = 50        # 概览时预览行数
+    MAX_CHUNK_TOKENS = 8000  # 单段最大 token 数（约 2000 行）
+    PREVIEW_LINES = 50  # 概览时预览行数
 
-    def __init__(self, workspace: Path,
-                 indexer: FileIndexer | None = None,
-                 cache: ChunkCache | None = None):
+    def __init__(
+        self, workspace: Path, indexer: FileIndexer | None = None, cache: ChunkCache | None = None
+    ):
         self._workspace = workspace
         self._indexer = indexer or FileIndexer()
         self._cache = cache or ChunkCache()
 
-    def read_smart(self, file_path: str, max_tokens: int | None = None,
-                   chunk_index: int = 0,
-                   start_line: int | None = None,
-                   end_line: int | None = None) -> dict:
+    def read_smart(
+        self,
+        file_path: str,
+        max_tokens: int | None = None,
+        chunk_index: int = 0,
+        start_line: int | None = None,
+        end_line: int | None = None,
+    ) -> dict:
         """智能读取文件
 
         Args:
@@ -91,15 +96,13 @@ class SmartReader:
             "total_lines": index.total_lines,
             "total_bytes": index.total_bytes,
             "symbols": [
-                {"name": s.name, "kind": s.kind,
-                 "start_line": s.start_line, "end_line": s.end_line}
+                {"name": s.name, "kind": s.kind, "start_line": s.start_line, "end_line": s.end_line}
                 for s in index.symbols
             ],
             "preview": preview["content"],
         }
 
-    def find_symbol(self, file_path: str, symbol_name: str,
-                    context_lines: int = 20) -> dict:
+    def find_symbol(self, file_path: str, symbol_name: str, context_lines: int = 20) -> dict:
         """定位符号并返回其所在代码区域
 
         Args:
@@ -130,8 +133,7 @@ class SmartReader:
 
         return {"error": f"未找到符号: {symbol_name}"}
 
-    def _read_lines(self, index: FileIndex, path: Path,
-                    start: int, end: int | None = None) -> dict:
+    def _read_lines(self, index: FileIndex, path: Path, start: int, end: int | None = None) -> dict:
         """精确读取指定行范围（1-based）"""
         end = end or index.total_lines
         start = max(1, start)
@@ -147,11 +149,7 @@ class SmartReader:
             }
 
         offset_start = index.line_offsets[start - 1]
-        offset_end = (
-            index.line_offsets[end]
-            if end < len(index.line_offsets)
-            else index.total_bytes
-        )
+        offset_end = index.line_offsets[end] if end < len(index.line_offsets) else index.total_bytes
 
         # 尝试缓存
         cache_key = f"{index.path}:{start}:{end}"
@@ -167,9 +165,7 @@ class SmartReader:
 
         with open(path, "rb") as f:
             f.seek(offset_start)
-            content = f.read(offset_end - offset_start).decode(
-                "utf-8", errors="replace"
-            )
+            content = f.read(offset_end - offset_start).decode("utf-8", errors="replace")
 
         self._cache.set(cache_key, content)
         return {
@@ -180,8 +176,9 @@ class SmartReader:
             "has_more": end < index.total_lines,
         }
 
-    def _read_chunked(self, index: FileIndex, path: Path,
-                      max_tokens: int, chunk_index: int = 0) -> dict:
+    def _read_chunked(
+        self, index: FileIndex, path: Path, max_tokens: int, chunk_index: int = 0
+    ) -> dict:
         """按 token 预算自动分段读取"""
         # 估算每行平均 token 数
         avg_bytes_per_line = index.total_bytes / max(index.total_lines, 1)
@@ -199,8 +196,7 @@ class SmartReader:
         result["chunk_index"] = chunk_index
         result["total_chunks"] = total_chunks
         result["symbols"] = [
-            {"name": s.name, "kind": s.kind,
-             "start_line": s.start_line, "end_line": s.end_line}
+            {"name": s.name, "kind": s.kind, "start_line": s.start_line, "end_line": s.end_line}
             for s in index.symbols
         ]
         return result

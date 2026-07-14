@@ -27,10 +27,11 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CodeIssue:
     """代码问题"""
+
     file: str
     line: int
-    severity: str          # critical / high / medium / low
-    issue_type: str        # security / bug / performance / style / architecture
+    severity: str  # critical / high / medium / low
+    issue_type: str  # security / bug / performance / style / architecture
     title: str
     description: str = ""
     suggestion: str = ""
@@ -40,6 +41,7 @@ class CodeIssue:
 @dataclass
 class ScanReport:
     """扫描报告"""
+
     path: str
     files_scanned: int
     total_issues: int
@@ -52,8 +54,9 @@ class ScanReport:
 @dataclass
 class FixProposal:
     """修复方案"""
+
     issue: CodeIssue
-    action: str            # replace / insert / delete / refactor
+    action: str  # replace / insert / delete / refactor
     file_path: str
     old_code: str = ""
     new_code: str = ""
@@ -66,6 +69,7 @@ class FixProposal:
 @dataclass
 class FixResult:
     """修复结果"""
+
     proposal: FixProposal
     success: bool
     test_passed: bool = False
@@ -78,6 +82,7 @@ class FixResult:
 @dataclass
 class EvolutionRecord:
     """进化记录"""
+
     timestamp: float = field(default_factory=time.time)
     action: str = ""
     issue_type: str = ""
@@ -91,6 +96,7 @@ class EvolutionRecord:
 @dataclass
 class EvolutionTask:
     """一次进化任务"""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     type: str = "fix"
     target_files: list[str] = field(default_factory=list)
@@ -106,10 +112,17 @@ class EvolutionTask:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "id": self.id, "type": self.type, "target_files": self.target_files,
-            "description": self.description, "status": self.status, "plan": self.plan,
-            "changes": self.changes, "test_result": self.test_result, "error": self.error,
-            "backup_ref": self.backup_ref, "created_at": self.created_at,
+            "id": self.id,
+            "type": self.type,
+            "target_files": self.target_files,
+            "description": self.description,
+            "status": self.status,
+            "plan": self.plan,
+            "changes": self.changes,
+            "test_result": self.test_result,
+            "error": self.error,
+            "backup_ref": self.backup_ref,
+            "created_at": self.created_at,
             "completed_at": self.completed_at,
         }
 
@@ -117,6 +130,7 @@ class EvolutionTask:
 @dataclass
 class EvolutionStats:
     """进化统计"""
+
     total_tasks: int = 0
     successful: int = 0
     failed: int = 0
@@ -133,10 +147,14 @@ class EvolutionStats:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "total_tasks": self.total_tasks, "successful": self.successful,
-            "failed": self.failed, "rolled_back": self.rolled_back,
-            "bugs_fixed": self.bugs_fixed, "lines_changed": self.lines_changed,
-            "success_rate": round(self.success_rate, 3), "last_run": self.last_run,
+            "total_tasks": self.total_tasks,
+            "successful": self.successful,
+            "failed": self.failed,
+            "rolled_back": self.rolled_back,
+            "bugs_fixed": self.bugs_fixed,
+            "lines_changed": self.lines_changed,
+            "success_rate": round(self.success_rate, 3),
+            "last_run": self.last_run,
         }
 
 
@@ -176,17 +194,27 @@ class SelfEvolutionEngine:
 
     # 关键路径写保护
     PROTECTED_PATTERNS = [
-        "**/.env*", "*.env", ".env*",
-        "**/config/*.json", "*.config.json",
-        "**/.api_key", ".api_key",
-        "**/__pycache__/*", "__pycache__",
-        "**/node_modules/*", "node_modules",
-        "**/.git/*", ".git",
-        "**/pycoder.db", "*.db",
+        "**/.env*",
+        "*.env",
+        ".env*",
+        "**/config/*.json",
+        "*.config.json",
+        "**/.api_key",
+        ".api_key",
+        "**/__pycache__/*",
+        "__pycache__",
+        "**/node_modules/*",
+        "node_modules",
+        "**/.git/*",
+        ".git",
+        "**/pycoder.db",
+        "*.db",
         "**/evolution_history.json",
     ]
 
-    def __init__(self, v2_engine: Any = None, llm_provider: Any = None, project_root: Path | None = None):
+    def __init__(
+        self, v2_engine: Any = None, llm_provider: Any = None, project_root: Path | None = None
+    ):
         # 向后兼容：如果第一个参数是 Path，视为 project_root（V1 调用方式）
         if isinstance(v2_engine, Path):
             project_root = v2_engine
@@ -216,6 +244,7 @@ class SelfEvolutionEngine:
             ScanReport 包含所有发现的问题
         """
         import ast
+
         start = time.monotonic()
         scan_path = Path(path)
         issues: list[CodeIssue] = []
@@ -234,12 +263,16 @@ class SelfEvolutionEngine:
                 issues.extend(file_issues)
                 files_scanned += 1
             except SyntaxError:
-                issues.append(CodeIssue(
-                    file=str(py_file),
-                    line=1, severity="critical",
-                    issue_type="bug", title="语法错误",
-                    description="文件包含 Python 语法错误",
-                ))
+                issues.append(
+                    CodeIssue(
+                        file=str(py_file),
+                        line=1,
+                        severity="critical",
+                        issue_type="bug",
+                        title="语法错误",
+                        description="文件包含 Python 语法错误",
+                    )
+                )
             except (OSError, UnicodeDecodeError, ValueError, TypeError, AttributeError):
                 continue
 
@@ -415,59 +448,88 @@ class SelfEvolutionEngine:
     def _scan_file_ast(self, tree: Any, file_path: Path, source: str) -> list[CodeIssue]:
         """AST 静态分析"""
         import ast
+
         issues: list[CodeIssue] = []
         fname = str(file_path)
 
         for node in ast.walk(tree):
             # 裸 except
             if isinstance(node, ast.ExceptHandler) and node.type is None:
-                issues.append(CodeIssue(
-                    file=fname, line=node.lineno, severity="high", issue_type="bug",
-                    title="裸 except 吞掉所有异常",
-                    suggestion="将 'except:' 替换为 'except Exception as e:'",
-                ))
+                issues.append(
+                    CodeIssue(
+                        file=fname,
+                        line=node.lineno,
+                        severity="high",
+                        issue_type="bug",
+                        title="裸 except 吞掉所有异常",
+                        suggestion="将 'except:' 替换为 'except Exception as e:'",
+                    )
+                )
 
             # 可变默认参数
             if isinstance(node, ast.FunctionDef):
                 for d in node.args.defaults + node.args.kw_defaults:
                     if isinstance(d, (ast.List, ast.Dict, ast.Set)):
-                        issues.append(CodeIssue(
-                            file=fname, line=node.lineno, severity="medium", issue_type="bug",
-                            title=f"函数 '{node.name}' 使用了可变默认参数",
-                            suggestion="将默认值改为 None，在函数体内初始化",
-                        ))
+                        issues.append(
+                            CodeIssue(
+                                file=fname,
+                                line=node.lineno,
+                                severity="medium",
+                                issue_type="bug",
+                                title=f"函数 '{node.name}' 使用了可变默认参数",
+                                suggestion="将默认值改为 None，在函数体内初始化",
+                            )
+                        )
 
             # 危险函数调用
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
                 if node.func.id in ("eval", "exec"):
-                    issues.append(CodeIssue(
-                        file=fname, line=node.lineno, severity="critical", issue_type="security",
-                        title=f"使用了危险函数 '{node.func.id}'",
-                        suggestion="避免使用 eval/exec，寻找安全的替代方案",
-                    ))
+                    issues.append(
+                        CodeIssue(
+                            file=fname,
+                            line=node.lineno,
+                            severity="critical",
+                            issue_type="security",
+                            title=f"使用了危险函数 '{node.func.id}'",
+                            suggestion="避免使用 eval/exec，寻找安全的替代方案",
+                        )
+                    )
 
             # 过大函数
             if isinstance(node, ast.FunctionDef):
                 end = node.end_lineno or node.lineno
                 length = end - node.lineno + 1
                 if length > 200:
-                    issues.append(CodeIssue(
-                        file=fname, line=node.lineno, severity="low", issue_type="style",
-                        title=f"函数 '{node.name}' 过长 ({length} 行)",
-                        suggestion="将函数拆分为多个小函数",
-                    ))
+                    issues.append(
+                        CodeIssue(
+                            file=fname,
+                            line=node.lineno,
+                            severity="low",
+                            issue_type="style",
+                            title=f"函数 '{node.name}' 过长 ({length} 行)",
+                            suggestion="将函数拆分为多个小函数",
+                        )
+                    )
 
         # 硬编码密钥
         import re
+
         for i, line in enumerate(source.split("\n"), 1):
-            if re.search(r'(api_key|password|secret|token|key)\s*=\s*["\'][^"\']{8,}["\']', line, re.I):
+            if re.search(
+                r'(api_key|password|secret|token|key)\s*=\s*["\'][^"\']{8,}["\']', line, re.I
+            ):
                 if "os.environ" not in line and "os.getenv" not in line:
-                    issues.append(CodeIssue(
-                        file=fname, line=i, severity="critical", issue_type="security",
-                        title="检测到硬编码密钥",
-                        suggestion="使用环境变量存储敏感信息",
-                        code_snippet=line.strip()[:100],
-                    ))
+                    issues.append(
+                        CodeIssue(
+                            file=fname,
+                            line=i,
+                            severity="critical",
+                            issue_type="security",
+                            title="检测到硬编码密钥",
+                            suggestion="使用环境变量存储敏感信息",
+                            code_snippet=line.strip()[:100],
+                        )
+                    )
 
         return issues
 
@@ -524,24 +586,30 @@ class SelfEvolutionEngine:
         import re
 
         # 尝试解析 diff 格式
-        diff_match = re.search(r'```diff(.*?)```', response, re.DOTALL)
+        diff_match = re.search(r"```diff(.*?)```", response, re.DOTALL)
         if diff_match:
             diff_content = diff_match.group(1)
             # 提取 --- 和 +++ 之间的旧代码，以及 +++ 之后的新代码
             old_match = re.search(
-                r'^---.*?\n(.*?)(?=^\+\+\+|\Z)', diff_content, re.DOTALL | re.MULTILINE
+                r"^---.*?\n(.*?)(?=^\+\+\+|\Z)", diff_content, re.DOTALL | re.MULTILINE
             )
-            new_match = re.search(
-                r'^\+\+\+.*?\n(.*?)$', diff_content, re.DOTALL | re.MULTILINE
-            )
+            new_match = re.search(r"^\+\+\+.*?\n(.*?)$", diff_content, re.DOTALL | re.MULTILINE)
             old_code = old_match.group(1).strip() if old_match else ""
             new_code = new_match.group(1).strip() if new_match else ""
             # 如果 diff 格式不标准，尝试从整个 diff 内容中提取
             if not old_code or not new_code:
                 # 提取所有以 - 开头的行作为旧代码
-                old_lines = [line[1:] for line in diff_content.split("\n") if line.startswith("-") and not line.startswith("---")]
+                old_lines = [
+                    line[1:]
+                    for line in diff_content.split("\n")
+                    if line.startswith("-") and not line.startswith("---")
+                ]
                 # 提取所有以 + 开头的行作为新代码
-                new_lines = [line[1:] for line in diff_content.split("\n") if line.startswith("+") and not line.startswith("+++")]
+                new_lines = [
+                    line[1:]
+                    for line in diff_content.split("\n")
+                    if line.startswith("+") and not line.startswith("+++")
+                ]
                 old_code = "\n".join(old_lines) if old_lines else old_code
                 new_code = "\n".join(new_lines) if new_lines else new_code
             return FixProposal(
@@ -554,7 +622,7 @@ class SelfEvolutionEngine:
             )
 
         # 解析代码块
-        code_match = re.search(r'```(?:python|py)?\n(.*?)```', response, re.DOTALL)
+        code_match = re.search(r"```(?:python|py)?\n(.*?)```", response, re.DOTALL)
         if code_match:
             return FixProposal(
                 issue=issue,
@@ -620,7 +688,9 @@ class SelfEvolutionEngine:
         try:
             result = subprocess.run(
                 ["pytest", "tests/", "-x", "--tb=short", "-q"],
-                capture_output=True, text=True, timeout=300,
+                capture_output=True,
+                text=True,
+                timeout=300,
             )
             return result.returncode == 0
         except (OSError, ValueError, subprocess.TimeoutExpired):
@@ -632,7 +702,9 @@ class SelfEvolutionEngine:
             # 检查当前分支
             r = subprocess.run(
                 ["git", "branch", "--show-current"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             current = r.stdout.strip()
 
@@ -644,7 +716,9 @@ class SelfEvolutionEngine:
             branch_name = f"self_evo/{int(time.time())}"
             subprocess.run(
                 ["git", "checkout", "-b", branch_name],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             self._active_branch = branch_name
             return branch_name
@@ -657,8 +731,15 @@ class SelfEvolutionEngine:
         try:
             subprocess.run(["git", "add", proposal.file_path], capture_output=True, timeout=10)
             result = subprocess.run(
-                ["git", "commit", "-m", f"self_evo: fix {proposal.issue.issue_type} in {proposal.file_path}"],
-                capture_output=True, text=True, timeout=10,
+                [
+                    "git",
+                    "commit",
+                    "-m",
+                    f"self_evo: fix {proposal.issue.issue_type} in {proposal.file_path}",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             return result.stdout.strip()[:200]
         except (OSError, ValueError, subprocess.TimeoutExpired):
@@ -707,7 +788,16 @@ class SelfEvolutionEngine:
 
     def _is_skippable(self, file_path: Path) -> bool:
         """检查文件是否应跳过扫描"""
-        skip_dirs = {"__pycache__", ".git", "node_modules", "venv", ".venv", ".tox", "build", "dist"}
+        skip_dirs = {
+            "__pycache__",
+            ".git",
+            "node_modules",
+            "venv",
+            ".venv",
+            ".tox",
+            "build",
+            "dist",
+        }
         for part in file_path.parts:
             if part in skip_dirs:
                 return True
@@ -718,7 +808,9 @@ class SelfEvolutionEngine:
         try:
             r = subprocess.run(
                 ["git", "diff", "--name-only", "HEAD"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             return [f for f in r.stdout.strip().split("\n") if f]
         except (OSError, ValueError, subprocess.TimeoutExpired):
@@ -727,6 +819,7 @@ class SelfEvolutionEngine:
     def _count_by_field(self, field: str) -> dict[str, int]:
         """按字段统计"""
         from collections import Counter
+
         return dict(Counter(getattr(r, field, "") for r in self._records if hasattr(r, field)))
 
     def _load_history(self) -> None:
@@ -735,16 +828,18 @@ class SelfEvolutionEngine:
             if self._persist_path.exists():
                 data = json.loads(self._persist_path.read_text(encoding="utf-8"))
                 for item in data[-500:]:
-                    self._records.append(EvolutionRecord(
-                        timestamp=item.get("timestamp", 0),
-                        action=item.get("action", ""),
-                        issue_type=item.get("issue_type", ""),
-                        file=item.get("file", ""),
-                        success=item.get("success", False),
-                        fix_description=item.get("fix_description", ""),
-                        test_result=item.get("test_result", ""),
-                        lessons=item.get("lessons", ""),
-                    ))
+                    self._records.append(
+                        EvolutionRecord(
+                            timestamp=item.get("timestamp", 0),
+                            action=item.get("action", ""),
+                            issue_type=item.get("issue_type", ""),
+                            file=item.get("file", ""),
+                            success=item.get("success", False),
+                            fix_description=item.get("fix_description", ""),
+                            test_result=item.get("test_result", ""),
+                            lessons=item.get("lessons", ""),
+                        )
+                    )
                 logger.info("加载进化历史: %d 条记录", len(self._records))
         except Exception as e:
             logger.debug("加载进化历史失败: %s", e)
@@ -817,9 +912,11 @@ class SelfEvolutionEngine:
         # 任务难度自动分级
         try:
             from pycoder.server.services.task_grader import get_task_grader
+
             grade = get_task_grader().grade_from_kwargs(task_type, target, custom_prompt)
             yield {
-                "type": "task_grade", "task_id": task.id,
+                "type": "task_grade",
+                "task_id": task.id,
                 "grade": grade.to_dict(),
                 "message": f"📊 任务难度: {grade.label} (评分 {grade.score})",
             }
@@ -829,50 +926,84 @@ class SelfEvolutionEngine:
         try:
             # 阶段 1: 扫描分析
             task.status = "analyzing"
-            yield {"type": "phase", "phase": "analyzing", "task_id": task.id, "message": "🔍 扫描项目代码..."}
+            yield {
+                "type": "phase",
+                "phase": "analyzing",
+                "task_id": task.id,
+                "message": "🔍 扫描项目代码...",
+            }
             await asyncio.sleep(0.1)
 
             analysis = await self._scan_project(task_type, target, custom_prompt)
-            yield {"type": "analysis", "task_id": task.id, "content": analysis[:2000], "full_length": len(analysis)}
+            yield {
+                "type": "analysis",
+                "task_id": task.id,
+                "content": analysis[:2000],
+                "full_length": len(analysis),
+            }
             await asyncio.sleep(0.1)
 
             if not analysis or len(analysis) < 20:
                 task.status = "done"
                 task.completed_at = time.time()
-                yield {"type": "done", "task_id": task.id, "message": "✅ 未发现需要修复的问题",
-                       "evolution_report": _build_evolution_report(task)}
+                yield {
+                    "type": "done",
+                    "task_id": task.id,
+                    "message": "✅ 未发现需要修复的问题",
+                    "evolution_report": _build_evolution_report(task),
+                }
                 return
 
             if dry_run:
                 task.status = "done"
                 task.completed_at = time.time()
-                yield {"type": "done", "task_id": task.id, "message": "Dry-run 完成：发现潜在问题，未实际修改",
-                       "dry_run": True, "evolution_report": _build_evolution_report(task)}
+                yield {
+                    "type": "done",
+                    "task_id": task.id,
+                    "message": "Dry-run 完成：发现潜在问题，未实际修改",
+                    "dry_run": True,
+                    "evolution_report": _build_evolution_report(task),
+                }
                 return
 
             # 阶段 2: 解析修复方案
             task.status = "generating"
-            yield {"type": "phase", "phase": "generating", "task_id": task.id, "message": "📝 解析修复方案..."}
+            yield {
+                "type": "phase",
+                "phase": "generating",
+                "task_id": task.id,
+                "message": "📝 解析修复方案...",
+            }
             await asyncio.sleep(0.1)
 
             fixes = self._parse_fixes(analysis)
             if not fixes:
                 task.status = "done"
                 task.completed_at = time.time()
-                yield {"type": "done", "task_id": task.id, "message": "⚠️ 未能解析出有效修复方案",
-                       "evolution_report": _build_evolution_report(task)}
+                yield {
+                    "type": "done",
+                    "task_id": task.id,
+                    "message": "⚠️ 未能解析出有效修复方案",
+                    "evolution_report": _build_evolution_report(task),
+                }
                 return
 
             task.changes = fixes
             task.plan = analysis
-            yield {"type": "fixes", "task_id": task.id, "count": len(fixes), "files": [f["file"] for f in fixes]}
+            yield {
+                "type": "fixes",
+                "task_id": task.id,
+                "count": len(fixes),
+                "files": [f["file"] for f in fixes],
+            }
             await asyncio.sleep(0.1)
 
             # ── 审批门禁：V2 使用 PermissionEngine ──
             if not auto_apply and self._is_core_modification(fixes):
                 task.status = "awaiting_approval"
                 yield {
-                    "type": "awaiting_approval", "task_id": task.id,
+                    "type": "awaiting_approval",
+                    "task_id": task.id,
                     "files": [f["file"] for f in fixes],
                     "is_core_modification": True,
                     "summary": analysis[:1000],
@@ -882,8 +1013,12 @@ class SelfEvolutionEngine:
 
             # 阶段 3: 快照 + 应用
             task.status = "applying"
-            yield {"type": "phase", "phase": "applying", "task_id": task.id,
-                   "message": f"💾 快照并应用 {len(fixes)} 个修复..."}
+            yield {
+                "type": "phase",
+                "phase": "applying",
+                "task_id": task.id,
+                "message": f"💾 快照并应用 {len(fixes)} 个修复...",
+            }
             await asyncio.sleep(0.1)
 
             backup_ref = await self._snapshot_backup()
@@ -894,8 +1029,15 @@ class SelfEvolutionEngine:
                 success, err = await self._apply_fix(fix)
                 if not success:
                     apply_failures += 1
-                yield {"type": "file_patch", "task_id": task.id, "file": fix["file"],
-                       "index": i + 1, "total": len(fixes), "success": success, "error": err}
+                yield {
+                    "type": "file_patch",
+                    "task_id": task.id,
+                    "file": fix["file"],
+                    "index": i + 1,
+                    "total": len(fixes),
+                    "success": success,
+                    "error": err,
+                }
                 await asyncio.sleep(0.05)
 
             if apply_failures == len(fixes):
@@ -911,12 +1053,22 @@ class SelfEvolutionEngine:
 
             # 阶段 4: 测试验证
             task.status = "testing"
-            yield {"type": "phase", "phase": "testing", "task_id": task.id, "message": "🧪 运行测试验证..."}
+            yield {
+                "type": "phase",
+                "phase": "testing",
+                "task_id": task.id,
+                "message": "🧪 运行测试验证...",
+            }
             await asyncio.sleep(0.1)
 
             test_ok, test_output = await self._run_tests_async()
             task.test_result = test_output
-            yield {"type": "test_result", "task_id": task.id, "passed": test_ok, "output": test_output[:1000]}
+            yield {
+                "type": "test_result",
+                "task_id": task.id,
+                "passed": test_ok,
+                "output": test_output[:1000],
+            }
             await asyncio.sleep(0.1)
 
             if test_ok:
@@ -933,9 +1085,13 @@ class SelfEvolutionEngine:
                 if pr_result:
                     msg += f" | PR: {pr_result['url']}"
 
-                yield {"type": "done", "task_id": task.id, "message": msg,
-                       "pr_url": pr_result.get("url") if pr_result else None,
-                       "evolution_report": _build_evolution_report(task)}
+                yield {
+                    "type": "done",
+                    "task_id": task.id,
+                    "message": msg,
+                    "pr_url": pr_result.get("url") if pr_result else None,
+                    "evolution_report": _build_evolution_report(task),
+                }
             else:
                 task.status = "rolled_back"
                 task.completed_at = time.time()
@@ -943,8 +1099,13 @@ class SelfEvolutionEngine:
                 await self._snapshot_rollback(backup_ref)
                 task.error = "测试失败，已自动回滚"
                 self._record_learning(task, fixes, test_ok, test_output, quality_score=30)
-                yield {"type": "rolled_back", "task_id": task.id, "message": "❌ 测试失败，已自动回滚所有修改",
-                       "test_output": test_output[:500], "evolution_report": _build_evolution_report(task)}
+                yield {
+                    "type": "rolled_back",
+                    "task_id": task.id,
+                    "message": "❌ 测试失败，已自动回滚所有修改",
+                    "test_output": test_output[:500],
+                    "evolution_report": _build_evolution_report(task),
+                }
                 self._stats.last_run = time.time()
 
         except Exception as e:
@@ -1003,6 +1164,7 @@ class SelfEvolutionEngine:
             api_key = _get_api_key_for_model("deepseek-chat")
             if not api_key:
                 import os as _os
+
                 api_key = _os.environ.get("DEEPSEEK_API_KEY", "")
             if api_key:
                 bridge.config.api_key = api_key
@@ -1028,6 +1190,7 @@ class SelfEvolutionEngine:
         """Ollama 本地模型回退 — 快速失败不阻塞主流程"""
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=5) as client:
                 resp = await client.post(
                     "http://localhost:11434/api/generate",
@@ -1039,8 +1202,14 @@ class SelfEvolutionEngine:
                 )
                 if resp.status_code == 200:
                     return resp.json().get("response", "")
-        except (OSError, ValueError, RuntimeError, httpx.ConnectError,
-                httpx.TimeoutException, httpx.ConnectTimeout):
+        except (
+            OSError,
+            ValueError,
+            RuntimeError,
+            httpx.ConnectError,
+            httpx.TimeoutException,
+            httpx.ConnectTimeout,
+        ):
             logger.info("evo_scan_local_model_unavailable (Ollama not running)")
         return ""
 
@@ -1085,9 +1254,9 @@ class SelfEvolutionEngine:
         lines.append("")
         lines.append("## 🔧 修复方案")
         lines.append("对以上问题应用模板修复。修复格式:")
-        lines.append('```json')
+        lines.append("```json")
         lines.append('{"file": "<path>", "action": "replace", "old": "<code>", "new": "<code>"}')
-        lines.append('```')
+        lines.append("```")
 
         return "\n".join(lines)
 
@@ -1105,7 +1274,9 @@ class SelfEvolutionEngine:
                 for f in sorted(p.rglob("*.py"))[:20]:
                     if "__pycache__" in str(f):
                         continue
-                    if "self_evolution" in f.name or ("evolution" in f.name and "routers" in str(f)):
+                    if "self_evolution" in f.name or (
+                        "evolution" in f.name and "routers" in str(f)
+                    ):
                         continue
                     rel = f.relative_to(self._project_root)
                     try:
@@ -1138,7 +1309,8 @@ class SelfEvolutionEngine:
             file_path = m.group(1).strip()
             new_content = m.group(2)
             code_match = re.search(
-                r"```(?:python|typescript|javascript)?\s*\n(.*?)\n\s*```", new_content, re.DOTALL)
+                r"```(?:python|typescript|javascript)?\s*\n(.*?)\n\s*```", new_content, re.DOTALL
+            )
             if code_match:
                 new_content = code_match.group(1)
 
@@ -1147,10 +1319,14 @@ class SelfEvolutionEngine:
             if full_path.exists():
                 old_content = full_path.read_text(encoding="utf-8")
 
-            fixes.append({
-                "file": file_path, "original": old_content[:100],
-                "modified": new_content, "reason": f"AI 建议修改 {file_path}",
-            })
+            fixes.append(
+                {
+                    "file": file_path,
+                    "original": old_content[:100],
+                    "modified": new_content,
+                    "reason": f"AI 建议修改 {file_path}",
+                }
+            )
         return fixes
 
     async def _apply_fix(self, fix: dict[str, Any]) -> tuple[bool, str]:
@@ -1189,6 +1365,7 @@ class SelfEvolutionEngine:
             # SnapshotManager 备份
             try:
                 from pycoder.server.services.version_snapshot import get_snapshot_manager
+
                 snap = get_snapshot_manager()
                 result = snap.create_snapshot(label=f"evo_{fix['file']}", pipeline_step="apply_fix")
                 if hasattr(result, "__await__"):
@@ -1205,8 +1382,11 @@ class SelfEvolutionEngine:
 
             # 占位符检测
             placeholder_patterns = [
-                "# ... 前面代码", "# ... 代码保持不变", "# 前面代码保持不变",
-                "# 中间代码保持不变", "# 后面代码保持不变",
+                "# ... 前面代码",
+                "# ... 代码保持不变",
+                "# 前面代码保持不变",
+                "# 中间代码保持不变",
+                "# 后面代码保持不变",
             ]
             for pattern in placeholder_patterns:
                 if pattern in modified:
@@ -1229,6 +1409,7 @@ class SelfEvolutionEngine:
             # AST 语法检查
             try:
                 import ast
+
                 ast.parse(modified)
             except SyntaxError as e:
                 return False, f"修改后的代码有语法错误: {e}"
@@ -1244,6 +1425,7 @@ class SelfEvolutionEngine:
         ref = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + str(uuid.uuid4())[:8]
         try:
             from pycoder.server.services.version_snapshot import get_snapshot_manager
+
             snap = get_snapshot_manager()
             snap.create_snapshot(label=f"evo_{ref}", pipeline_step="evolve_backup")
         except ImportError:
@@ -1254,6 +1436,7 @@ class SelfEvolutionEngine:
         """从快照回滚"""
         try:
             from pycoder.server.services.version_snapshot import get_snapshot_manager
+
             snap = get_snapshot_manager()
             snapshots = snap.list_snapshots()
             for s in snapshots:
@@ -1268,8 +1451,13 @@ class SelfEvolutionEngine:
         """异步运行 pytest（不阻塞事件循环）"""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "pytest", "tests/", "-x", "--tb=short", "-q",
-                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+                "pytest",
+                "tests/",
+                "-x",
+                "--tb=short",
+                "-q",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
             try:
                 stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=300)
@@ -1289,19 +1477,26 @@ class SelfEvolutionEngine:
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "ruff", "check", project, "--output-format=json", "--no-cache",
-                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+                "ruff",
+                "check",
+                project,
+                "--output-format=json",
+                "--no-cache",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
             try:
                 stdout_bytes, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
                 if stdout_bytes:
                     for issue in json.loads(stdout_bytes.decode("utf-8", errors="replace")):
-                        issues.append({
-                            "file": issue.get("filename", ""),
-                            "line": issue.get("location", {}).get("row", 0),
-                            "message": issue.get("message", ""),
-                            "source": "ruff",
-                        })
+                        issues.append(
+                            {
+                                "file": issue.get("filename", ""),
+                                "line": issue.get("location", {}).get("row", 0),
+                                "message": issue.get("message", ""),
+                                "source": "ruff",
+                            }
+                        )
             except TimeoutError:
                 proc.kill()
                 await proc.wait()
@@ -1317,24 +1512,30 @@ class SelfEvolutionEngine:
                 return None
 
             import httpx
+
             branch = f"self_evo/{task.id}"
             subprocess.run(["git", "checkout", "-b", branch], capture_output=True, timeout=10)
             subprocess.run(["git", "add", "-A"], capture_output=True, timeout=10)
             subprocess.run(
                 ["git", "commit", "-m", f"self_evo: {task.description[:72]}"],
-                capture_output=True, timeout=10,
+                capture_output=True,
+                timeout=10,
             )
             subprocess.run(["git", "push", "origin", branch], capture_output=True, timeout=30)
 
             async with httpx.AsyncClient() as client:
                 resp = await client.post(
                     "https://api.github.com/repos/zhao8672-art/pycoder/pulls",
-                    headers={"Authorization": f"token {token}", "Accept": "application/vnd.github+json"},
+                    headers={
+                        "Authorization": f"token {token}",
+                        "Accept": "application/vnd.github+json",
+                    },
                     json={
                         "title": f"self_evo: {task.description[:72]}",
-                        "head": branch, "base": "master",
+                        "head": branch,
+                        "base": "master",
                         "body": f"## 自动进化 PR\n\n- 任务: {task.id}\n- 类型: {task.type}\n"
-                                f"- 修复数: {len(task.changes)}\n- 测试: {task.test_result[:200]}",
+                        f"- 修复数: {len(task.changes)}\n- 测试: {task.test_result[:200]}",
                     },
                 )
                 if resp.status_code == 201:
@@ -1352,27 +1553,36 @@ class SelfEvolutionEngine:
 
     def _is_core_modification(self, fixes: list[dict[str, Any]]) -> bool:
         """检查是否涉及核心文件修改"""
-        return any(
-            any(p in fix.get("file", "") for p in self.CORE_FILE_PATTERNS)
-            for fix in fixes
-        )
+        return any(any(p in fix.get("file", "") for p in self.CORE_FILE_PATTERNS) for fix in fixes)
 
     def _record_learning(
-        self, task: EvolutionTask, fixes: list[dict[str, Any]],
-        test_passed: bool, test_output: str, quality_score: float = 0,
+        self,
+        task: EvolutionTask,
+        fixes: list[dict[str, Any]],
+        test_passed: bool,
+        test_output: str,
+        quality_score: float = 0,
     ) -> None:
         """记录学习经验到 LearningEngine"""
         try:
             from pycoder.server.learning import get_learning_engine
+
             engine = get_learning_engine()
-            outcome = "success" if test_passed else "rolled_back" if task.status == "rolled_back" else "failure"
+            outcome = (
+                "success"
+                if test_passed
+                else "rolled_back" if task.status == "rolled_back" else "failure"
+            )
             engine.on_task_complete(
-                task_id=task.id, outcome=outcome, task_type="evolve",
+                task_id=task.id,
+                outcome=outcome,
+                task_type="evolve",
                 description=task.description,
                 error_msg=test_output if not test_passed else "",
                 file_paths=[f.get("file", "") for f in fixes],
                 fix_content="\n".join(f.get("modified", "")[:500] for f in fixes),
-                test_passed=test_passed, quality_score=quality_score,
+                test_passed=test_passed,
+                quality_score=quality_score,
                 retry_count=1 if task.status == "rolled_back" else 0,
             )
         except Exception as e:

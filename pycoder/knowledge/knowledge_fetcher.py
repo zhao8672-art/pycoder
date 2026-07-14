@@ -2,6 +2,7 @@
 
 支持 HTML→Markdown 转换、文本切片、增量更新检测。
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -12,6 +13,7 @@ from datetime import UTC, datetime
 @dataclass
 class KnowledgeSource:
     """知识源定义"""
+
     id: str
     name: str
     url: str
@@ -23,6 +25,7 @@ class KnowledgeSource:
 @dataclass
 class KnowledgeChunk:
     """知识片段"""
+
     id: str
     source_id: str
     content: str
@@ -89,8 +92,7 @@ class KnowledgeFetcher:
     def list_sources(self) -> list[KnowledgeSource]:
         return list(self._sources.values())
 
-    async def fetch_source(self, source: KnowledgeSource,
-                           fetch_fn=None) -> list[KnowledgeChunk]:
+    async def fetch_source(self, source: KnowledgeSource, fetch_fn=None) -> list[KnowledgeChunk]:
         """抓取单个知识源
 
         Args:
@@ -116,29 +118,33 @@ class KnowledgeFetcher:
     def _html_to_text(html: str) -> str:
         """HTML 转纯文本（简单标签剥离）"""
         import re
+
         text = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE)
         text = re.sub(r"<style[^>]*>.*?</style>", "", text, flags=re.DOTALL | re.IGNORECASE)
         text = re.sub(r"<[^>]+>", " ", text)
         text = re.sub(r"\s+", " ", text)
         return text.strip()
 
-    def _chunk_text(self, text: str, source: KnowledgeSource,
-                    chunk_size: int = 512) -> list[KnowledgeChunk]:
+    def _chunk_text(
+        self, text: str, source: KnowledgeSource, chunk_size: int = 512
+    ) -> list[KnowledgeChunk]:
         """文本切片（按字符数分块）"""
         if not text:
             return []
         chunks = []
         for i in range(0, len(text), chunk_size):
-            chunk_text = text[i:i + chunk_size]
+            chunk_text = text[i : i + chunk_size]
             content_hash = hashlib.sha256(chunk_text.encode()).hexdigest()
-            chunks.append(KnowledgeChunk(
-                id=f"{source.id}_{i // chunk_size}",
-                source_id=source.id,
-                content=chunk_text,
-                url=source.url,
-                title=f"{source.name} #{i // chunk_size + 1}",
-                category=source.category,
-                fetched_at=datetime.now(UTC).isoformat(),
-                content_hash=content_hash,
-            ))
+            chunks.append(
+                KnowledgeChunk(
+                    id=f"{source.id}_{i // chunk_size}",
+                    source_id=source.id,
+                    content=chunk_text,
+                    url=source.url,
+                    title=f"{source.name} #{i // chunk_size + 1}",
+                    category=source.category,
+                    fetched_at=datetime.now(UTC).isoformat(),
+                    content_hash=content_hash,
+                )
+            )
         return chunks

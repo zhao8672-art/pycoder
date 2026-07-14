@@ -32,12 +32,14 @@ class BusMonitor:
         self._traces: list[CallTrace] = []
         self._max_traces = max_traces
         self._call_graph: dict[str, set[str]] = defaultdict(set)
-        self._category_stats: dict[str, dict[str, Any]] = defaultdict(lambda: {
-            "total_calls": 0,
-            "success_calls": 0,
-            "error_calls": 0,
-            "total_latency_ms": 0.0,
-        })
+        self._category_stats: dict[str, dict[str, Any]] = defaultdict(
+            lambda: {
+                "total_calls": 0,
+                "success_calls": 0,
+                "error_calls": 0,
+                "total_latency_ms": 0.0,
+            }
+        )
 
     def start_trace(self, call: CapabilityCall, definition: Any) -> CallTrace:
         """开始追踪一次调用"""
@@ -45,7 +47,7 @@ class BusMonitor:
             trace_id=call.trace_id,
             capability_id=call.capability_id,
             params_summary=self._summarize_params(call.params),
-            permission_required=getattr(definition, 'permission', TrustLevel.READ_ONLY),
+            permission_required=getattr(definition, "permission", TrustLevel.READ_ONLY),
             permission_granted=True,
             user_confirmed=False,
             success=False,
@@ -64,7 +66,7 @@ class BusMonitor:
 
         self._traces.append(trace)
         if len(self._traces) > self._max_traces:
-            self._traces = self._traces[-self._max_traces:]
+            self._traces = self._traces[-self._max_traces :]
 
         # 更新统计
         cap_id = trace.capability_id
@@ -99,7 +101,8 @@ class BusMonitor:
             "total_calls": total_calls,
             "total_errors": total_errors,
             "error_rate": total_errors / max(total_calls, 1),
-            "avg_latency_ms": sum(s["total_latency_ms"] for s in self._category_stats.values()) / max(total_calls, 1),
+            "avg_latency_ms": sum(s["total_latency_ms"] for s in self._category_stats.values())
+            / max(total_calls, 1),
             "per_capability": dict(self._category_stats),
             "call_graph": {k: list(v) for k, v in self._call_graph.items()},
             "traces_stored": len(self._traces),

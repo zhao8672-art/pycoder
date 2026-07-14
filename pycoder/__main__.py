@@ -226,7 +226,6 @@ def main():
     _run_cli_mode(unknown + args.args)
 
 
-
 def _run_autonomous_mode(task: str, model: str | None, port: int) -> None:
     """全自主开发模式 — 启动 Server 并通过流水线自动执行任务"""
     import asyncio
@@ -332,7 +331,9 @@ def _run_scan_mode(path: str) -> None:
 
         print("  正在扫描...")
         report = await engine.evolution.scan(path, use_llm=False)
-        print(f"  完成: {report.files_scanned} 个文件, {report.total_issues} 个问题 ({report.duration_seconds:.1f}s)")
+        print(
+            f"  完成: {report.files_scanned} 个文件, {report.total_issues} 个问题 ({report.duration_seconds:.1f}s)"
+        )
         print()
 
         if report.total_issues == 0:
@@ -341,13 +342,16 @@ def _run_scan_mode(path: str) -> None:
 
         # 按严重度分组
         from collections import Counter
+
         sev = Counter(i.severity for i in report.issues)
 
         print("  严重度分布:")
         for level in ["critical", "high", "medium", "low"]:
             count = sev.get(level, 0)
             if count > 0:
-                icon = {"critical": "Critical", "high": "High", "medium": "Medium", "low": "Low"}[level]
+                icon = {"critical": "Critical", "high": "High", "medium": "Medium", "low": "Low"}[
+                    level
+                ]
                 print(f"    [{icon}] {count} 个")
 
         print("\n  问题详情 (前 15 个):")
@@ -414,14 +418,16 @@ def _run_evolution_mode(path: str) -> None:
                 if result.success:
                     applied += 1
                     print(f"        已修复: {p.file_path}")
-                    engine.evolution.record_evolution(EvolutionRecord(
-                        action="apply_fix",
-                        issue_type=p.issue.issue_type,
-                        file=p.file_path,
-                        success=True,
-                        fix_description=p.reasoning[:200],
-                        test_result="passed" if result.test_passed else "failed",
-                    ))
+                    engine.evolution.record_evolution(
+                        EvolutionRecord(
+                            action="apply_fix",
+                            issue_type=p.issue.issue_type,
+                            file=p.file_path,
+                            success=True,
+                            fix_description=p.reasoning[:200],
+                            test_result="passed" if result.test_passed else "failed",
+                        )
+                    )
                 else:
                     print(f"        跳过: {p.file_path} — {result.error or '测试未通过'}")
             else:

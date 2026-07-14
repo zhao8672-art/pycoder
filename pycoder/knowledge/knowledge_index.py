@@ -2,6 +2,7 @@
 
 支持语义搜索和元数据过滤。
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,6 +26,7 @@ class KnowledgeIndex:
         self._collection = None
         try:
             import chromadb
+
             self._client = chromadb.PersistentClient(path=dir_path)
             self._collection = self._client.get_or_create_collection(
                 name="pycoder_knowledge",
@@ -55,18 +57,20 @@ class KnowledgeIndex:
         self._collection.add(
             ids=[c.id for c in new_chunks],
             documents=[c.content for c in new_chunks],
-            metadatas=[{
-                "source_id": c.source_id,
-                "url": c.url,
-                "title": c.title,
-                "category": c.category,
-                "fetched_at": c.fetched_at,
-            } for c in new_chunks],
+            metadatas=[
+                {
+                    "source_id": c.source_id,
+                    "url": c.url,
+                    "title": c.title,
+                    "category": c.category,
+                    "fetched_at": c.fetched_at,
+                }
+                for c in new_chunks
+            ],
         )
         return len(new_chunks)
 
-    def search(self, query: str, top_k: int = 5,
-               category: str | None = None) -> list[dict]:
+    def search(self, query: str, top_k: int = 5, category: str | None = None) -> list[dict]:
         """语义搜索知识
 
         Returns:
@@ -91,7 +95,8 @@ class KnowledgeIndex:
                 for doc, meta, dist in zip(
                     results["documents"][0],
                     results["metadatas"][0],
-                    results["distances"][0], strict=False,
+                    results["distances"][0],
+                    strict=False,
                 )
             ]
         except (ValueError, KeyError, IndexError, RuntimeError) as e:

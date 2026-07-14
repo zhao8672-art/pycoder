@@ -385,8 +385,7 @@ class SnapshotManager:
     def _cleanup_old(self):
         """超出 MAX_SNAPSHOTS 时清理旧快照（兼容 .json 和 .json.gz）"""
         files = sorted(
-            [*self._snapshot_dir.glob("snap_*.json"),
-             *self._snapshot_dir.glob("snap_*.json.gz")],
+            [*self._snapshot_dir.glob("snap_*.json"), *self._snapshot_dir.glob("snap_*.json.gz")],
             key=lambda p: p.stat().st_mtime,
         )
         while len(files) > MAX_SNAPSHOTS:

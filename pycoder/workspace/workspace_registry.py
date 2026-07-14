@@ -3,6 +3,7 @@
 提供工作区注册/注销、ACL 权限声明、共享范围控制。
 数据持久化到统一 SQLite 数据库。
 """
+
 from __future__ import annotations
 
 import json
@@ -75,8 +76,9 @@ class WorkspaceRegistry:
                 result.append(entry)
         return result
 
-    def set_share_policy(self, workspace_id: str, level: ShareLevel,
-                         allowed: list[str], shared_paths: list[str]) -> None:
+    def set_share_policy(
+        self, workspace_id: str, level: ShareLevel, allowed: list[str], shared_paths: list[str]
+    ) -> None:
         """设置共享策略"""
         entry = self._entries.get(workspace_id)
         if not entry:

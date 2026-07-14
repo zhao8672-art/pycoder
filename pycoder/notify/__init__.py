@@ -1,4 +1,5 @@
 """通知与任务调度模块 — 后台任务执行、进度监控、主动推送"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -35,16 +36,25 @@ def register_capabilities(registry: Any) -> None:
 
     def _send_notification(params: dict, ctx: dict) -> dict:
         import asyncio
+
         priority = NotificationPriority(params.get("priority", "normal"))
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            asyncio.create_task(hub.send(
-                params["event"], params.get("data", {}), priority,
-            ))
+            asyncio.create_task(
+                hub.send(
+                    params["event"],
+                    params.get("data", {}),
+                    priority,
+                )
+            )
         else:
-            loop.run_until_complete(hub.send(
-                params["event"], params.get("data", {}), priority,
-            ))
+            loop.run_until_complete(
+                hub.send(
+                    params["event"],
+                    params.get("data", {}),
+                    priority,
+                )
+            )
         return {"success": True}
 
     def _get_task_status(params: dict, ctx: dict) -> dict:
@@ -52,9 +62,12 @@ def register_capabilities(registry: Any) -> None:
         if not task:
             return {"error": f"任务 {params['task_id']} 不存在"}
         return {
-            "id": task.id, "name": task.name,
-            "status": task.status.value, "progress": task.progress,
-            "progress_message": task.progress_message, "error": task.error,
+            "id": task.id,
+            "name": task.name,
+            "status": task.status.value,
+            "progress": task.progress,
+            "progress_message": task.progress_message,
+            "error": task.error,
         }
 
     def _list_tasks(params: dict, ctx: dict) -> dict:
@@ -64,6 +77,7 @@ def register_capabilities(registry: Any) -> None:
 
     def _cancel_task(params: dict, ctx: dict) -> dict:
         import asyncio
+
         loop = asyncio.get_event_loop()
         if loop.is_running():
             asyncio.create_task(scheduler.cancel(params["task_id"]))
@@ -101,7 +115,10 @@ def register_capabilities(registry: Any) -> None:
                 "properties": {
                     "event": {"type": "string", "description": "事件名称"},
                     "data": {"type": "object", "description": "事件数据"},
-                    "priority": {"type": "string", "description": "优先级 (critical/important/normal/info)"},
+                    "priority": {
+                        "type": "string",
+                        "description": "优先级 (critical/important/normal/info)",
+                    },
                 },
                 "required": ["event"],
             },
@@ -143,7 +160,10 @@ def register_capabilities(registry: Any) -> None:
             schema={
                 "type": "object",
                 "properties": {
-                    "status": {"type": "string", "description": "状态筛选 (pending/running/done/failed/cancelled)"},
+                    "status": {
+                        "type": "string",
+                        "description": "状态筛选 (pending/running/done/failed/cancelled)",
+                    },
                 },
             },
             tags=["notify", "task", "list", "任务列表"],

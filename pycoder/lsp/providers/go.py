@@ -2,6 +2,7 @@
 
 提供 Go 文件的诊断、补全、引用查找等 LSP 能力。
 """
+
 from __future__ import annotations
 
 import logging
@@ -30,10 +31,7 @@ class GoProvider:
     @staticmethod
     def get_install_guide() -> str:
         """获取安装指南"""
-        return (
-            "go install golang.org/x/tools/gopls@latest\n"
-            "确保 $GOPATH/bin 在 PATH 中"
-        )
+        return "go install golang.org/x/tools/gopls@latest\n" "确保 $GOPATH/bin 在 PATH 中"
 
     def get_project_config(self) -> dict:
         """获取项目配置（go.mod 等）"""

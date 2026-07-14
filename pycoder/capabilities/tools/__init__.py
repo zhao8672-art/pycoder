@@ -49,10 +49,14 @@ def register_all_tools(registry: Any) -> int:
         try:
             mod.register(registry)
         except Exception as e:
-            import logging, traceback
+            import logging
+            import traceback
+
             logging.getLogger(__name__).error(
                 "tools_registration_failed module=%s error=%s trace=%s",
-                name, e, traceback.format_exc(),
+                name,
+                e,
+                traceback.format_exc(),
             )
             raise
 

@@ -90,6 +90,7 @@ def _detect_provider(model: str) -> str:
 # P6: 上下文锚点辅助函数
 # ══════════════════════════════════════════════════════
 
+
 def _get_context_anchor() -> str:
     """获取当前会话的上下文锚点（任务目标 + 进度 + 偏离提醒）
 
@@ -100,6 +101,7 @@ def _get_context_anchor() -> str:
         from pycoder.server.services.context_orchestrator import (
             get_orchestrator,
         )
+
         orch = get_orchestrator()
         if orch and orch.tracker.is_active:
             return orch.get_anchor()
@@ -135,7 +137,9 @@ class ChatBridge:
         try:
             resp = await client.post(
                 f"{self.config.api_base}/chat/completions",
-                headers=headers, json=payload, timeout=60,
+                headers=headers,
+                json=payload,
+                timeout=60,
             )
             if resp.status_code == 200:
                 data = resp.json()
@@ -223,9 +227,7 @@ class ChatBridge:
         if anchor and messages:
             # 追加到已存在的 system message 后面，或插入新 system
             if messages[0].get("role") == "system":
-                messages[0]["content"] = (
-                    anchor + "\n\n---\n" + str(messages[0]["content"])
-                )
+                messages[0]["content"] = anchor + "\n\n---\n" + str(messages[0]["content"])
             else:
                 messages.insert(0, {"role": "system", "content": anchor})
 
@@ -233,9 +235,7 @@ class ChatBridge:
 
     def _check_token_budget(self, messages: list[dict]) -> int:
         """估算消息列表的 token 数，超出阈值时预警"""
-        total_chars = sum(
-            len(m.get("content", "")) for m in messages
-        )
+        total_chars = sum(len(m.get("content", "")) for m in messages)
         estimated = total_chars // 3
         if estimated > 60000:
             logger.warning(
@@ -291,6 +291,7 @@ class ChatBridge:
         # 1) 将缓存优化规则追加到 system prompt
         if effective_system:
             from pycoder.prompts.cache_rules import inject_cache_rules
+
             effective_system = inject_cache_rules(effective_system, lang="zh")
         # 2) 追加 V2 能力块
         if caps:
@@ -301,6 +302,7 @@ class ChatBridge:
 
         # 3) 规范化消息结构（system 在 [0]，差异化在末尾，字段顺序固定）
         from pycoder.prompts.cache_rules import canonicalize_messages
+
         messages = canonicalize_messages(messages, effective_system)
         # system 已经由 canonicalize 自动插入，不再手动 insert
 
@@ -331,17 +333,21 @@ class ChatBridge:
             # ── V2: 合并 V2 能力到工具列表 ──
             try:
                 from pycoder.server.app import get_v2_engine
+
                 v2_engine = get_v2_engine()
                 if v2_engine:
                     for cap in v2_engine.registry.list_all():
-                        tools_payload.append({
-                            "type": "function",
-                            "function": {
-                                "name": cap.id.replace(".", "_"),
-                                "description": f"[V2] {cap.description}",
-                                "parameters": cap.schema or {"type": "object", "properties": {}},
-                            },
-                        })
+                        tools_payload.append(
+                            {
+                                "type": "function",
+                                "function": {
+                                    "name": cap.id.replace(".", "_"),
+                                    "description": f"[V2] {cap.description}",
+                                    "parameters": cap.schema
+                                    or {"type": "object", "properties": {}},
+                                },
+                            }
+                        )
             except (ImportError, AttributeError, TypeError, ValueError):
                 pass
 
@@ -365,6 +371,7 @@ class ChatBridge:
 
         # ── 缓存命中率优化: 规范化 tools 序列顺序 ──
         from pycoder.prompts.cache_rules import canonicalize_tools
+
         tools_payload = canonicalize_tools(tools_payload)
 
         is_deepseek = self.config.model.startswith("deepseek")
@@ -532,14 +539,18 @@ class ChatBridge:
                     result_str = None
                     try:
                         from pycoder.server.app import get_v2_engine
+
                         v2_engine = get_v2_engine()
                         if v2_engine:
                             cap_id = tool_name.replace("_", ".")
-                            cap_result = await v2_engine.call(cap_id, tool_args, caller="chatbridge")
+                            cap_result = await v2_engine.call(
+                                cap_id, tool_args, caller="chatbridge"
+                            )
                             if cap_result.success:
                                 result_str = json.dumps(
                                     cap_result.data if cap_result.data else {"ok": True},
-                                    ensure_ascii=False, indent=2,
+                                    ensure_ascii=False,
+                                    indent=2,
                                 )
                                 # M9: 与 V1 路径保持一致的动态截断逻辑
                                 max_result_len = 8000 if tool_name == "list_agent_configs" else 3000
@@ -554,6 +565,7 @@ class ChatBridge:
                     # ── V1: 回退到 mcp_tools ──
                     if result_str is None:
                         from pycoder.server.mcp_tools import call_builtin_tool
+
                         result = await call_builtin_tool(tool_name, tool_args)
                         if result.success:
                             result_str = json.dumps(result.output, ensure_ascii=False, indent=2)

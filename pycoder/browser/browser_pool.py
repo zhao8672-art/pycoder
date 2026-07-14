@@ -2,6 +2,7 @@
 
 管理 Playwright 浏览器的生命周期：预热、获取、归还、健康检查、空闲回收。
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -53,6 +54,7 @@ class BrowserPool:
         """启动池，预热最小实例数"""
         try:
             from playwright.async_api import async_playwright
+
             self._pw = await async_playwright().start()
         except ImportError:
             return
@@ -159,7 +161,8 @@ class BrowserPool:
             await asyncio.sleep(60)
             now = time.time()
             idle = [
-                i for i in self._all_instances
+                i
+                for i in self._all_instances
                 if not i.in_use and now - i.last_used > self.IDLE_TIMEOUT
             ]
             pool_size = self._pool.qsize()

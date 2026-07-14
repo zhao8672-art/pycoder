@@ -24,6 +24,7 @@ from pathlib import Path
 @dataclass
 class ValidationReport:
     """验证报告"""
+
     candidate_id: str = ""
     passed: bool = False
     file_exists: bool = False
@@ -34,7 +35,7 @@ class ValidationReport:
     no_conflict: bool = True
     conflict_details: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
-    score: int = 0           # 0-100
+    score: int = 0  # 0-100
     errors: list[str] = field(default_factory=list)
     validated_at: float = 0.0
 

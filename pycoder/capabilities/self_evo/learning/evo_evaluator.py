@@ -30,12 +30,13 @@ from dataclasses import dataclass, field
 @dataclass
 class EvolutionGrade:
     """进化评分"""
-    total: float = 0.0           # 总分 0-100
-    code_quality: float = 0.0    # 代码质量 0-40
-    performance: float = 0.0     # 性能 0-20
-    security: float = 0.0        # 安全 0-20
-    test_coverage: float = 0.0   # 测试覆盖 0-20
-    passed: bool = False         # 是否通过 (≥80分)
+
+    total: float = 0.0  # 总分 0-100
+    code_quality: float = 0.0  # 代码质量 0-40
+    performance: float = 0.0  # 性能 0-20
+    security: float = 0.0  # 安全 0-20
+    test_coverage: float = 0.0  # 测试覆盖 0-20
+    passed: bool = False  # 是否通过 (≥80分)
     warnings: list[str] = field(default_factory=list)
     suggestions: list[str] = field(default_factory=list)
     graded_at: float = 0.0
@@ -121,7 +122,9 @@ class EvoEvaluator:
                     suggestions.append(f"函数 '{node.name}' 过长({length}行)，建议拆分")
 
         # 检测缺少类型注解
-        funcs = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name != '__init__']
+        funcs = [
+            n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name != "__init__"
+        ]
         if funcs:
             untyped = sum(1 for f in funcs if not f.returns)
             if untyped > len(funcs) * 0.5:
@@ -136,14 +139,14 @@ class EvoEvaluator:
         score = 20.0
 
         # 检测是否引入了循环嵌套增加
-        old_loops = len(re.findall(r'\b(for|while)\b', old_code))
-        new_loops = len(re.findall(r'\b(for|while)\b', new_code))
+        old_loops = len(re.findall(r"\b(for|while)\b", old_code))
+        new_loops = len(re.findall(r"\b(for|while)\b", new_code))
         if new_loops > old_loops + 3:
             score -= 5
             warnings.append("可能引入了额外循环，请验证性能")
 
         # 检测是否在循环内使用了 .append() (通常可优化为推导式)
-        if re.search(r'for\b.*\n\s+\.append\(', new_code):
+        if re.search(r"for\b.*\n\s+\.append\(", new_code):
             score -= 3
             warnings.append("检测到循环内 .append()，建议使用列表推导式")
 
@@ -154,7 +157,7 @@ class EvoEvaluator:
     _DANGEROUS_CALLS = {"eval", "exec", "__import__", "compile"}
     _SECRET_PATTERNS = {
         r'(api_key|password|secret|token)\s*=\s*["\'][^"\']{8,}["\']': "硬编码密钥",
-        r'os\.system\s*\([^)]*input': "用户输入直接传给 os.system",
+        r"os\.system\s*\([^)]*input": "用户输入直接传给 os.system",
     }
 
     def _score_security(self, code: str, warnings: list, suggestions: list) -> float:
@@ -162,7 +165,7 @@ class EvoEvaluator:
 
         # 危险函数
         for call in self._DANGEROUS_CALLS:
-            if re.search(rf'\b{call}\s*\(', code):
+            if re.search(rf"\b{call}\s*\(", code):
                 score -= 10
                 warnings.append(f"使用了危险函数: {call}")
                 suggestions.append(f"避免使用 {call}()，寻找安全替代方案")
@@ -173,7 +176,7 @@ class EvoEvaluator:
             if matches:
                 # 排除环境变量引用
                 for line in matches:
-                    if 'os.environ' not in str(line) and 'os.getenv' not in str(line):
+                    if "os.environ" not in str(line) and "os.getenv" not in str(line):
                         score -= 10
                         warnings.append(f"安全风险: {desc}")
                         suggestions.append("使用环境变量存储敏感信息: os.environ.get('KEY')")
@@ -183,7 +186,10 @@ class EvoEvaluator:
     # ── 测试覆盖评分 ──
 
     def _score_test_coverage(
-        self, test_result: str, code: str, suggestions: list,
+        self,
+        test_result: str,
+        code: str,
+        suggestions: list,
     ) -> float:
         score = 20.0
 
@@ -194,8 +200,8 @@ class EvoEvaluator:
             score = 20.0  # 测试通过满分
         else:
             # 无测试结果 — 检测是否有对应的测试函数
-            funcs = re.findall(r'def\s+(\w+)\s*\(', code)
-            has_test = any(f.startswith('test_') for f in funcs)
+            funcs = re.findall(r"def\s+(\w+)\s*\(", code)
+            has_test = any(f.startswith("test_") for f in funcs)
             if not has_test and funcs:
                 score -= 10
                 suggestions.append(f"变更的函数缺少对应的测试: {', '.join(funcs[:3])}")
@@ -218,8 +224,8 @@ class EvoEvaluator:
 
         # 趋势: 上升/下降/平稳
         if len(scores) >= 5:
-            first_half = sum(scores[:len(scores) // 2]) / max(len(scores) // 2, 1)
-            second_half = sum(scores[len(scores) // 2:]) / max(len(scores) - len(scores) // 2, 1)
+            first_half = sum(scores[: len(scores) // 2]) / max(len(scores) // 2, 1)
+            second_half = sum(scores[len(scores) // 2 :]) / max(len(scores) - len(scores) // 2, 1)
             if second_half > first_half + 3:
                 trend = "improving"
             elif second_half < first_half - 3:

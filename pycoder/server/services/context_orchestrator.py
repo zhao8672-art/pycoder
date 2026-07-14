@@ -127,7 +127,9 @@ class ContextOrchestrator:
 
         # 合并长期记忆
         mem_context = self.memory.build_context_prompt(
-            self.tracker._goal or "", self.project, max_memories=2,
+            self.tracker._goal or "",
+            self.project,
+            max_memories=2,
         )
 
         parts = [anchor.to_prompt()]
@@ -160,12 +162,14 @@ class ContextOrchestrator:
         if drift_report.is_drifting:
             self.tracker.add_drift_warning(drift_report.warning)
             self.metrics.record_drift_check(True)
-            events.append({
-                "type": "drift_warning",
-                "warning": drift_report.warning,
-                "similarity": drift_report.similarity,
-                "suggested_action": drift_report.suggested_action,
-            })
+            events.append(
+                {
+                    "type": "drift_warning",
+                    "warning": drift_report.warning,
+                    "similarity": drift_report.similarity,
+                    "suggested_action": drift_report.suggested_action,
+                }
+            )
         else:
             self.metrics.record_drift_check(False)
 
@@ -193,11 +197,13 @@ class ContextOrchestrator:
 
         # 7. 推送状态事件
         status = self.tracker.get_status()
-        await self._push_event({
-            "type": "task_status",
-            "status": status,
-            "metrics": self.metrics.get_snapshot().__dict__,
-        })
+        await self._push_event(
+            {
+                "type": "task_status",
+                "status": status,
+                "metrics": self.metrics.get_snapshot().__dict__,
+            }
+        )
 
         for ev in events:
             await self._push_event(ev)
@@ -210,7 +216,8 @@ class ContextOrchestrator:
         return {
             "anchor": "\n\n".join(anchor_parts),
             "memory_context": self.memory.build_context_prompt(
-                message, self.project,
+                message,
+                self.project,
             ),
             "window_summary": summary,
             "drift_report": drift_report,

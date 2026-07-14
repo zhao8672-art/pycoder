@@ -48,8 +48,12 @@ class FileUndoManager:
 
         return {
             "file": file_path,
-            "added": sum(1 for line in diff_lines if line.startswith("+") and not line.startswith("+++")),
-            "removed": sum(1 for line in diff_lines if line.startswith("-") and not line.startswith("---")),
+            "added": sum(
+                1 for line in diff_lines if line.startswith("+") and not line.startswith("+++")
+            ),
+            "removed": sum(
+                1 for line in diff_lines if line.startswith("-") and not line.startswith("---")
+            ),
             "diff": "".join(diff_lines)[:5000],
             "truncated": sum(len(line) for line in diff_lines) > 5000,
         }

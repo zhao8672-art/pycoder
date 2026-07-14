@@ -61,4 +61,5 @@ def get_prompt_with_cache_rules(name: str, lang: str = "zh") -> str:
         含缓存优化规则的完整 system prompt
     """
     from pycoder.prompts.cache_rules import inject_cache_rules
+
     return inject_cache_rules(get_prompt(name, lang), lang)
