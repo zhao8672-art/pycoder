@@ -76,6 +76,13 @@ class KnowledgeFetcher:
         """注册自定义知识源"""
         self._sources[source.id] = source
 
+    def remove_source(self, source_id: str) -> bool:
+        """移除知识源"""
+        if source_id in self._sources:
+            del self._sources[source_id]
+            return True
+        return False
+
     def get_source(self, source_id: str) -> KnowledgeSource | None:
         return self._sources.get(source_id)
 
