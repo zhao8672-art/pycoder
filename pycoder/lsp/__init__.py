@@ -64,7 +64,7 @@ def register_capabilities(registry: Any) -> None:
             category=CapabilityCategory.EDITOR,
             permission=TrustLevel.READ_ONLY,
             execution=ExecutionMode.SYNC,
-            side_effects=[SideEffect.PROCESS_SPAWN],
+            side_effects=[SideEffect.PROCESS],
             schema={
                 "type": "object",
                 "properties": {
@@ -85,7 +85,7 @@ def register_capabilities(registry: Any) -> None:
             category=CapabilityCategory.EDITOR,
             permission=TrustLevel.WORKSPACE_WRITE,
             execution=ExecutionMode.SYNC,
-            side_effects=[SideEffect.PROCESS_SPAWN],
+            side_effects=[SideEffect.PROCESS],
             schema={
                 "type": "object",
                 "properties": {

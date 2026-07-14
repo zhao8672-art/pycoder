@@ -176,6 +176,34 @@ class V2Engine:
         except Exception as e:
             logger.warning("多语言 LSP 能力注册失败: %s", e)
 
+        logger.info("注册环境工具能力...")
+        try:
+            from pycoder.env import register_capabilities as register_env
+            register_env(self.registry)
+        except Exception as e:
+            logger.warning("环境工具能力注册失败: %s", e)
+
+        logger.info("注册智能 IO 能力...")
+        try:
+            from pycoder.io import register_capabilities as register_io
+            register_io(self.registry)
+        except Exception as e:
+            logger.warning("智能 IO 能力注册失败: %s", e)
+
+        logger.info("注册会话记忆能力...")
+        try:
+            from pycoder.memory import register_capabilities as register_memory
+            register_memory(self.registry)
+        except Exception as e:
+            logger.warning("会话记忆能力注册失败: %s", e)
+
+        logger.info("注册通知与任务调度能力...")
+        try:
+            from pycoder.notify import register_capabilities as register_notify
+            register_notify(self.registry)
+        except Exception as e:
+            logger.warning("通知与任务调度能力注册失败: %s", e)
+
         # 2. 记忆引擎加载持久化数据
         if self.config.enable_consciousness:
             self.consciousness.set_mode(OperatingMode.AWARE)

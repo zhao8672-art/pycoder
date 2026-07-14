@@ -107,7 +107,7 @@ def register_capabilities(registry: Any) -> None:
             category=CapabilityCategory.SYSTEM,
             permission=TrustLevel.PROJECT_WRITE,
             execution=ExecutionMode.SYNC,
-            side_effects=[SideEffect.STATE_CHANGE],
+            side_effects=[SideEffect.SELF_MODIFY],
             schema={
                 "type": "object",
                 "properties": {
@@ -151,7 +151,7 @@ def register_capabilities(registry: Any) -> None:
             category=CapabilityCategory.SYSTEM,
             permission=TrustLevel.WORKSPACE_WRITE,
             execution=ExecutionMode.SYNC,
-            side_effects=[SideEffect.STATE_CHANGE],
+            side_effects=[SideEffect.SELF_MODIFY],
             schema={
                 "type": "object",
                 "properties": {
