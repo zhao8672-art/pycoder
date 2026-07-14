@@ -1,0 +1,76 @@
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === IDE ===
+.vscode/
+.idea/
+.arts/
+.codeartsdoer/
+.openclaw/
+*.code-workspace
+
+# === Python ===
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+.eggs/
+*.so
+*.isorted
+dist/
+build/
+*.whl
+.venv/
+venv/
+env/
+.env
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.tox/
+.nox/
+htmlcov/
+.coverage
+coverage.xml
+coverage.json
+
+# === Jupyter ===
+.ipynb_checkpoints/
+
+# === Aider ===
+.aider*
+aider_chat.egg-info/
+aider/__version__.py
+aider/_version.py
+.aider.tags.cache.v4/
+
+# === Electron (pycoder/electron) ===
+pycoder/electron/node_modules/
+pycoder/electron/dist/
+pycoder/electron/release/
+pycoder/electron/out/
+pycoder/electron/*.log
+
+# === Node ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# === PyCoder 内部缓存（不应进入版本控制） ===
+.pycoder/
+.pycoder_snapshots/
+.pycoder_context.pkl
+.skills-registry.json
+.skills-registry-enhanced.json
+
+# === 临时文件 ===
+scripts/logs/
+BACKUP_NOTE.md
+_tmp_*
+_cleanup.*
+_disk_*
