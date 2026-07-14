@@ -73,7 +73,7 @@ async def trigger_fetch(source_id: str):
         new_count = _index.index_chunks(chunks)
         return {"success": True, "source_id": source_id, "new_chunks": new_count}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"抓取失败: {e}")
+        raise HTTPException(status_code=500, detail=f"抓取失败: {e}") from e
 
 
 @router.get("/search")
@@ -132,4 +132,4 @@ async def update_all_sources():
         results = await _scheduler.run_update_all()
         return {"success": True, "results": results}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"批量更新失败: {e}")
+        raise HTTPException(status_code=500, detail=f"批量更新失败: {e}") from e

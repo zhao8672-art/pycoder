@@ -20,7 +20,7 @@ from typing import Any
 
 # resource 模块仅在 Unix 系统可用
 try:
-    import resource
+    import resource  # noqa: F401
     _HAS_RESOURCE = True
 except ImportError:
     _HAS_RESOURCE = False
@@ -314,7 +314,7 @@ class SandboxManager:
 
     async def cleanup_all(self) -> None:
         """清理所有沙箱"""
-        for name, sandbox in list(self._sandboxes.items()):
+        for _name, sandbox in list(self._sandboxes.items()):
             if isinstance(sandbox, PluginSandbox):
                 await sandbox.stop()
         self._sandboxes.clear()

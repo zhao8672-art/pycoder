@@ -32,7 +32,7 @@ async def register_workspace(req: dict):
     try:
         level = ShareLevel(share_level)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"无效的共享级别: {share_level}")
+        raise HTTPException(status_code=400, detail=f"无效的共享级别: {share_level}") from None
 
     entry = WorkspaceEntry(
         id=ws_id,
@@ -101,9 +101,9 @@ async def read_shared_file(
         content = _sandbox.read_file(caller_ws, workspace_id, file_path)
         return {"content": content, "workspace_id": workspace_id, "file_path": file_path}
     except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=403, detail=str(e)) from e
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.put("/{workspace_id}/share-policy")
@@ -120,7 +120,7 @@ async def set_share_policy(workspace_id: str, req: dict):
     try:
         share_level = ShareLevel(level)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"无效的共享级别: {level}")
+        raise HTTPException(status_code=400, detail=f"无效的共享级别: {level}") from None
 
     _registry.set_share_policy(workspace_id, share_level, allowed, shared_paths)
     return {"success": True}

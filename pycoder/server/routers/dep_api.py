@@ -26,11 +26,16 @@ async def list_dependencies():
             for line in content.split("\n"):
                 line = line.strip()
                 if line.startswith("[project]"):
-                    in_deps = True; in_dev = False; continue
+                    in_deps = True
+                    in_dev = False
+                    continue
                 if line.startswith("[tool.poetry.group.dev.dependencies]"):
-                    in_dev = True; continue
+                    in_dev = True
+                    continue
                 if line.startswith("[") and not line.startswith("[project"):
-                    in_deps = False; in_dev = False; continue
+                    in_deps = False
+                    in_dev = False
+                    continue
                 if (in_deps or in_dev) and "=" in line and not line.startswith("#"):
                     match = re.match(r'^"?([a-zA-Z][a-zA-Z0-9._-]*)"?\s*[=~^!]', line)
                     if match:

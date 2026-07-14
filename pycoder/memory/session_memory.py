@@ -9,10 +9,10 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-
-logger = logging.getLogger(__name__)
 from datetime import UTC, datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -97,7 +97,6 @@ class SessionMemoryEngine:
         # 持久化
         self._save_session(self._current_session)
 
-        session = self._current_session
         self._current_session = None
         self._message_counter = 0
         return summary

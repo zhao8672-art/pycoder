@@ -95,7 +95,7 @@ async def scan_code(request: Request, body: ScanRequest):
             "severity_counts": _count_severity(report.issues),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/evolution/fix")
@@ -130,7 +130,7 @@ async def generate_fix(request: Request, body: FixRequest):
             "risk_level": proposal.risk_level,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/evolution/apply")
@@ -181,7 +181,7 @@ async def apply_fix(request: Request, body: ApplyRequest):
             "rollback_needed": result.rollback_needed,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/evolution/history")

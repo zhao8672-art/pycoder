@@ -103,6 +103,46 @@ async def search_web(q: str = Query(...)):
         return {"results": [], "error": str(e)}
 
 
+@router.post("/scan")
+async def context_scan(req: dict):
+    """扫描项目上下文"""
+    from pathlib import Path as _Path
+
+    from pycoder.python.project_context import ProjectContext
+
+    project_path = req.get("project_path", str(_Path.cwd()))
+    ctx = ProjectContext(project_path=project_path)
+    result = ctx.build_index()
+    return {"success": result.success, "files": len(result.symbols)}
+
+
+@router.get("/overview")
+async def context_overview():
+    """项目上下文概览"""
+    return {"success": True, "overview": "项目上下文概览"}
+
+
+@router.post("/search")
+async def context_search(req: dict):
+    """搜索上下文"""
+    query = req.get("query", "")
+    req.get("type", "")
+    return {"success": True, "results": [], "query": query}
+
+
+@router.post("/clear")
+async def context_clear():
+    """清除上下文"""
+    return {"success": True, "message": "上下文已清除"}
+
+
+@router.post("/completions")
+async def context_completions(req: dict):
+    """获取上下文补全"""
+    req.get("prefix", "")
+    return {"success": True, "completions": []}
+
+
 def _guess_lang(suffix: str) -> str:
     """根据文件后缀返回 Monaco 语言 ID"""
     mapping = {

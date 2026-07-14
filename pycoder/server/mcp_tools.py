@@ -88,11 +88,11 @@ def _sync_to_v2_bus(name: str, description: str, input_schema: dict, handler: ca
             return
 
         from pycoder.bus.protocol import (
-            CapabilityCategory,
+            CapabilityCategory,  # noqa: F401
             CapabilityDefinition,
             ExecutionMode,
-            SideEffect,
-            TrustLevel,
+            SideEffect,  # noqa: F401
+            TrustLevel,  # noqa: F401
         )
 
         # 自动推断能力类别和权限
@@ -113,7 +113,7 @@ def _sync_to_v2_bus(name: str, description: str, input_schema: dict, handler: ca
 
         # 创建适配器处理器
         async def _v2_handler(params: dict, context: dict) -> Any:
-            result = await handler(params) if hasattr(handler, '__call__') else handler(params)
+            result = await handler(params) if callable(handler) else handler(params)
             return result
 
         _v2_registry.register(cap_def, handler=_v2_handler)

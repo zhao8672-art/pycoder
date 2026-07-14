@@ -22,7 +22,7 @@ from typing import Any, Protocol
 # ──────────────────────────────────────────────
 
 
-class CapabilityCategory(str, enum.Enum):
+class CapabilityCategory(enum.StrEnum):
     """能力所属的功能域"""
     EDITOR = "editor"       # 编辑器能力：代码编辑、LSP、重构
     SYSTEM = "system"       # 系统能力：文件操作、Shell、Git
@@ -30,14 +30,14 @@ class CapabilityCategory(str, enum.Enum):
     PLUGIN = "plugin"       # 动态插件能力
 
 
-class ExecutionMode(str, enum.Enum):
+class ExecutionMode(enum.StrEnum):
     """能力执行的三种模式"""
     SYNC = "sync"           # 同步执行，立即返回结果
     STREAM = "stream"       # 流式执行，逐块返回
     ASYNC = "async"         # 异步执行，返回 task_id
 
 
-class SideEffect(str, enum.Enum):
+class SideEffect(enum.StrEnum):
     """操作的副作用类型"""
     NONE = "none"               # 无副作用（只读）
     FILE_READ = "file_read"     # 读取文件

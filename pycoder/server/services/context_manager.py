@@ -224,21 +224,21 @@ class ContextWindowManager:
         基于关键词重叠度的简单关联算法。
         """
         # 提取当前内容的关键词
-        current_words = set(
+        current_words = {
             w.lower()
             for w in re.findall(r"[\u4e00-\u9fff\w]{2,}", current_content)
-        )
+        }
 
         if not current_words or not self._messages:
             return []
 
         scored: list[tuple[float, dict]] = []
-        for i, msg in enumerate(self._messages):
+        for _i, msg in enumerate(self._messages):
             content = str(msg.get("content", ""))
-            msg_words = set(
+            msg_words = {
                 w.lower()
                 for w in re.findall(r"[\u4e00-\u9fff\w]{2,}", content)
-            )
+            }
             if not msg_words:
                 continue
             overlap = len(current_words & msg_words) / max(len(current_words), 1)

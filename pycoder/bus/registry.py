@@ -104,7 +104,7 @@ class CapabilityRegistry:
         # 注册处理器
         if stream_handler:
             self._stream_handlers[definition.id] = stream_handler
-        elif definition.execution == ExecutionMode.STREAM and handler and hasattr(handler, '__call__'):
+        elif definition.execution == ExecutionMode.STREAM and handler and callable(handler):
             self._stream_handlers[definition.id] = handler  # type: ignore
 
         if async_handler:
@@ -130,7 +130,7 @@ class CapabilityRegistry:
         if capability_id in self._by_category.get(definition.category, []):
             self._by_category[definition.category].remove(capability_id)
 
-        for tag, ids in self._by_tag.items():
+        for _tag, ids in self._by_tag.items():
             if capability_id in ids:
                 ids.remove(capability_id)
 

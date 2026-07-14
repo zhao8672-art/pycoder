@@ -19,7 +19,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-class AgentRole(str, enum.Enum):
+class AgentRole(enum.StrEnum):
     """预定义的 Agent 角色"""
     ARCHITECT = "architect"        # 架构师：设计系统结构
     DEVELOPER = "developer"        # 开发：编写代码
@@ -88,7 +88,7 @@ class AgentSwarmOrchestrator:
             return []
 
         # 构建依赖图
-        task_map = {t.task_id: t for t in tasks}
+        {t.task_id: t for t in tasks}
         completed: set[str] = set()
         results: list[AgentResult] = []
 

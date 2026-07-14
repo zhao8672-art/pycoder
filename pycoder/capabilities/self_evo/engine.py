@@ -539,9 +539,9 @@ class SelfEvolutionEngine:
             # 如果 diff 格式不标准，尝试从整个 diff 内容中提取
             if not old_code or not new_code:
                 # 提取所有以 - 开头的行作为旧代码
-                old_lines = [l[1:] for l in diff_content.split("\n") if l.startswith("-") and not l.startswith("---")]
+                old_lines = [line[1:] for line in diff_content.split("\n") if line.startswith("-") and not line.startswith("---")]
                 # 提取所有以 + 开头的行作为新代码
-                new_lines = [l[1:] for l in diff_content.split("\n") if l.startswith("+") and not l.startswith("+++")]
+                new_lines = [line[1:] for line in diff_content.split("\n") if line.startswith("+") and not line.startswith("+++")]
                 old_code = "\n".join(old_lines) if old_lines else old_code
                 new_code = "\n".join(new_lines) if new_lines else new_code
             return FixProposal(

@@ -253,41 +253,6 @@ async def docstring_generate(req: dict):
     }
 
 
-@router.post("/api/context/scan")
-async def context_scan(req: dict):
-    from pathlib import Path as _Path
-
-    from pycoder.python.project_context import ProjectContext
-
-    project_path = req.get("project_path", str(_Path.cwd()))
-    ctx = ProjectContext(project_path=project_path)
-    result = ctx.build_index()
-    return {"success": result.success, "files": len(result.symbols)}
-
-
-@router.get("/api/context/overview")
-async def context_overview():
-    return {"success": True, "overview": "项目上下文概览"}
-
-
-@router.post("/api/context/search")
-async def context_search(req: dict):
-    query = req.get("query", "")
-    req.get("type", "")
-    return {"success": True, "results": [], "query": query}
-
-
-@router.post("/api/context/clear")
-async def context_clear():
-    return {"success": True, "message": "上下文已清除"}
-
-
-@router.post("/api/context/completions")
-async def context_completions(req: dict):
-    req.get("prefix", "")
-    return {"success": True, "completions": []}
-
-
 @router.get("/api/typehint/status")
 async def typehint_status():
     return {"success": True, "enabled": True}

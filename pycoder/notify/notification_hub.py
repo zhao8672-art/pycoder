@@ -54,7 +54,7 @@ class NotificationHub:
             {"type": "notification", "event": event, "data": data},
             ensure_ascii=False,
         )
-        for session_id, clients in self._ws_clients.items():
+        for _session_id, clients in self._ws_clients.items():
             for ws in list(clients):
                 try:
                     await ws.send_text(message)

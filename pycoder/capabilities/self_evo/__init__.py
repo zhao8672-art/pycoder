@@ -447,7 +447,7 @@ async def _generate_fix(params: dict[str, Any], context: dict[str, Any]) -> dict
     from pycoder.core.di import registry
     from pycoder.core.ports.llm_provider import LLMProvider
 
-    issue_ids = params.get("issue_ids", [])
+    params.get("issue_ids", [])
     auto_apply = params.get("auto_apply", False)
 
     # 构建 CodeIssue 列表

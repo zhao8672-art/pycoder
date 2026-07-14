@@ -18,7 +18,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-class TaskStatus(str, enum.Enum):
+class TaskStatus(enum.StrEnum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -27,7 +27,7 @@ class TaskStatus(str, enum.Enum):
     CANCELLED = "cancelled"
 
 
-class ExecutionStrategy(str, enum.Enum):
+class ExecutionStrategy(enum.StrEnum):
     """执行策略"""
     SINGLE_AGENT = "single_agent"        # 单 Agent 顺序执行
     PARALLEL_AGENTS = "parallel_agents"  # 多 Agent 并行

@@ -87,7 +87,7 @@ async def run_evolution(request: Request, req: dict | None = None):
 @router.post("/watch/start")
 async def start_watcher(request: Request, req: dict | None = None):
     payload = req or {}
-    engine = _get_evolution_engine(request)
+    _get_evolution_engine(request)
     try:
         from pycoder.server.scheduler import ScheduledTask, get_scheduler
         scheduler = get_scheduler()

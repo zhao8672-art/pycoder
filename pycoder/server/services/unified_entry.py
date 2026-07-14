@@ -417,7 +417,7 @@ class UnifiedEntryAgent:
             retry_count = 0
             success = False
 
-            for attempt in range(max_retries):
+            for _attempt in range(max_retries):
                 try:
                     if mode == TaskCategory.CHAT:
                         async for ev in self._execute_chat_stream(

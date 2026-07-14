@@ -25,7 +25,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-class OperatingMode(str, enum.Enum):
+class OperatingMode(enum.StrEnum):
     """AI 运行模式"""
     IDLE = "idle"          # 低功耗监听，仅处理关键事件
     AWARE = "aware"        # 主动感知，分析变化，预判需求

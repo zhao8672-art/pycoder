@@ -38,7 +38,7 @@ _PERMISSION_DIR = Path(
 _BEHAVIOR_FILE = _PERMISSION_DIR / "behavior_history.jsonl"
 
 
-class DecisionType(str, enum.Enum):
+class DecisionType(enum.StrEnum):
     """权限决策类型"""
     AUTO_ALLOW = "auto_allow"       # 自动允许
     AUTO_DENY = "auto_deny"         # 自动拒绝

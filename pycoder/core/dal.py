@@ -210,7 +210,7 @@ class DAL:
                 ).fetchall()]
 
                 for row in old_rows:
-                    data = dict(zip(columns, row))
+                    data = dict(zip(columns, row, strict=False))
                     if mapper:
                         data = mapper(data, conn)
                     if data:

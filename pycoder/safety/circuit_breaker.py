@@ -15,7 +15,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-class CircuitState(str, enum.Enum):
+class CircuitState(enum.StrEnum):
     """熔断器状态"""
     CLOSED = "closed"            # 正常，允许调用
     OPEN = "open"                # 熔断，拒绝调用
