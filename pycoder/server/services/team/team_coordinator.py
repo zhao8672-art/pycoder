@@ -14,6 +14,8 @@ from pathlib import Path
 
 from pycoder.core.di import registry  # noqa: E702 — replace ChatBridge
 from pycoder.core.ports.llm_provider import LLMProvider
+from pycoder.brain.task_planner import ExecutionPlan  # noqa: F401 — 类型注解
+from pycoder.brain.agent_swarm import AgentRole  # noqa: F401 — 类型注解
 from pycoder.server.log import log
 from pycoder.server.routers.files import get_workspace_root
 from pycoder.server.services.agent_definitions import AGENT_ROLES, MAX_RETRIES

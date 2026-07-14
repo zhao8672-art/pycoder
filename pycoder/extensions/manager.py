@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import shutil
 import subprocess
 import tarfile
@@ -17,6 +18,32 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 EXTENSIONS_DIR = Path.home() / ".pycoder" / "extensions"
+
+
+def _safe_extractall(archive, target: Path, fmt: str = "tar"):
+    """安全解压归档文件，拒绝路径穿越攻击
+
+    Args:
+        archive: tarfile.TarFile 或 zipfile.ZipFile 实例
+        target: 解压目标目录
+        fmt: 归档格式 "tar" 或 "zip"
+
+    Raises:
+        ValueError: 检测到路径穿越攻击时抛出
+    """
+    target_real = os.path.realpath(str(target))
+    if fmt == "tar":
+        for member in archive.getmembers():
+            member_path = os.path.realpath(str(target / member.name))
+            if not member_path.startswith(target_real):
+                raise ValueError(f"检测到路径穿越攻击: {member.name}")
+            archive.extract(member, str(target))
+    else:
+        for info in archive.infolist():
+            member_path = os.path.realpath(str(target / info.filename))
+            if not member_path.startswith(target_real):
+                raise ValueError(f"检测到路径穿越攻击: {info.filename}")
+            archive.extract(info, str(target))
 
 # ── 种子扩展源代码 ──────────────────────────────────
 
@@ -680,9 +707,9 @@ class ExtensionManager:
             return False
         try:
             with tarfile.open(tarballs[0], "r:gz") as tf:
-                tf.extractall(target)
+                _safe_extractall(tf, target, fmt="tar")
             tarballs[0].unlink()
-        except (tarfile.TarError, OSError) as e:
+        except (tarfile.TarError, OSError, ValueError) as e:
             logger.warning("extension_npm_extract_failed ext_id=%s error=%s", ext_id, e)
             return False
 
@@ -732,12 +759,12 @@ class ExtensionManager:
             archive = archives[0]
             if archive.suffix == ".whl":
                 with zipfile.ZipFile(archive) as zf:
-                    zf.extractall(target)
+                    _safe_extractall(zf, target, fmt="zip")
             else:
                 with tarfile.open(archive, "r:gz") as tf:
-                    tf.extractall(target)
+                    _safe_extractall(tf, target, fmt="tar")
             archive.unlink()
-        except (zipfile.BadZipFile, tarfile.TarError, OSError) as e:
+        except (zipfile.BadZipFile, tarfile.TarError, OSError, ValueError) as e:
             logger.warning("extension_pypi_extract_failed ext_id=%s error=%s", ext_id, e)
             return False
 
@@ -786,9 +813,9 @@ class ExtensionManager:
         # .vsix 是 zip 格式
         try:
             with zipfile.ZipFile(vsix_path) as zf:
-                zf.extractall(target)
+                _safe_extractall(zf, target, fmt="zip")
             vsix_path.unlink()
-        except (zipfile.BadZipFile, OSError) as e:
+        except (zipfile.BadZipFile, OSError, ValueError) as e:
             logger.warning("extension_vsix_extract_failed ext_id=%s error=%s", ext_id, e)
             return False
 

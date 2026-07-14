@@ -195,7 +195,7 @@ class RollbackManager:
     def _generate_snapshot_id(filepath: Path, file_hash: str) -> str:
         """生成快照 ID"""
         unique = f"{filepath}_{file_hash}_{time.time()}"
-        return hashlib.md5(unique.encode()).hexdigest()[:16]
+        return hashlib.md5(unique.encode(), usedforsecurity=False).hexdigest()[:16]
 
     def _cleanup_old_snapshots(self) -> None:
         """清理过期快照"""

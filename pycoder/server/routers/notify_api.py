@@ -124,6 +124,10 @@ async def remove_webhook(url: str):
 @ws_router.websocket("/notifications")
 async def notification_websocket(ws: WebSocket):
     """WebSocket 通知通道"""
+    from pycoder.server.app import verify_ws_auth
+
+    if not await verify_ws_auth(ws):
+        return
     session_id = str(id(ws))
     await ws.accept()
     _hub.register_ws(session_id, ws)

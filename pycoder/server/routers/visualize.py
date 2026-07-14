@@ -17,7 +17,7 @@ from pathlib import Path
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
-router = APIRouter()
+router = APIRouter(prefix="/api/visualize")
 
 WORKSPACE_ROOT = Path(
     os.environ.get("PYCODER_WORKSPACE", str(Path(__file__).resolve().parents[3]))

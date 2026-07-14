@@ -28,6 +28,16 @@ watchfiles
 socksio
 pillow
 shtab
+# Server/CLI 运行时必需依赖（2026-07-10 补充）
+pyjwt
+python-multipart
+websockets
+email-validator
+sqlalchemy
+uvicorn
+structlog
+bcrypt
+mcp
 oslex
 -r python-compat.in
 

@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from pycoder.bus.protocol import CapabilityCategory, TrustLevel  # noqa: F401
 from pycoder.server.log import log
 
 # 加载从 mcp_tools.py 拆分的模块（自动注册数据库/K8s/监控工具）

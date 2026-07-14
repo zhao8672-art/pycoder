@@ -53,7 +53,7 @@ class TestWebSocketAuth:
 
         mock_ws = AsyncMock()
         mock_ws.query_params = {}
-        mock_ws.headers = {}
+        mock_ws.headers = {"origin": "http://localhost:5173"}
 
         with patch("pycoder.server.app._API_KEY", "test-secret-key"):
             result = await verify_ws_auth(mock_ws)
@@ -68,7 +68,7 @@ class TestWebSocketAuth:
 
         mock_ws = AsyncMock()
         mock_ws.query_params = {"api_key": "wrong-key"}
-        mock_ws.headers = {}
+        mock_ws.headers = {"origin": "http://localhost:5173"}
 
         with patch("pycoder.server.app._API_KEY", "correct-key"):
             result = await verify_ws_auth(mock_ws)

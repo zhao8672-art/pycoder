@@ -33,9 +33,12 @@ class TerminalSession:
         )
 
         try:
+            # 将命令字符串拆分为列表，避免shell=True注入风险
+            import shlex
+            cmd_args = shlex.split(command)
             r = subprocess.run(
-                command,
-                shell=True,
+                cmd_args,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=60,

@@ -353,7 +353,7 @@ class RefactoringAnalyzer:
         code_blocks = self._extract_code_blocks(tree, lines)
 
         for block in code_blocks:
-            block_hash = hashlib.md5(block["code"].encode()).hexdigest()
+            block_hash = hashlib.md5(block["code"].encode(), usedforsecurity=False).hexdigest()
 
             if block_hash not in self._duplicate_cache:
                 self._duplicate_cache[block_hash] = DuplicateCode(

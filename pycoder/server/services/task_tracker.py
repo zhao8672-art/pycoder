@@ -131,7 +131,7 @@ class TaskTracker:
         Returns:
             TaskAnchor 上下文锚点
         """
-        self._task_id = hashlib.md5(goal.encode()).hexdigest()[:12]
+        self._task_id = hashlib.md5(goal.encode(), usedforsecurity=False).hexdigest()[:12]
         self._goal = goal
         self._parameters = parameters or {}
         self._phase = TaskPhase.INIT
