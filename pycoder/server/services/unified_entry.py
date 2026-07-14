@@ -114,10 +114,31 @@ _TASK_PATTERNS: list[tuple[str, TaskCategory, str]] = [
 
 
 def _classify_intent(message: str) -> tuple[TaskCategory, str]:
-    """基于规则分类用户意图。
+    """基于规则 + 复杂度启发式分类用户意图。
 
     返回 (task_category, reason)
     """
+    msg = message.strip()
+
+    # ── P1: 复杂度前置判断（在正则之前）──
+    # 多步骤指示词 → 强制 AGENT
+    multi_step_patterns = [
+        r"系统.*自检", r"全面.*(检查|诊断|审查|测试)",
+        r"逐一", r"逐个", r"依次",
+        r"先.*再.*然后", r"第一.*第二.*第三",
+    ]
+    for pat in multi_step_patterns:
+        if re.search(pat, msg):
+            return TaskCategory.AGENT, "检测到多步骤任务描述，启用 Agent 团队协作"
+
+    # 长消息（≥150 字符）+ 多动词 → AGENT
+    action_verbs = len(re.findall(
+        r"检查|分析|修改|创建|优化|测试|部署|构建|搜索|审查|诊断|重构", msg
+    ))
+    if len(msg) >= 150 and action_verbs >= 3:
+        return TaskCategory.AGENT, f"长消息含 {action_verbs} 个动作词，启用 Agent 团队协作"
+
+    # ── 原有正则逻辑（不变）──
     # 检查消息长度——简短问候默认 chat
     if len(message.strip()) < 8:
         return TaskCategory.CHAT, "短消息，判断为简单问答"
@@ -788,16 +809,16 @@ class UnifiedEntryAgent:
         bridge = ChatBridge()
         if self.api_key:
             bridge.configure(model=self.model, api_key=self.api_key)
-        # 注入会话历史上下文（仅作为 bridge 消息，不在 chat_stream 中重复包装）
         effective_message = message
         if history_context:
             effective_message = (
                 f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
             )
         try:
-            # ── 开始: 通知用户正在分析 ──
-            yield {"type": "agent_status", "status": "started", "message": "🔍 正在分析您的问题..."}
-            yield {"type": "agent_status", "status": "working", "message": "🧠 AI 正在生成回复..."}
+            yield {"type": "agent_status", "status": "started",
+                   "message": "🔍 正在分析您的问题..."}
+            yield {"type": "agent_status", "status": "working",
+                   "message": "🧠 AI 正在生成回复..."}
             full = ""
             token_count = 0
             tool_indicators: list[str] = []
@@ -805,11 +826,9 @@ class UnifiedEntryAgent:
                 if ev.event_type == "token":
                     full += ev.content
                     token_count += len(ev.content)
-                    # 检测工具调用标记（🔧 执行 xxx... / 📋 xxx 结果:）
                     if "🔧" in ev.content or "📋" in ev.content:
                         tool_indicators.append(ev.content.strip()[:80])
                     yield {"type": "token", "data": ev.content, "content": ev.content}
-                    # 每 ~15 tokens 发送一次进度心跳
                     if token_count % 15 == 0:
                         yield {"type": "progress", "phase": "llm",
                                "stage": f"AI 生成中... ({token_count} tokens)",
@@ -821,17 +840,16 @@ class UnifiedEntryAgent:
                     yield {"type": "reasoning", "content": ev.content}
                 elif ev.event_type == "done":
                     final = ev.content or full
-                    # 附加工具调用摘要
-                    if tool_indicators:
-                        tools_summary = "\n".join(f"  • {t}" for t in tool_indicators[:5])
-                        final = (
-                            f"{final}\n\n---\n"
-                            f"⚡ 本次调用工具: {len(tool_indicators)} 次\n{tools_summary}"
+                    # P4: 附加工具调用统计
+                    tool_count = full.count("🔧 执行")
+                    if tool_count > 0:
+                        final = final.rstrip() + (
+                            f"\n\n---\n⚡ 本次执行工具 {tool_count} 次"
                         )
-                    yield {"type": "done", "content": final}
+                    yield {"type": "done", "content": final,
+                           "tool_calls_count": tool_count}
                 elif ev.event_type == "error":
                     yield {"type": "error", "message": ev.content}
-            # ── 完成: 通知用户 ──
             yield {"type": "agent_status", "status": "completed",
                    "message": f"✅ 回复生成完成 ({len(full)} 字符, ~{token_count} tokens)"}
         finally:
@@ -863,6 +881,8 @@ class UnifiedEntryAgent:
             full = ""
             token_count = 0
             tool_indicators: list[str] = []
+            _hermes_retried = False  # P2: 工具调用检测重试标志
+
             async for ev in bridge.chat_stream(effective_message):
                 if ev.event_type == "token":
                     full += ev.content
@@ -883,15 +903,69 @@ class UnifiedEntryAgent:
                     yield {"type": "reasoning", "content": ev.content}
                 elif ev.event_type == "done":
                     final = ev.content or full
-                    # 附加工具调用摘要
-                    if tool_indicators:
-                        tools_summary = "\n".join(f"  • {t}" for t in tool_indicators[:5])
-                        final = (
-                            f"{final}\n\n---\n"
-                            f"⚡ Hermes 执行完毕 | 工具调用: {len(tool_indicators)} 次\n"
-                            f"{tools_summary}"
+                    has_tools = "🔧" in full or "📋" in full or '"function"' in full
+
+                    # P2: 首次调用未执行任何工具 → 强化提示词重试一次
+                    if not has_tools and not _hermes_retried:
+                        _hermes_retried = True
+                        yield {"type": "agent_status", "status": "working",
+                               "message": "⚠️ AI 未调用任何工具执行实际操作，自动强化指令并重试..."}
+                        # 强化系统提示词
+                        bridge.config.system_prompt = (
+                            (hermes_prompt or "") +
+                            "\n\n## 🚨 紧急指令 (最高优先级)\n"
+                            "上一条回复你没有调用任何函数工具！这是严重违规。\n"
+                            "你必须立即调用 write_file / run_terminal / search / "
+                            "code_review / git_status / file_list 等工具来实际执行任务。\n"
+                            "不要描述、不要解释、不要说你会怎么做——直接调用工具函数。\n"
+                            "如果本次仍然不调用任何工具，任务将被标记为失败。"
                         )
-                    yield {"type": "done", "content": final}
+                        # 重新发起 LLM 调用
+                        retry_full = ""
+                        retry_tokens = 0
+                        async for ev2 in bridge.chat_stream(
+                            "上一条回复你没有调用任何工具。请立即调用工具执行任务！"
+                        ):
+                            if ev2.event_type == "token":
+                                retry_full += ev2.content
+                                retry_tokens += len(ev2.content)
+                                if "🔧" in ev2.content or "📋" in ev2.content:
+                                    tool_indicators.append(
+                                        ev2.content.strip()[:80]
+                                    )
+                                yield ev2
+                            elif ev2.event_type == "done":
+                                full = retry_full or ev2.content or full
+                                token_count += retry_tokens
+                                break
+                            elif ev2.event_type == "error":
+                                yield ev2
+                                break
+                        has_tools = (
+                            "🔧" in full or "📋" in full or
+                            '"function"' in full
+                        )
+
+                    # 附加工具调用摘要
+                    tool_count_final = full.count("🔧 执行")
+                    if tool_count_final > 0:
+                        tools_summary = "\n".join(
+                            f"  • {t}" for t in tool_indicators[:5]
+                        )
+                        final = (
+                            f"{full}\n\n---\n"
+                            f"⚡ Hermes 执行完毕 | 工具调用: "
+                            f"{tool_count_final} 次"
+                            + (f"\n{tools_summary}" if tool_indicators else "")
+                        )
+                    elif _hermes_retried:
+                        final = (
+                            f"{full}\n\n---\n"
+                            f"⚠️ Hermes 重试后仍未检测到工具调用，"
+                            f"本次任务可能未完全执行。"
+                        )
+                    yield {"type": "done", "content": final,
+                           "tool_calls_count": tool_count_final}
                 elif ev.event_type == "error":
                     yield {"type": "error", "message": ev.content}
             # ── 完成: 通知用户 ──

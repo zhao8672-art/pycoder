@@ -324,7 +324,7 @@ class TestStructureEndpoint:
         (workspace / "tests").mkdir()
         (workspace / "tests" / "test_x.py").write_text("", encoding="utf-8")
 
-        resp = app_client.get("/structure")
+        resp = app_client.get("/api/visualize/structure")
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -340,7 +340,7 @@ class TestStructureEndpoint:
         (sub / "main.py").write_text("", encoding="utf-8")
         (sub / "config.toml").write_text("", encoding="utf-8")
 
-        resp = app_client.get("/structure", params={"path": str(sub)})
+        resp = app_client.get("/api/visualize/structure", params={"path": str(sub)})
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -349,7 +349,7 @@ class TestStructureEndpoint:
     def test_path_not_exists(self, app_client):
         """路径不存在 — 返回 success=False"""
         resp = app_client.get(
-            "/structure", params={"path": "/nonexistent/path/xyz"}
+            "/api/visualize/structure", params={"path": "/nonexistent/path/xyz"}
         )
         assert resp.status_code == 200
         assert resp.json()["success"] is False
@@ -358,13 +358,13 @@ class TestStructureEndpoint:
         """空目录树 — _scan_structure 返回 None → success=False"""
         empty = workspace / "empty"
         empty.mkdir()
-        resp = app_client.get("/structure", params={"path": str(empty)})
+        resp = app_client.get("/api/visualize/structure", params={"path": str(empty)})
         assert resp.status_code == 200
         assert resp.json()["success"] is False
 
     def test_max_depth_param(self, app_client, workspace):
         (workspace / "a.py").write_text("", encoding="utf-8")
-        resp = app_client.get("/structure", params={"max_depth": 2})
+        resp = app_client.get("/api/visualize/structure", params={"max_depth": 2})
         assert resp.status_code == 200
         assert resp.json()["success"] is True
 
@@ -374,7 +374,7 @@ class TestStructureEndpoint:
             raise RuntimeError("boom")
         monkeypatch.setattr(viz, "_scan_structure", boom)
 
-        resp = app_client.get("/structure")
+        resp = app_client.get("/api/visualize/structure")
         assert resp.status_code == 200
         assert resp.json()["success"] is False
 
@@ -394,7 +394,7 @@ class TestImportsEndpoint:
             "from os import *\n",
             encoding="utf-8",
         )
-        resp = app_client.get("/imports")
+        resp = app_client.get("/api/visualize/imports")
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -411,14 +411,14 @@ class TestImportsEndpoint:
         (cache / "cached.py").write_text("import os\n", encoding="utf-8")
         (workspace / "real.py").write_text("import sys\n", encoding="utf-8")
 
-        resp = app_client.get("/imports")
+        resp = app_client.get("/api/visualize/imports")
         data = resp.json()
         modules = data["modules"]
         assert "real" in modules
         assert "__pycache__.cached" not in modules
 
     def test_path_not_exists(self, app_client):
-        resp = app_client.get("/imports", params={"path": "/no/such/path"})
+        resp = app_client.get("/api/visualize/imports", params={"path": "/no/such/path"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
@@ -431,7 +431,7 @@ class TestImportsEndpoint:
         monkeypatch.setattr(viz, "_analyze_imports", boom)
         # rglob 会调用 _analyze_imports → 抛异常被外层 try/except 捕获
         (workspace / "x.py").write_text("import os\n", encoding="utf-8")
-        resp = app_client.get("/imports")
+        resp = app_client.get("/api/visualize/imports")
         assert resp.status_code == 200
         # 外层 except 捕获异常 → success=False
         assert resp.json()["success"] is False
@@ -444,21 +444,21 @@ class TestImportsEndpoint:
 
 class TestCallsEndpoint:
     def test_no_path(self, app_client):
-        resp = app_client.post("/calls")
+        resp = app_client.post("/api/visualize/calls")
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
         assert data["functions"] == []
 
     def test_file_not_exists(self, app_client):
-        resp = app_client.post("/calls", params={"path": "/no/such.py"})
+        resp = app_client.post("/api/visualize/calls", params={"path": "/no/such.py"})
         assert resp.status_code == 200
         assert resp.json()["success"] is False
 
     def test_not_python_file(self, app_client, workspace):
         f = workspace / "data.txt"
         f.write_text("not python", encoding="utf-8")
-        resp = app_client.post("/calls", params={"path": str(f)})
+        resp = app_client.post("/api/visualize/calls", params={"path": str(f)})
         assert resp.status_code == 200
         assert resp.json()["success"] is False
 
@@ -472,7 +472,7 @@ class TestCallsEndpoint:
             "    return fetch('url')\n",
             encoding="utf-8",
         )
-        resp = app_client.post("/calls", params={"path": str(f)})
+        resp = app_client.post("/api/visualize/calls", params={"path": str(f)})
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -488,7 +488,7 @@ class TestCallsEndpoint:
         monkeypatch.setattr(viz, "_analyze_calls", boom)
         f = workspace / "code.py"
         f.write_text("def f():\n    pass\n", encoding="utf-8")
-        resp = app_client.post("/calls", params={"path": str(f)})
+        resp = app_client.post("/api/visualize/calls", params={"path": str(f)})
         assert resp.status_code == 200
         assert resp.json()["success"] is False
 
@@ -496,7 +496,7 @@ class TestCallsEndpoint:
         """无函数定义时 stats 各项应为 0"""
         f = workspace / "empty.py"
         f.write_text("x = 1\n", encoding="utf-8")
-        resp = app_client.post("/calls", params={"path": str(f)})
+        resp = app_client.post("/api/visualize/calls", params={"path": str(f)})
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True

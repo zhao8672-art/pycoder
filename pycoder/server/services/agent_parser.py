@@ -157,12 +157,13 @@ def _detect_completion(text: str) -> tuple[bool, str]:
     if first_line.lower().rstrip(".!") in _SHORT_COMPLETION:
         return True, text[:300]
 
-    # 无工具调用 + 总结性语句
+    # 无工具调用 + 明确完成信号（已移除模糊词"总结/结果/输出/summary/conclusion"）
+    # 仅保留英文明确的 done/finished/complete
     has_json = bool(re.search(r'"tool_calls"|\{"name"|\{"thought"', text))
     has_file = bool(re.search(r"```(FILE|python|[a-z]+):", text))
     if not has_json and not has_file:
-        summary_words = ["总结", "完成", "结果", "输出", "done", "summary", "conclusion"]
-        for w in summary_words:
+        clear_done_words = ["done", "finished", "complete"]
+        for w in clear_done_words:
             if w in first_line.lower():
                 return True, text[:300]
 

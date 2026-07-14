@@ -71,10 +71,15 @@ def mock_store():
 
 @pytest.fixture
 def client(mock_store, monkeypatch):
-    """创建仅包含 rest_routes 路由的 FastAPI 应用，并 mock session_store"""
+    """创建包含核心路由的 FastAPI 应用，并 mock session_store"""
     monkeypatch.setattr(rest_routes, "get_session_store", lambda: mock_store)
     app = FastAPI()
     app.include_router(rest_routes.router)
+    # 包含从 rest_routes 迁移出去的路由
+    from pycoder.server.routers.refactor_api import router as refactor_router
+    from pycoder.server.routers.context import router as context_router
+    app.include_router(refactor_router)
+    app.include_router(context_router)
     with TestClient(app) as c:
         yield c
 
@@ -552,37 +557,39 @@ class TestTypeHint:
 
 class TestRefactor:
     def test_extract(self, client, monkeypatch):
-        from pycoder.python import refactor_analyzer
-
         result = MagicMock()
         result.success = True
-        result.refactored_code = "def extracted():\n    pass"
-        result.summary = "extracted 1 function"
-        executor = MagicMock()
-        executor.extract_function.return_value = result
-        monkeypatch.setattr(refactor_analyzer, "RefactoringExecutor", lambda: executor)
+        result.operation = "extract"
+        result.changes = [{"file": "test.py", "old": "", "new": "def extracted():\n    pass"}]
+        result.error = None
+        engine = MagicMock()
+        engine.extract_function.return_value = result
+        # patch 在 refactor_api 模块中已导入的引用
+        from pycoder.server.routers import refactor_api
+        monkeypatch.setattr(refactor_api, "get_refactor_engine", lambda: engine)
 
         resp = client.post(
             "/api/refactor/extract",
-            json={"code": "def f():\n    pass", "start_line": 1, "end_line": 2},
+            json={"file": "test.py", "start_line": 1, "end_line": 2, "new_name": "extracted"},
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
 
     def test_rename(self, client, monkeypatch):
-        from pycoder.python import refactor_analyzer
-
         result = MagicMock()
         result.success = True
-        result.refactored_code = "y = 1"
-        executor = MagicMock()
-        executor.rename_variable.return_value = result
-        monkeypatch.setattr(refactor_analyzer, "RefactoringExecutor", lambda: executor)
+        result.operation = "rename"
+        result.changes = [{"file": "test.py", "old": "x", "new": "y"}]
+        result.error = None
+        engine = MagicMock()
+        engine.rename_symbol.return_value = result
+        from pycoder.server.routers import refactor_api
+        monkeypatch.setattr(refactor_api, "get_refactor_engine", lambda: engine)
 
         resp = client.post(
             "/api/refactor/rename",
-            json={"code": "x = 1", "old_name": "x", "new_name": "y"},
+            json={"file": "test.py", "old_name": "x", "new_name": "y"},
         )
         assert resp.status_code == 200
         assert resp.json()["success"] is True

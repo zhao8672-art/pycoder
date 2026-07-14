@@ -200,9 +200,10 @@ def unpack(archive: str | Path, target_dir: str | Path | None = None) -> str:
     target = Path(target_dir)
     target.mkdir(parents=True, exist_ok=True)
 
-    # 解包
+    # 安全解包（防止路径穿越）
+    from pycoder.extensions.manager import _safe_extract_archive
     with zipfile.ZipFile(archive_path, "r") as zf:
-        zf.extractall(target)
+        _safe_extract_archive(zf, target, fmt="zip")
 
     logger.info("extension_unpacked ext=%s target=%s", ext_id, target)
     return str(target)

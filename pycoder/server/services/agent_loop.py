@@ -148,6 +148,15 @@ class UnifiedAgentLoop:
             # 2. 统一解析
             parsed = parse_response(response_text)
 
+            # P0: 首轮无工具调用不得判定为完成 — 防止 AI 空谈"好的我来"就退出
+            if iteration == 1 and not parsed.tool_calls and not parsed.file_blocks:
+                parsed.completion = False
+                logger.info(
+                    "agent_loop_first_iteration_no_tools iteration=%d len=%d",
+                    iteration,
+                    len(response_text),
+                )
+
             # 3. 完成信号检测
             if parsed.completion:
                 yield {
