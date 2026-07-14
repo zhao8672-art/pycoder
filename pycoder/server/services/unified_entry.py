@@ -435,15 +435,20 @@ class UnifiedEntryAgent:
                             context,
                             history_context,
                         ):
-                            if ev.get("type") == "token":
+                            etype = ev.get("type", "")
+                            if etype == "token":
                                 mode_content += ev.get("data") or ev.get("content", "")
                                 yield ev
-                            elif ev.get("type") == "reasoning":
+                            elif etype == "reasoning":
                                 yield ev
-                            elif ev.get("type") == "done":
+                            elif etype == "done":
                                 mode_content = ev.get("content") or mode_content
                                 success = True
-                            elif ev.get("type") == "error":
+                                yield ev
+                            elif etype in ("error", "agent_status", "agent_step",
+                                           "progress", "plugin_event"):
+                                yield ev
+                            else:
                                 yield ev
                     elif mode == TaskCategory.HERMES:
                         async for ev in self._execute_hermes_stream(
@@ -451,15 +456,20 @@ class UnifiedEntryAgent:
                             context,
                             history_context,
                         ):
-                            if ev.get("type") == "token":
+                            etype = ev.get("type", "")
+                            if etype == "token":
                                 mode_content += ev.get("data") or ev.get("content", "")
                                 yield ev
-                            elif ev.get("type") == "reasoning":
+                            elif etype == "reasoning":
                                 yield ev
-                            elif ev.get("type") == "done":
+                            elif etype == "done":
                                 mode_content = ev.get("content") or mode_content
                                 success = True
-                            elif ev.get("type") == "error":
+                                yield ev
+                            elif etype in ("error", "agent_status", "agent_step",
+                                           "progress", "plugin_event"):
+                                yield ev
+                            else:
                                 yield ev
                     elif mode == TaskCategory.AGENT:
                         async for ev in self._execute_agent_stream(
