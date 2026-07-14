@@ -148,14 +148,14 @@ class UnifiedAgentLoop:
             # 2. 统一解析
             parsed = parse_response(response_text)
 
-            # P0: 首轮无工具调用不得判定为完成 — 防止 AI 空谈"好的我来"就退出
-            if iteration == 1 and not parsed.tool_calls and not parsed.file_blocks:
-                parsed.completion = False
-                logger.info(
-                    "agent_loop_first_iteration_no_tools iteration=%d len=%d",
-                    iteration,
-                    len(response_text),
-                )
+            # P0/P1: 首轮/次轮无工具调用不得判定为完成
+            if not parsed.tool_calls and not parsed.file_blocks:
+                if iteration == 1:
+                    parsed.completion = False
+                    logger.info("agent_loop_p0_no_tools_and_no_files iteration=1 len=%d", len(response_text))
+                elif iteration == 2:
+                    parsed.completion = False
+                    logger.info("agent_loop_p1_no_tools_and_no_files iteration=2 len=%d", len(response_text))
 
             # 3. 完成信号检测
             if parsed.completion:
@@ -194,6 +194,31 @@ class UnifiedAgentLoop:
                 # 没有工具调用也没有代码块，检查是否应继续
                 if parsed.file_blocks:
                     # 写了文件但没有工具调用，继续下一轮
+                    continue
+                # P0: 首轮无工具调用 → 注入强制指令继续循环
+                if iteration == 1:
+                    p0_msg = (
+                        "(系统提示：上一轮输出没有包含任何 JSON 工具调用。"
+                        "你必须以 {\"tool_calls\": [...]} 格式输出工具调用。"
+                        "不要用文字描述你要做什么，直接输出 JSON 格式的工具调用。"
+                        "例如：{\"tool_calls\": [{\"name\": \"list_files\", \"params\": {\"path\": \".\"}}, "
+                        "{\"name\": \"git_status\", \"params\": {}}]}"
+                        "这是第一次警告。)"
+                    )
+                    bridge.add_message("assistant", p0_msg)
+                    logger.warning("agent_loop_p0_no_json_toolcalls iteration=1")
+                    continue
+                elif iteration == 2:
+                    p1_msg = (
+                        "(第二次警告：你仍然没有调用任何工具！"
+                        "你被设计为必须使用 JSON 格式调用工具。"
+                        "输出格式必须是："
+                        "{\"tool_calls\": [{\"name\": \"工具名\", \"params\": {}}]}"
+                        "不要输出任何文字描述，直接输出 JSON。"
+                        "如果第三次仍然不调用工具，任务将标记为失败。)"
+                    )
+                    bridge.add_message("assistant", p1_msg)
+                    logger.warning("agent_loop_p1_no_json_toolcalls iteration=2")
                     continue
                 # 既没有工具也没有代码块，视为完成
                 yield {

@@ -299,7 +299,21 @@ async def execute_agent_tool(
             return _tool_list_agent_configs(params)
 
         else:
-            return f"❌ 未知工具: {tool_name}"
+            # Agent 模式下未注册的工具 → 回退到 mcp_tools 内置工具
+            try:
+                import json as _fj
+
+                from pycoder.server.mcp_tools import call_builtin_tool
+
+                result = await call_builtin_tool(tool_name, params)
+                if result.success:
+                    output = result.output
+                    if isinstance(output, dict):
+                        return _fj.dumps(output, ensure_ascii=False, indent=2)
+                    return str(output)[:3000]
+                return f"❌ 工具 {tool_name} 执行失败: {result.error}"
+            except Exception as fallback_err:
+                return f"❌ 未知工具: {tool_name} (本地回退也失败: {fallback_err})"
 
     except subprocess.TimeoutExpired:
         return f"❌ 工具 {tool_name} 执行超时 ({timeout}s)"
