@@ -120,6 +120,30 @@ class EnhancedSkillsMarketManager:
         if tags:
             results = [s for s in results if any(t in s.get("tags", []) for t in tags)]
 
+        # 质量过滤（默认 ≥30 或 verified）
+        quality_min_val = 30
+        results = [
+            s for s in results
+            if s.get("quality_score", 0) >= quality_min_val
+            or s.get("verified", False)
+        ]
+
+        # 新增 quality_tier 字段 + 可用性检测
+        from pycoder.server.skills_checker import check_skill_usability
+        for s in results:
+            qs = s.get("quality_score", 0)
+            s["quality_tier"] = (
+                "high" if qs > 80 else
+                "medium" if qs > 50 else
+                "low"
+            )
+            s["usable"] = qs >= 30
+            # 集成可用性检测
+            usability = check_skill_usability(s)
+            s["needs_external_api"] = usability["needs_external_api"]
+            s["api_services"] = usability["api_services"]
+            s["usable_offline"] = usability["usable_offline"]
+
         # 排序
         if sort_by == "quality":
             results.sort(key=lambda s: s.get("quality_score", 0), reverse=True)

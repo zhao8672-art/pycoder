@@ -231,6 +231,19 @@ class ChatBridge:
 
         return messages
 
+    def _check_token_budget(self, messages: list[dict]) -> int:
+        """估算消息列表的 token 数，超出阈值时预警"""
+        total_chars = sum(
+            len(m.get("content", "")) for m in messages
+        )
+        estimated = total_chars // 3
+        if estimated > 60000:
+            logger.warning(
+                "context_near_limit estimated=%d limit=64000",
+                estimated,
+            )
+        return estimated
+
     def _compress_old_messages(self, old_messages: list[dict]) -> str:
         """压缩旧消息为摘要文本（零延迟规则提取，不调用 LLM）
 
