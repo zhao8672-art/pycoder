@@ -89,7 +89,8 @@ class AutoPluginManager:
         if self._ws_callback:
             try:
                 await self._ws_callback(event)
-            except Exception:
+            except (OSError, RuntimeError, ValueError) as e:
+                logger.debug("emit_ws_callback_failed: %s", e)
                 pass
 
     # ══════════════════════════════════════════════════════

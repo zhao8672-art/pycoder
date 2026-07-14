@@ -60,7 +60,8 @@ class PluginExecutor:
         }
         try:
             await self._plugin_callback(event)
-        except Exception:
+        except (OSError, RuntimeError, ValueError) as e:
+            logger.debug("emit_plugin_callback_failed: %s", e)
             pass
 
     async def execute_matching_plugins(
@@ -96,7 +97,8 @@ class PluginExecutor:
                     from pycoder.plugins.hermes_plugin import HermesPlugin
                     registry = PluginRegistry()
                     registry.register(HermesPlugin())
-                except Exception:
+                except (ImportError, AttributeError, TypeError) as e:
+                    logger.debug("hermes_plugin_register_failed: %s", e)
                     pass
 
             if registry is None:

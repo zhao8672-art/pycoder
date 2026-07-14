@@ -19,6 +19,9 @@ Prompt Cache 命中率优化规则 — pycoder 全 Agent 强制遵守
 from __future__ import annotations
 
 import hashlib
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ══════════════════════════════════════════════════════════
 # 一、注入到 system prompt 的规则文本（中文 / 英文）
@@ -121,7 +124,8 @@ def _hash_prefix(messages: list[dict], prefix_len: int = 2) -> str:
         prefix = messages[:prefix_len]
         raw = _json_stable_dumps(prefix)
         return hashlib.sha256(raw.encode()).hexdigest()[:12]
-    except Exception:
+    except (TypeError, ValueError, AttributeError, OSError) as e:
+        logger.debug("cache_rules_stable_hash_failed: %s", e)
         return "invalid"
 
 

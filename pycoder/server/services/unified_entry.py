@@ -26,11 +26,14 @@ PyCoder 统一聊天入口 — 全局主控调度Agent (UnifiedEntryAgent)
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Callable, Awaitable
+
+logger = logging.getLogger(__name__)
 
 
 class TaskCategory(Enum):
@@ -218,7 +221,7 @@ class UnifiedEntryAgent:
             try:
                 ev = queue.get_nowait()
                 events.append(ev)
-            except Exception:
+            except asyncio.QueueEmpty:
                 break
         return events
 
@@ -352,7 +355,8 @@ class UnifiedEntryAgent:
             bg_task = asyncio.create_task(
                 plugin_executor.execute_all(user_message, shared_context),
             )
-        except Exception:
+        except (RuntimeError, ValueError) as e:
+            logger.debug("create_plugin_executor_task_failed: %s", e)
             pass
         # P7: 启动自动插件/Skills 补全检测（后台静默执行）
         ap_bg_task = None
@@ -364,7 +368,8 @@ class UnifiedEntryAgent:
             ap_bg_task = asyncio.create_task(
                 ap_mgr.auto_fulfill(user_message),
             )
-        except Exception:
+        except (RuntimeError, ImportError, ValueError) as e:
+            logger.debug("create_auto_plugin_task_failed: %s", e)
             pass
         await progress_reporter.advance("llm", "正在调用 AI 模型生成响应...")
 

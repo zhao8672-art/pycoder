@@ -1,7 +1,9 @@
 """Dependencies API — parse requirements.txt / pyproject.toml"""
+import logging
 from fastapi import APIRouter, HTTPException
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["dependencies"])
 
 
@@ -38,7 +40,8 @@ async def list_dependencies():
                             "type": "dev" if in_dev else "runtime",
                             "description": "",
                         })
-        except Exception:
+        except (OSError, re.error, ValueError) as e:
+            logger.debug("parse_pyproject_failed: %s", e)
             pass
 
     # Parse requirements.txt
@@ -60,7 +63,8 @@ async def list_dependencies():
                         "type": "runtime",
                         "description": "",
                     })
-        except Exception:
+        except (OSError, ValueError) as e:
+            logger.debug("parse_requirements_failed: %s", e)
             pass
 
     return {"dependencies": deps, "total": len(deps)}

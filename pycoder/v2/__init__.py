@@ -147,6 +147,35 @@ class V2Engine:
             except Exception as e:
                 logger.warning("自我进化引擎初始化失败（将使用 AST 扫描模式）: %s", e)
 
+        # 1.5 注册新增模块能力
+        logger.info("注册跨工作区能力...")
+        try:
+            from pycoder.workspace import register_capabilities as register_workspace
+            register_workspace(self.registry)
+        except Exception as e:
+            logger.warning("跨工作区能力注册失败: %s", e)
+
+        logger.info("注册浏览器增强能力...")
+        try:
+            from pycoder.browser import register_capabilities as register_browser
+            register_browser(self.registry)
+        except Exception as e:
+            logger.warning("浏览器增强能力注册失败: %s", e)
+
+        logger.info("注册知识更新能力...")
+        try:
+            from pycoder.knowledge import register_capabilities as register_knowledge
+            register_knowledge(self.registry)
+        except Exception as e:
+            logger.warning("知识更新能力注册失败: %s", e)
+
+        logger.info("注册多语言 LSP 能力...")
+        try:
+            from pycoder.lsp import register_capabilities as register_lsp
+            register_lsp(self.registry)
+        except Exception as e:
+            logger.warning("多语言 LSP 能力注册失败: %s", e)
+
         # 2. 记忆引擎加载持久化数据
         if self.config.enable_consciousness:
             self.consciousness.set_mode(OperatingMode.AWARE)

@@ -93,7 +93,8 @@ class ContextOrchestrator:
         if self._ws_callback:
             try:
                 await self._ws_callback(event)
-            except Exception:
+            except (OSError, RuntimeError, ValueError) as e:
+                logger.debug("push_event_callback_failed: %s", e)
                 pass
 
     # ══════════════════════════════════════════════════════

@@ -21,8 +21,11 @@ AutoPluginDetector — 实时检测任务所需的缺失插件/Skills
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 # ── 任务类型 → 推荐 Skills 映射 ──
@@ -166,7 +169,8 @@ class AutoPluginDetector:
             for nn in market_needs:
                 if not any(n.capability == nn.capability for n in needs):
                     needs.append(nn)
-        except Exception:
+        except (OSError, RuntimeError, ValueError) as e:
+            logger.debug("detect_market_search_failed: %s", e)
             pass
 
         # 4. 按置信度排序

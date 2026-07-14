@@ -20,9 +20,12 @@ Agent 执行进度报告器 — 独立的进度展示模块
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 from typing import Callable, Awaitable
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -110,7 +113,8 @@ class ProgressReporter:
 
         try:
             await self._callback(event)
-        except Exception:
+        except (OSError, RuntimeError, ValueError) as e:
+            logger.debug("progress_callback_failed: %s", e)
             pass  # 回调失败不影响主流程
 
     async def advance(

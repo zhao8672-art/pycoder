@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationPriority(Enum):
@@ -68,8 +71,8 @@ class NotificationHub:
                     message=data.get("progress_message", data.get("task_name", "")),
                     timeout=5,
                 )
-            except Exception:
-                pass
+            except (ImportError, OSError, RuntimeError) as e:
+                logger.debug("desktop_notification_failed: %s", e)
 
     async def _send_webhook(self, event: str, data: dict):
         for url in self._webhook_urls:
@@ -81,8 +84,8 @@ class NotificationHub:
                         json={"event": event, "data": data},
                         timeout=10,
                     )
-            except Exception:
-                pass
+            except (OSError, RuntimeError, ImportError) as e:
+                logger.debug("webhook_send_failed: url=%s error=%s", url, e)
 
     def register_ws(self, session_id: str, ws):
         if session_id not in self._ws_clients:

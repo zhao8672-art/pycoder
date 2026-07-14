@@ -316,11 +316,11 @@ class DAL:
                 self._pool.put_nowait(conn)
             else:
                 conn.close()
-        except Exception:
+        except (sqlite3.Error, OSError) as e:
             try:
                 conn.close()
-            except Exception:
-                pass
+            except (sqlite3.Error, OSError) as e2:
+                logger.debug("dal_connection_close_failed: %s", e2)
 
     # ══════════════════════════════════════════════════════
     # 查询 API
@@ -618,7 +618,8 @@ class DAL:
             return self.execute_value(
                 f"SELECT COUNT(*) FROM {table}",
             ) or 0
-        except Exception:
+        except (sqlite3.Error, OSError, ValueError) as e:
+            logger.debug("dal_table_row_count_failed: table=%s error=%s", table, e)
             return 0
 
     def vacuum(self) -> None:

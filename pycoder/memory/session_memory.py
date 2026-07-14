@@ -6,8 +6,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -290,7 +293,8 @@ class SessionMemoryEngine:
         try:
             resp = await self._llm.generate(prompt, max_tokens=200)
             return resp.content.strip()
-        except Exception:
+        except (OSError, RuntimeError, ValueError, AttributeError) as e:
+            logger.debug("session_summarize_failed: %s", e)
             return ""
 
     def _save_session(self, session: SessionMemory):
