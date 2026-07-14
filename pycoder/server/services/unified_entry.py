@@ -410,6 +410,10 @@ class UnifiedEntryAgent:
             pass
         await progress_reporter.advance("llm", "正在调用 AI 模型生成响应...")
 
+        # ── 立即刷新进度到前端，确保用户看到进度条启动 ──
+        async for ev in flush_progress():
+            yield ev
+
         for task in tasks:
             mode = task["mode"]
             start = int(time.monotonic() * 1000)
@@ -772,18 +776,45 @@ class UnifiedEntryAgent:
                 f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
             )
         try:
+            # ── 开始: 通知用户正在生成 ──
+            yield {"type": "agent_status", "message": "🔍 正在分析您的问题..."}
+            yield {"type": "agent_status", "message": "🧠 AI 正在生成回复..."}
             full = ""
+            token_count = 0
+            tool_indicators: list[str] = []
             async for ev in bridge.chat_stream(effective_message):
                 if ev.event_type == "token":
                     full += ev.content
+                    token_count += len(ev.content)
+                    # 检测工具调用标记
+                    if "🔧" in ev.content:
+                        tool_indicators.append(ev.content.strip()[:80])
                     yield {"type": "token", "data": ev.content, "content": ev.content}
+                    # 每 ~15 tokens 发送一次进度心跳
+                    if token_count % 15 == 0:
+                        yield {"type": "progress", "phase": "llm",
+                               "stage": f"AI 生成中... ({token_count} tokens)",
+                               "current_step": 2, "total_steps": 6,
+                               "percent": min(40 + token_count // 10, 65),
+                               "elapsed_seconds": 0, "eta_seconds": 0,
+                               "milestones": []}
                 elif ev.event_type == "reasoning":
                     yield {"type": "reasoning", "content": ev.content}
                 elif ev.event_type == "done":
                     final = ev.content or full
+                    # 附加工具调用摘要
+                    if tool_indicators:
+                        tools_summary = "\n".join(f"  • {t}" for t in tool_indicators[:5])
+                        final = (
+                            f"{final}\n\n---\n⚡ 本次调用工具: {len(tool_indicators)} 次\n"
+                            f"{tools_summary}"
+                        )
                     yield {"type": "done", "content": final}
                 elif ev.event_type == "error":
                     yield {"type": "error", "message": ev.content}
+            # ── 完成: 通知用户 ──
+            yield {"type": "agent_status",
+                   "message": f"✅ 回复生成完成 ({len(full)} 字符, ~{token_count} tokens)"}
         finally:
             await bridge.close()
 
@@ -806,18 +837,46 @@ class UnifiedEntryAgent:
                 f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
             )
         try:
+            # ── 开始: 通知用户正在执行 ──
+            yield {"type": "agent_status", "message": "🔍 正在诊断分析..."}
+            yield {"type": "agent_status", "message": "🧠 AI 正在执行 Hermes 5步工作法..."}
             full = ""
+            token_count = 0
+            tool_indicators: list[str] = []
             async for ev in bridge.chat_stream(effective_message):
                 if ev.event_type == "token":
                     full += ev.content
+                    token_count += len(ev.content)
+                    # 检测工具调用标记（🔧 执行 xxx... / 📋 xxx 结果:）
+                    if "🔧" in ev.content or "📋" in ev.content:
+                        tool_indicators.append(ev.content.strip()[:80])
                     yield {"type": "token", "data": ev.content, "content": ev.content}
+                    # 每 ~15 tokens 发送一次进度心跳
+                    if token_count % 15 == 0:
+                        yield {"type": "progress", "phase": "llm",
+                               "stage": f"Hermes 执行中... ({token_count} tokens)",
+                               "current_step": 2, "total_steps": 6,
+                               "percent": min(40 + token_count // 10, 65),
+                               "elapsed_seconds": 0, "eta_seconds": 0,
+                               "milestones": []}
                 elif ev.event_type == "reasoning":
                     yield {"type": "reasoning", "content": ev.content}
                 elif ev.event_type == "done":
                     final = ev.content or full
+                    # 附加工具调用摘要
+                    if tool_indicators:
+                        tools_summary = "\n".join(f"  • {t}" for t in tool_indicators[:5])
+                        final = (
+                            f"{final}\n\n---\n"
+                            f"⚡ Hermes 执行完毕 | 工具调用: {len(tool_indicators)} 次\n"
+                            f"{tools_summary}"
+                        )
                     yield {"type": "done", "content": final}
                 elif ev.event_type == "error":
                     yield {"type": "error", "message": ev.content}
+            # ── 完成: 通知用户 ──
+            yield {"type": "agent_status",
+                   "message": f"✅ Hermes 5步执行完成 ({len(full)} 字符, ~{token_count} tokens)"}
         finally:
             await bridge.close()
 
