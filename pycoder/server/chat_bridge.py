@@ -352,15 +352,19 @@ class ChatBridge:
                 pass
 
             for t in all_tools:
+                import re as _re
+
                 name = t.get("name", "")
                 if name in skip_tools:
                     continue
+                # 防御: 确保工具名符合 ^[a-zA-Z0-9_-]+$
+                safe_name = _re.sub(r"[^a-zA-Z0-9_-]", "_", name)
                 schema = t.get("input_schema", {"type": "object", "properties": {}})
                 tools_payload.append(
                     {
                         "type": "function",
                         "function": {
-                            "name": name,
+                            "name": safe_name,
                             "description": t.get("description", ""),
                             "parameters": schema,
                         },

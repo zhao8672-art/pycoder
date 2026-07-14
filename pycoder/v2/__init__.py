@@ -281,6 +281,11 @@ class V2Engine:
                 error_code="NOT_FOUND",
             )
 
+        # ★ 修复: 用路由解析后的 capability_id 覆盖原始 ID
+        # 当路由找到别名/替代时（如 skills_search_v2 → v1.skills_search_v2），
+        # 后续 registry.call() 必须使用解析后的 ID 才能找到注册的处理器
+        call.capability_id = route.capability_id
+
         # 2. 获取能力定义
         definition = self.registry.get(route.capability_id)
         if definition is None:

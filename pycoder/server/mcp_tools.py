@@ -53,9 +53,12 @@ def list_builtin_tools() -> list[dict]:
     tools = []
     for cap in v2.registry.list_all():
         if cap.id.startswith("tools.") or cap.id.startswith("v1."):
+            # 移除前缀 + 点号转下划线（DeepSeek API 要求 ^[a-zA-Z0-9_-]+$）
+            raw_name = cap.id.replace("tools.", "").replace("v1.", "")
+            safe_name = raw_name.replace(".", "_")
             tools.append(
                 {
-                    "name": cap.id.replace("tools.", "").replace("v1.", ""),
+                    "name": safe_name,
                     "description": cap.description,
                     "input_schema": cap.schema or {"type": "object", "properties": {}},
                     "source": "v2_bus",
