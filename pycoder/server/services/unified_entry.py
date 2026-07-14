@@ -338,6 +338,12 @@ class UnifiedEntryAgent:
             "core_need": intent.core_need,
             "ambiguity": intent.ambiguity or "无",
         }
+        # 同时发送 agent_status 让用户可见
+        yield {
+            "type": "agent_status",
+            "status": "started",
+            "message": f"🔍 意图解析: {intent.task_category.value.upper()} 模式 ({intent.core_need})",
+        }
         await progress_reporter.advance("intent", "正在分析用户意图...")
 
         # ══════════════════════════════════════════════════════
@@ -479,13 +485,16 @@ class UnifiedEntryAgent:
                                 max_iter = ev.get("max", 0)
                                 tool_calls = ev.get("tool_calls", [])
                                 if status_text == "analyzing":
-                                    yield {"type": "agent_status", "message": "🔍 正在分析任务..."}
+                                    yield {"type": "agent_status", "status": "started",
+                                           "message": "🔍 正在分析任务..."}
                                 elif status_text == "thinking":
                                     pct = int(iteration / max(max_iter, 1) * 100) if max_iter else 0
-                                    yield {"type": "agent_status", "message": f"🧠 思考中 ({iteration}/{max_iter}, {pct}%)"}
+                                    yield {"type": "agent_status", "status": "working",
+                                           "message": f"🧠 思考中 ({iteration}/{max_iter}, {pct}%)"}
                                 elif status_text == "executing":
                                     tools_str = ", ".join(tool_calls[:5]) if tool_calls else "工具"
-                                    yield {"type": "agent_status", "message": f"⚡ 执行: {tools_str}..."}
+                                    yield {"type": "agent_status", "status": "working",
+                                           "message": f"⚡ 执行: {tools_str}..."}
                             elif ev.get("type") == "tool_result":
                                 # agent_loop 的工具结果 → 转发为 agent_step
                                 yield {
@@ -776,9 +785,9 @@ class UnifiedEntryAgent:
                 f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
             )
         try:
-            # ── 开始: 通知用户正在生成 ──
-            yield {"type": "agent_status", "message": "🔍 正在分析您的问题..."}
-            yield {"type": "agent_status", "message": "🧠 AI 正在生成回复..."}
+            # ── 开始: 通知用户正在分析 ──
+            yield {"type": "agent_status", "status": "started", "message": "🔍 正在分析您的问题..."}
+            yield {"type": "agent_status", "status": "working", "message": "🧠 AI 正在生成回复..."}
             full = ""
             token_count = 0
             tool_indicators: list[str] = []
@@ -786,8 +795,8 @@ class UnifiedEntryAgent:
                 if ev.event_type == "token":
                     full += ev.content
                     token_count += len(ev.content)
-                    # 检测工具调用标记
-                    if "🔧" in ev.content:
+                    # 检测工具调用标记（🔧 执行 xxx... / 📋 xxx 结果:）
+                    if "🔧" in ev.content or "📋" in ev.content:
                         tool_indicators.append(ev.content.strip()[:80])
                     yield {"type": "token", "data": ev.content, "content": ev.content}
                     # 每 ~15 tokens 发送一次进度心跳
@@ -806,14 +815,14 @@ class UnifiedEntryAgent:
                     if tool_indicators:
                         tools_summary = "\n".join(f"  • {t}" for t in tool_indicators[:5])
                         final = (
-                            f"{final}\n\n---\n⚡ 本次调用工具: {len(tool_indicators)} 次\n"
-                            f"{tools_summary}"
+                            f"{final}\n\n---\n"
+                            f"⚡ 本次调用工具: {len(tool_indicators)} 次\n{tools_summary}"
                         )
                     yield {"type": "done", "content": final}
                 elif ev.event_type == "error":
                     yield {"type": "error", "message": ev.content}
             # ── 完成: 通知用户 ──
-            yield {"type": "agent_status",
+            yield {"type": "agent_status", "status": "completed",
                    "message": f"✅ 回复生成完成 ({len(full)} 字符, ~{token_count} tokens)"}
         finally:
             await bridge.close()
@@ -838,8 +847,9 @@ class UnifiedEntryAgent:
             )
         try:
             # ── 开始: 通知用户正在执行 ──
-            yield {"type": "agent_status", "message": "🔍 正在诊断分析..."}
-            yield {"type": "agent_status", "message": "🧠 AI 正在执行 Hermes 5步工作法..."}
+            yield {"type": "agent_status", "status": "started", "message": "🔍 正在诊断分析..."}
+            yield {"type": "agent_status", "status": "working",
+                   "message": "🧠 AI 正在执行 Hermes 5步工作法..."}
             full = ""
             token_count = 0
             tool_indicators: list[str] = []
@@ -875,7 +885,7 @@ class UnifiedEntryAgent:
                 elif ev.event_type == "error":
                     yield {"type": "error", "message": ev.content}
             # ── 完成: 通知用户 ──
-            yield {"type": "agent_status",
+            yield {"type": "agent_status", "status": "completed",
                    "message": f"✅ Hermes 5步执行完成 ({len(full)} 字符, ~{token_count} tokens)"}
         finally:
             await bridge.close()
