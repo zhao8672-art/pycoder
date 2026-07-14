@@ -1,0 +1,55 @@
+repos:
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+  - repo: https://github.com/psf/black
+    rev: 23.3.0
+    hooks:
+      - id: black
+        args: ["--line-length", "100", "--preview"]
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.0
+    hooks:
+      - id: flake8
+        args: ["--show-source"]
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.6
+    hooks:
+      - id: codespell
+        args: ["--skip", "aider/website/docs/languages.md"]
+        additional_dependencies:
+          - tomli
+  # P2-5: 安全扫描 — Bandit 检测安全漏洞
+  - repo: https://github.com/PyCQA/bandit
+    rev: '1.7.9'
+    hooks:
+      - id: bandit
+        args: ['-ll', '-ii', '-x', 'tests/']
+        additional_dependencies: ['bandit[toml]']
+  # P2-5: 禁止裸 except Exception: pass（回归防护）
+  - repo: local
+    hooks:
+      - id: no-bare-except-pass
+        name: forbid bare `except Exception: pass` in critical files
+        entry: python -c
+        language: system
+        pass_filenames: false
+        args:
+          - |
+            import sys, re, pathlib;
+            patterns = ['except Exception: pass', 'except Exception as e: pass'];
+            critical = ['pycoder/server/app.py', 'pycoder/server/chat_handler.py', 'pycoder/server/services/agent_orchestrator.py', 'pycoder/server/self_evolution.py'];
+            found = [];
+            for f in critical:
+                p = pathlib.Path(f);
+                if p.exists():
+                    for i, line in enumerate(p.read_text(encoding='utf-8').splitlines(), 1):
+                        if any(pat in line for pat in patterns):
+                            found.append(f'{f}:{i}: {line.strip()}');
+            if found:
+                print('Found bare except: pass in critical files:');
+                for x in found: print('  ' + x);
+                sys.exit(1)
+

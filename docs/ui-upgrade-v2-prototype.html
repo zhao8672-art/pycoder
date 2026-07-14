@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PyCoder IDE — 全功能 UI 升级原型</title>
+<style>
+:root {
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --bg-tertiary: #252540;
+  --bg-hover: #2a2a45;
+  --bg-active: #353560;
+  --bg-elevated: #1e1e35;
+  --text-primary: #e4e4f0;
+  --text-secondary: #a0a0c0;
+  --text-muted: #606080;
+  --border: #2a2a40;
+  --accent: #7c6ef0;
+  --accent-blue: #6c9eff;
+  --accent-green: #4fd1a5;
+  --accent-yellow: #f0d264;
+  --accent-red: #ef6b7c;
+  --accent-orange: #ffa14f;
+  --accent-cyan: #5fd0c8;
+  --accent-purple: #b388ff;
+  --radius: 8px;
+}
+[data-theme="light"] {
+  --bg-primary: #f8f8fc;
+  --bg-secondary: #f0f0f6;
+  --bg-tertiary: #e4e4ee;
+  --bg-hover: #e0e0ea;
+  --bg-active: #d0d0de;
+  --bg-elevated: #ffffff;
+  --text-primary: #1a1a2e;
+  --text-secondary: #4a4a65;
+  --text-muted: #8a8aa0;
+  --border: #d8d8e4;
+  --accent: #6c5ce7;
+  --accent-blue: #4a7aff;
+  --accent-green: #2eb888;
+  --accent-yellow: #d4a020;
+  --accent-red: #e54960;
+  --accent-orange: #e88f30;
+  --accent-cyan: #2db8a8;
+  --accent-purple: #9c5ce7;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+  height: 100vh;
+  transition: background 0.3s, color 0.3s;
+}
+.app { display: flex; flex-direction: column; height: 100vh; }
+
+/* MenuBar */
+.menubar {
+  display: flex; align-items: center; height: 32px;
+  background: var(--bg-secondary); border-bottom: 1px solid var(--border);
+  padding: 0 8px; gap: 2px; flex-shrink: 0;
+}
+.menubar-logo { font-weight: 700; font-size: 14px; color: var(--accent); margin-right: 12px; letter-spacing: -0.5px; }
+.menubar-item { padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; color: var(--text-secondary); transition: all 0.15s; }
+.menubar-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.menubar-spacer { flex: 1; }
+.menubar-right { display: flex; align-items: center; gap: 8px; }
+.menubar-btn { width: 24px; height: 24px; border: none; background: transparent; color: var(--text-muted); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; }
+.menubar-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* Main */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* ActivityBar */
+.activity-bar {
+  width: 52px; background: var(--bg-secondary); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; padding: 6px 0; flex-shrink: 0;
+  overflow-y: auto;
+}
+.activity-bar::-webkit-scrollbar { width: 0; }
+.activity-group { display: flex; flex-direction: column; gap: 2px; width: 100%; align-items: center; }
+.activity-divider { width: 28px; height: 1px; background: var(--border); margin: 6px 0; }
+.activity-btn {
+  width: 40px; height: 40px; border: none; background: transparent;
+  color: var(--text-muted); border-radius: var(--radius); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; position: relative; transition: all 0.15s; flex-shrink: 0;
+}
+.activity-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.activity-btn.active { color: var(--accent); background: var(--bg-active); }
+.activity-btn.active::before {
+  content: ''; position: absolute; left: -6px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 22px; background: var(--accent); border-radius: 0 3px 3px 0;
+}
+.activity-icon { font-size: 17px; line-height: 1; }
+.activity-label { font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px; opacity: 0.8; }
+.activity-badge {
+  position: absolute; top: 3px; right: 3px; min-width: 14px; height: 14px;
+  background: var(--accent-red); color: #fff; border-radius: 7px;
+  font-size: 9px; font-weight: 600; display: flex; align-items: center; justify-content: center;
+  padding: 0 3px;
+}
+.activity-spacer { flex: 1; }
+
+/* Tooltip */
+.activity-btn[data-tooltip]:hover::after {
+  content: attr(data-tooltip); position: absolute; left: 52px; top: 50%; transform: translateY(-50%);
+  background: var(--bg-elevated); color: var(--text-primary); padding: 4px 10px; border-radius: 4px;
+  font-size: 12px; white-space: nowrap; z-index: 100; border: 1px solid var(--border);
+  pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* Sidebar */
+.sidebar {
+  width: 240px; background: var(--bg-secondary); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+.sidebar-header {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);
+}
+.sidebar-content { flex: 1; overflow-y: auto; padding: 8px; }
+.sidebar-close { margin-left: auto; cursor: pointer; color: var(--text-muted); border: none; background: transparent; font-size: 14px; }
+.sidebar-close:hover { color: var(--text-primary); }
+
+/* File tree items */
+.tree-item { display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; color: var(--text-secondary); }
+.tree-item:hover { background: var(--bg-hover); }
+.tree-item.active { background: var(--bg-active); color: var(--text-primary); }
+.tree-icon { font-size: 14px; }
+.tree-badge { margin-left: auto; font-size: 9px; padding: 0 4px; border-radius: 3px; background: var(--bg-active); color: var(--text-muted); }
+.tree-badge.m { background: rgba(240,210,100,0.15); color: var(--accent-yellow); }
+.tree-badge.u { background: rgba(79,209,165,0.15); color: var(--accent-green); }
+
+/* Editor */
+.editor-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-primary); }
+.editor-tabs { display: flex; background: var(--bg-secondary); border-bottom: 1px solid var(--border); height: 35px; }
+.editor-tab { display: flex; align-items: center; gap: 6px; padding: 0 12px; height: 100%; border-right: 1px solid var(--border); cursor: pointer; font-size: 12px; color: var(--text-secondary); transition: all 0.15s; }
+.editor-tab.active { background: var(--bg-primary); color: var(--text-primary); border-top: 2px solid var(--accent); }
+.editor-tab:hover:not(.active) { background: var(--bg-hover); }
+.editor-tab-close { opacity: 0.4; font-size: 14px; }
+.editor-tab-close:hover { opacity: 1; }
+
+.editor-content { flex: 1; overflow: auto; padding: 16px; font-family: 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.7; }
+.code-line { display: flex; }
+.line-num { width: 36px; text-align: right; color: var(--text-muted); padding-right: 12px; user-select: none; flex-shrink: 0; }
+.line-content { flex: 1; }
+.kw { color: var(--accent-purple); }
+.fn { color: var(--accent-blue); }
+.str { color: var(--accent-green); }
+.cm { color: var(--text-muted); font-style: italic; }
+.num { color: var(--accent-orange); }
+.cls { color: var(--accent-cyan); }
+
+/* Bottom Panel */
+.bottom-panel { display: flex; flex-direction: column; border-top: 1px solid var(--border); background: var(--bg-secondary); }
+.bottom-tabs { display: flex; align-items: center; height: 32px; border-bottom: 1px solid var(--border); padding: 0 4px; gap: 1px; }
+.bottom-tab {
+  display: flex; align-items: center; gap: 5px; padding: 0 10px; height: 26px;
+  border: none; background: transparent; color: var(--text-muted);
+  border-radius: 4px; cursor: pointer; font-size: 11px; transition: all 0.15s;
+}
+.bottom-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+.bottom-tab.active { background: var(--bg-active); color: var(--accent); }
+.bottom-tab-icon { font-size: 13px; }
+.bottom-tab-badge { min-width: 14px; height: 14px; border-radius: 7px; font-size: 9px; font-weight: 600; display: flex; align-items: center; justify-content: center; padding: 0 3px; }
+.bottom-tab-badge.red { background: rgba(239,107,124,0.2); color: var(--accent-red); }
+.bottom-tab-badge.yellow { background: rgba(240,210,100,0.2); color: var(--accent-yellow); }
+.bottom-tab-badge.green { background: rgba(79,209,165,0.2); color: var(--accent-green); }
+.bottom-content { flex: 1; overflow-y: auto; padding: 8px 12px; font-family: 'Fira Code', 'Consolas', monospace; font-size: 12px; min-height: 100px; max-height: 200px; }
+.bottom-line { color: var(--text-secondary); padding: 1px 0; }
+.bottom-line .prompt { color: var(--accent-green); }
+.bottom-line .err { color: var(--accent-red); }
+.bottom-line .warn { color: var(--accent-yellow); }
+.bottom-line .info { color: var(--accent-blue); }
+
+/* AI Panel */
+.ai-panel { width: 360px; background: var(--bg-secondary); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+.ai-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.ai-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.ai-model-bar { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--bg-tertiary); }
+.ai-model-select { flex: 1; padding: 3px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary); font-size: 11px; }
+.ai-mode-tabs { display: flex; gap: 2px; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+.ai-mode-tab { padding: 3px 10px; border: none; background: transparent; color: var(--text-muted); font-size: 11px; border-radius: 4px; cursor: pointer; }
+.ai-mode-tab.active { background: var(--accent); color: #fff; }
+.ai-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.ai-msg { display: flex; gap: 8px; }
+.ai-msg-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.ai-msg-avatar.user { background: var(--accent-blue); color: #fff; }
+.ai-msg-avatar.ai { background: var(--accent); color: #fff; }
+.ai-msg-body { flex: 1; }
+.ai-msg-name { font-size: 11px; font-weight: 600; margin-bottom: 2px; }
+.ai-msg-text { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+.ai-quick-tags { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 12px; border-top: 1px solid var(--border); }
+.ai-tag { padding: 3px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; color: var(--text-secondary); cursor: pointer; transition: all 0.15s; background: var(--bg-tertiary); }
+.ai-tag:hover { border-color: var(--accent); color: var(--accent); }
+.ai-input-area { padding: 8px 12px; border-top: 1px solid var(--border); }
+.ai-input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-primary); color: var(--text-primary); font-size: 12px; resize: none; height: 60px; }
+.ai-input:focus { outline: none; border-color: var(--accent); }
+.ai-send-row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+.ai-send-btn { padding: 4px 16px; border: none; border-radius: var(--radius); background: var(--accent); color: #fff; font-size: 12px; cursor: pointer; }
+
+/* StatusBar */
+.statusbar {
+  display: flex; align-items: center; height: 24px;
+  background: var(--accent); color: #fff; padding: 0 8px; font-size: 11px;
+  gap: 8px; flex-shrink: 0;
+}
+[data-theme="light"] .statusbar { background: var(--accent); }
+.status-item { display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 0 4px; border-radius: 3px; }
+.status-item:hover { background: rgba(255,255,255,0.15); }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-green); animation: pulse 2s infinite; }
+.status-divider { width: 1px; height: 12px; background: rgba(255,255,255,0.3); }
+.status-spacer { flex: 1; }
+
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* Feature map overlay */
+.feature-map {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.85); z-index: 1000; display: none;
+  align-items: center; justify-content: center; padding: 40px;
+}
+.feature-map.show { display: flex; }
+.feature-map-content { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 12px; max-width: 900px; max-height: 80vh; overflow-y: auto; padding: 24px; }
+.feature-map-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: var(--accent); }
+.feature-map-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.feature-map-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 6px; background: var(--bg-tertiary); font-size: 12px; }
+.feature-map-icon { font-size: 16px; }
+.feature-map-name { font-weight: 600; color: var(--text-primary); }
+.feature-map-entry { color: var(--text-muted); font-size: 11px; }
+.feature-map-close { position: absolute; top: 16px; right: 16px; cursor: pointer; font-size: 20px; color: var(--text-muted); }
+
+/* Highlight overlay */
+.highlight-box {
+  position: absolute; border: 2px solid var(--accent-yellow); border-radius: 4px;
+  pointer-events: none; z-index: 50;
+  animation: highlight-pulse 1.5s ease-in-out infinite;
+}
+@keyframes highlight-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(240,210,100,0.4); } 50% { box-shadow: 0 0 0 6px rgba(240,210,100,0); } }
+.highlight-label {
+  position: absolute; background: var(--accent-yellow); color: #1a1a2e;
+  padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;
+  white-space: nowrap; z-index: 51;
+}
+
+.info-banner {
+  position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+  background: var(--bg-elevated); border: 1px solid var(--accent); border-radius: 8px;
+  padding: 10px 20px; font-size: 12px; color: var(--text-primary); z-index: 200;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4); display: none;
+}
+.info-banner.show { display: block; animation: slideUp 0.3s; }
+@keyframes slideUp { from { transform: translate(-50%, 20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- MenuBar -->
+  <div class="menubar">
+    <span class="menubar-logo">PyCoder</span>
+    <span class="menubar-item">文件</span>
+    <span class="menubar-item">编辑</span>
+    <span class="menubar-item">选择</span>
+    <span class="menubar-item">查看</span>
+    <span class="menubar-item">运行</span>
+    <span class="menubar-item">Git</span>
+    <span class="menubar-item">AI</span>
+    <span class="menubar-item">帮助</span>
+    <div class="menubar-spacer"></div>
+    <div class="menubar-right">
+      <button class="menubar-btn" onclick="showBanner('自我进化引擎就绪')" title="自我进化">🧬</button>
+      <button class="menubar-btn" onclick="toggleTheme()" title="切换主题" id="theme-btn">☀</button>
+    </div>
+  </div>
+
+  <div class="main" id="main">
+    <!-- ActivityBar -->
+    <div class="activity-bar" id="activity-bar">
+      <!-- Group 1: Core -->
+      <div class="activity-group">
+        <button class="activity-btn active" data-tooltip="文件资源管理器" onclick="setActive(this,'files')">
+          <span class="activity-icon">📁</span>
+          <span class="activity-label">文件</span>
+        </button>
+        <button class="activity-btn" data-tooltip="跨文件搜索" onclick="setActive(this,'search')">
+          <span class="activity-icon">🔍</span>
+          <span class="activity-label">搜索</span>
+        </button>
+        <button class="activity-btn" data-tooltip="Git 版本控制" onclick="setActive(this,'git')">
+          <span class="activity-icon">📦</span>
+          <span class="activity-label">Git</span>
+        </button>
+        <button class="activity-btn" data-tooltip="AI 编程助手 (Ctrl+Shift+A)" onclick="toggleAI()">
+          <span class="activity-icon">🤖</span>
+          <span class="activity-label">AI</span>
+        </button>
+      </div>
+      <div class="activity-divider"></div>
+
+      <!-- Group 2: AI & Tools -->
+      <div class="activity-group">
+        <button class="activity-btn" data-tooltip="多 Agent 团队协作" onclick="setActive(this,'team')">
+          <span class="activity-icon">👥</span>
+          <span class="activity-label">团队</span>
+        </button>
+        <button class="activity-btn" data-tooltip="自我进化引擎" onclick="toggleEvo()">
+          <span class="activity-icon">🧬</span>
+          <span class="activity-label">进化</span>
+        </button>
+        <button class="activity-btn" data-tooltip="AI 技能市场" onclick="setActive(this,'skills')">
+          <span class="activity-icon">🧩</span>
+          <span class="activity-label">技能</span>
+        </button>
+        <button class="activity-btn" data-tooltip="扩展管理" onclick="setActive(this,'extensions')">
+          <span class="activity-icon">🧰</span>
+          <span class="activity-label">扩展</span>
+        </button>
+        <button class="activity-btn" data-tooltip="代码片段管理" onclick="setActive(this,'snippets')">
+          <span class="activity-icon">📋</span>
+          <span class="activity-label">片段</span>
+        </button>
+      </div>
+      <div class="activity-divider"></div>
+
+      <!-- Group 3: Utilities -->
+      <div class="activity-group">
+        <button class="activity-btn" data-tooltip="内置浏览器" onclick="toggleBrowser()">
+          <span class="activity-icon">🌐</span>
+          <span class="activity-label">浏览</span>
+        </button>
+        <button class="activity-btn" data-tooltip="标书制作工具" onclick="setActive(this,'bidtool')">
+          <span class="activity-icon">📄</span>
+          <span class="activity-label">标书</span>
+        </button>
+        <button class="activity-btn" data-tooltip="终端 (Ctrl+`)" onclick="toggleBottom('terminal')">
+          <span class="activity-icon">▶</span>
+          <span class="activity-label">运行</span>
+        </button>
+        <button class="activity-btn" data-tooltip="命令面板 (Ctrl+K)" onclick="showBanner('命令面板 Ctrl+K')">
+          <span class="activity-icon">⌘</span>
+          <span class="activity-label">命令</span>
+        </button>
+      </div>
+
+      <div class="activity-spacer"></div>
+
+      <!-- Group 4: System -->
+      <div class="activity-group">
+        <div class="activity-divider"></div>
+        <button class="activity-btn" data-tooltip="PyCoder Cloud 云端" onclick="setActive(this,'cloud')">
+          <span class="activity-icon">☁️</span>
+          <span class="activity-label">云</span>
+        </button>
+        <button class="activity-btn" data-tooltip="设置" onclick="setActive(this,'settings')">
+          <span class="activity-icon">⚙</span>
+          <span class="activity-label">设置</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span id="sidebar-icon">📁</span>
+        <span id="sidebar-title">文件资源管理器</span>
+        <button class="sidebar-close" onclick="toggleSidebar()">✕</button>
+      </div>
+      <div class="sidebar-content" id="sidebar-content">
+        <div class="tree-item active"><span class="tree-icon">🐍</span> pycode <span class="tree-badge m">3</span></div>
+        <div class="tree-item" style="padding-left:20px"><span class="tree-icon">📂</span> pycoder</div>
+        <div class="tree-item" style="padding-left:32px"><span class="tree-icon">📂</span> electron</div>
+        <div class="tree-item" style="padding-left:44px"><span class="tree-icon">📂</span> src</div>
+        <div class="tree-item" style="padding-left:56px"><span class="tree-icon">📂</span> renderer</div>
+        <div class="tree-item" style="padding-left:56px"><span class="tree-icon">📂</span> components</div>
+        <div class="tree-item active" style="padding-left:68px"><span class="tree-icon">⚛️</span> App.tsx</div>
+        <div class="tree-item" style="padding-left:68px"><span class="tree-icon">⚛️</span> ActivityBar.tsx</div>
+        <div class="tree-item" style="padding-left:68px"><span class="tree-icon">⚛️</span> AIPanel.tsx</div>
+        <div class="tree-item" style="padding-left:68px"><span class="tree-icon">⚛️</span> StatusBar.tsx</div>
+        <div class="tree-item" style="padding-left:56px"><span class="tree-icon">📂</span> stores</div>
+        <div class="tree-item" style="padding-left:56px"><span class="tree-icon">📂</span> styles</div>
+        <div class="tree-item" style="padding-left:44px"><span class="tree-icon">📄</span> package.json</div>
+        <div class="tree-item" style="padding-left:32px"><span class="tree-icon">📄</span> pyproject.toml</div>
+        <div class="tree-item" style="padding-left:20px"><span class="tree-icon">📄</span> README.md</div>
+        <div class="tree-item" style="padding-left:20px"><span class="tree-icon">📄</span> AGENTS.md <span class="tree-badge u">A</span></div>
+      </div>
+    </div>
+
+    <!-- Editor + Bottom Panel -->
+    <div class="editor-area">
+      <div class="editor-tabs">
+        <div class="editor-tab active">
+          <span>⚛️</span> App.tsx
+          <span class="editor-tab-close">✕</span>
+        </div>
+        <div class="editor-tab">
+          <span>🐍</span> __main__.py
+          <span class="editor-tab-close">✕</span>
+        </div>
+        <div class="editor-tab">
+          <span>📄</span> theme.css
+          <span class="editor-tab-close">✕</span>
+        </div>
+      </div>
+      <div class="editor-content" id="editor-content">
+        <div class="code-line"><span class="line-num">1</span><span class="line-content"><span class="kw">import</span> React, { useEffect } <span class="kw">from</span> <span class="str">'react'</span>;</span></div>
+        <div class="code-line"><span class="line-num">2</span><span class="line-content"><span class="kw">import</span> { ActivityBar } <span class="kw">from</span> <span class="str">'./components/ActivityBar'</span>;</span></div>
+        <div class="code-line"><span class="line-num">3</span><span class="line-content"><span class="kw">import</span> { Sidebar } <span class="kw">from</span> <span class="str">'./components/Sidebar'</span>;</span></div>
+        <div class="code-line"><span class="line-num">4</span><span class="line-content"><span class="kw">import</span> { AIPanel } <span class="kw">from</span> <span class="str">'./components/AIPanel'</span>;</span></div>
+        <div class="code-line"><span class="line-num">5</span><span class="line-content"></span></div>
+        <div class="code-line"><span class="line-num">6</span><span class="line-content"><span class="kw">const</span> <span class="fn">App</span>: React.FC = () => {</span></div>
+        <div class="code-line"><span class="line-num">7</span><span class="line-content">  <span class="kw">const</span> { theme, toggleTheme } = <span class="fn">useAppStore</span>();</span></div>
+        <div class="code-line"><span class="line-num">8</span><span class="line-content"></span></div>
+        <div class="code-line"><span class="line-num">9</span><span class="line-content">  <span class="fn">useEffect</span>(() => {</span></div>
+        <div class="code-line"><span class="line-num">10</span><span class="line-content">    document.documentElement.<span class="fn">setAttribute</span>(<span class="str">'data-theme'</span>, theme);</span></div>
+        <div class="code-line"><span class="line-num">11</span><span class="line-content">  }, [theme]);</span></div>
+        <div class="code-line"><span class="line-num">12</span><span class="line-content"></span></div>
+        <div class="code-line"><span class="line-num">13</span><span class="line-content">  <span class="cm">// 全新 ActivityBar: 3 组 16 项，覆盖全部功能</span></span></div>
+        <div class="code-line"><span class="line-num">14</span><span class="line-content">  <span class="kw">return</span> (</span></div>
+        <div class="code-line"><span class="line-num">15</span><span class="line-content">    <span class="str">&lt;div className="app-root"&gt;</span></span></div>
+        <div class="code-line"><span class="line-num">16</span><span class="line-content">      <span class="str">&lt;MenuBar /&gt;</span></span></div>
+        <div class="code-line"><span class="line-num">17</span><span class="line-content">      <span class="str">&lt;ActivityBar /&gt;</span> <span class="cm">{/* 文件/搜索/Git/AI/团队/进化/技能/扩展/片段/浏览/标书/运行/命令/云/设置 */}</span></span></div>
+        <div class="code-line"><span class="line-num">18</span><span class="line-content">      <span class="str">&lt;Sidebar /&gt;</span></span></div>
+        <div class="code-line"><span class="line-num">19</span><span class="line-content">      <span class="str">&lt;EditorArea /&gt;</span> <span class="cm">{/* 编辑器 + 7 标签底部面板 */}</span></span></div>
+        <div class="code-line"><span class="line-num">20</span><span class="line-content">      <span class="str">&lt;AIPanel /&gt;</span></span></div>
+        <div class="code-line"><span class="line-num">21</span><span class="line-content">      <span class="str">&lt;StatusBar /&gt;</span> <span class="cm">{/* 状态 + 7 底部面板标签全部暴露 */}</span></span></div>
+        <div class="code-line"><span class="line-num">22</span><span class="line-content">    <span class="str">&lt;/div&gt;</span></span></div>
+        <div class="code-line"><span class="line-num">23</span><span class="line-content">  );</span></div>
+        <div class="code-line"><span class="line-num">24</span><span class="line-content">};</span></div>
+      </div>
+
+      <!-- Bottom Panel with ALL 7 tabs -->
+      <div class="bottom-panel" id="bottom-panel">
+        <div class="bottom-tabs" id="bottom-tabs">
+          <button class="bottom-tab active" onclick="setBottomTab(this,'terminal')">
+            <span class="bottom-tab-icon">▶</span> 终端
+          </button>
+          <button class="bottom-tab" onclick="setBottomTab(this,'output')">
+            <span class="bottom-tab-icon">📜</span> 输出
+          </button>
+          <button class="bottom-tab" onclick="setBottomTab(this,'problems')">
+            <span class="bottom-tab-icon">⚠</span> 问题
+            <span class="bottom-tab-badge red">3</span>
+          </button>
+          <button class="bottom-tab" onclick="setBottomTab(this,'runner')">
+            <span class="bottom-tab-icon">🐍</span> Python 运行器
+          </button>
+          <button class="bottom-tab" onclick="setBottomTab(this,'testgen')">
+            <span class="bottom-tab-icon">🧪</span> 测试生成
+          </button>
+          <button class="bottom-tab" onclick="setBottomTab(this,'runfix')">
+            <span class="bottom-tab-icon">🔄</span> Run &amp; Fix
+          </button>
+          <button class="bottom-tab" onclick="setBottomTab(this,'debug')">
+            <span class="bottom-tab-icon">🐛</span> 调试
+          </button>
+        </div>
+        <div class="bottom-content" id="bottom-content">
+          <div class="bottom-line"><span class="prompt">$</span> python -m pycoder --serve</div>
+          <div class="bottom-line info">[INFO] PyCoder Server v0.5.0 starting...</div>
+          <div class="bottom-line">[INFO] Workspace: C:\Users\Administrator\Desktop\pycode</div>
+          <div class="bottom-line">[INFO] DeepSeek API: connected (deepseek-chat)</div>
+          <div class="bottom-line">[INFO] WebSocket: ws://127.0.0.1:8423/ws/chat</div>
+          <div class="bottom-line warn">[WARN] Ollama not detected (optional)</div>
+          <div class="bottom-line info">[INFO] Server ready at http://127.0.0.1:8423</div>
+          <div class="bottom-line"><span class="prompt">$</span> _</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Panel -->
+    <div class="ai-panel" id="ai-panel">
+      <div class="ai-header">
+        <span style="font-size:16px">🤖</span>
+        <span class="ai-title">AI 助手</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text-muted)">DeepSeek v4</span>
+        <button class="menubar-btn" onclick="toggleAI()" title="关闭">✕</button>
+      </div>
+      <div class="ai-model-bar">
+        <select class="ai-model-select">
+          <option>deepseek-chat (推荐)</option>
+          <option>deepseek-coder</option>
+          <option>qwen-2.5-coder</option>
+          <option>glm-4-flash</option>
+          <option>ollama:codellama</option>
+        </select>
+      </div>
+      <div class="ai-mode-tabs">
+        <button class="ai-mode-tab active" onclick="setAIMode(this)">💬 对话</button>
+        <button class="ai-mode-tab" onclick="setAIMode(this)">🤖 Agent</button>
+        <button class="ai-mode-tab" onclick="setAIMode(this)">📝 编辑</button>
+      </div>
+      <div class="ai-messages">
+        <div class="ai-msg">
+          <div class="ai-msg-avatar user">U</div>
+          <div class="ai-msg-body">
+            <div class="ai-msg-name">你</div>
+            <div class="ai-msg-text">帮我重构 ActivityBar 组件，把所有功能入口都暴露出来</div>
+          </div>
+        </div>
+        <div class="ai-msg">
+          <div class="ai-msg-avatar ai">🤖</div>
+          <div class="ai-msg-body">
+            <div class="ai-msg-name">PyCoder AI</div>
+            <div class="ai-msg-text">好的！我来重构 ActivityBar，将功能分为 3 组：核心编辑（文件/搜索/Git/AI）、AI 工具（团队/进化/技能/扩展/片段）、实用工具（浏览器/标书/运行/命令）+ 系统区（云/设置）。底部面板也会暴露全部 7 个标签。</div>
+          </div>
+        </div>
+      </div>
+      <div class="ai-quick-tags">
+        <span class="ai-tag" onclick="showBanner('已发送: 解释这段代码')">💡 解释</span>
+        <span class="ai-tag" onclick="showBanner('已发送: 修复 Bug')">🔧 修复</span>
+        <span class="ai-tag" onclick="showBanner('已发送: 生成测试')">🧪 测试</span>
+        <span class="ai-tag" onclick="showBanner('已发送: 重构代码')">♻️ 重构</span>
+        <span class="ai-tag" onclick="showBanner('已发送: 生成文档')">📖 文档</span>
+      </div>
+      <div class="ai-input-area">
+        <textarea class="ai-input" placeholder="输入消息，@提及文件，/调用技能..."></textarea>
+        <div class="ai-send-row">
+          <span style="font-size:11px;color:var(--text-muted)">Enter 发送 · Shift+Enter 换行</span>
+          <button class="ai-send-btn" onclick="showBanner('消息已发送')">发送 ➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- StatusBar -->
+  <div class="statusbar">
+    <span class="status-item"><span class="status-dot"></span> 已连接</span>
+    <span class="status-divider"></span>
+    <span class="status-item">🤖 deepseek-chat</span>
+    <span class="status-divider"></span>
+    <span class="status-item"> Branch: master</span>
+    <span class="status-item" style="background:rgba(255,255,255,0.15);border-radius:3px">3 M</span>
+    <span class="status-item" style="background:rgba(255,255,255,0.15);border-radius:3px">1 A</span>
+    <span class="status-spacer"></span>
+    <span class="status-item" onclick="showFeatureMap()" style="font-weight:600">📊 全功能入口图</span>
+    <span class="status-divider"></span>
+    <span class="status-item">UTF-8</span>
+    <span class="status-item">LF</span>
+    <span class="status-item">TypeScript React</span>
+    <span class="status-divider"></span>
+    <span class="status-item"> Ln 17, Col 3</span>
+    <span class="status-item"> Spaces: 2</span>
+  </div>
+</div>
+
+<!-- Feature Map Overlay -->
+<div class="feature-map" id="feature-map" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="feature-map-content">
+    <div class="feature-map-title">PyCoder 全功能入口映射图</div>
+    <div class="feature-map-grid" id="feature-grid"></div>
+  </div>
+</div>
+
+<div class="info-banner" id="banner"></div>
+
+<script>
+const sidebarMap = {
+  files: { icon: '📁', title: '文件资源管理器' },
+  search: { icon: '🔍', title: '跨文件搜索' },
+  git: { icon: '📦', title: 'Git 版本控制' },
+  team: { icon: '👥', title: '多 Agent 团队协作' },
+  skills: { icon: '🧩', title: 'AI 技能市场' },
+  extensions: { icon: '🧰', title: '扩展管理' },
+  snippets: { icon: '📋', title: '代码片段管理' },
+  bidtool: { icon: '📄', title: '标书制作工具' },
+  cloud: { icon: '☁️', title: 'PyCoder Cloud' },
+  settings: { icon: '⚙', title: '设置' },
+};
+
+const allFeatures = [
+  { icon: '📁', name: '文件资源管理器', entry: 'ActivityBar > 文件' },
+  { icon: '🔍', name: '跨文件搜索', entry: 'ActivityBar > 搜索' },
+  { icon: '📦', name: 'Git 版本控制', entry: 'ActivityBar > Git' },
+  { icon: '🤖', name: 'AI 编程助手', entry: 'ActivityBar > AI / Ctrl+Shift+A' },
+  { icon: '👥', name: '多 Agent 团队', entry: 'ActivityBar > 团队' },
+  { icon: '🧬', name: '自我进化引擎', entry: 'ActivityBar > 进化' },
+  { icon: '🧩', name: 'AI 技能市场', entry: 'ActivityBar > 技能' },
+  { icon: '🧰', name: '扩展管理', entry: 'ActivityBar > 扩展' },
+  { icon: '📋', name: '代码片段', entry: 'ActivityBar > 片段' },
+  { icon: '🌐', name: '内置浏览器', entry: 'ActivityBar > 浏览' },
+  { icon: '📄', name: '标书制作工具', entry: 'ActivityBar > 标书' },
+  { icon: '▶', name: '终端', entry: 'ActivityBar > 运行 / 底部面板标签' },
+  { icon: '📜', name: '输出面板', entry: '底部面板 > 输出' },
+  { icon: '⚠', name: '问题面板', entry: '底部面板 > 问题' },
+  { icon: '🐍', name: 'Python 运行器', entry: '底部面板 > Python 运行器' },
+  { icon: '🧪', name: '测试生成器', entry: '底部面板 > 测试生成' },
+  { icon: '🔄', name: 'Run & Fix 循环', entry: '底部面板 > Run & Fix' },
+  { icon: '🐛', name: '调试器', entry: '底部面板 > 调试' },
+  { icon: '☁️', name: 'PyCoder Cloud', entry: 'ActivityBar > 云' },
+  { icon: '⚙', name: '设置', entry: 'ActivityBar > 设置' },
+  { icon: '⌘', name: '命令面板', entry: 'ActivityBar > 命令 / Ctrl+K' },
+  { icon: '🐙', name: 'GitHub 集成', entry: 'Sidebar > Git 子菜单' },
+  { icon: '📊', name: '差异对比', entry: 'Sidebar > Git 子菜单' },
+  { icon: '🌿', name: '分支管理', entry: 'Sidebar > Git 子菜单' },
+  { icon: '📤', name: '文件上传', entry: 'Sidebar > Git 子菜单' },
+];
+
+function setActive(btn, view) {
+  document.querySelectorAll('.activity-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const cfg = sidebarMap[view];
+  if (cfg) {
+    document.getElementById('sidebar-icon').textContent = cfg.icon;
+    document.getElementById('sidebar-title').textContent = cfg.title;
+  }
+}
+
+function toggleAI() {
+  const panel = document.getElementById('ai-panel');
+  panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+}
+
+function toggleEvo() { showBanner('自我进化引擎面板已打开'); }
+
+function toggleBrowser() { showBanner('内置浏览器已打开'); }
+
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  sb.style.display = sb.style.display === 'none' ? 'flex' : 'none';
+}
+
+function toggleBottom(tab) {
+  document.getElementById('bottom-panel').style.display = 'flex';
+  setBottomTab(document.querySelector('.bottom-tab'), tab);
+}
+
+function setBottomTab(btn, tab) {
+  document.querySelectorAll('.bottom-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const content = document.getElementById('bottom-content');
+  const contents = {
+    terminal: '<div class="bottom-line"><span class="prompt">$</span> python -m pycoder --serve</div><div class="bottom-line info">[INFO] Server ready at http://127.0.0.1:8423</div><div class="bottom-line"><span class="prompt">$</span> _</div>',
+    output: '<div class="bottom-line info">[OUTPUT] Build completed: 1511 modules</div><div class="bottom-line">[OUTPUT] Output: dist/renderer/index.html</div>',
+    problems: '<div class="bottom-line err">⚠ AIPanel.tsx:45 — Type \'string\' is not assignable to type \'number\'</div><div class="bottom-line err">⚠ backend.ts:12 — Property \'data\' does not exist on type \'any\'</div><div class="bottom-line warn">⚠ theme.css:3 — Unused CSS variable --bg-elevated</div>',
+    runner: '<div class="bottom-line"><span class="prompt">>>></span> import pycoder</div><div class="bottom-line"><span class="prompt">>>></span> pycoder.__version__</div><div class="bottom-line">\'0.5.0\'</div><div class="bottom-line"><span class="prompt">>>></span> _</div>',
+    testgen: '<div class="bottom-line info">[TESTGEN] Generating tests for ActivityBar.tsx...</div><div class="bottom-line">[TESTGEN] Found 3 export functions</div><div class="bottom-line">[TESTGEN] Generated 12 test cases</div><div class="bottom-line warn">[TESTGEN] 2 edge cases need manual review</div>',
+    runfix: '<div class="bottom-line info">[RUNFIX] Running: pytest tests/</div><div class="bottom-line err">[RUNFIX] 2 tests failed</div><div class="bottom-line info">[RUNFIX] AI analyzing failures...</div><div class="bottom-line info">[RUNFIX] Applying fix to test_config.py:15</div><div class="bottom-line warn">[RUNFIX] Re-running tests... (attempt 2/3)</div>',
+    debug: '<div class="bottom-line info">[DEBUG] Breakpoint at app.py:132</div><div class="bottom-line">[DEBUG] Variables: model="deepseek-chat", tokens=1024</div><div class="bottom-line">[DEBUG] Call stack:</div><div class="bottom-line">  → main() at __main__.py:8</div><div class="bottom-line">  → serve() at server.py:45</div>',
+  };
+  content.innerHTML = contents[tab] || contents.terminal;
+}
+
+function setAIMode(btn) {
+  document.querySelectorAll('.ai-mode-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  document.getElementById('theme-btn').textContent = next === 'dark' ? '☀' : '🌙';
+}
+
+function showBanner(msg) {
+  const b = document.getElementById('banner');
+  b.textContent = msg;
+  b.classList.add('show');
+  setTimeout(() => b.classList.remove('show'), 2000);
+}
+
+function showFeatureMap() {
+  const grid = document.getElementById('feature-grid');
+  grid.innerHTML = allFeatures.map(f => 
+    '<div class="feature-map-item"><span class="feature-map-icon">' + f.icon + '</span><div><div class="feature-map-name">' + f.name + '</div><div class="feature-map-entry">' + f.entry + '</div></div></div>'
+  ).join('');
+  document.getElementById('feature-map').classList.add('show');
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); showBanner('命令面板已打开 (Ctrl+K)'); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'b') { e.preventDefault(); toggleSidebar(); }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'a') { e.preventDefault(); toggleAI(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === '`') { e.preventDefault(); toggleBottom('terminal'); }
+});
+</script>
+</body>
+</html>

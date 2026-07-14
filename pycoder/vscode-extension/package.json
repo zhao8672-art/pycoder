@@ -1,0 +1,135 @@
+{
+    "name": "pycoder",
+    "displayName": "PyCoder AI",
+    "description": "PyCoder - Python AI Coding Agent (connects to local PyCoder Server)",
+    "version": "0.5.0",
+    "publisher": "pycoder-team",
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/PyCoder-ai/pycoder"
+    },
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "AI",
+        "Programming Languages",
+        "Chat"
+    ],
+    "keywords": [
+        "python",
+        "ai",
+        "coding",
+        "deepseek",
+        "copilot"
+    ],
+    "icon": "icon.png",
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./dist/extension.js",
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p tsconfig.json",
+        "watch": "tsc -watch -p tsconfig.json",
+        "package": "vsce package --no-dependencies",
+        "install-ext": "code --install-extension pycoder-*.vsix"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.85.0",
+        "typescript": "^5.6.3"
+    },
+    "contributes": {
+        "commands": [
+            {
+                "command": "pycoder.openChat",
+                "title": "PyCoder: Open AI Chat"
+            },
+            {
+                "command": "pycoder.startServer",
+                "title": "PyCoder: Start Backend Server"
+            },
+            {
+                "command": "pycoder.stopServer",
+                "title": "PyCoder: Stop Backend Server"
+            },
+            {
+                "command": "pycoder.selectModel",
+                "title": "PyCoder: Select AI Model"
+            },
+            {
+                "command": "pycoder.explainCode",
+                "title": "PyCoder: Explain Selected Code"
+            },
+            {
+                "command": "pycoder.fixCode",
+                "title": "PyCoder: Fix Selected Code"
+            },
+            {
+                "command": "pycoder.generateTests",
+                "title": "PyCoder: Generate Tests for Selected Code"
+            },
+            {
+                "command": "pycoder.runFix",
+                "title": "PyCoder: Run & Fix (write code → run → fix)"
+            }
+        ],
+        "keybindings": [
+            {
+                "command": "pycoder.explainCode",
+                "key": "ctrl+shift+e",
+                "when": "editorHasSelection"
+            },
+            {
+                "command": "pycoder.openChat",
+                "key": "ctrl+shift+p",
+                "when": "!editorHasSelection"
+            }
+        ],
+        "menus": {
+            "editor/context": [
+                {
+                    "command": "pycoder.explainCode",
+                    "group": "pycoder@1",
+                    "when": "editorHasSelection"
+                },
+                {
+                    "command": "pycoder.fixCode",
+                    "group": "pycoder@2",
+                    "when": "editorHasSelection"
+                },
+                {
+                    "command": "pycoder.generateTests",
+                    "group": "pycoder@3",
+                    "when": "editorLangId == 'python'"
+                }
+            ]
+        },
+        "configuration": {
+            "title": "PyCoder",
+            "properties": {
+                "pycoder.serverUrl": {
+                    "type": "string",
+                    "default": "http://127.0.0.1:8423",
+                    "description": "PyCoder Backend Server URL"
+                },
+                "pycoder.autoStartServer": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Auto-start PyCoder backend server when VS Code opens"
+                },
+                "pycoder.defaultModel": {
+                    "type": "string",
+                    "default": "auto",
+                    "description": "Default AI model (auto = smart selection)"
+                },
+                "pycoder.pythonPath": {
+                    "type": "string",
+                    "default": "python",
+                    "description": "Python executable path for launching the backend"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,109 @@
+[project]
+name = "pycoder"
+description = "PyCoder - Native AI Coding Agent for Python Developers"
+authors = [
+    { name = "PyCoder Team", email = "team@pycoder.ai" },
+]
+readme = "README.md"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Win32 (MS Windows)",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development",
+    "Natural Language :: Chinese (Simplified)",
+]
+requires-python = ">=3.12"
+version = "0.5.0"
+dynamic = ["dependencies", "optional-dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/PyCoder-ai/pycoder"
+
+[project.scripts]
+pycoder = "pycoder.__main__:main"
+
+[tool.setuptools.dynamic]
+dependencies = { file = "requirements.txt" }
+
+[tool.setuptools.dynamic.optional-dependencies]
+dev = { file = "requirements/requirements-dev.txt" }
+help = { file = "requirements/requirements-help.txt" }
+browser = { file = "requirements/requirements-browser.txt" }
+playwright = { file = "requirements/requirements-playwright.txt" }
+
+[tool.setuptools]
+include-package-data = true
+packages.find.include = ["pycoder", "pycoder.*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.codespell]
+skip = "*.svg,Gemfile.lock,tests/fixtures/*,aider/website/assets/*"
+write-changes = true
+
+# ── 代码格式化 ────────────────────────────────────
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.venv
+  | _build
+  | build
+  | dist
+  | electron
+  | node_modules
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
+known_first_party = ["pycoder"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line-too-long (handled by black)
+    "B008",  # do-not-perform-function-calls-in-argument-defaults
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**/*.py" = ["B011"]
+"pycoder/server/services/agent_loop.py" = ["F821"]
+"pycoder/server/services/autonomous_pipeline.py" = ["F821"]
+"pycoder/server/services/unified_agent.py" = ["F821"]
+"pycoder/server/services/team/agent_tool_loop.py" = ["F821"]
+"pycoder/server/services/team/review_orchestrator.py" = ["F821"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false

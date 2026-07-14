@@ -1,0 +1,10 @@
+# Optional extras (voice, hug, electron, etc.)
+# e.g., pip install .[extras]
+# audio
+sounddevice==0.5.5
+soundfile==0.13.1
+# huggingface
+huggingface-hub==1.7.1
+transformers==4.35.0
+# electron / frontend build
+# Node.js 需要通过系统包管理器或 nvm 安装，此处仅作说明，不作为 pip 依赖。

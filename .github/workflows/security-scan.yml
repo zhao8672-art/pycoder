@@ -1,0 +1,60 @@
+name: Security Scan
+
+# P2-5: CI/CD 安全扫描与回归防护
+# 每次 push/PR 到 master 时运行：Bandit + Semgrep + Safety + pytest 覆盖率门禁
+on:
+    push:
+        branches: [master, main]
+    pull_request:
+        branches: [master, main]
+
+jobs:
+    security:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.13"
+
+            - name: Install dependencies
+              run: |
+                  pip install bandit semgrep pip-audit pytest pytest-cov pytest-asyncio
+                  pip install -e ".[dev]" || pip install -e .
+
+            - name: Bandit security scan
+              # Bandit 检测 Python 代码安全漏洞（SQL注入、命令注入、硬编码密码等）
+              run: bandit -r pycoder/ -f json -o bandit-report.json -ll
+
+            - name: Semgrep scan
+              # Semgrep 检测已知漏洞模式与反模式
+              run: semgrep scan --config auto pycoder/ --json -o semgrep-report.json
+
+            - name: Audit dependencies for vulnerabilities
+              # pip-audit 检测已知漏洞的依赖包
+              run: pip-audit
+
+            - name: Run tests with coverage gate
+              # 覆盖率门禁针对 pycoder.server 核心运行时模块
+              # 当前基线 41%（P2-1 目标模块 self_evolution/agent_orchestrator/agent_tools/files/code_exec 均 ≥80%）
+              # 门禁设为 38% 防止回归；提升至 80% 为 P3+ 改进目标
+              run: pytest --cov=pycoder.server --cov-report=xml --cov-report=term-missing --cov-fail-under=38 --timeout=120
+
+            - name: Upload coverage to Codecov
+              uses: codecov/codecov-action@v4
+              if: always()
+              with:
+                  files: ./coverage.xml
+                  fail_ci_if_error: false
+
+            - name: Upload security reports
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: security-reports
+                  path: |
+                      bandit-report.json
+                      semgrep-report.json
+                  retention-days: 30

@@ -1,0 +1,26 @@
+[run]
+source = pycoder
+omit = 
+    */tests/*
+    */.venv/*
+    */__pycache__/*
+    *.egg-info/*
+    pycoder/electron/*
+    pycoder/vscode-extension/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __str__
+    def __repr__
+    if __name__ == .__main__.:
+    raise NotImplementedError
+    except ImportError:
+    except Exception:
+
+show_missing = True
+skip_covered = False
+precision = 1
+
+[html]
+directory = coverage_report

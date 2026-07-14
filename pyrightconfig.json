@@ -1,0 +1,28 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/pyright/main/packages/vscode-pyright/schemas/pyrightconfig.schema.json",
+    "include": [
+        "pycoder"
+    ],
+    "exclude": [
+        "**/node_modules",
+        "**/__pycache__",
+        "**/.venv",
+        "**/electron",
+        "**/vscode-extension",
+        "**/dist",
+        "**/build",
+        "_deprecated"
+    ],
+    "ignore": [
+        "**/tests/**"
+    ],
+    "typeCheckingMode": "basic",
+    "reportMissingImports": "warning",
+    "reportMissingTypeStubs": false,
+    "reportGeneralTypeIssues": "warning",
+    "reportOptionalMemberAccess": "warning",
+    "reportOptionalSubscript": "warning",
+    "reportPrivateUsage": false,
+    "pythonVersion": "3.12",
+    "pythonPlatform": "Windows"
+}

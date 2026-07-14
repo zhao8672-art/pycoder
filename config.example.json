@@ -1,0 +1,18 @@
+{
+  "version": "0.5.0",
+  "model": "auto",
+  "theme": "dark",
+  "language": "zh",
+  "provider": {
+    "default": "auto",
+    "api_keys": {
+      "deepseek": "",
+      "qwen": "",
+      "glm": ""
+    }
+  },
+  "budget": {
+    "max_tokens_per_session": 100000,
+    "daily_budget_usd": 5.0
+  }
+}

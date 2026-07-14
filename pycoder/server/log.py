@@ -5,14 +5,13 @@ Uses structlog for structured, context-rich logging.
 
 from __future__ import annotations
 
-import os
 import sys
-from pathlib import Path
 
 # Attempt structlog import, fall back to simple logging
 try:
-    import structlog
     import logging
+
+    import structlog
 
     # 使用标准 logging.LoggerFactory 而非 PrintLoggerFactory
     # PrintLogger 缺少 disabled 属性，会导致 filter_by_level 崩溃
@@ -41,6 +40,7 @@ try:
     _has_structlog = True
 except ImportError:
     import logging
+
     logging.basicConfig(
         level=logging.INFO,
         format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
@@ -53,6 +53,7 @@ def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
     if _has_structlog:
         return structlog.get_logger(name or __name__)
     import logging
+
     return logging.getLogger(name or __name__)
 
 
