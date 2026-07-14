@@ -43,6 +43,7 @@ class UnifiedAgentLoop:
         self.strategy = strategy
         self.workspace = workspace
         self._rumination_count = 0
+        self._last_iteration_had_tools = False  # 标记上一轮是否真正执行了工具
 
     async def chat_stream(
         self,
@@ -85,9 +86,14 @@ class UnifiedAgentLoop:
         }
 
         # 构建分析 prompt
-        analysis_prompt = f"请分析并完成以下任务:\n\n{message}"
+        analysis_prompt = (
+            f"请直接输出 JSON 工具调用来完成以下任务:\n\n{message}\n\n"
+            '格式: {"tool_calls": [{"name": "工具名", "params": {}}]}'
+        )
         if strategy.enable_rumination:
-            analysis_prompt += "\n\n请先分析需求，再逐步执行。每3步进行一次反思复盘。"
+            analysis_prompt += (
+                "\n\n每完成3步工具调用后，进行反思复盘。"
+            )
 
         response_text = ""
 
@@ -102,11 +108,23 @@ class UnifiedAgentLoop:
             }
 
             # 1. LLM 调用
-            prompt = (
-                analysis_prompt
-                if iteration == 1
-                else "以上是工具执行结果。如需继续请输出 JSON 工具调用。" "已完成请直接输出总结。"
-            )
+            if iteration == 1:
+                prompt = analysis_prompt
+            elif self._last_iteration_had_tools:
+                prompt = (
+                    "以上是工具执行结果。如需继续请输出 JSON 工具调用。"
+                    "已完成请直接输出总结。"
+                )
+            else:
+                # 上一轮没有工具调用 → 用强制指令
+                prompt = (
+                    "【紧急】你上一轮没有调用任何工具！"
+                    "你必须以 JSON 格式直接输出工具调用，不要输出任何文字。\n"
+                    '正确格式: {"tool_calls": [{"name": "list_files", '
+                    '"params": {"path": "."}}]}\n'
+                    '可以同时调多个: {"tool_calls": [{"name": "A", '
+                    '"params": {}}, {"name": "B", "params": {}}]}'
+                )
             # 每3步添加反思提示
             if strategy.enable_rumination and iteration > 1 and iteration % 3 == 0:
                 self._rumination_count += 1
@@ -232,6 +250,7 @@ class UnifiedAgentLoop:
                 return
 
             # 6. 执行工具
+            self._last_iteration_had_tools = bool(parsed.tool_calls)
             yield {
                 "type": "status",
                 "status": "executing",
