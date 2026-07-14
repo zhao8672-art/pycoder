@@ -25,21 +25,26 @@ logger = logging.getLogger(__name__)
 
 # JWT 配置 — 密钥必须从环境变量获取，不提供默认值
 _SECRET = os.environ.get("PYCODER_CLOUD_JWT_SECRET", "")
+_SHOULD_LOG = True  # 模块级标志：只打印一次警告
+
+
 if not _SECRET:
-    # 检查是否在非开发模式下运行
-    _is_dev = os.environ.get("PYCODER_ENV", "").lower() in ("dev", "development")
-    if not _is_dev:
-        logger.critical(
-            "\n" + "=" * 70 + "\n"
-            "  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！\n"
-            "  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。\n"
-            "  生产环境请执行:\n"
-            '    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS\n'
-            '    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows\n'
-            "=" * 70
-        )
-    else:
-        logger.warning("JWT_SECRET 未设置！当前使用随机临时密钥（重启后所有 Token 失效）。")
+    if _SHOULD_LOG:
+        _SHOULD_LOG = False
+        # 检查是否在非开发模式下运行
+        _is_dev = os.environ.get("PYCODER_ENV", "").lower() in ("dev", "development")
+        if not _is_dev:
+            logger.critical(
+                "\n" + "=" * 70 + "\n"
+                "  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！\n"
+                "  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。\n"
+                "  生产环境请执行:\n"
+                '    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS\n'
+                '    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows\n'
+                "=" * 70
+            )
+        else:
+            logger.warning("JWT_SECRET 未设置！当前使用随机临时密钥（重启后所有 Token 失效）。")
     _SECRET = __import__("secrets").token_hex(32)
 SECRET_KEY = _SECRET
 ALGORITHM = "HS256"
