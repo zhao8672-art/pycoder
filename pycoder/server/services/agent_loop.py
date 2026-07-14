@@ -54,8 +54,9 @@ class UnifiedAgentLoop:
         统一执行流
 
         Yields:
-            {"type": "status", "status": "analyzing"|"executing"|"thinking"}
-            {"type": "tool_result", "tool_name": str, "result": str}
+            {"type": "status", "status": "analyzing"|"executing"|"thinking",
+             "iteration": int, "max": int, "progress_pct": int}
+            {"type": "tool_result", "tool_name": str, "result": str, "iteration": int}
             {"type": "agent_result", "status": "done", "summary": str, ...}
             {"type": "error", "message": str}
         """
@@ -75,7 +76,13 @@ class UnifiedAgentLoop:
 
         bridge.configure(system_prompt=system_prompt, max_tokens=16384)
 
-        yield {"type": "status", "status": "analyzing", "iteration": 0}
+        yield {
+            "type": "status",
+            "status": "analyzing",
+            "iteration": 0,
+            "max": max_iterations,
+            "progress_pct": 0,
+        }
 
         # 构建分析 prompt
         analysis_prompt = f"请分析并完成以下任务:\n\n{message}"
@@ -85,11 +92,13 @@ class UnifiedAgentLoop:
         response_text = ""
 
         for iteration in range(1, max_iterations + 1):
+            pct = int(iteration / max_iterations * 100)
             yield {
                 "type": "status",
                 "status": "thinking",
                 "iteration": iteration,
                 "max": max_iterations,
+                "progress_pct": pct,
             }
 
             # 1. LLM 调用
@@ -193,6 +202,8 @@ class UnifiedAgentLoop:
                 "type": "status",
                 "status": "executing",
                 "iteration": iteration,
+                "max": max_iterations,
+                "progress_pct": int(iteration / max_iterations * 100),
                 "tool_calls": [tc["name"] for tc in parsed.tool_calls],
             }
 
@@ -220,6 +231,7 @@ class UnifiedAgentLoop:
                         "type": "tool_result",
                         "tool_name": tc["name"],
                         "result": str(result)[:500],
+                        "iteration": iteration,
                     }
                     # 更新桥接消息上下文
                     bridge.add_message(
@@ -262,6 +274,7 @@ class UnifiedAgentLoop:
                         "type": "tool_result",
                         "tool_name": tool_name,
                         "result": result_str[:max_preview],
+                        "iteration": iteration,
                     }
                     bridge.add_message(
                         "assistant",
@@ -272,7 +285,13 @@ class UnifiedAgentLoop:
         yield {
             "type": "agent_result",
             "status": "completed",
-            "summary": response_text[:500] if response_text else "达到最大迭代次数",
+            "summary": (
+                f"## ✅ 任务执行完成\n"
+                f"- 迭代次数: {max_iterations}\n"
+                f"- 工具调用: {len(all_tool_calls)} 次\n"
+                f"- 写入文件: {len(written_files)} 个\n"
+                f"\n{response_text[:800] if response_text else '已达最大迭代次数，部分任务可能未完成。'}"
+            ),
             "iterations": max_iterations,
             "tool_count": len(all_tool_calls),
             "files_written": written_files,

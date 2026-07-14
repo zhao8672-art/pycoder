@@ -468,6 +468,31 @@ class UnifiedEntryAgent:
                                 yield ev
                             elif ev.get("type") == "error":
                                 yield ev
+                            elif ev.get("type") == "status":
+                                # agent_loop 的状态事件 → 转发为 agent_status
+                                status_text = ev.get("status", "")
+                                iteration = ev.get("iteration", 0)
+                                max_iter = ev.get("max", 0)
+                                tool_calls = ev.get("tool_calls", [])
+                                if status_text == "analyzing":
+                                    yield {"type": "agent_status", "message": "🔍 正在分析任务..."}
+                                elif status_text == "thinking":
+                                    pct = int(iteration / max(max_iter, 1) * 100) if max_iter else 0
+                                    yield {"type": "agent_status", "message": f"🧠 思考中 ({iteration}/{max_iter}, {pct}%)"}
+                                elif status_text == "executing":
+                                    tools_str = ", ".join(tool_calls[:5]) if tool_calls else "工具"
+                                    yield {"type": "agent_status", "message": f"⚡ 执行: {tools_str}..."}
+                            elif ev.get("type") == "tool_result":
+                                # agent_loop 的工具结果 → 转发为 agent_step
+                                yield {
+                                    "type": "agent_step",
+                                    "step": "tool_result",
+                                    "tool_name": ev.get("tool_name", "unknown"),
+                                    "result": str(ev.get("result", ""))[:2000],
+                                }
+                            else:
+                                # 透传所有其他事件类型（strategy 配置等）
+                                yield ev
 
                     if success:
                         break
