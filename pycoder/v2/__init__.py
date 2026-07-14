@@ -210,13 +210,13 @@ class V2Engine:
                 len(self.memory.recall("")),
             )
 
-        # 3. V1→V2 工具桥接：将 MCP 工具注册到能力总线
+        # 3. V1→V2 工具迁移：通过 capabilities/tools/ 统一注册
         try:
-            from pycoder.server.v2_bridge import bridge_mcp_to_v2
-            tool_count = bridge_mcp_to_v2(self)
-            logger.info("V1→V2 工具桥接完成: %d tools", tool_count)
+            from pycoder.capabilities.tools import register_all_tools
+            tool_count = register_all_tools(self.registry)
+            logger.info("V1 工具迁移完成: %d tools", tool_count)
         except Exception as e:
-            logger.warning("V1→V2 工具桥接失败: %s", e)
+            logger.warning("V1 工具迁移失败: %s", e)
 
         self._initialized = True
         logger.info(
