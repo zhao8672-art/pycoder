@@ -195,6 +195,9 @@ async def lifespan(app: FastAPI):
     await _init_recommendation_db()
     _init_di_container()
 
+    # ── 环境工具检测 ──
+    _check_environment_tools()
+
     # ── V2 引擎初始化 ──
     v2_engine = await _init_v2_engine()
     app.state.v2_engine = v2_engine
@@ -238,6 +241,42 @@ async def lifespan(app: FastAPI):
             await scheduler.stop()
     except (OSError, RuntimeError, ImportError) as e:
         _logger.warning("scheduler_shutdown_failed: %s", e)
+
+
+def _check_environment_tools() -> None:
+    """启动时检测环境工具（Docker, Git, Node 等），记录缺失或版本问题。
+
+    仅记录日志，不阻塞启动。缺失的可选工具不会导致启动失败。
+    """
+    try:
+        from pycoder.env.tool_detector import ToolDetector
+        from pycoder.env.auto_installer import AutoInstaller
+
+        detector = ToolDetector()
+        report = detector.get_report()
+
+        if report["all_ok"]:
+            _logger.info("env_tools_check: 所有必需工具已就绪")
+            return
+
+        for tool in report["required_missing"]:
+            _logger.warning("env_tool_missing: name=%s, required=True, error=%s",
+                            tool.name, tool.error)
+
+        for tool in report["version_issues"]:
+            _logger.warning("env_tool_version_low: name=%s, version=%s",
+                            tool.name, tool.version)
+
+        for tool in report["optional_missing"]:
+            _logger.info("env_tool_optional_missing: name=%s", tool.name)
+
+        # 生成安装指南并记录
+        installer = AutoInstaller(detector)
+        if report["required_missing"]:
+            guide = installer.get_all_missing_guides()
+            _logger.info("env_tool_install_guide:\n%s", guide)
+    except Exception as e:
+        _logger.warning("env_tools_check_failed: %s", e)
 
 
 def _init_di_container() -> None:
