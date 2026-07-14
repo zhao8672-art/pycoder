@@ -868,21 +868,22 @@ class TestExecuteCode:
         assert r["language"] == "python"
 
     async def test_python_timeout(self, monkeypatch):
-        """注意：当前实现中 except 子句调用未定义的 _mkres，会抛 NameError
-        这是一个已知 bug，本测试验证其行为（见最终报告）"""
+        """超时应返回 success=False"""
         def boom(*a, **k):
             raise subprocess.TimeoutExpired(cmd="python", timeout=30)
         monkeypatch.setattr(subprocess, "run", boom)
-        with pytest.raises(NameError):
-            await mcp_tools._handle_execute_code({"code": "while True: pass", "language": "python"})
+        r = await mcp_tools._handle_execute_code({"code": "while True: pass", "language": "python"})
+        assert r["success"] is False
+        assert "超时" in r["error"]
 
     async def test_python_file_not_found(self, monkeypatch):
-        """同上 bug：FileNotFoundError 分支也会因 _mkres 未定义而抛 NameError"""
+        """Python 未安装应返回 success=False"""
         def boom(*a, **k):
             raise FileNotFoundError("python not found")
         monkeypatch.setattr(subprocess, "run", boom)
-        with pytest.raises(NameError):
-            await mcp_tools._handle_execute_code({"code": "x", "language": "python"})
+        r = await mcp_tools._handle_execute_code({"code": "x", "language": "python"})
+        assert r["success"] is False
+        assert "运行时未找到" in r["error"]
 
     async def test_auto_detect_python_shebang(self, monkeypatch):
         monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
@@ -892,18 +893,20 @@ class TestExecuteCode:
         assert r["language"] == "python"
 
     async def test_auto_detect_node_shebang(self, monkeypatch):
-        """node shebang → language=javascript，但 _mkres 未定义会抛 NameError（bug）"""
+        """node shebang → language=javascript"""
         monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
             returncode=0, stdout="js", stderr=""))
-        with pytest.raises(NameError):
-            await mcp_tools._handle_execute_code({"code": "#!/usr/bin/env node\nconsole.log(1)"})
+        r = await mcp_tools._handle_execute_code({"code": "#!/usr/bin/env node\nconsole.log(1)"})
+        assert r["success"] is True
+        assert r["language"] == "javascript"
 
     async def test_auto_detect_bash_shebang(self, monkeypatch):
-        """bash shebang → language=shell，但 _mkres 未定义会抛 NameError（bug）"""
+        """bash shebang → language=shell"""
         monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
             returncode=0, stdout="sh", stderr=""))
-        with pytest.raises(NameError):
-            await mcp_tools._handle_execute_code({"code": "#!/bin/bash\necho hi"})
+        r = await mcp_tools._handle_execute_code({"code": "#!/bin/bash\necho hi"})
+        assert r["success"] is True
+        assert r["language"] == "shell"
 
     async def test_auto_detect_default_python(self, monkeypatch):
         monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
@@ -919,11 +922,12 @@ class TestExecuteCode:
         assert r["language"] == "ruby"
 
     async def test_javascript_explicit(self, monkeypatch):
-        """显式 javascript → 走 javascript 分支，_mkres 未定义会抛 NameError（bug）"""
+        """显式 javascript → 走 javascript 分支"""
         monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
             returncode=0, stdout="js", stderr=""))
-        with pytest.raises(NameError):
-            await mcp_tools._handle_execute_code({"code": "console.log(1)", "language": "javascript"})
+        r = await mcp_tools._handle_execute_code({"code": "console.log(1)", "language": "javascript"})
+        assert r["success"] is True
+        assert r["language"] == "javascript"
 
     async def test_javascript_timeout(self, monkeypatch):
         """javascript 超时分支有独立的返回（不依赖 _mkres）"""
@@ -944,11 +948,12 @@ class TestExecuteCode:
         assert "Node.js 未安装" in r["error"]
 
     async def test_shell_path_bug(self, monkeypatch):
-        """shell 分支使用未定义的 _mkres → NameError（bug）"""
+        """shell 分支正常执行"""
         monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
             returncode=0, stdout="sh", stderr=""))
-        with pytest.raises(NameError):
-            await mcp_tools._handle_execute_code({"code": "echo hi", "language": "shell"})
+        r = await mcp_tools._handle_execute_code({"code": "echo hi", "language": "shell"})
+        assert r["success"] is True
+        assert r["language"] == "shell"
 
 
 # ══════════════════════════════════════════════════════════

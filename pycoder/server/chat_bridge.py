@@ -368,6 +368,11 @@ class ChatBridge:
 
         # ── 工具调用循环 ──
         for round_num in range(max_rounds):
+            # P2+: 每轮发送进度心跳，保持 WebSocket 活跃
+            yield ChatEvent(
+                event_type="token",
+                content=f"\n🔄 第 {round_num + 1}/{max_rounds} 轮工具调用...\n",
+            )
             payload: dict = {
                 "model": self.config.model,
                 "messages": messages,

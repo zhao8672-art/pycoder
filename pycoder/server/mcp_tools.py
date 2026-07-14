@@ -351,18 +351,27 @@ _register(
 
 async def _handle_dep_analysis(args: dict) -> dict:
     """分析项目依赖"""
-    from pycoder.python.dep_analyzer import DependencyAnalyzer
+    from pycoder.python.dep_analyzer import DepAnalyzer
 
-    analyzer = DependencyAnalyzer()
+    analyzer = DepAnalyzer()
     path = args.get("path", ".")
     result = analyzer.analyze(Path(path))
+    # result 是 ProjectDependencies 对象，有 to_dict() 或属性
+    deps = []
+    for d in result.dependencies:
+        if hasattr(d, "to_dict"):
+            deps.append(d.to_dict())
+        else:
+            deps.append({"name": getattr(d, "name", str(d))})
+    for d in result.dev_deps:
+        if hasattr(d, "to_dict"):
+            deps.append(d.to_dict())
+        else:
+            deps.append({"name": getattr(d, "name", str(d))})
     return {
         "success": True,
-        "dependencies": [
-            d.to_dict() if hasattr(d, "to_dict") else {"name": d.name}
-            for d in result.get("dependencies", [])
-        ],
-        "summary": result.get("summary", ""),
+        "dependencies": deps,
+        "summary": f"共 {len(deps)} 个依赖 (正式 {len(result.dependencies)}, 开发 {len(result.dev_deps)})",
     }
 
 
@@ -685,9 +694,9 @@ async def _handle_security_scan(args: dict) -> dict:
         vulnerabilities = scan() if scan else []
         return {
             "success": True,
-            "total_deps": deps.total_deps,
+            "total_deps": len(deps.dependencies) + len(deps.dev_deps),
             "vulnerabilities": vulnerabilities,
-            "summary": f"扫描了 {deps.total_deps} 个依赖，发现 {len(vulnerabilities)} 个漏洞",
+            "summary": f"扫描了 {len(deps.dependencies) + len(deps.dev_deps)} 个依赖，发现 {len(vulnerabilities)} 个漏洞",
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
