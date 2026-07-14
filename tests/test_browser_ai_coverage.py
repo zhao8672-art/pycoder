@@ -331,14 +331,14 @@ class TestBrowserAction:
         """navigate → 返回导航 IPC"""
         resp = app_client.post("/api/browser/action", json={
             "action": "navigate",
-            "url": "http://example.com",
+            "url": "https://docs.python.org/3/",
         })
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
         assert data["action"] == "navigate"
         assert data["electron_ipc"] == "browser:navigate"
-        assert data["payload"]["url"] == "http://example.com"
+        assert data["payload"]["url"] == "https://docs.python.org/3/"
 
     def test_exec_js(self, app_client):
         """exec-js → 返回执行 JS IPC"""

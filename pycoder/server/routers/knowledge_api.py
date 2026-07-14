@@ -91,3 +91,45 @@ async def search_knowledge(
 async def get_stats():
     """获取知识库统计信息"""
     return _index.get_stats()
+
+
+# ── 自动调度控制 ──
+
+
+@router.post("/scheduler/start")
+async def start_auto_updates(req: dict | None = None):
+    """启动知识源自动定时更新
+
+    Args:
+        req: {"interval_seconds": 86400} 可选，更新间隔秒数
+    """
+    interval = (req or {}).get("interval_seconds", None)
+    await _scheduler.schedule_auto_updates(interval)
+    return {"success": True, "auto_update_running": True}
+
+
+@router.post("/scheduler/stop")
+async def stop_auto_updates():
+    """停止知识源自动定时更新"""
+    await _scheduler.stop_auto_updates()
+    return {"success": True, "auto_update_running": False}
+
+
+@router.get("/scheduler/status")
+async def get_scheduler_status(source_id: str | None = Query(None)):
+    """获取知识更新调度状态
+
+    Args:
+        source_id: 可选，指定源 ID 则返回单个源的状态
+    """
+    return _scheduler.get_update_status(source_id)
+
+
+@router.post("/sources/update-all")
+async def update_all_sources():
+    """批量更新所有知识源"""
+    try:
+        results = await _scheduler.run_update_all()
+        return {"success": True, "results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"批量更新失败: {e}")

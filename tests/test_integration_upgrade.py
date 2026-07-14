@@ -425,6 +425,30 @@ class TestBrowserIntegration:
         # 第 61 次应被限流
         assert ac.check_rate_limit("docs.python.org") is False
 
+    def test_browser_pool_stats(self):
+        """验证浏览器池状态统计"""
+        import asyncio
+        from pycoder.browser.browser_pool import BrowserPool
+
+        async def check():
+            pool = BrowserPool()
+            stats = pool.get_stats()
+            assert stats["total_instances"] == 0
+            assert stats["in_use"] == 0
+            assert stats["max_instances"] == 4
+            return stats
+
+        stats = asyncio.run(check())
+        assert stats["idle"] == 0
+
+    def test_browser_pool_max_errors(self):
+        """验证错误计数上限"""
+        from pycoder.browser.browser_pool import BrowserPool, BrowserInstance
+
+        pool = BrowserPool()
+        # 验证 MAX_ERRORS_PER_INSTANCE 常量
+        assert pool.MAX_ERRORS_PER_INSTANCE == 3
+
     def test_v2_browser_capability_registration(self):
         from pycoder.bus.registry import CapabilityRegistry
         from pycoder.browser import register_capabilities
@@ -502,6 +526,80 @@ class TestKnowledgeIntegration:
         assert registry.get("knowledge.fetch") is not None
         assert registry.get("knowledge.search") is not None
         assert registry.get("knowledge.trigger_update") is not None
+
+    def test_scheduler_auto_update_lifecycle(self):
+        """验证知识调度器自动更新的启动和停止"""
+        import asyncio
+        from pycoder.knowledge.knowledge_fetcher import KnowledgeFetcher
+        from pycoder.knowledge.knowledge_index import KnowledgeIndex
+        from pycoder.knowledge.update_scheduler import KnowledgeUpdateScheduler
+
+        async def check():
+            fetcher = KnowledgeFetcher()
+            index = KnowledgeIndex()
+            scheduler = KnowledgeUpdateScheduler(fetcher, index)
+
+            # 初始状态：未运行
+            status = scheduler.get_update_status()
+            assert status["auto_update_running"] is False
+
+            # 启动自动更新
+            await scheduler.schedule_auto_updates(interval_seconds=3600)
+            assert scheduler._running is True
+
+            # 停止自动更新
+            await scheduler.stop_auto_updates()
+            assert scheduler._running is False
+
+        asyncio.run(check())
+
+    def test_scheduler_get_update_status(self):
+        """验证调度器状态查询"""
+        from pycoder.knowledge.knowledge_fetcher import KnowledgeFetcher, KnowledgeSource
+        from pycoder.knowledge.knowledge_index import KnowledgeIndex
+        from pycoder.knowledge.update_scheduler import KnowledgeUpdateScheduler
+
+        fetcher = KnowledgeFetcher()
+        fetcher.register_source(KnowledgeSource(
+            id="test-src", name="Test", url="https://example.com",
+            category="custom",
+        ))
+        index = KnowledgeIndex()
+        scheduler = KnowledgeUpdateScheduler(fetcher, index)
+
+        # 查询单个源状态
+        status = scheduler.get_update_status("test-src")
+        assert status["last_update"] is None
+        assert status["update_count"] == 0
+
+        # 查询不存在的源
+        status = scheduler.get_update_status("nonexistent")
+        assert status["last_update"] is None
+
+        # 查询全部状态
+        all_status = scheduler.get_update_status()
+        assert all_status["total_sources"] == 1
+        assert all_status["auto_update_running"] is False
+
+    def test_scheduler_run_update_nonexistent_source(self):
+        """验证更新不存在的知识源"""
+        import asyncio
+        from pycoder.knowledge.knowledge_fetcher import KnowledgeFetcher
+        from pycoder.knowledge.knowledge_index import KnowledgeIndex
+        from pycoder.knowledge.update_scheduler import KnowledgeUpdateScheduler
+
+        async def check():
+            fetcher = KnowledgeFetcher()
+            index = KnowledgeIndex()
+            scheduler = KnowledgeUpdateScheduler(fetcher, index)
+
+            count = await scheduler.run_update("nonexistent")
+            assert count == 0
+
+            status = scheduler.get_update_status("nonexistent")
+            assert "知识源不存在" in status["last_error"]
+
+        asyncio.run(check())
 
 
 # ═══════════════════════════════════════════════════════════════

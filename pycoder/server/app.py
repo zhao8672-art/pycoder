@@ -71,9 +71,10 @@ from pycoder.server.routers.v2 import router as v2_router
 from pycoder.server.ws_handler import websocket_chat
 from pycoder.server.ws_handler_v2 import websocket_chat_v2
 
-# Phase 2+3: New API routers
+# Phase 2+3: 新 API 路由
 from pycoder.server.routers.session_search import router as session_search_router
 from pycoder.server.routers.dep_api import router as dep_api_router
+from pycoder.server.routers.env_api import router as env_api_router
 
 _logger = _logging.getLogger("pycoder.server.app")
 
@@ -543,6 +544,7 @@ app.include_router(v2_evolution_ws_router)  # V2 进化 WebSocket
 # Phase 2+3: 新 API 路由
 app.include_router(session_search_router)
 app.include_router(dep_api_router)
+app.include_router(env_api_router)
 
 # WebSocket（独立挂载）
 app.include_router(collab_ws_router)

@@ -208,7 +208,25 @@ async def diagnose_errors(req: DiagnoseRequest):
 
 @router.post("/action")
 async def browser_action(req: BrowserAction):
-    """AI 操作浏览器（供 AI Agent 调用）"""
+    """AI 操作浏览器（供 AI Agent 调用）
+
+    导航操作会先经过访问控制检查，确保 URL 安全。
+    """
+    # 导航前进行安全访问控制检查
+    if req.action == "navigate" and req.url:
+        from pycoder.browser.access_control import BrowserAccessControl
+        acl = BrowserAccessControl()
+        allowed, reason = acl.check_url(req.url)
+        if not allowed:
+            raise HTTPException(status_code=403, detail=f"访问被拒绝: {reason}")
+
+        # 速率限制检查
+        from urllib.parse import urlparse
+        parsed = urlparse(req.url)
+        domain = parsed.netloc or parsed.hostname or ""
+        if domain and not acl.check_rate_limit(domain):
+            raise HTTPException(status_code=429, detail="请求频率过高，请稍后再试")
+
     if req.action == "navigate":
         return {
             "success": True,
@@ -238,6 +256,22 @@ async def browser_action(req: BrowserAction):
         }
     else:
         raise HTTPException(status_code=400, detail=f"未知操作: {req.action}")
+
+
+@router.get("/check-url")
+async def check_url_access(url: str):
+    """检查 URL 是否允许访问（前置安全检查）
+
+    Args:
+        url: 要检查的 URL
+
+    Returns:
+        {"allowed": bool, "reason": str}
+    """
+    from pycoder.browser.access_control import BrowserAccessControl
+    acl = BrowserAccessControl()
+    allowed, reason = acl.check_url(url)
+    return {"allowed": allowed, "reason": reason}
 
 
 @router.get("/capabilities")
