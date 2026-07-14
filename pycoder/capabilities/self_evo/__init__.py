@@ -98,7 +98,7 @@ def _register_scan_capabilities(registry: Any) -> None:
             name="性能分析",
             description="对指定代码进行性能分析，识别瓶颈",
             category=CapabilityCategory.SELF_EVO,
-            permission=TrustLevel.SYSTEM_ACCESS,
+            permission=TrustLevel.FULL_AUTONOMY,
             side_effects=[SideEffect.PROCESS],
             tags=["performance", "profile", "性能", "分析"],
         ),
@@ -115,7 +115,7 @@ def _register_fix_capabilities(registry: Any) -> None:
             name="生成修复方案",
             description="分析扫描发现的问题，生成修复方案（仅生成方案，不执行）",
             category=CapabilityCategory.SELF_EVO,
-            permission=TrustLevel.SYSTEM_ACCESS,
+            permission=TrustLevel.FULL_AUTONOMY,
             side_effects=[SideEffect.NONE],
             schema={
                 "type": "object",

@@ -349,7 +349,7 @@ async def _init_v2_engine():
 
         config = V2EngineConfig(
             workspace_root=os.getcwd(),
-            initial_trust=TrustLevel.PROJECT_WRITE,
+            initial_trust=TrustLevel.FULL_AUTONOMY,
             enable_consciousness=True,
             enable_self_evo=True,
         )

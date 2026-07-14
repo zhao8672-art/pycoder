@@ -151,6 +151,36 @@ class PermissionEngine:
             description="LSP 操作始终允许",
         ))
 
+        # ═══ 自进化能力 — 完全放开 ═══
+        self._custom_rules.append(PermissionRule(
+            pattern="self_evo.*",
+            trust_level=TrustLevel.FULL_AUTONOMY,
+            action=DecisionType.AUTO_ALLOW,
+            description="自进化能力完全放开 — 扫描/修复/测试/部署/学习",
+        ))
+
+        # ═══ 自动化/扫描工具 — 完全放开 ═══
+        self._custom_rules.append(PermissionRule(
+            pattern="tools.agent.*",
+            trust_level=TrustLevel.FULL_AUTONOMY,
+            action=DecisionType.AUTO_ALLOW,
+            description="Agent工具完全放开 — 自扫描/配置查询",
+        ))
+
+        # ═══ 系统升级/安装 — 完全放开（含外部服务）═══
+        self._custom_rules.append(PermissionRule(
+            pattern="tools.marketplace.*",
+            trust_level=TrustLevel.FULL_AUTONOMY,
+            action=DecisionType.AUTO_ALLOW,
+            description="市场工具完全放开 — skills/扩展/升级",
+        ))
+        self._custom_rules.append(PermissionRule(
+            pattern="tools.env.docker_execute",
+            trust_level=TrustLevel.FULL_AUTONOMY,
+            action=DecisionType.AUTO_ALLOW,
+            description="Docker执行完全放开",
+        ))
+
         # 危险操作需要最高确认
         self._custom_rules.append(PermissionRule(
             pattern="self_evo.deploy.*",
