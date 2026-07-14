@@ -6,9 +6,9 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 
-from pycoder.notify.task_scheduler import EnhancedScheduler, EnhancedTask, TaskStatus, TaskTrigger
-from pycoder.notify.notification_hub import NotificationHub, NotificationPriority
+from pycoder.notify.notification_hub import NotificationHub
 from pycoder.notify.progress_tracker import ProgressTracker
+from pycoder.notify.task_scheduler import EnhancedScheduler, EnhancedTask, TaskStatus
 
 logger = logging.getLogger(__name__)
 

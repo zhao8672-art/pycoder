@@ -17,7 +17,6 @@ router = APIRouter()
 async def inline_completion(req: Request):
     """Lightweight inline completion endpoint (Phase 1 #10)"""
     try:
-        import json as _json
         body = await req.json()
         prefix = str(body.get("prefix", ""))[-200:]
         max_tokens = min(int(body.get("maxTokens", 30)), 50)

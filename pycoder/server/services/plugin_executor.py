@@ -16,9 +16,9 @@ PluginExecutor — 静默后台插件/skills 执行器
 from __future__ import annotations
 
 import asyncio
-import time
 import logging
-from typing import Callable, Awaitable
+import time
+from collections.abc import Awaitable, Callable
 
 logger = logging.getLogger(__name__)
 

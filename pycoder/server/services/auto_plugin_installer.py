@@ -260,7 +260,7 @@ class AutoPluginInstaller:
     def _load_log(self) -> None:
         if _INSTALL_LOG.exists():
             try:
-                with open(_INSTALL_LOG, "r", encoding="utf-8") as f:
+                with open(_INSTALL_LOG, encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
                         if line:

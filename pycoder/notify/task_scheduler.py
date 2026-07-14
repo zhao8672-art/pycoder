@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from collections.abc import Callable, Awaitable
 
 
 class TaskStatus(Enum):
@@ -120,7 +120,7 @@ class EnhancedScheduler:
                 if task and task.status == TaskStatus.PENDING:
                     async with self._semaphore:
                         asyncio.create_task(self._execute(task))
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
 
     async def _execute(self, task: EnhancedTask):

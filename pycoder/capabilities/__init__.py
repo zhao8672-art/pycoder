@@ -8,8 +8,8 @@
 """
 
 from pycoder.capabilities.editor import register_editor_capabilities
-from pycoder.capabilities.system import register_system_capabilities
 from pycoder.capabilities.self_evo import register_self_evo_capabilities
+from pycoder.capabilities.system import register_system_capabilities
 
 __all__ = [
     "register_editor_capabilities",

@@ -5,10 +5,10 @@
 """
 from __future__ import annotations
 
-from pycoder.lsp.providers.javascript import JavaScriptProvider
-from pycoder.lsp.providers.java import JavaProvider
 from pycoder.lsp.providers.cpp import CppProvider
 from pycoder.lsp.providers.go import GoProvider
+from pycoder.lsp.providers.java import JavaProvider
+from pycoder.lsp.providers.javascript import JavaScriptProvider
 
 __all__ = [
     "JavaScriptProvider", "JavaProvider", "CppProvider", "GoProvider",

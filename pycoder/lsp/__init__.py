@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from pycoder.lsp.diagnostics import AggregatedDiagnostic, DiagnosticsAggregator
 from pycoder.lsp.lsp_manager import LSPManager, LSPServerConfig, LSPStatus
-from pycoder.lsp.diagnostics import DiagnosticsAggregator, AggregatedDiagnostic
 
 __all__ = [
     "LSPManager", "LSPServerConfig", "LSPStatus",
@@ -15,6 +15,8 @@ __all__ = [
 
 def register_capabilities(registry: Any) -> None:
     """向能力总线注册多语言 LSP 能力"""
+    from pathlib import Path
+
     from pycoder.bus.protocol import (
         CapabilityCategory,
         CapabilityDefinition,
@@ -22,8 +24,6 @@ def register_capabilities(registry: Any) -> None:
         SideEffect,
         TrustLevel,
     )
-
-    from pathlib import Path
     manager = LSPManager(Path.cwd())
 
     def _start_language(params: dict, ctx: dict) -> dict:

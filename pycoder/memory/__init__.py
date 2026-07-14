@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pycoder.memory.session_memory import SessionMemoryEngine, SessionMemory
+from pycoder.memory.session_memory import SessionMemory, SessionMemoryEngine
 
 __all__ = [
     "SessionMemoryEngine", "SessionMemory",
@@ -14,6 +14,7 @@ __all__ = [
 def register_capabilities(registry: Any) -> None:
     """向能力总线注册会话记忆能力"""
     from pathlib import Path
+
     from pycoder.bus.protocol import (
         CapabilityCategory,
         CapabilityDefinition,

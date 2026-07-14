@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
@@ -119,7 +119,7 @@ class LSPManager:
             try:
                 state.process.terminate()
                 await asyncio.wait_for(state.process.wait(), timeout=5)
-            except (OSError, asyncio.TimeoutError) as e:
+            except (TimeoutError, OSError) as e:
                 try:
                     state.process.kill()
                 except OSError as e2:

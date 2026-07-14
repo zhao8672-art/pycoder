@@ -176,7 +176,7 @@ class EvoEvaluator:
                     if 'os.environ' not in str(line) and 'os.getenv' not in str(line):
                         score -= 10
                         warnings.append(f"安全风险: {desc}")
-                        suggestions.append(f"使用环境变量存储敏感信息: os.environ.get('KEY')")
+                        suggestions.append("使用环境变量存储敏感信息: os.environ.get('KEY')")
 
         return max(score, 0)
 

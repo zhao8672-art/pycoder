@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from pycoder.io.file_indexer import FileIndexer, FileIndex, SymbolDef
-from pycoder.io.smart_reader import SmartReader
 from pycoder.io.chunk_cache import ChunkCache
+from pycoder.io.file_indexer import FileIndex, FileIndexer, SymbolDef
+from pycoder.io.smart_reader import SmartReader
 
 __all__ = [
     "FileIndexer", "FileIndex", "SymbolDef", "SmartReader", "ChunkCache",
@@ -16,6 +16,7 @@ __all__ = [
 def register_capabilities(registry: Any) -> None:
     """向能力总线注册智能文件读取与索引能力"""
     from pathlib import Path
+
     from pycoder.bus.protocol import (
         CapabilityCategory,
         CapabilityDefinition,

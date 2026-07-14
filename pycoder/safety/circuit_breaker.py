@@ -9,7 +9,7 @@ from __future__ import annotations
 import enum
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -183,7 +183,7 @@ class CircuitBreaker:
             "熔断器 '%s': %s → %s", self.name, old_state.value, new_state.value,
         )
 
-    async def __aenter__(self) -> "CircuitBreaker":
+    async def __aenter__(self) -> CircuitBreaker:
         if not self.before_call():
             raise CircuitBreakerOpenError(self.name)
         return self

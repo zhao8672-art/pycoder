@@ -8,10 +8,10 @@ AI 大脑核心 — Pycoder V2 的中央控制层
 - 记忆引擎: 四级记忆体系
 """
 
-from pycoder.brain.consciousness import ConsciousnessEngine, SystemEvent, OperatingMode
-from pycoder.brain.task_planner import TaskPlanner, Task, ExecutionPlan
-from pycoder.brain.agent_swarm import AgentSwarmOrchestrator, AgentRole, AgentTask
-from pycoder.brain.memory_engine import MemoryEngine, WorkingMemory, ProjectKnowledge
+from pycoder.brain.agent_swarm import AgentRole, AgentSwarmOrchestrator, AgentTask
+from pycoder.brain.consciousness import ConsciousnessEngine, OperatingMode, SystemEvent
+from pycoder.brain.memory_engine import MemoryEngine, ProjectKnowledge, WorkingMemory
+from pycoder.brain.task_planner import ExecutionPlan, Task, TaskPlanner
 
 __all__ = [
     "ConsciousnessEngine",

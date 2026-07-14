@@ -34,9 +34,9 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from pycoder.capabilities.self_evo.learning.error_classifier import ErrorClassifier
 from pycoder.capabilities.self_evo.learning.evo_cache import EvoCache
 from pycoder.capabilities.self_evo.learning.evo_evaluator import EvoEvaluator
-from pycoder.capabilities.self_evo.learning.error_classifier import ErrorClassifier
 
 try:
     from pycoder.capabilities.self_evo.learning.feedback_loop import FeedbackLoop

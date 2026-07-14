@@ -13,8 +13,6 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from pycoder.bus.protocol import CapabilityDefinition
-
 logger = logging.getLogger(__name__)
 
 

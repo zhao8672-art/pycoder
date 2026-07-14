@@ -17,21 +17,20 @@ import time
 from pathlib import Path
 from typing import Any
 
-from pycoder.capabilities.self_evo.engine import (
-    SelfEvolutionEngine,
-    CodeIssue,
-    ScanReport,
-    FixProposal,
-    FixResult,
-    EvolutionRecord,
-)
-
 from pycoder.bus.protocol import (
     CapabilityCategory,
     CapabilityDefinition,
     ExecutionMode,
     SideEffect,
     TrustLevel,
+)
+from pycoder.capabilities.self_evo.engine import (
+    CodeIssue,
+    EvolutionRecord,
+    FixProposal,
+    FixResult,
+    ScanReport,
+    SelfEvolutionEngine,
 )
 
 logger = logging.getLogger(__name__)
@@ -249,7 +248,6 @@ async def _scan_code(params: dict[str, Any], context: dict[str, Any]) -> dict[st
     使用 AST 静态分析、启发式模式匹配。
     """
     import ast
-    from pathlib import Path
 
     scan_path = Path(params.get("path", "."))
     scan_types = params.get("scan_types", ["bug", "performance", "security", "style", "complexity"])
@@ -326,7 +324,7 @@ def _detect_bugs(tree: ast.AST, filepath: str, source: str) -> list[dict[str, An
                         "file": filepath, "line": node.lineno,
                         "type": "mutable_default", "severity": "medium",
                         "message": f"函数 '{node.name}' 使用了可变默认参数",
-                        "suggestion": f"将默认值改为 None，在函数体内初始化",
+                        "suggestion": "将默认值改为 None，在函数体内初始化",
                     })
 
         # 不必要的 f-string
@@ -524,7 +522,6 @@ async def _generate_fix(params: dict[str, Any], context: dict[str, Any]) -> dict
 async def _apply_fix(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """应用修复到源代码（Git 隔离 + 测试门禁）"""
     import subprocess
-    from pathlib import Path
 
     fix = params.get("fix", {})
     file_path = fix.get("file", "")
@@ -617,7 +614,6 @@ async def _check_coverage(params: dict[str, Any], context: dict[str, Any]) -> di
 async def _analyze_architecture(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """分析项目架构"""
     import ast
-    from pathlib import Path
     from collections import defaultdict
 
     path = Path(params.get("path", "pycoder"))

@@ -1,7 +1,8 @@
 """Dependencies API — parse requirements.txt / pyproject.toml"""
 import logging
-from fastapi import APIRouter, HTTPException
 from pathlib import Path
+
+from fastapi import APIRouter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["dependencies"])

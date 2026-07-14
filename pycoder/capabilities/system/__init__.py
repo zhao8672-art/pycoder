@@ -289,7 +289,7 @@ async def _execute_shell(params: dict[str, Any], context: dict[str, Any]) -> dic
             "stderr": stderr.decode("utf-8", errors="replace")[:5000],
         }
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return {"exit_code": -1, "success": False, "error": "命令执行超时"}
 
 

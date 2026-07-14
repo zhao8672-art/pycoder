@@ -43,8 +43,8 @@ from typing import Any
 from pycoder.core.db_schema import (
     DB_VERSION,
     SCHEMA_SQL,
-    _get_env_db_path,
     Tables,
+    _get_env_db_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ _dal_instance: DAL | None = None
 _dal_lock = threading.Lock()
 
 
-def get_dal() -> "DAL":
+def get_dal() -> DAL:
     """获取全局 DAL 单例"""
     global _dal_instance
     if _dal_instance is None:
@@ -316,7 +316,7 @@ class DAL:
                 self._pool.put_nowait(conn)
             else:
                 conn.close()
-        except (sqlite3.Error, OSError) as e:
+        except (sqlite3.Error, OSError):
             try:
                 conn.close()
             except (sqlite3.Error, OSError) as e2:

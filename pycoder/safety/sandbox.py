@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import multiprocessing
 import os
-import signal
 import tempfile
 import time
 from dataclasses import dataclass, field
@@ -110,7 +108,7 @@ class ProcessSandbox:
                         timeout=self.config.max_timeout_seconds,
                     )
                     killed_by_timeout = False
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     process.kill()
                     stdout, stderr = await process.communicate()
                     killed_by_timeout = True
@@ -255,7 +253,7 @@ class PluginSandbox:
             self._process.terminate()
             try:
                 await asyncio.wait_for(self._process.wait(), timeout=5.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self._process.kill()
                 await self._process.wait()
         logger.info("插件沙箱已停止: %s", self.plugin_name)

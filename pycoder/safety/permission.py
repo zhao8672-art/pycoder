@@ -19,9 +19,10 @@ import enum
 import json
 import logging
 import os
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from pycoder.bus.protocol import SideEffect, TrustLevel
 
@@ -356,7 +357,7 @@ class PermissionEngine:
             # 只保留最近 500 条
             if len(self._behavior_history) > 500:
                 self._behavior_history = self._behavior_history[-500:]
-        except (OSError, IOError):
+        except OSError:
             pass
 
     def _persist_behavior_record(self, record: BehaviorRecord) -> None:
@@ -374,7 +375,7 @@ class PermissionEngine:
                     "rollback_used": record.rollback_used,
                     "timestamp": record.timestamp,
                 }, ensure_ascii=False) + "\n")
-        except (OSError, IOError):
+        except OSError:
             pass
 
     def add_whitelist(self, capability_id: str) -> None:

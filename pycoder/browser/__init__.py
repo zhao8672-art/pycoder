@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from pycoder.browser.browser_pool import BrowserPool, BrowserInstance
-from pycoder.browser.proxy_manager import ProxyCacheManager
 from pycoder.browser.access_control import BrowserAccessControl, BrowserAccessPolicy
+from pycoder.browser.browser_pool import BrowserInstance, BrowserPool
+from pycoder.browser.proxy_manager import ProxyCacheManager
 
 __all__ = [
     "BrowserPool", "BrowserInstance", "ProxyCacheManager",

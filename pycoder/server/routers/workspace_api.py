@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
 
-from pycoder.workspace.workspace_registry import WorkspaceRegistry, WorkspaceEntry, ShareLevel
 from pycoder.workspace.share_sandbox import ShareSandbox
+from pycoder.workspace.workspace_registry import ShareLevel, WorkspaceEntry, WorkspaceRegistry
 
 logger = logging.getLogger(__name__)
 

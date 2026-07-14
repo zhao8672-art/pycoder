@@ -420,10 +420,10 @@ async def execute_with_v2_brain(
 
     这是 TeamCoordinator.execute() 的 V2 版本，当 V2 引擎可用时推荐使用。
     """
-    from pycoder.server.app import get_v2_engine
     from pycoder.brain.agent_swarm import AgentRole as _AgentRole  # noqa: F401
     from pycoder.brain.agent_swarm import AgentTask as _AgentTask
     from pycoder.brain.consciousness import OperatingMode
+    from pycoder.server.app import get_v2_engine
 
     v2 = get_v2_engine()
     if not v2:

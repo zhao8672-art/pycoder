@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pycoder.knowledge.knowledge_fetcher import KnowledgeFetcher, KnowledgeSource, KnowledgeChunk
+from pycoder.knowledge.knowledge_fetcher import KnowledgeChunk, KnowledgeFetcher, KnowledgeSource
 from pycoder.knowledge.knowledge_index import KnowledgeIndex
 from pycoder.knowledge.update_scheduler import KnowledgeUpdateScheduler
 

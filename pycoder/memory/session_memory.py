@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -68,8 +68,8 @@ class SessionMemoryEngine:
         self._current_session = SessionMemory(
             session_id=session_id,
             workspace=str(self._workspace),
-            created_at=datetime.now(timezone.utc).isoformat(),
-            updated_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
+            updated_at=datetime.now(UTC).isoformat(),
         )
         self._message_counter = 0
 
@@ -92,7 +92,7 @@ class SessionMemoryEngine:
         # 生成摘要
         summary = await self._generate_summary()
         self._current_session.summary = summary
-        self._current_session.updated_at = datetime.now(timezone.utc).isoformat()
+        self._current_session.updated_at = datetime.now(UTC).isoformat()
 
         # 持久化
         self._save_session(self._current_session)
@@ -237,21 +237,21 @@ class SessionMemoryEngine:
 
         lines = [
             f"# 会话: {session_id}",
-            f"",
+            "",
             f"**时间**: {data.get('created_at', '')}",
             f"**工作区**: {data.get('workspace', '')}",
             f"**消息数**: {data.get('message_count', 0)}",
-            f"",
-            f"## 摘要",
-            f"",
+            "",
+            "## 摘要",
+            "",
             data.get("summary", "无"),
-            f"",
-            f"## 任务进度",
-            f"",
+            "",
+            "## 任务进度",
+            "",
             data.get("task_progress", "无"),
-            f"",
-            f"## 关键决策",
-            f"",
+            "",
+            "## 关键决策",
+            "",
         ]
         for d in data.get("key_decisions", []):
             lines.append(f"- {d}")
@@ -324,7 +324,7 @@ class SessionMemoryEngine:
     async def _save_checkpoint(self):
         """保存检查点"""
         if self._current_session:
-            self._current_session.updated_at = datetime.now(timezone.utc).isoformat()
+            self._current_session.updated_at = datetime.now(UTC).isoformat()
             self._current_session.message_count = self._message_counter
             self._save_session(self._current_session)
 

@@ -20,8 +20,8 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from pycoder import __version__
 from pycoder.server.chat_handler import (
-    _get_effective_model,
     _get_api_key_for_model,
+    _get_effective_model,
 )
 from pycoder.server.hermes_engine import _execute_hermes_write
 from pycoder.server.log import log
@@ -281,7 +281,7 @@ async def _handle_chat_v2(msg: dict, ws: WebSocket, session_id: str, current_mod
     entry = UnifiedEntryAgent(model=effective_model, api_key=api_key)
 
     final_content = ""
-    async for event in entry.process_stream(message):
+    async for event in entry.process_stream(message, session_id=session_id):
         await ws.send_json(event)
         if event.get("type") == "done":
             final_content = event.get("content", "")
@@ -404,8 +404,6 @@ async def _handle_legacy_file_ops(msg_type, msg, ws, v2,
             tree = await _get_project_tree(msg.get("path"), msg.get("max_depth", 3))
             await ws.send_json({"type": "project_tree", **tree})
         elif msg_type == "file_open":
-            from pathlib import Path
-            from pycoder.server.routers.files import HTTPException as FileHTTPException
             from pycoder.server.routers.files import _safe_path
 
             file_path = msg.get("path", "")
@@ -453,8 +451,8 @@ async def _handle_inline_edit(msg: dict, ws: WebSocket):
         f"## 编辑指令\n{instruction}"
     )
 
-    from pycoder.server.chat_handler import _get_api_key_for_model
     from pycoder.server.chat_bridge import ChatBridge
+    from pycoder.server.chat_handler import _get_api_key_for_model
 
     api_key = _get_api_key_for_model("deepseek-chat")
     if not api_key:

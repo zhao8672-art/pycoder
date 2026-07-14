@@ -87,8 +87,11 @@ def _sync_to_v2_bus(name: str, description: str, input_schema: dict, handler: ca
             return
 
         from pycoder.bus.protocol import (
-            CapabilityCategory, CapabilityDefinition,
-            ExecutionMode, SideEffect, TrustLevel,
+            CapabilityCategory,
+            CapabilityDefinition,
+            ExecutionMode,
+            SideEffect,
+            TrustLevel,
         )
 
         # 自动推断能力类别和权限
@@ -118,7 +121,7 @@ def _sync_to_v2_bus(name: str, description: str, input_schema: dict, handler: ca
         pass  # V2 未初始化时静默跳过
 
 
-def _infer_category(name: str, description: str) -> "CapabilityCategory":
+def _infer_category(name: str, description: str) -> CapabilityCategory:
     from pycoder.bus.protocol import CapabilityCategory
     name_lower = (name + description).lower()
     if any(kw in name_lower for kw in ["read", "write", "file", "edit", "format", "debug"]):
@@ -130,7 +133,7 @@ def _infer_category(name: str, description: str) -> "CapabilityCategory":
     return CapabilityCategory.SYSTEM
 
 
-def _infer_permission(name: str, description: str) -> "TrustLevel":
+def _infer_permission(name: str, description: str) -> TrustLevel:
     from pycoder.bus.protocol import TrustLevel
     name_lower = (name + description).lower()
     if any(kw in name_lower for kw in ["delete", "remove", "push", "deploy", "evolv", "restart"]):

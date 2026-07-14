@@ -121,7 +121,6 @@ class ChatBridge:
 
     async def chat(self, prompt: str, *, max_tokens: int = 1000) -> str:
         """简单同步聊天 — 供自进化引擎等内部组件使用"""
-        import json
         client = await ChatBridge._get_client()
         headers = {
             "Authorization": f"Bearer {self.config.api_key}",

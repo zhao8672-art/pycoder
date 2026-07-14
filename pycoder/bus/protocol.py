@@ -13,8 +13,9 @@ from __future__ import annotations
 import enum
 import time
 import uuid
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Callable, Protocol
+from typing import Any, Protocol
 
 # ──────────────────────────────────────────────
 # 枚举定义

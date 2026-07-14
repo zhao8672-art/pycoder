@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pycoder.io.file_indexer import FileIndexer, FileIndex
 from pycoder.io.chunk_cache import ChunkCache
+from pycoder.io.file_indexer import FileIndex, FileIndexer
 
 
 class SmartReader:

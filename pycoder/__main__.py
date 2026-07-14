@@ -318,7 +318,7 @@ def _run_scan_mode(path: str) -> None:
 
     from pycoder.v2 import V2Engine, V2EngineConfig
 
-    print(f"\n  PyCoder V2 代码扫描")
+    print("\n  PyCoder V2 代码扫描")
     print(f"  路径: {path}")
     print()
 
@@ -330,7 +330,7 @@ def _run_scan_mode(path: str) -> None:
             print("  错误: 自我进化引擎未初始化")
             return
 
-        print(f"  正在扫描...")
+        print("  正在扫描...")
         report = await engine.evolution.scan(path, use_llm=False)
         print(f"  完成: {report.files_scanned} 个文件, {report.total_issues} 个问题 ({report.duration_seconds:.1f}s)")
         print()
@@ -343,14 +343,14 @@ def _run_scan_mode(path: str) -> None:
         from collections import Counter
         sev = Counter(i.severity for i in report.issues)
 
-        print(f"  严重度分布:")
+        print("  严重度分布:")
         for level in ["critical", "high", "medium", "low"]:
             count = sev.get(level, 0)
             if count > 0:
                 icon = {"critical": "Critical", "high": "High", "medium": "Medium", "low": "Low"}[level]
                 print(f"    [{icon}] {count} 个")
 
-        print(f"\n  问题详情 (前 15 个):")
+        print("\n  问题详情 (前 15 个):")
         for i, issue in enumerate(report.issues[:15], 1):
             print(f"  {i:>3}. [{issue.severity}] {issue.file}:{issue.line}")
             print(f"       {issue.title}")
@@ -364,11 +364,11 @@ def _run_evolution_mode(path: str) -> None:
     """自我进化模式 — 扫描并自动修复问题"""
     import asyncio
 
-    from pycoder.v2 import V2Engine, V2EngineConfig
     from pycoder.capabilities.self_evo.engine import EvolutionRecord
+    from pycoder.v2 import V2Engine, V2EngineConfig
 
     print(f"\n{'=' * 60}")
-    print(f"  PyCoder V2 自我进化模式")
+    print("  PyCoder V2 自我进化模式")
     print(f"  路径: {path}")
     print(f"{'=' * 60}\n")
 
@@ -437,7 +437,7 @@ def _run_evolution_mode(path: str) -> None:
         print(f"        本次修复: {applied} 个")
         print()
         print(f"{'=' * 60}")
-        print(f"  自我进化完成!")
+        print("  自我进化完成!")
         print(f"{'=' * 60}")
 
     asyncio.run(_evolve())

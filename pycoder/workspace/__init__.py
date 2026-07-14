@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from pycoder.workspace.workspace_registry import WorkspaceRegistry, WorkspaceEntry, ShareLevel
 from pycoder.workspace.share_sandbox import ShareSandbox
+from pycoder.workspace.workspace_registry import ShareLevel, WorkspaceEntry, WorkspaceRegistry
 
 __all__ = [
     "WorkspaceRegistry", "WorkspaceEntry", "ShareLevel", "ShareSandbox",

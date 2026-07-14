@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class KnowledgeUpdateScheduler:
         if not source:
             self._update_status[source_id] = {
                 "last_error": f"知识源不存在: {source_id}",
-                "last_update": datetime.now(timezone.utc).isoformat(),
+                "last_update": datetime.now(UTC).isoformat(),
                 "update_count": 0,
             }
             return 0
@@ -78,7 +78,7 @@ class KnowledgeUpdateScheduler:
             chunks = await self._fetcher.fetch_source(source, fetch_fn=fetch_fn)
             new_count = self._index.index_chunks(chunks)
             self._update_status[source_id] = {
-                "last_update": datetime.now(timezone.utc).isoformat(),
+                "last_update": datetime.now(UTC).isoformat(),
                 "last_error": None,
                 "update_count": self._update_status.get(source_id, {}).get("update_count", 0) + 1,
                 "chunks_indexed": new_count,
@@ -89,7 +89,7 @@ class KnowledgeUpdateScheduler:
             logger.warning("knowledge_update_failed: source=%s error=%s", source_id, e)
             self._update_status[source_id] = {
                 "last_error": str(e),
-                "last_update": datetime.now(timezone.utc).isoformat(),
+                "last_update": datetime.now(UTC).isoformat(),
                 "update_count": self._update_status.get(source_id, {}).get("update_count", 0),
             }
             return 0

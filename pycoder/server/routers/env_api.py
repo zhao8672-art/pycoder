@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from pycoder.env.tool_detector import ToolDetector
 from pycoder.env.auto_installer import AutoInstaller
+from pycoder.env.tool_detector import ToolDetector
 
 router = APIRouter(prefix="/api/env", tags=["env"])
 

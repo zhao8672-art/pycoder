@@ -39,10 +39,10 @@ from pycoder.server.routers.cloud_api import router as cloud_api_router
 from pycoder.server.routers.code_exec import router as code_exec_router
 from pycoder.server.routers.config import router as config_router
 from pycoder.server.routers.context import router as context_router
+from pycoder.server.routers.dep_api import router as dep_api_router
 from pycoder.server.routers.diff import router as diff_router
 from pycoder.server.routers.diff_list import router as diff_list_router
-from pycoder.server.routers.v2.evolution import router as v2_evolution_router
-from pycoder.server.routers.v2.evolution import ws_router as v2_evolution_ws_router
+from pycoder.server.routers.env_api import router as env_api_router
 from pycoder.server.routers.extensions import router as extensions_router
 from pycoder.server.routers.file_transfer import router as file_transfer_router
 from pycoder.server.routers.files import router as files_router
@@ -57,31 +57,31 @@ from pycoder.server.routers.integrations_api import (
     runtime_router,
     undo_router,
 )
+from pycoder.server.routers.knowledge_api import router as knowledge_api_router
+from pycoder.server.routers.memory_api import router as memory_api_router
+from pycoder.server.routers.notify_api import router as notify_api_router
+from pycoder.server.routers.notify_api import ws_router as notify_ws_router
 from pycoder.server.routers.pipeline import router as pipeline_router
 from pycoder.server.routers.recommendation_api import router as recommendation_router
 from pycoder.server.routers.refactor_api import router as refactor_router
 from pycoder.server.routers.rest_routes import router as rest_router
 from pycoder.server.routers.scaffold_api import router as scaffold_router
 from pycoder.server.routers.search import router as search_router
-from pycoder.server.routers.skills_api_v2 import router as skills_api_v2_router
-from pycoder.server.routers.team_api import router as team_router
-from pycoder.server.routers.terminal import router as terminal_router
-from pycoder.server.routers.visualize import router as visualize_router
-from pycoder.server.routers.v2 import router as v2_router
-from pycoder.server.ws_handler import websocket_chat
-from pycoder.server.ws_handler_v2 import websocket_chat_v2
 
 # Phase 2+3: 新 API 路由
 from pycoder.server.routers.session_search import router as session_search_router
-from pycoder.server.routers.dep_api import router as dep_api_router
-from pycoder.server.routers.env_api import router as env_api_router
+from pycoder.server.routers.skills_api_v2 import router as skills_api_v2_router
+from pycoder.server.routers.team_api import router as team_router
+from pycoder.server.routers.terminal import router as terminal_router
+from pycoder.server.routers.v2 import router as v2_router
+from pycoder.server.routers.v2.evolution import router as v2_evolution_router
+from pycoder.server.routers.v2.evolution import ws_router as v2_evolution_ws_router
+from pycoder.server.routers.visualize import router as visualize_router
 
 # 系统能力升级: 新增模块 API 路由
 from pycoder.server.routers.workspace_api import router as workspace_api_router
-from pycoder.server.routers.knowledge_api import router as knowledge_api_router
-from pycoder.server.routers.memory_api import router as memory_api_router
-from pycoder.server.routers.notify_api import router as notify_api_router
-from pycoder.server.routers.notify_api import ws_router as notify_ws_router
+from pycoder.server.ws_handler import websocket_chat
+from pycoder.server.ws_handler_v2 import websocket_chat_v2
 
 _logger = _logging.getLogger("pycoder.server.app")
 
@@ -257,8 +257,8 @@ def _check_environment_tools() -> None:
     仅记录日志，不阻塞启动。缺失的可选工具不会导致启动失败。
     """
     try:
-        from pycoder.env.tool_detector import ToolDetector
         from pycoder.env.auto_installer import AutoInstaller
+        from pycoder.env.tool_detector import ToolDetector
 
         detector = ToolDetector()
         report = detector.get_report()
@@ -344,8 +344,8 @@ def _init_di_container() -> None:
 async def _init_v2_engine():
     """初始化 V2 引擎 — 注册所有能力、启动 AI 大脑和安全体系"""
     try:
-        from pycoder.v2 import V2Engine, V2EngineConfig
         from pycoder.bus.protocol import TrustLevel
+        from pycoder.v2 import V2Engine, V2EngineConfig
 
         config = V2EngineConfig(
             workspace_root=os.getcwd(),

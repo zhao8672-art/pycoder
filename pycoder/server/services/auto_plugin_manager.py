@@ -23,12 +23,13 @@ from __future__ import annotations
 import json
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Awaitable
 
 from pycoder.server.services.auto_plugin_detector import (
-    AutoPluginDetector, CapabilityNeed,
+    AutoPluginDetector,
+    CapabilityNeed,
 )
 from pycoder.server.services.auto_plugin_evaluator import AutoPluginEvaluator
 from pycoder.server.services.auto_plugin_installer import AutoPluginInstaller

@@ -5,8 +5,8 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -109,7 +109,7 @@ class KnowledgeFetcher:
 
         text = self._html_to_text(html)
         chunks = self._chunk_text(text, source, chunk_size=512)
-        source.last_fetched = datetime.now(timezone.utc).isoformat()
+        source.last_fetched = datetime.now(UTC).isoformat()
         return chunks
 
     @staticmethod
@@ -138,7 +138,7 @@ class KnowledgeFetcher:
                 url=source.url,
                 title=f"{source.name} #{i // chunk_size + 1}",
                 category=source.category,
-                fetched_at=datetime.now(timezone.utc).isoformat(),
+                fetched_at=datetime.now(UTC).isoformat(),
                 content_hash=content_hash,
             ))
         return chunks

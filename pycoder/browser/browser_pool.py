@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +140,7 @@ class BrowserPool:
                 timeout=5.0,
             )
             return True
-        except (OSError, RuntimeError, asyncio.TimeoutError) as e:
+        except (TimeoutError, OSError, RuntimeError) as e:
             instance.error_count += 1
             instance.last_error = str(e)
             logger.debug("browser_pool_health_check_failed: id=%s error=%s", instance.id, e)

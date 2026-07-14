@@ -27,11 +27,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 import re
+import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Callable, Awaitable
 
 logger = logging.getLogger(__name__)
 
@@ -225,21 +225,58 @@ class UnifiedEntryAgent:
                 break
         return events
 
-    async def process_stream(self, user_message: str, context: str = ""):
+    async def process_stream(
+        self, user_message: str, context: str = "", session_id: str | None = None
+    ):
         """流式处理用户消息，逐事件返回给前端。
+
+        Args:
+            user_message: 用户当前消息
+            context: 额外上下文（如文件内容）
+            session_id: 会话ID，用于加载历史记录保持上下文连续性
 
         Yields:
             dict: 包含 "type" 字段的事件字典
 
         P6: 上下文保持与任务追踪 —— 每轮对话检测偏离、更新进度、注入锚点
         """
-        from pycoder.server.services.progress_reporter import (
-            ProgressReporter, StageDef,
-        )
-        from pycoder.server.services.plugin_executor import PluginExecutor
         from pycoder.server.services.context_orchestrator import (
             get_orchestrator,
         )
+        from pycoder.server.services.plugin_executor import PluginExecutor
+        from pycoder.server.services.progress_reporter import (
+            ProgressReporter,
+            StageDef,
+        )
+        from pycoder.server.session_store import get_session_store
+
+        # ── 加载会话历史（保持上下文连续性）──
+        history_context = ""
+        if session_id:
+            try:
+                store = get_session_store()
+                if store.get_session(session_id):
+                    history_msgs = list(store.get_messages(session_id, limit=100))
+                    if history_msgs:
+                        lines: list[str] = []
+                        for m in history_msgs[-20:]:
+                            role_label = "用户" if m.role == "user" else "助手"
+                            lines.append(
+                                f"{role_label}: {str(m.content)[:500]}"
+                            )
+                        history_context = "\n".join(lines)
+                        logger.debug(
+                            "unified_history_loaded",
+                            extra={
+                                "session_id": session_id,
+                                "msg_count": len(history_msgs),
+                            },
+                        )
+            except (OSError, ValueError, RuntimeError) as e:
+                logger.warning(
+                    "unified_history_load_failed",
+                    extra={"session_id": session_id, "error": str(e)},
+                )
 
         # ── 上下文管理：任务追踪 + 偏离检测 ──
         ctx_orch = get_orchestrator()
@@ -384,7 +421,9 @@ class UnifiedEntryAgent:
                 try:
                     if mode == TaskCategory.CHAT:
                         async for ev in self._execute_chat_stream(
-                            intent.beautified_command or intent.raw_input, context
+                            intent.beautified_command or intent.raw_input,
+                            context,
+                            history_context,
                         ):
                             if ev.get("type") == "token":
                                 mode_content += ev.get("data") or ev.get("content", "")
@@ -398,7 +437,9 @@ class UnifiedEntryAgent:
                                 yield ev
                     elif mode == TaskCategory.HERMES:
                         async for ev in self._execute_hermes_stream(
-                            intent.beautified_command or intent.raw_input, context
+                            intent.beautified_command or intent.raw_input,
+                            context,
+                            history_context,
                         ):
                             if ev.get("type") == "token":
                                 mode_content += ev.get("data") or ev.get("content", "")
@@ -412,7 +453,9 @@ class UnifiedEntryAgent:
                                 yield ev
                     elif mode == TaskCategory.AGENT:
                         async for ev in self._execute_agent_stream(
-                            intent.beautified_command or intent.raw_input, context
+                            intent.beautified_command or intent.raw_input,
+                            context,
+                            history_context,
                         ):
                             if ev.get("type") in ("token", "agent_chunk"):
                                 mode_content += ev.get("data") or ev.get("content", "")
@@ -460,13 +503,13 @@ class UnifiedEntryAgent:
         if bg_task is not None:
             try:
                 await asyncio.wait_for(bg_task, timeout=10.0)
-            except (asyncio.TimeoutError, Exception):
+            except (TimeoutError, Exception):
                 pass
         # P7: 等待自动插件/Skills 补全检测完成
         if ap_bg_task is not None:
             try:
                 await asyncio.wait_for(ap_bg_task, timeout=8.0)
-            except (asyncio.TimeoutError, Exception):
+            except (TimeoutError, Exception):
                 pass
         async for ev in flush_progress():
             yield ev
@@ -629,54 +672,88 @@ class UnifiedEntryAgent:
 
         return results
 
-    async def _execute_chat_sync(self, context: str) -> str:
+    async def _execute_chat_sync(
+        self, context: str, history_context: str = ""
+    ) -> str:
         """同步执行普通聊天模式。"""
         from pycoder.server.chat_bridge import ChatBridge
         bridge = ChatBridge()
         if self.api_key:
             bridge.configure(model=self.model, api_key=self.api_key)
+        if history_context:
+            bridge.add_message(
+                "user",
+                f"[对话历史回顾]\n{history_context}\n\n[当前任务] {context}",
+            )
         try:
             return await bridge.chat(context)
         finally:
             await bridge.close()
 
-    async def _execute_hermes_sync(self, context: str) -> str:
+    async def _execute_hermes_sync(
+        self, context: str, history_context: str = ""
+    ) -> str:
         """同步执行 Hermes 模式。"""
-        from pycoder.server.chat_bridge import ChatBridge
         from pycoder.prompts.loader import get_prompt
+        from pycoder.server.chat_bridge import ChatBridge
         bridge = ChatBridge()
         if self.api_key:
             bridge.configure(model=self.model, api_key=self.api_key)
         hermes_prompt = get_prompt("hermes")
         if hermes_prompt:
             bridge.config.system_prompt = hermes_prompt
+        if history_context:
+            bridge.add_message(
+                "user",
+                f"[对话历史回顾]\n{history_context}\n\n[当前任务] {context}",
+            )
         try:
             return await bridge.chat(context)
         finally:
             await bridge.close()
 
-    async def _execute_agent_sync(self, context: str) -> str:
+    async def _execute_agent_sync(
+        self, context: str, history_context: str = ""
+    ) -> str:
         """同步执行 Agent 模式。"""
-        from pycoder.server.services.agent_strategies import UNIFIED_SYSTEM_PROMPT
         from pycoder.server.chat_bridge import ChatBridge
+        from pycoder.server.services.agent_strategies import UNIFIED_SYSTEM_PROMPT
         bridge = ChatBridge()
         if self.api_key:
             bridge.configure(model=self.model, api_key=self.api_key)
         bridge.config.system_prompt = UNIFIED_SYSTEM_PROMPT
+        if history_context:
+            bridge.add_message(
+                "user",
+                f"[对话历史回顾]\n{history_context}\n\n[当前任务] {context}",
+            )
         try:
             return await bridge.chat(context)
         finally:
             await bridge.close()
 
-    async def _execute_chat_stream(self, message: str, context: str):
+    async def _execute_chat_stream(
+        self, message: str, context: str, history_context: str = ""
+    ):
         """流式执行普通聊天模式。"""
         from pycoder.server.chat_bridge import ChatBridge
         bridge = ChatBridge()
         if self.api_key:
             bridge.configure(model=self.model, api_key=self.api_key)
+        # 注入会话历史上下文
+        if history_context:
+            bridge.add_message(
+                "user",
+                f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}",
+            )
         try:
             full = ""
-            async for ev in bridge.chat_stream(message):
+            async for ev in (
+                bridge.chat_stream(message) if not history_context
+                else bridge.chat_stream(
+                    f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
+                )
+            ):
                 if ev.event_type == "token":
                     full += ev.content
                     yield {"type": "token", "data": ev.content, "content": ev.content}
@@ -690,19 +767,32 @@ class UnifiedEntryAgent:
         finally:
             await bridge.close()
 
-    async def _execute_hermes_stream(self, message: str, context: str):
+    async def _execute_hermes_stream(
+        self, message: str, context: str, history_context: str = ""
+    ):
         """流式执行 Hermes 结构化工作模式。"""
-        from pycoder.server.chat_bridge import ChatBridge
         from pycoder.prompts.loader import get_prompt
+        from pycoder.server.chat_bridge import ChatBridge
         bridge = ChatBridge()
         if self.api_key:
             bridge.configure(model=self.model, api_key=self.api_key)
         hermes_prompt = get_prompt("hermes")
         if hermes_prompt:
             bridge.config.system_prompt = hermes_prompt
+        # 注入会话历史上下文
+        if history_context:
+            bridge.add_message(
+                "user",
+                f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}",
+            )
         try:
             full = ""
-            async for ev in bridge.chat_stream(message):
+            async for ev in (
+                bridge.chat_stream(message) if not history_context
+                else bridge.chat_stream(
+                    f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
+                )
+            ):
                 if ev.event_type == "token":
                     full += ev.content
                     yield {"type": "token", "data": ev.content, "content": ev.content}
@@ -716,16 +806,27 @@ class UnifiedEntryAgent:
         finally:
             await bridge.close()
 
-    async def _execute_agent_stream(self, message: str, context: str):
+    async def _execute_agent_stream(
+        self, message: str, context: str, history_context: str = ""
+    ):
         """流式执行 Agent 团队协作模式。"""
         from pycoder.server.services.agent_orchestrator import agent_chat_stream
+
+        # 合并历史上下文
+        merged_context = context or ""
+        if history_context:
+            merged_context = (
+                f"## 对话历史\n{history_context}\n\n## 额外上下文\n{merged_context}"
+                if merged_context
+                else f"## 对话历史\n{history_context}"
+            )
 
         async for ev in agent_chat_stream(
             message,
             model=self.model,
             system_prompt=None,
             api_key=self.api_key,
-            context=context,
+            context=merged_context,
         ):
             yield ev
 
@@ -734,44 +835,54 @@ class UnifiedEntryAgent:
     # ══════════════════════════════════════════════════════════
 
     def _merge_results(self, intent: ParsedIntent, results: list[ModeResult]) -> str:
-        """归集整合所有模式结果，按固定结构输出。"""
-        sections: list[str] = []
+        """归集整合所有模式结果，输出面向用户的干净内容。
 
-        # ── 模块1: 原始用户输入 ──
-        sections.append(f"【原始用户输入】\n{intent.raw_input}")
-
-        # ── 模块2: 分层意图解析 ──
-        sections.append(
-            f"【分层意图解析】\n"
-            f"  1. 表层文字内容：{intent.surface_text}\n"
-            f"  2. 核心真实需求：{intent.core_need}\n"
-            f"  3. 信息缺失/歧义说明：{intent.ambiguity or '无'}"
-        )
-
-        # ── 模块3: 美化后标准化任务指令 ──
-        sections.append(
-            f"【美化后标准化任务指令】\n{intent.beautified_command or intent.raw_input}"
-        )
-
-        # ── 模块4: 自动调度的模式列表 ──
-        modes_desc = "\n".join(
-            f"- 模式: {r.mode.value} | 状态: {'✅ 成功' if r.success else '❌ 失败'} | "
-            f"耗时: {r.duration_ms}ms" + (f" | 重试: {r.retries}次" if r.retries > 0 else "")
-            for r in results
-        )
-        sections.append(f"【本次自动调度的PyCoder工作模式列表+对应子任务】\n{modes_desc}")
-
-        # ── 模块5: 执行整合输出 ──
+        修复：不再将内部调度标记（【原始用户输入】等）暴露给用户。
+        这些标记仅用于内部日志，用户看到的是干净的 AI 回复内容。
+        """
+        # ── 提取 AI 实际回复内容（去除内部标记）──
+        raw_content = ""
         if results and results[0].success:
-            sections.append(
-                f"【多模式执行整合输出结果】\n{results[0].content}"
-            )
+            raw_content = results[0].content
         else:
-            sections.append(
-                "【多模式执行整合输出结果】\n所有模式执行失败，请查看系统故障处理方案。"
-            )
+            return "所有模式执行失败，请查看系统故障处理方案。"
 
-        return "\n\n".join(sections)
+        # 去除 LLM 输出中可能残留的【标记】块
+        cleaned = self._strip_internal_markers(raw_content)
+
+        # ── 附加执行摘要（客户友好格式）──
+        modes_summary = "、".join(
+            f"{r.mode.value}({'✅' if r.success else '❌'})" for r in results
+        )
+        footer = (
+            f"\n\n---\n"
+            f"🔧 调度模式: {modes_summary}"
+        )
+
+        return cleaned + footer
+
+    @staticmethod
+    def _strip_internal_markers(text: str) -> str:
+        """去除 LLM 输出中的内部调度标记，保留面向用户的干净内容。"""
+        import re
+        # 已知的内部标记块（含中英文变体）
+        marker_patterns = [
+            r"【原始用户输入】.*?(?=【|$)",
+            r"【分层意图解析】.*?(?=【|$)",
+            r"【美化后标准化任务指令】.*?(?=【|$)",
+            r"【本次[^】]*调度[^】]*模式[^】]*】.*?(?=【|$)",
+            r"【多模式执行整合输出结果】",
+            r"【系统故障处理方案】.*?(?=【|$)",
+            r"【高危操作风险提示】.*?(?=【|$)",
+            r"\[原始用户输入\].*?(?=\[|$)",
+            r"\[分层意图解析\].*?(?=\[|$)",
+        ]
+        result = text
+        for pat in marker_patterns:
+            result = re.sub(pat, "", result, flags=re.DOTALL)
+        # 清理多余空行
+        result = re.sub(r"\n{3,}", "\n\n", result)
+        return result.strip()
 
     # ══════════════════════════════════════════════════════════
     # 步骤6: 系统监控

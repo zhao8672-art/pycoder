@@ -21,11 +21,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator
+from typing import Any
 
-from pycoder.bus.registry import CapabilityRegistry
-from pycoder.bus.router import IntelligentRouter
+from pycoder.brain.agent_swarm import AgentSwarmOrchestrator, AgentTask
+from pycoder.brain.consciousness import ConsciousnessEngine, OperatingMode, SystemEvent
+from pycoder.brain.memory_engine import MemoryEngine
+from pycoder.brain.task_planner import ExecutionPlan, TaskPlanner
 from pycoder.bus.monitor import BusMonitor
 from pycoder.bus.protocol import (
     CapabilityCall,
@@ -34,26 +37,20 @@ from pycoder.bus.protocol import (
     CapabilityResult,
     TrustLevel,
 )
+from pycoder.bus.registry import CapabilityRegistry
+from pycoder.bus.router import IntelligentRouter
 from pycoder.bus.transformer import InputTransformer, OutputTransformer
-
-from pycoder.safety.permission import PermissionEngine, PermissionDecision, DecisionType
-from pycoder.safety.sandbox import SandboxManager
-from pycoder.safety.audit import AuditTrail, AuditRecord
-from pycoder.safety.rollback import RollbackManager
-from pycoder.safety.circuit_breaker import CircuitBreakerRegistry
-
-from pycoder.brain.consciousness import ConsciousnessEngine, OperatingMode, SystemEvent
-from pycoder.brain.task_planner import TaskPlanner, ExecutionPlan
-from pycoder.brain.agent_swarm import AgentSwarmOrchestrator, AgentTask
-from pycoder.brain.memory_engine import MemoryEngine
-
-from pycoder.modules import ModuleLoader
-
 from pycoder.capabilities import (
     register_editor_capabilities,
-    register_system_capabilities,
     register_self_evo_capabilities,
+    register_system_capabilities,
 )
+from pycoder.modules import ModuleLoader
+from pycoder.safety.audit import AuditRecord, AuditTrail
+from pycoder.safety.circuit_breaker import CircuitBreakerRegistry
+from pycoder.safety.permission import DecisionType, PermissionDecision, PermissionEngine
+from pycoder.safety.rollback import RollbackManager
+from pycoder.safety.sandbox import SandboxManager
 
 logger = logging.getLogger(__name__)
 

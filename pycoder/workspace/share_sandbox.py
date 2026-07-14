@@ -9,7 +9,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from pycoder.workspace.workspace_registry import WorkspaceRegistry, ShareLevel
+from pycoder.workspace.workspace_registry import ShareLevel, WorkspaceRegistry
 
 
 class ShareSandbox:

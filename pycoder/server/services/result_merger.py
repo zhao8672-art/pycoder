@@ -25,66 +25,51 @@ def merge_results(
     beautified: str,
     results: list[ModeResult],
 ) -> str:
-    """归集整合所有模式结果，按用户要求的固定结构输出。
+    """归集整合所有模式结果。
 
-    Args:
-        raw_input: 原始用户输入
-        surface_text: 表层文字内容
-        core_need: 核心真实需求
-        ambiguity: 信息缺失/歧义说明
-        beautified: 标准化指令
-        results: 各模式执行结果
-
-    Returns:
-        按固定格式整合的完整回复
+    修复：不再将内部调度标记（【原始用户输入】等）暴露给用户。
+    这些标记仅用于内部日志，用户看到的是干净的 AI 回复内容。
     """
-    sections: list[str] = []
+    import re
 
-    # 1. 原始用户输入
-    sections.append(f"【原始用户输入】\n{raw_input}")
+    # ── 提取 AI 实际回复内容（去除内部标记）──
+    success_results = [r for r in results if r.success]
+    if not success_results:
+        if results:
+            return f"执行失败。错误: {results[0].error}"
+        return "无可用结果。"
 
-    # 2. 分层意图解析
-    sections.append(
-        f"【分层意图解析】\n"
-        f"  1. 表层文字内容：{surface_text}\n"
-        f"  2. 核心真实需求：{core_need}\n"
-        f"  3. 信息缺失/歧义说明：{ambiguity or '无'}"
+    raw_content = success_results[0].content
+
+    # 去除 LLM 输出中可能残留的【标记】块
+    marker_patterns = [
+        r"【原始用户输入】.*?(?=【|$)",
+        r"【分层意图解析】.*?(?=【|$)",
+        r"【美化后标准化任务指令】.*?(?=【|$)",
+        r"【本次[^】]*调度[^】]*模式[^】]*】.*?(?=【|$)",
+        r"【多模式执行整合输出结果】",
+        r"【系统故障处理方案】.*?(?=【|$)",
+        r"【高危操作风险提示】.*?(?=【|$)",
+        r"\[原始用户输入\].*?(?=\[|$)",
+        r"\[分层意图解析\].*?(?=\[|$)",
+    ]
+    clean = raw_content
+    for pat in marker_patterns:
+        clean = re.sub(pat, "", clean, flags=re.DOTALL)
+    clean = re.sub(r"\n{3,}", "\n\n", clean).strip()
+
+    # ── 附加执行摘要 ──
+    modes_summary = "、".join(
+        f"{r.mode}({'✅' if r.success else '❌'})" for r in results
     )
 
-    # 3. 美化后标准化任务指令
-    sections.append(f"【美化后标准化任务指令】\n{beautified or raw_input}")
-
-    # 4. 自动调度的模式列表
-    modes_desc_parts = []
-    for r in results:
-        status = "✅ 成功" if r.success else "❌ 失败"
-        line = f"- 模式: {r.mode} | 状态: {status} | 耗时: {r.duration_ms}ms"
-        if r.retries > 0:
-            line += f" | 重试: {r.retries}次"
-        modes_desc_parts.append(line)
-    modes_header = "【本次自动调度的PyCoder工作模式列表+对应子任务】"
-    sections.append(modes_header + "\n" + "\n".join(modes_desc_parts))
-
-    # 5. 执行整合输出
-    success_results = [r for r in results if r.success]
-    if success_results:
-        sections.append(
-            f"【多模式执行整合输出结果】\n{success_results[0].content}"
-        )
-    elif results:
-        sections.append(
-            f"【多模式执行整合输出结果】\n"
-            f"执行失败。错误: {results[0].error}"
-        )
-    else:
-        sections.append("【多模式执行整合输出结果】\n无可用结果。")
-
-    # 6. 故障处理（有异常时）
+    # 故障处理
     failed = [r for r in results if not r.success]
+    footer = f"\n\n---\n🔧 调度模式: {modes_summary}"
     if failed:
         issues_lines = [f"- {r.mode}: {r.error} (耗时{r.duration_ms}ms)" for r in failed]
-        sections.append(
-            "【模式/系统故障处理方案】\n"
+        footer += (
+            "\n\n⚠️ 故障处理:\n"
             + "\n".join(issues_lines) + "\n\n"
             "建议操作:\n"
             "1. 检查网络连接是否正常\n"
@@ -93,7 +78,7 @@ def merge_results(
             "4. 重试或切换到其他模型"
         )
 
-    return "\n\n".join(sections)
+    return clean + footer
 
 
 # 便捷导出

@@ -12,7 +12,7 @@ import time
 from collections import defaultdict
 from typing import Any
 
-from pycoder.bus.protocol import CapabilityCall, CapabilityResult, CallTrace, TrustLevel
+from pycoder.bus.protocol import CallTrace, CapabilityCall, CapabilityResult, TrustLevel
 
 logger = logging.getLogger(__name__)
 

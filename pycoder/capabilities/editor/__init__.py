@@ -284,8 +284,8 @@ async def _delete_file(params: dict[str, Any], context: dict[str, Any]) -> dict[
 
 async def _search_code(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """代码搜索"""
-    import re
     import fnmatch
+    import re
 
     query = params["query"]
     search_path = Path(params.get("path", "."))

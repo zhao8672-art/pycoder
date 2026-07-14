@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import os
 import subprocess
 import time
 import uuid
@@ -24,6 +23,8 @@ from pycoder.capabilities.self_evo.engine import (  # noqa: F401
     FixProposal,
     FixResult,
     ScanReport,
+)
+from pycoder.capabilities.self_evo.engine import (
     SelfEvolutionEngine as _V2SelfEvolutionEngine,
 )
 
@@ -234,7 +235,7 @@ class SelfEvolutionEngine(_V2SelfEvolutionEngine):
             )
             try:
                 stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 proc.kill()
                 return []
             if proc.returncode == 0 and stdout:

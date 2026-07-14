@@ -39,13 +39,13 @@ ContextOrchestrator — 上下文保持与任务追踪总调度中心
 from __future__ import annotations
 
 import logging
-from typing import Callable, Awaitable
+from collections.abc import Awaitable, Callable
 
-from pycoder.server.services.task_tracker import TaskTracker, TaskPhase
 from pycoder.server.services.context_manager import ContextWindowManager
+from pycoder.server.services.context_metrics import ContextMetrics
 from pycoder.server.services.drift_detector import DriftDetector
 from pycoder.server.services.memory_augmentor import MemoryAugmentor
-from pycoder.server.services.context_metrics import ContextMetrics
+from pycoder.server.services.task_tracker import TaskPhase, TaskTracker
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ logger = logging.getLogger(__name__)
 _orchestrator_instance: ContextOrchestrator | None = None
 
 
-def get_orchestrator(project: str = "") -> "ContextOrchestrator":
+def get_orchestrator(project: str = "") -> ContextOrchestrator:
     """获取全局 ContextOrchestrator 实例（延迟初始化）"""
     global _orchestrator_instance
     if _orchestrator_instance is None:
