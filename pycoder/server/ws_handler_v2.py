@@ -154,9 +154,12 @@ async def websocket_chat_v2(ws: WebSocket):
                     try:
                         result = await v2.call(cap_id, cap_params)
                         # 如果能力未找到，自动尝试 v1. 前缀
-                        if (not cap_id.startswith("v1.")):
+                        if (not getattr(result, "success", True) and
+                                not cap_id.startswith("v1.")):
                             try:
-                                alt = await v2.call(f"v1.{cap_id}", cap_params)
+                                alt = await v2.call(
+                                    f"v1.{cap_id}", cap_params
+                                )
                                 if getattr(alt, "success", False):
                                     result = alt
                             except Exception:
