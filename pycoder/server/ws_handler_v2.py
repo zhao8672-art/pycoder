@@ -153,12 +153,20 @@ async def websocket_chat_v2(ws: WebSocket):
                 if v2:
                     try:
                         result = await v2.call(cap_id, cap_params)
+                        # 如果能力未找到，自动尝试 v1. 前缀
+                        if (not cap_id.startswith("v1.")):
+                            try:
+                                alt = await v2.call(f"v1.{cap_id}", cap_params)
+                                if getattr(alt, "success", False):
+                                    result = alt
+                            except Exception:
+                                pass
                         await ws.send_json({
                             "type": "v2_call_result",
                             "capability_id": cap_id,
-                            "success": result.success,
-                            "data": result.data,
-                            "error": result.error,
+                            "success": getattr(result, "success", False),
+                            "data": getattr(result, "data", None),
+                            "error": getattr(result, "error", ""),
                         })
                     except Exception as e:
                         await ws.send_json({

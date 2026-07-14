@@ -360,6 +360,8 @@ async def _init_v2_engine():
             engine.registry.count,
             engine.permission.current_trust.name,
         )
+        # 同时写入模块级变量，确保 get_v2_engine 可靠返回
+        _set_v2_engine(engine)
         return engine
     except ImportError as e:
         _logger.warning("v2_engine_skip: import_failed=%s", e)
@@ -369,16 +371,32 @@ async def _init_v2_engine():
         return None
 
 
+# ── V2 引擎模块级单例（可靠获取方式）──
+_v2_engine_instance = None
+
+
+def _set_v2_engine(engine):
+    global _v2_engine_instance
+    _v2_engine_instance = engine
+
+
 def get_v2_engine(app: FastAPI | None = None):
-    """获取 V2 引擎实例（从 app.state 或模块级 app 引用）"""
+    """获取 V2 引擎实例
+
+    优先级:
+        1. 传入的 app.state.v2_engine
+        2. 模块级 app.state.v2_engine
+        3. 模块级 _v2_engine_instance 单例
+    """
     if app is not None:
         return getattr(app.state, "v2_engine", None)
-    # 使用模块级 app 引用，避免依赖 fastapi._compat 私有 API
     try:
-        return getattr(app.state, "v2_engine", None)
+        engine = getattr(app.state, "v2_engine", None)
+        if engine is not None:
+            return engine
     except (AttributeError, NameError):
         pass
-    return None
+    return _v2_engine_instance
 
 
 # ── 插件注册表（模块级单例）──
