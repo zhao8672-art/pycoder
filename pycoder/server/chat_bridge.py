@@ -161,12 +161,22 @@ class ChatBridge:
             )
         return cls._shared_client
 
-    def configure(self, model: str | None = None, api_key: str | None = None):
-        """配置模型和 API Key"""
+    def configure(
+        self,
+        model: str | None = None,
+        api_key: str | None = None,
+        system_prompt: str | None = None,
+        max_tokens: int | None = None,
+    ):
+        """配置模型、API Key、系统提示词和最大 Token 数"""
         if model:
             self.config.model = model
         if api_key:
             self.config.api_key = api_key
+        if system_prompt is not None:
+            self.config.system_prompt = system_prompt
+        if max_tokens is not None:
+            self.config.max_tokens = max_tokens
 
         # 自动检测 provider 并设置 api_base
         provider = _detect_provider(self.config.model)
@@ -569,7 +579,11 @@ class ChatBridge:
         except (ImportError, RuntimeError, ValueError, TypeError):
             pass  # 可观测性失败不影响主流程
 
-        yield ChatEvent(event_type="done", content=all_content, usage=total_usage)
+        yield ChatEvent(
+            event_type="done",
+            content=all_content or "（AI 未生成有效回复，请尝试重新发送您的问题。）",
+            usage=total_usage,
+        )
 
     async def close(self):
         """清理资源"""

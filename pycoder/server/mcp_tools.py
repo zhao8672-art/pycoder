@@ -1211,21 +1211,20 @@ async def _handle_execute_code(args: dict) -> dict:
     import subprocess as _sp
     import tempfile
 
+    # ── 共享结果构建辅助函数（所有语言分支可用）──
+    def _mkres(success, output="", error=""):
+        return {
+            "success": success,
+            "output": (output or "")[:2000],
+            "error": (error or "")[:1000],
+            "language": language,
+        }
+
     if language in ("python",):
         try:
             r = _sp.run(["python", "-c", code], capture_output=True, text=True, timeout=timeout)
-
-            def _mkres(success, output="", error=""):
-                return {
-                    "success": success,
-                    "output": output[:2000],
-                    "error": error[:1000],
-                    "language": language,
-                }
-
             return _mkres(r.returncode == 0, r.stdout, r.stderr)
         except _sp.TimeoutExpired:
-
             return _mkres(False, error=f"超时 ({timeout}s)")
         except FileNotFoundError:
             return _mkres(False, error=f"运行时未找到: {language}")
@@ -1235,9 +1234,9 @@ async def _handle_execute_code(args: dict) -> dict:
             r = _sp.run(["node", "-e", code], capture_output=True, text=True, timeout=timeout)
             return _mkres(r.returncode == 0, r.stdout, r.stderr)
         except _sp.TimeoutExpired:
-            return {"success": False, "error": f"超时 ({timeout}s)", "language": language}
+            return _mkres(False, error=f"超时 ({timeout}s)")
         except FileNotFoundError:
-            return {"success": False, "error": "Node.js 未安装", "language": language}
+            return _mkres(False, error="Node.js 未安装")
 
     if language == "shell":
         tf = tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False, encoding="utf-8")

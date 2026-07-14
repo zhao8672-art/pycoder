@@ -47,7 +47,7 @@ class UnifiedAgentLoop:
     async def chat_stream(
         self,
         message: str,
-        bridge: ChatBridge,
+        bridge,  # LLMProvider (BridgeLLMProvider) — 提供 stream()/add_message()/configure()
         context: str = "",
     ) -> AsyncIterator[dict]:
         """
@@ -124,6 +124,16 @@ class UnifiedAgentLoop:
                 return
 
             if not response_text:
+                # LLM 返回空响应 — 向桥接注入提示，避免下一轮再次空返回
+                bridge.add_message(
+                    "assistant",
+                    "（注意：上一轮 LLM 返回了空响应，请尝试用不同方式完成任务或确认是否已完成。）",
+                )
+                logger.warning(
+                    "agent_loop_empty_response iteration=%d/%d",
+                    iteration,
+                    max_iterations,
+                )
                 continue
 
             # 2. 统一解析

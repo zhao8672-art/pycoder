@@ -245,6 +245,14 @@ async def _handle_chat_v2(msg: dict, ws: WebSocket, session_id: str, current_mod
     files = msg.get("files")
 
     if not message and not files:
+        log.warning(
+            "ws_v2_empty_message",
+            extra={
+                "session_id": session_id,
+                "msg_keys": list(msg.keys()),
+                "raw_msg_type": msg.get("type", "unknown"),
+            },
+        )
         await ws.send_json({"type": "error", "message": "Empty message"})
         return
 

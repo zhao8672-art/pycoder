@@ -740,20 +740,15 @@ class UnifiedEntryAgent:
         bridge = ChatBridge()
         if self.api_key:
             bridge.configure(model=self.model, api_key=self.api_key)
-        # 注入会话历史上下文
+        # 注入会话历史上下文（仅作为 bridge 消息，不在 chat_stream 中重复包装）
+        effective_message = message
         if history_context:
-            bridge.add_message(
-                "user",
-                f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}",
+            effective_message = (
+                f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
             )
         try:
             full = ""
-            async for ev in (
-                bridge.chat_stream(message) if not history_context
-                else bridge.chat_stream(
-                    f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
-                )
-            ):
+            async for ev in bridge.chat_stream(effective_message):
                 if ev.event_type == "token":
                     full += ev.content
                     yield {"type": "token", "data": ev.content, "content": ev.content}
@@ -779,20 +774,15 @@ class UnifiedEntryAgent:
         hermes_prompt = get_prompt("hermes")
         if hermes_prompt:
             bridge.config.system_prompt = hermes_prompt
-        # 注入会话历史上下文
+        # 注入会话历史上下文（仅作为 chat_stream 参数，不重复 add_message）
+        effective_message = message
         if history_context:
-            bridge.add_message(
-                "user",
-                f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}",
+            effective_message = (
+                f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
             )
         try:
             full = ""
-            async for ev in (
-                bridge.chat_stream(message) if not history_context
-                else bridge.chat_stream(
-                    f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
-                )
-            ):
+            async for ev in bridge.chat_stream(effective_message):
                 if ev.event_type == "token":
                     full += ev.content
                     yield {"type": "token", "data": ev.content, "content": ev.content}
