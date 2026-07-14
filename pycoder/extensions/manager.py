@@ -1020,8 +1020,11 @@ class ExtensionManager:
         if manifest_file.exists():
             try:
                 manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                import logging as _lg
+                _lg.getLogger(__name__).warning(
+                    "extensions_config_load_failed error=%s", e,
+                )
 
         # 解析贡献点
         from pycoder.extensions.contributions import parse_contributions_from_manifest

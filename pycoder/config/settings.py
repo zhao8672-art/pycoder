@@ -70,8 +70,12 @@ def load_config() -> dict:
                 data = json.load(_f)
             if isinstance(data, dict):
                 return {**DEFAULT_CONFIG, **data}
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as _cfg_err:
+            import logging as _lg
+            _lg.getLogger(__name__).warning(
+                "config_load_failed path=%s error=%s",
+                CONFIG_PATH, _cfg_err,
+            )
     return dict(DEFAULT_CONFIG)
 
 

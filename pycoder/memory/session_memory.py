@@ -170,8 +170,8 @@ class SessionMemoryEngine:
                     "message_count": data.get("message_count", 0),
                     "task_progress": data.get("task_progress", ""),
                 })
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as _m_err:
+                continue
         return sessions
 
     def get_session(self, session_id: str) -> dict | None:

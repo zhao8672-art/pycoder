@@ -44,10 +44,12 @@ def _register_code_operations(registry: Any) -> None:
     registry.register(
         CapabilityDefinition(
             id="editor.code.read",
-            name="读取代码文件",
-            description="读取指定路径的源代码文件内容，返回带行号的文本",
+            name="读取代码文件（已弃用）",
+            description="⚠️ 已弃用，请使用 tools.file.read. 读取指定路径的文件内容",
             category=CapabilityCategory.EDITOR,
             permission=TrustLevel.READ_ONLY,
+            deprecated=True,
+            deprecated_message="请使用 tools.file.read",
             execution=ExecutionMode.SYNC,
             side_effects=[SideEffect.FILE_READ],
             schema={
@@ -68,10 +70,12 @@ def _register_code_operations(registry: Any) -> None:
     registry.register(
         CapabilityDefinition(
             id="editor.code.write",
-            name="写入代码文件",
-            description="将内容写入指定路径的文件，会覆盖现有内容",
+            name="写入代码文件（已弃用）",
+            description="⚠️ 已弃用，请使用 tools.file.write. 将内容写入指定路径的文件",
             category=CapabilityCategory.EDITOR,
             permission=TrustLevel.WORKSPACE_WRITE,
+            deprecated=True,
+            deprecated_message="请使用 tools.file.write",
             execution=ExecutionMode.SYNC,
             side_effects=[SideEffect.FILE_WRITE],
             rollback_support=True,

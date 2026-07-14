@@ -105,10 +105,12 @@ def _register_git_operations(registry: Any) -> None:
     registry.register(
         CapabilityDefinition(
             id="system.git.status",
-            name="Git 状态",
-            description="查看工作区的 Git 状态（变更、暂存、未跟踪文件）",
+            name="Git 状态（已弃用）",
+            description="⚠️ 已弃用，请使用 tools.git.status",
             category=CapabilityCategory.SYSTEM,
             permission=TrustLevel.READ_ONLY,
+            deprecated=True,
+            deprecated_message="请使用 tools.git.status",
             side_effects=[SideEffect.NONE],
             tags=["git", "status", "状态"],
         ),
