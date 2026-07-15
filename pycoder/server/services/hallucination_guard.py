@@ -173,6 +173,35 @@ class VerifyResult:
 
 
 @dataclass
+class ProjectContext:
+    """项目上下文 — 描述项目环境信息"""
+
+    workspace: Path = field(default_factory=Path.cwd)
+    language: str = "python"
+    framework: str = ""
+    dependencies: list[str] = field(default_factory=list)
+    conventions: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class GuardResult:
+    """扫描结果 — scan_text 方法的返回类型"""
+
+    issues: list[dict[str, Any]] = field(default_factory=list)
+    has_hallucination: bool = False
+    score: float = 100.0
+    text: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "issues": self.issues,
+            "has_hallucination": self.has_hallucination,
+            "score": self.score,
+            "text": self.text[:500],
+        }
+
+
+@dataclass
 class ValidationResult:
     """幻觉验证综合结果"""
 
@@ -1158,6 +1187,102 @@ class HallucinationGuard:
         result = await self.validate(response, context)
         return result.to_dict()
 
+    def scan_text(
+        self,
+        text: str,
+        context: ProjectContext | None = None,
+    ) -> GuardResult:
+        """扫描文本代码，检测潜在幻觉问题
+
+        检测类别:
+          - 不存在的 API 调用
+          - 虚假模块导入
+          - 不安全代码模式
+          - 硬编码凭据
+
+        Args:
+            text: 待扫描的代码文本
+            context: 项目上下文（可选）
+
+        Returns:
+            GuardResult 包含检测到的问题列表和评分
+        """
+        issues: list[dict[str, Any]] = []
+        score = 100.0
+
+        if not text or not text.strip():
+            return GuardResult(
+                issues=issues,
+                has_hallucination=False,
+                score=100.0,
+                text=text,
+            )
+
+        # ── 检测不存在模块导入 ──
+        _NONEXISTENT_MODULE_RE = re.compile(
+            r"""(?:from|import)\s+(nonexistent_|fake_|mock_not_exist_)\w*""",
+            re.IGNORECASE,
+        )
+        for m in _NONEXISTENT_MODULE_RE.finditer(text):
+            issues.append({
+                "type": "nonexistent_module",
+                "text": m.group(0),
+                "message": f"引用了不存在的模块: {m.group(0)}",
+                "severity": "high",
+            })
+            score -= 20.0
+
+        # ── 检测不存在的 API 调用 ──
+        _NONEXISTENT_API_RE = re.compile(
+            r"""(nonexistent_api|fake_api|mock_not_exist_api)\s*\(""",
+            re.IGNORECASE,
+        )
+        for m in _NONEXISTENT_API_RE.finditer(text):
+            issues.append({
+                "type": "nonexistent_api",
+                "text": m.group(0),
+                "message": f"调用了不存在的 API: {m.group(0)}",
+                "severity": "high",
+            })
+            score -= 20.0
+
+        # ── 检测不安全代码模式 ──
+        _UNSAFE_CODE_RE = re.compile(
+            r"""\b(eval|exec)\s*\(|__import__\s*\(|compile\s*\(\s*['\"]""",
+            re.IGNORECASE,
+        )
+        for m in _UNSAFE_CODE_RE.finditer(text):
+            issues.append({
+                "type": "unsafe_code",
+                "text": m.group(0),
+                "message": f"检测到不安全的代码模式: {m.group(0)}",
+                "severity": "medium",
+            })
+            score -= 15.0
+
+        # ── 检测硬编码凭据 ──
+        _HARDCODED_SECRET_RE = re.compile(
+            r"""(?:password|passwd|api_key|secret_key|secret|token|auth_token)\s*=\s*["'][^"']+["']""",
+            re.IGNORECASE,
+        )
+        for m in _HARDCODED_SECRET_RE.finditer(text):
+            issues.append({
+                "type": "hardcoded_secret",
+                "text": m.group(0),
+                "message": f"检测到硬编码凭据: {m.group(0)}",
+                "severity": "high",
+            })
+            score -= 25.0
+
+        score = max(0.0, min(100.0, score))
+
+        return GuardResult(
+            issues=issues,
+            has_hallucination=len(issues) > 0,
+            score=score,
+            text=text,
+        )
+
     async def trace_sources(
         self,
         response: str,
@@ -1443,6 +1568,8 @@ __all__ = [
     "Claim",
     "TraceResult",
     "VerifyResult",
+    "ProjectContext",
+    "GuardResult",
     "ValidationResult",
     "SourceTracer",
     "FactChecker",

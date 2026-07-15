@@ -1574,6 +1574,51 @@ class ClosedLoopEngine:
             ],
         }
 
+    async def analyze_error(self, error: ExecutionError) -> Diagnosis:
+        """分析错误 — 诊断根因
+
+        Args:
+            error: 执行错误
+
+        Returns:
+            Diagnosis 诊断结果
+        """
+        return await self._healer.diagnose(error)
+
+    async def generate_fix(self, diagnosis: Diagnosis) -> FixResult:
+        """根据诊断生成修复方案
+
+        Args:
+            diagnosis: 诊断结果
+
+        Returns:
+            FixResult 修复结果
+        """
+        return await self._healer.fix(diagnosis)
+
+    async def validate_result(self, fix: FixResult) -> VerifyResult:
+        """验证修复结果
+
+        Args:
+            fix: 修复结果
+
+        Returns:
+            VerifyResult 验证结果
+        """
+        return await self._healer.verify(fix)
+
+    def get_stats(self) -> dict[str, Any]:
+        """获取引擎统计信息
+
+        Returns:
+            包含执行统计的字典
+        """
+        return {
+            "status": self._status,
+            "heal_history": self._healer.get_history(),
+            "workspace": str(self._workspace),
+        }
+
 
 # ══════════════════════════════════════════════════════════
 # 能力注册
