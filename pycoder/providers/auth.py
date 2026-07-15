@@ -86,6 +86,15 @@ PROVIDER_DEFS = {
         "recommended_model": "z-ai/glm-5.2",
         "priority": 6,
     },
+    "agnes": {
+        "name": "Agnes AI (Sapiens AI)",
+        "env_vars": ["AGNES_API_KEY"],
+        "register_url": "https://platform.agnes-ai.com",
+        "free_trial": "永久免费，无限调用",
+        "price_summary": "输入 $0/M, 输出 $0/M",
+        "recommended_model": "agnes-2.0-flash",
+        "priority": 0,  # 最高优先级（免费）
+    },
 }
 
 # 注册默认模型（无 Key 时）
