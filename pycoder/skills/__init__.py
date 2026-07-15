@@ -360,11 +360,15 @@ class SkillMarketplace:
                 return {"success": False, "error": f"技能 '{skill_id}' 不存在"}
 
             if row["installed_at"]:
-                return {"success": True, "skill_id": skill_id, "message": "技能已安装", "action": "skip"}
+                return {
+                    "success": True, "skill_id": skill_id,
+                    "message": "技能已安装", "action": "skip",
+                }
 
             now = datetime.now(timezone.utc).isoformat()
             conn.execute(
-                "UPDATE skills SET installed_at = ?, install_count = install_count + 1 WHERE id = ?",
+                "UPDATE skills SET installed_at = ?, "
+                "install_count = install_count + 1 WHERE id = ?",
                 (now, skill_id),
             )
             conn.commit()
@@ -408,10 +412,14 @@ class SkillMarketplace:
                 return {"success": False, "error": "内置技能不可卸载"}
 
             if not row["installed_at"]:
-                return {"success": True, "skill_id": skill_id, "message": "技能未安装", "action": "skip"}
+                return {
+                    "success": True, "skill_id": skill_id,
+                    "message": "技能未安装", "action": "skip",
+                }
 
             conn.execute(
-                "UPDATE skills SET installed_at = '', install_count = MAX(0, install_count - 1) WHERE id = ?",
+                "UPDATE skills SET installed_at = '', "
+                "install_count = MAX(0, install_count - 1) WHERE id = ?",
                 (skill_id,),
             )
             conn.commit()
@@ -465,7 +473,8 @@ class SkillMarketplace:
         with sqlite3.connect(str(self._db_path)) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                f"SELECT * FROM skills WHERE {where_clause} ORDER BY rating DESC, install_count DESC",
+                f"SELECT * FROM skills WHERE {where_clause} "
+                "ORDER BY rating DESC, install_count DESC",
                 params,
             ).fetchall()
 
@@ -546,7 +555,8 @@ class SkillMarketplace:
         with sqlite3.connect(str(self._db_path)) as conn:
             conn.row_factory = sqlite3.Row
             rating_rows = conn.execute(
-                "SELECT rating, user, created_at FROM ratings WHERE skill_id = ? ORDER BY created_at DESC LIMIT 10",
+                "SELECT rating, user, created_at FROM ratings "
+                "WHERE skill_id = ? ORDER BY created_at DESC LIMIT 10",
                 (skill_id,),
             ).fetchall()
             skill_dict["recent_ratings"] = [dict(r) for r in rating_rows]
@@ -733,8 +743,6 @@ def register_capabilities(registry: Any) -> None:
     Args:
         registry: CapabilityRegistry 实例
     """
-    marketplace = get_marketplace()
-
     # ── skills.marketplace.search ──
     registry.register(
         CapabilityDefinition(
@@ -751,7 +759,11 @@ def register_capabilities(registry: Any) -> None:
                 "properties": {
                     "query": {"type": "string", "description": "搜索关键词"},
                     "category": {"type": "string", "description": "分类过滤"},
-                    "tags": {"type": "array", "items": {"type": "string"}, "description": "标签过滤"},
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "标签过滤",
+                    },
                 },
             },
         ),

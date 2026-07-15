@@ -539,7 +539,8 @@ class Team:
             try:
                 # 模拟执行 — 实际调用会通过总线委托给 AI LLM
                 await asyncio.sleep(0.01)
-                result = f"[{task.assigned_role.value if task.assigned_role else 'unknown'}] 完成: {task.description[:80]}"
+                role_val = task.assigned_role.value if task.assigned_role else "unknown"
+                result = f"[{role_val}] 完成: {task.description[:80]}"
                 task.status = "done"
                 task.result = result
                 self._progress[task.task_id] = "done"
@@ -595,7 +596,14 @@ class Team:
             "pending": pending,
             "progress_pct": round(done / total * 100, 1) if total > 0 else 0.0,
             "tasks": {
-                tid: {"status": st, "role": self._tasks[tid].assigned_role.value if self._tasks[tid].assigned_role else "unknown"}
+                tid: {
+                    "status": st,
+                    "role": (
+                        self._tasks[tid].assigned_role.value
+                        if self._tasks[tid].assigned_role
+                        else "unknown"
+                    ),
+                }
                 for tid, st in self._progress.items()
             },
         }
@@ -765,7 +773,7 @@ def register_capabilities(registry: Any) -> None:
     Args:
         registry: CapabilityRegistry 实例
     """
-    team_mgr = get_agent_team()
+    _ = get_agent_team()  # 确保 Agent 团队已初始化
 
     # ── agents.team.list ──
     registry.register(

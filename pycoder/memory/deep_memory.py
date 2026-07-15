@@ -166,7 +166,10 @@ class WorkingMemory:
         if self._total_tokens > self._max_tokens:
             self._evict_lru()
 
-        logger.debug("working_memory_store key=%s tokens=%d/%d", key, self._total_tokens, self._max_tokens)
+        logger.debug(
+            "working_memory_store key=%s tokens=%d/%d",
+            key, self._total_tokens, self._max_tokens,
+        )
         return entry
 
     def retrieve(self, key: str) -> MemoryEntry | None:
@@ -226,7 +229,10 @@ class WorkingMemory:
         # 收集关键信息
         pending_tasks = [e for e in entries if "task" in e.key.lower() or "todo" in e.key.lower()]
         open_files = [e for e in entries if "file" in e.key.lower()]
-        current = [e for e in entries if "current" in e.key.lower() or "conversation" in e.key.lower()]
+        current = [
+            e for e in entries
+            if "current" in e.key.lower() or "conversation" in e.key.lower()
+        ]
 
         parts: list[str] = []
         if current:
@@ -264,7 +270,10 @@ class WorkingMemory:
             if oldest_key in self._store:
                 self._total_tokens -= _estimate_tokens(self._store[oldest_key].content)
                 del self._store[oldest_key]
-                logger.debug("working_memory_evict key=%s remaining_tokens=%d", oldest_key, self._total_tokens)
+                logger.debug(
+                "working_memory_evict key=%s remaining_tokens=%d",
+                oldest_key, self._total_tokens,
+            )
 
     @property
     def token_count(self) -> int:
@@ -313,7 +322,10 @@ class IterationMemory:
             ON iteration_entries(iteration_id, category);
 
         CREATE VIRTUAL TABLE IF NOT EXISTS iteration_fts
-            USING fts5(id, iteration_id, category, key, content, content='iteration_entries', content_rowid='rowid');
+            USING fts5(
+                id, iteration_id, category, key, content,
+                content='iteration_entries', content_rowid='rowid',
+            );
     """
 
     TRIGGERS_SQL = """
@@ -322,14 +334,28 @@ class IterationMemory:
             VALUES (new.rowid, new.id, new.iteration_id, new.category, new.key, new.content);
         END;
 
-        CREATE TRIGGER IF NOT EXISTS iteration_entries_ad AFTER DELETE ON iteration_entries BEGIN
-            INSERT INTO iteration_fts(iteration_fts, rowid, id, iteration_id, category, key, content)
-            VALUES ('delete', old.rowid, old.id, old.iteration_id, old.category, old.key, old.content);
+        CREATE TRIGGER IF NOT EXISTS iteration_entries_ad
+            AFTER DELETE ON iteration_entries BEGIN
+            INSERT INTO iteration_fts(
+                iteration_fts, rowid, id, iteration_id,
+                category, key, content,
+            )
+            VALUES (
+                'delete', old.rowid, old.id, old.iteration_id,
+                old.category, old.key, old.content,
+            );
         END;
 
-        CREATE TRIGGER IF NOT EXISTS iteration_entries_au AFTER UPDATE ON iteration_entries BEGIN
-            INSERT INTO iteration_fts(iteration_fts, rowid, id, iteration_id, category, key, content)
-            VALUES ('delete', old.rowid, old.id, old.iteration_id, old.category, old.key, old.content);
+        CREATE TRIGGER IF NOT EXISTS iteration_entries_au
+            AFTER UPDATE ON iteration_entries BEGIN
+            INSERT INTO iteration_fts(
+                iteration_fts, rowid, id, iteration_id,
+                category, key, content,
+            )
+            VALUES (
+                'delete', old.rowid, old.id, old.iteration_id,
+                old.category, old.key, old.content,
+            );
             INSERT INTO iteration_fts(rowid, id, iteration_id, category, key, content)
             VALUES (new.rowid, new.id, new.iteration_id, new.category, new.key, new.content);
         END;
@@ -390,7 +416,9 @@ class IterationMemory:
         """
         return await self._store("file", file_path, f"{action}: {file_path}", {"action": action})
 
-    async def track_command(self, command: str, exit_code: int = 0, output: str = "") -> MemoryEntry:
+    async def track_command(
+        self, command: str, exit_code: int = 0, output: str = "",
+    ) -> MemoryEntry:
         """追踪执行的命令
 
         Args:
@@ -433,7 +461,9 @@ class IterationMemory:
 
     # ── 检索操作 ──
 
-    async def search(self, query: str, category: str | None = None, limit: int = 20) -> list[MemoryEntry]:
+    async def search(
+        self, query: str, category: str | None = None, limit: int = 20,
+    ) -> list[MemoryEntry]:
         """FTS5 全文搜索记忆
 
         Args:
@@ -480,7 +510,9 @@ class IterationMemory:
             ORDER BY timestamp DESC
             LIMIT ?
         """
-        rows = conn.execute(sql, (category, self._iteration_id, self._iteration_id, limit)).fetchall()
+        rows = conn.execute(
+            sql, (category, self._iteration_id, self._iteration_id, limit),
+        ).fetchall()
         return [self._row_to_entry(r) for r in rows]
 
     async def get_all(self, limit: int = 100) -> list[MemoryEntry]:
@@ -488,7 +520,9 @@ class IterationMemory:
         conn = self._get_conn()
         if self._iteration_id:
             rows = conn.execute(
-                "SELECT * FROM iteration_entries WHERE iteration_id = ? ORDER BY timestamp DESC LIMIT ?",
+                "SELECT * FROM iteration_entries "
+                "WHERE iteration_id = ? "
+                "ORDER BY timestamp DESC LIMIT ?",
                 (self._iteration_id, limit),
             ).fetchall()
         else:
@@ -503,7 +537,9 @@ class IterationMemory:
         conn = self._get_conn()
         if resolved_only:
             rows = conn.execute(
-                "SELECT * FROM iteration_entries WHERE category='error' AND json_extract(metadata, '$.resolved') = 1"
+                "SELECT * FROM iteration_entries "
+                "WHERE category='error' "
+                "AND json_extract(metadata, '$.resolved') = 1"
                 " ORDER BY timestamp DESC"
             ).fetchall()
         else:
@@ -533,16 +569,28 @@ class IterationMemory:
 
         files = [e for e in entries if e.metadata.get("category") == "file" or "file" in e.key]
         errors = [e for e in entries if e.metadata.get("category") == "error" or "error" in e.key]
-        commands = [e for e in entries if e.metadata.get("category") == "command" or "command" in e.key]
+        commands = [
+            e for e in entries
+            if e.metadata.get("category") == "command" or "command" in e.key
+        ]
 
         parts: list[str] = []
         if files:
-            parts.append(f"修改文件 ({len(files)}): {', '.join(e.content[:80] for e in files[:10])}")
+            parts.append(
+                f"修改文件 ({len(files)}): "
+                f"{', '.join(e.content[:80] for e in files[:10])}"
+            )
         if errors:
             unresolved = [e for e in errors if not e.metadata.get("resolved", False)]
-            parts.append(f"错误 ({len(errors)}, 未解决 {len(unresolved)}): {', '.join(e.content[:80] for e in errors[:5])}")
+            parts.append(
+                f"错误 ({len(errors)}, 未解决 {len(unresolved)}): "
+                f"{', '.join(e.content[:80] for e in errors[:5])}"
+            )
         if commands:
-            parts.append(f"执行命令 ({len(commands)}): {', '.join(e.content[:80] for e in commands[:5])}")
+            parts.append(
+                f"执行命令 ({len(commands)}): "
+                f"{', '.join(e.content[:80] for e in commands[:5])}"
+            )
 
         if llm_provider:
             try:
@@ -599,7 +647,8 @@ class IterationMemory:
         )
         conn = self._get_conn()
         conn.execute(
-            """INSERT INTO iteration_entries (id, iteration_id, category, key, content, metadata, timestamp, ttl)
+            """INSERT INTO iteration_entries
+               (id, iteration_id, category, key, content, metadata, timestamp, ttl)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 entry.id,
@@ -679,7 +728,10 @@ class ProjectMemory:
                     name=self.COLLECTION_NAME,
                     metadata={"hnsw:space": "cosine"},
                 )
-                logger.info("project_memory_chroma_initialized path=%s", self._memory_dir / "chroma")
+                logger.info(
+                "project_memory_chroma_initialized path=%s",
+                self._memory_dir / "chroma",
+            )
             except (OSError, RuntimeError, ValueError) as e:
                 logger.warning("project_memory_chroma_init_failed: %s，回退到 SQLite 模式", e)
                 self._chroma_client = None
@@ -798,8 +850,14 @@ class ProjectMemory:
                 )
                 if chroma_results and chroma_results.get("ids"):
                     for i, doc_id in enumerate(chroma_results["ids"][0]):
-                        doc = chroma_results["documents"][0][i] if chroma_results.get("documents") else ""
-                        meta = chroma_results["metadatas"][0][i] if chroma_results.get("metadatas") else {}
+                        doc = (
+                            chroma_results["documents"][0][i]
+                            if chroma_results.get("documents") else ""
+                        )
+                        meta = (
+                            chroma_results["metadatas"][0][i]
+                            if chroma_results.get("metadatas") else {}
+                        )
                         key = meta.get("key", "") if isinstance(meta, dict) else ""
                         results.append(
                             MemoryEntry(
@@ -854,8 +912,14 @@ class ProjectMemory:
                         id=chroma_results["ids"][i],
                         level=3,
                         key=key,
-                        content=chroma_results["documents"][i] if chroma_results.get("documents") else "",
-                        metadata=chroma_results["metadatas"][i] if chroma_results.get("metadatas") else {},
+                        content=(
+                            chroma_results["documents"][i]
+                            if chroma_results.get("documents") else ""
+                        ),
+                        metadata=(
+                            chroma_results["metadatas"][i]
+                            if chroma_results.get("metadatas") else {}
+                        ),
                     )
             except (OSError, RuntimeError, ValueError) as e:
                 logger.warning("project_memory_chroma_get_failed: %s", e)
@@ -955,7 +1019,11 @@ class ProjectMemory:
             except (OSError, RuntimeError, ValueError):
                 pass
 
-        return {"total_sqlite": total, "total_chroma": chroma_count, "chroma_available": _CHROMA_AVAILABLE}
+        return {
+            "total_sqlite": total,
+            "total_chroma": chroma_count,
+            "chroma_available": _CHROMA_AVAILABLE,
+        }
 
     @property
     def chroma_available(self) -> bool:
@@ -1001,7 +1069,10 @@ class GlobalMemory:
                     name=self.COLLECTION_NAME,
                     metadata={"hnsw:space": "cosine"},
                 )
-                logger.info("global_memory_chroma_initialized path=%s", self._storage_dir / "chroma")
+                logger.info(
+                "global_memory_chroma_initialized path=%s",
+                self._storage_dir / "chroma",
+            )
             except (OSError, RuntimeError, ValueError) as e:
                 logger.warning("global_memory_chroma_init_failed: %s，回退到 SQLite 模式", e)
                 self._chroma_client = None
@@ -1116,8 +1187,14 @@ class GlobalMemory:
                 )
                 if chroma_results and chroma_results.get("ids"):
                     for i, doc_id in enumerate(chroma_results["ids"][0]):
-                        doc = chroma_results["documents"][0][i] if chroma_results.get("documents") else ""
-                        meta = chroma_results["metadatas"][0][i] if chroma_results.get("metadatas") else {}
+                        doc = (
+                            chroma_results["documents"][0][i]
+                            if chroma_results.get("documents") else ""
+                        )
+                        meta = (
+                            chroma_results["metadatas"][0][i]
+                            if chroma_results.get("metadatas") else {}
+                        )
                         key = meta.get("key", "") if isinstance(meta, dict) else ""
                         results.append(
                             MemoryEntry(
@@ -1170,8 +1247,14 @@ class GlobalMemory:
                         id=chroma_results["ids"][i],
                         level=4,
                         key=key,
-                        content=chroma_results["documents"][i] if chroma_results.get("documents") else "",
-                        metadata=chroma_results["metadatas"][i] if chroma_results.get("metadatas") else {},
+                        content=(
+                            chroma_results["documents"][i]
+                            if chroma_results.get("documents") else ""
+                        ),
+                        metadata=(
+                            chroma_results["metadatas"][i]
+                            if chroma_results.get("metadatas") else {}
+                        ),
                     )
             except (OSError, RuntimeError, ValueError) as e:
                 logger.warning("global_memory_chroma_get_failed: %s", e)
@@ -1269,7 +1352,11 @@ class GlobalMemory:
             except (OSError, RuntimeError, ValueError):
                 pass
 
-        return {"total_sqlite": total, "total_chroma": chroma_count, "chroma_available": _CHROMA_AVAILABLE}
+        return {
+            "total_sqlite": total,
+            "total_chroma": chroma_count,
+            "chroma_available": _CHROMA_AVAILABLE,
+        }
 
     @property
     def chroma_available(self) -> bool:
@@ -1556,7 +1643,9 @@ class DeepMemorySystem:
         """便捷：追踪文件变更"""
         return await self._iteration.track_file(file_path, action)
 
-    async def track_command(self, command: str, exit_code: int = 0, output: str = "") -> MemoryEntry:
+    async def track_command(
+        self, command: str, exit_code: int = 0, output: str = "",
+    ) -> MemoryEntry:
         """便捷：追踪命令执行"""
         return await self._iteration.track_command(command, exit_code, output)
 
@@ -1717,7 +1806,10 @@ def register_capabilities(registry: Any) -> None:
         CapabilityDefinition(
             id="memory.deep_store",
             name="深度记忆存储",
-            description="将数据存储到指定层级的深度记忆系统（Level 1-4），支持工作记忆、迭代记忆、项目记忆和全局记忆",
+            description=(
+                "将数据存储到指定层级的深度记忆系统（Level 1-4），"
+                "支持工作记忆、迭代记忆、项目记忆和全局记忆"
+            ),
             category=CapabilityCategory.SELF_EVO,
             permission=TrustLevel.WORKSPACE_WRITE,
             execution=ExecutionMode.SYNC,

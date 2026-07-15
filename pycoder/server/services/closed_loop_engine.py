@@ -32,7 +32,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 import time
@@ -707,7 +706,10 @@ class SelfHealingLoop:
 
         根据诊断结果，尝试修复受影响文件中的问题。
         """
-        logger.info("开始应用修复: 策略=%s, 文件数=%d", diagnosis.fix_strategy, len(diagnosis.affected_files))
+        logger.info(
+        "开始应用修复: 策略=%s, 文件数=%d",
+        diagnosis.fix_strategy, len(diagnosis.affected_files),
+    )
 
         applied_changes: list[dict[str, Any]] = []
         build_result: dict[str, Any] = {}
@@ -1049,7 +1051,10 @@ class ClosedLoopEngine:
             req_path = self._workspace / "requirements.txt"
             if req_path.exists():
                 try:
-                    deps = req_path.read_text(encoding="utf-8", errors="ignore").strip().splitlines()
+                    deps = (
+                    req_path.read_text(encoding="utf-8", errors="ignore")
+                    .strip().splitlines()
+                )
                     codebase_info["dependencies"] = [
                         d.strip() for d in deps if d.strip() and not d.startswith("#")
                     ]
@@ -1466,7 +1471,6 @@ class ClosedLoopEngine:
                 step_results, task, constraints
             )
             step_results.append(sr7)
-            package = sr7.output if sr7.output else {}
 
         except Exception as e:
             logger.error("闭环验证异常中断: %s", e, exc_info=True)
@@ -1598,7 +1602,9 @@ def register_capabilities(registry: Any) -> list[CapabilityDefinition]:
 
     # ── closed_loop.execute ──────────────────────
 
-    async def _handle_execute(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    async def _handle_execute(
+        params: dict[str, Any], _context: dict[str, Any],
+    ) -> dict[str, Any]:
         task = params.get("task", "")
         task_context = params.get("context", {})
         result = await engine.execute(task=task, context=task_context)
@@ -1607,7 +1613,10 @@ def register_capabilities(registry: Any) -> list[CapabilityDefinition]:
     def_execute = CapabilityDefinition(
         id="closed_loop.execute",
         name="闭环验证执行",
-        description="执行完整 7 步工程闭环验证：需求解析→代码扫描→DAG拆解→代码编写→构建测试→自愈→交付",
+        description=(
+                "执行完整 7 步工程闭环验证："
+                "需求解析→代码扫描→DAG拆解→代码编写→构建测试→自愈→交付"
+            ),
         category=CapabilityCategory.SELF_EVO,
         permission=TrustLevel.PROJECT_WRITE,
         execution=ExecutionMode.SYNC,
@@ -1652,7 +1661,9 @@ def register_capabilities(registry: Any) -> list[CapabilityDefinition]:
 
     # ── closed_loop.dag_decompose ────────────────
 
-    async def _handle_dag_decompose(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    async def _handle_dag_decompose(
+        params: dict[str, Any], _context: dict[str, Any],
+    ) -> dict[str, Any]:
         task = params.get("task", "")
         task_context = params.get("context", {})
         result = await engine.dag_decompose(task=task, context=task_context)
@@ -1675,7 +1686,9 @@ def register_capabilities(registry: Any) -> list[CapabilityDefinition]:
 
     # ── closed_loop.generate_report ──────────────
 
-    async def _handle_generate_report(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    async def _handle_generate_report(
+        params: dict[str, Any], _context: dict[str, Any],
+    ) -> dict[str, Any]:
         result_data = params.get("result", {})
         result = ClosedLoopResult(
             task_id=result_data.get("task_id", ""),

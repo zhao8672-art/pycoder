@@ -38,7 +38,9 @@ class Session:
         Args:
             gateway_msg: GatewayMessage 实例
         """
-        self.messages.append(gateway_msg.to_dict() if hasattr(gateway_msg, "to_dict") else gateway_msg)
+        self.messages.append(
+            gateway_msg.to_dict() if hasattr(gateway_msg, "to_dict") else gateway_msg
+        )
         self.last_activity = time.time()
 
         # 限制消息历史大小

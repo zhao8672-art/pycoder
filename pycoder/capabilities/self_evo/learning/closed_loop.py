@@ -489,7 +489,10 @@ class ClosedLearningLoop:
             skill = LearnedSkill(
                 id=skill_id,
                 name=skill_name,
-                description=f"从任务 {reflection.get('task_id', 'unknown')} 习得的模式: {pattern[:200]}",
+                description=(
+                    f"从任务 {reflection.get('task_id', 'unknown')} "
+                    f"习得的模式: {pattern[:200]}"
+                ),
                 pattern=pattern,
                 strategy=pattern_info.get("suggestion", f"应用模式: {pattern}"),
                 success_rate=pattern_info.get("confidence", 0.7),
@@ -502,7 +505,10 @@ class ClosedLearningLoop:
             self._save_skill(skill)
             self._skill_cache[skill_id] = skill
             generated.append(skill)
-            logger.info("新技能已生成: %s (id=%s, rate=%.2f)", skill_name, skill_id, skill.success_rate)
+            logger.info(
+                "新技能已生成: %s (id=%s, rate=%.2f)",
+                skill_name, skill_id, skill.success_rate,
+            )
 
         # 也从 patterns_avoid 中生成"反面教材"技能（低成功率标记）
         for avoid_info in reflection.get("patterns_avoid", []):
@@ -635,7 +641,10 @@ class ClosedLearningLoop:
                 pruned.append(skill.name)
                 if skill.id in self._skill_cache:
                     del self._skill_cache[skill.id]
-                logger.info("技能已淘汰: %s (rate=%.2f, usage=%d)", skill.name, skill.success_rate, skill.usage_count)
+                logger.info(
+                    "技能已淘汰: %s (rate=%.2f, usage=%d)",
+                    skill.name, skill.success_rate, skill.usage_count,
+                )
 
             # 提升高成功率技能的权重（记录精炼时间）
             elif skill.success_rate >= 0.8 and skill.usage_count >= SKILL_MIN_USAGE:
@@ -785,7 +794,8 @@ class ClosedLearningLoop:
 
             # 高频错误
             rows = conn.execute(
-                "SELECT errors_encountered FROM learning_observations WHERE success = 0 ORDER BY timestamp DESC LIMIT 100"
+                "SELECT errors_encountered FROM learning_observations "
+                "WHERE success = 0 ORDER BY timestamp DESC LIMIT 100"
             ).fetchall()
             error_counter: dict[str, int] = {}
             for row in rows:
@@ -1186,7 +1196,7 @@ STOP_WORDS: set[str] = {
     "what", "when", "where", "who", "how", "all", "each", "every",
     "both", "few", "more", "most", "some", "any", "such", "only",
     "other", "than", "too", "very", "just", "also", "now", "then",
-    "here", "there", "also", "into", "over", "about", "after",
+    "here", "there", "into", "over", "about", "after",
     "before", "between", "under", "again", "further", "once",
 }
 
@@ -1400,9 +1410,15 @@ async def _handle_reflect(
                 task_description=str(obs_data.get("task_description", "")),
                 success=bool(obs_data.get("success", False)),
                 steps_taken=int(obs_data.get("steps_taken", 0)),
-                errors_encountered=ClosedLearningLoop._ensure_list(obs_data.get("errors_encountered", [])),
-                patterns_used=ClosedLearningLoop._ensure_list(obs_data.get("patterns_used", [])),
-                patterns_failed=ClosedLearningLoop._ensure_list(obs_data.get("patterns_failed", [])),
+                errors_encountered=ClosedLearningLoop._ensure_list(
+                    obs_data.get("errors_encountered", [])
+                ),
+                patterns_used=ClosedLearningLoop._ensure_list(
+                    obs_data.get("patterns_used", [])
+                ),
+                patterns_failed=ClosedLearningLoop._ensure_list(
+                    obs_data.get("patterns_failed", [])
+                ),
                 metadata=obs_data.get("metadata", {}),
             )
         else:

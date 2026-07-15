@@ -13,7 +13,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 
@@ -436,7 +435,6 @@ class MCPProtocolAdapter:
     async def _read_workspace_status_resource(self) -> dict[str, Any]:
         """读取工作区状态资源"""
         import json
-        import os
         from pathlib import Path
 
         cwd = Path.cwd()
@@ -476,7 +474,9 @@ class MCPProtocolAdapter:
 
     # ── prompts/get ───────────────────────────
 
-    async def get_prompt(self, name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def get_prompt(
+        self, name: str, arguments: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         MCP prompts/get 实现
 
@@ -549,7 +549,13 @@ class MCPProtocolAdapter:
 
     # ── 资源管理 ──────────────────────────────
 
-    def register_resource(self, uri: str, name: str, description: str, mime_type: str = "text/plain") -> None:
+    def register_resource(
+        self,
+        uri: str,
+        name: str,
+        description: str,
+        mime_type: str = "text/plain",
+    ) -> None:
         """注册自定义 MCP 资源"""
         self._resources[uri] = {
             "uri": uri,
@@ -567,7 +573,12 @@ class MCPProtocolAdapter:
             return True
         return False
 
-    def register_prompt(self, name: str, description: str, arguments: list[dict[str, Any]] | None = None) -> None:
+    def register_prompt(
+        self,
+        name: str,
+        description: str,
+        arguments: list[dict[str, Any]] | None = None,
+    ) -> None:
         """注册自定义 MCP 提示词"""
         self._prompts[name] = {
             "name": name,
@@ -621,7 +632,7 @@ def register_capabilities(registry: Any) -> None:
     Args:
         registry: CapabilityRegistry 实例
     """
-    adapter = get_mcp_adapter()
+    _ = get_mcp_adapter()  # 确保 MCP 适配器已初始化
 
     # ── MCP tools/list ──
     registry.register(

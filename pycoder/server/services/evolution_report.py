@@ -194,7 +194,8 @@ class EvolutionReport:
     def __post_init__(self) -> None:
         """初始化后处理：自动生成 task_id"""
         if not self.task_id:
-            self.task_id = f"EVO-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:8]}"
+            ts = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+            self.task_id = f"EVO-{ts}-{uuid.uuid4().hex[:8]}"
 
     # ── 计算属性 ────────────────────────────────────
 

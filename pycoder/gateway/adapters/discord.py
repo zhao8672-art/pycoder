@@ -152,7 +152,11 @@ class DiscordAdapter(PlatformAdapter):
         metadata: dict[str, Any] = {
             "channel_id": channel_id,
             "guild_id": str(guild_id) if guild_id else "",
-            "author_name": f"{author_name}#{author_discriminator}" if author_discriminator else author_name,
+            "author_name": (
+                f"{author_name}#{author_discriminator}"
+                if author_discriminator
+                else author_name
+            ),
             "author_global_name": author.get("global_name", ""),
             "is_bot": author.get("bot", False),
             "message_id": msg.get("id", ""),

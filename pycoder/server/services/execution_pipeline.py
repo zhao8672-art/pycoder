@@ -13,10 +13,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
-from pycoder.bus.protocol import TrustLevel
 
 logger = logging.getLogger(__name__)
 

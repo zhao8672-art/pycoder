@@ -393,7 +393,11 @@ class DAGScheduler:
             node.status = NodeStatus.DONE
             node.result = result
             if on_progress:
-                on_progress(node.id, NodeStatus.DONE, {"name": node.name, "result": str(result)[:200]})
+                on_progress(
+                    node.id,
+                    NodeStatus.DONE,
+                    {"name": node.name, "result": str(result)[:200]},
+                )
 
     def _skip_dependents(self, failed_node_id: str) -> None:
         """标记所有依赖失败节点的后续节点为 SKIPPED"""
@@ -716,13 +720,16 @@ class DAGExecutor:
 # ──────────────────────────────────────────────
 
 
-def register_capabilities() -> list[CapabilityDefinition]:
-    """
-    向能力总线注册 DAG 调度器的所有能力
+def register_capabilities(registry: Any) -> None:
+    """向能力总线注册 DAG 调度器的所有能力"""
+    from pycoder.bus.protocol import (
+        CapabilityCategory,
+        CapabilityDefinition,
+        ExecutionMode,
+        SideEffect,
+        TrustLevel,
+    )
 
-    Returns:
-        CapabilityDefinition 列表
-    """
     capabilities = [
         CapabilityDefinition(
             id="dag.create",
@@ -747,12 +754,12 @@ def register_capabilities() -> list[CapabilityDefinition]:
         CapabilityDefinition(
             id="dag.execute",
             name="执行 DAG",
-            description="按并行分组执行 DAG 中的所有任务，支持并发控制和进度回调",
+            description="按并行分组执行 DAG 中的所有任务",
             category=CapabilityCategory.SYSTEM,
             permission=TrustLevel.PROJECT_WRITE,
             execution=ExecutionMode.ASYNC,
             side_effects=[SideEffect.PROCESS, SideEffect.FILE_WRITE],
-            timeout_ms=600000,  # 10 分钟
+            timeout_ms=600000,
             tags=["dag", "execute", "parallel"],
         ),
         CapabilityDefinition(
@@ -777,5 +784,7 @@ def register_capabilities() -> list[CapabilityDefinition]:
         ),
     ]
 
+    for cap in capabilities:
+        registry.register(cap)
+
     logger.info("DAG 调度器能力已注册: %d 个能力", len(capabilities))
-    return capabilities

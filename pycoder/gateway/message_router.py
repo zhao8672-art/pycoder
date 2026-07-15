@@ -227,7 +227,7 @@ class MessageRouter:
     def _build_session_info(self, gateway_msg: Any) -> str:
         """构建会话信息消息"""
         info_lines = [
-            f"**会话信息**",
+            "**会话信息**",
             f"  平台: {gateway_msg.platform}",
             f"  用户: {gateway_msg.user_id}",
             f"  会话: {gateway_msg.session_id}",
@@ -239,7 +239,10 @@ class MessageRouter:
             if session is not None:
                 info_lines.append(f"  消息数: {len(session.messages)}")
                 info_lines.append(
-                    f"  创建时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.created_at))}"
+                    f"  创建时间: {time.strftime(
+                        '%Y-%m-%d %H:%M:%S',
+                        time.localtime(session.created_at),
+                    )}"
                 )
         return "\n".join(info_lines)
 

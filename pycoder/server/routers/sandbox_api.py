@@ -19,7 +19,6 @@ from pydantic import BaseModel, Field
 
 from pycoder.safety.sandbox_executor import (
     DockerNotAvailableError,
-    DockerSandboxExecutor,
     SandboxMemoryError,
     SandboxPool,
     SandboxTimeoutError,

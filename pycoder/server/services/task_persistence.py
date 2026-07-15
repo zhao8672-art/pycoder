@@ -255,7 +255,8 @@ class TaskPersistence:
                     """
                     INSERT OR REPLACE INTO task_states
                         (task_id, description, status, grade, created_at, updated_at,
-                         completed_at, steps_completed, current_step, checkpoint_data, result, error)
+                         completed_at, steps_completed, current_step,
+                         checkpoint_data, result, error)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (

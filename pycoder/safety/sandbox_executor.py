@@ -17,11 +17,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
-import tempfile
 import time
-import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -378,7 +375,10 @@ class DockerSandboxExecutor:
                     raise SandboxTimeoutError(timeout)
 
             exit_code = exec_result.exit_code
-            output = exec_result.output.decode("utf-8", errors="replace") if exec_result.output else ""
+            output = (
+                exec_result.output.decode("utf-8", errors="replace")
+                if exec_result.output else ""
+            )
 
             duration_ms = (time.monotonic() - start_time) * 1000
 
@@ -481,7 +481,10 @@ class DockerSandboxExecutor:
             )
 
             exit_code = exec_result.exit_code
-            output = exec_result.output.decode("utf-8", errors="replace") if exec_result.output else ""
+            output = (
+                exec_result.output.decode("utf-8", errors="replace")
+                if exec_result.output else ""
+            )
 
             duration_ms = (time.monotonic() - start_time) * 1000
 
@@ -575,7 +578,10 @@ class DockerSandboxExecutor:
             )
 
             exit_code = exec_result.exit_code
-            output = exec_result.output.decode("utf-8", errors="replace") if exec_result.output else ""
+            output = (
+                exec_result.output.decode("utf-8", errors="replace")
+                if exec_result.output else ""
+            )
 
             duration_ms = (time.monotonic() - start_time) * 1000
 
@@ -628,7 +634,10 @@ class DockerSandboxExecutor:
             try:
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, self._container.stop)
-                logger.info("Docker 沙箱容器已清理: %s", self._container_id[:12] if self._container_id else "?")
+                logger.info(
+                "Docker 沙箱容器已清理: %s",
+                self._container_id[:12] if self._container_id else "?",
+            )
             except Exception as e:
                 logger.warning("清理容器时出错: %s", e)
             finally:
@@ -996,7 +1005,10 @@ def register_sandbox_capabilities(registry: Any) -> None:
         CapabilityDefinition(
             id="sandbox.execute",
             name="沙箱代码执行",
-            description="在隔离的 Docker 容器中安全执行代码，支持 Python/JavaScript/TypeScript/Bash",
+            description=(
+                "在隔离的 Docker 容器中安全执行代码，"
+                "支持 Python/JavaScript/TypeScript/Bash"
+            ),
             category=CapabilityCategory.SYSTEM,
             permission=TrustLevel.SYSTEM_ACCESS,
             execution=ExecutionMode.SYNC,

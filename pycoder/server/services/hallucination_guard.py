@@ -43,7 +43,7 @@ import logging
 import os
 import re
 import time
-from collections import Counter, defaultdict
+from collections import Counter
 from collections.abc import Coroutine
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -52,13 +52,10 @@ from typing import Any
 from pycoder.bus.protocol import (
     CapabilityCategory,
     CapabilityDefinition,
-    CapabilityHandler,
-    CapabilityResult,
     ExecutionMode,
     SideEffect,
     TrustLevel,
 )
-from pycoder.server.log import log
 
 logger = logging.getLogger(__name__)
 
@@ -342,7 +339,11 @@ class SourceTracer:
             file_path = m.group(1) or m.group(2)
             if not file_path:
                 continue
-            if not file_path.startswith((".", "/", "\\")) and "/" not in file_path and "\\" not in file_path:
+            if (
+                not file_path.startswith((".", "/", "\\"))
+                and "/" not in file_path
+                and "\\" not in file_path
+            ):
                 if "." not in file_path:
                     continue
             claims.append(
@@ -654,7 +655,16 @@ class FactChecker:
     def _verify_dependency(self, claim: Claim) -> Claim:
         """验证依赖声明"""
         dep_text = claim.text.strip()
-        dep_name = dep_text.split()[0].split(">")[0].split("=")[0].split("<")[0].split("~")[0].split("^")[0].strip().lower()
+        dep_name = (
+            dep_text.split()[0]
+            .split(">")[0]
+            .split("=")[0]
+            .split("<")[0]
+            .split("~")[0]
+            .split("^")[0]
+            .strip()
+            .lower()
+        )
 
         # 检查 requirements.txt
         req_path = self._workspace / "requirements.txt"
@@ -928,9 +938,9 @@ class ConsistencyValidator:
             # 检查是否提到了其他框架
             for alt_fw in ["flask", "django", "fastapi", "streamlit", "aiohttp"]:
                 if alt_fw != framework and alt_fw in response_lower:
-                    pattern = PROJECT_CONVENTIONS["framework"]
                     # 确认不是"与 X 对比"、"迁移到 X"等上下文
-                    if not re.search(rf"(?:对比|比较|迁移|vs|versus|不同于|区别于)\s+{alt_fw}", response_lower):
+                    ctx_pattern = rf"(?:对比|比较|迁移|vs|versus|不同于|区别于)\s+{alt_fw}"
+                    if not re.search(ctx_pattern, response_lower):
                         issues.append(f"响应提到 '{alt_fw}'，但项目实际使用 '{framework}'")
 
         # Python 版本矛盾
@@ -949,7 +959,8 @@ class ConsistencyValidator:
             tf = conventions["testing_framework"]
             for alt_tf in ["pytest", "unittest", "nose", "tox"]:
                 if alt_tf != tf and alt_tf in response_lower:
-                    if not re.search(rf"(?:对比|比较|迁移|vs|versus|替代)\s+{alt_tf}", response_lower):
+                    ctx_pattern = rf"(?:对比|比较|迁移|vs|versus|替代)\s+{alt_tf}"
+                    if not re.search(ctx_pattern, response_lower):
                         issues.append(f"响应提到 '{alt_tf}'，但项目实际使用 '{tf}'")
 
         return issues

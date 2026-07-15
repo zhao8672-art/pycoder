@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-import time
 from typing import Any
 
 from pycoder.gateway import GatewayMessage, PlatformAdapter

@@ -7,7 +7,8 @@
   - HEAVY:  30-120 步，深度推理，temperature=0.15, max_tokens=16384
 
 分级逻辑基于:
-  1. 关键词匹配（简单关键词 → LIGHT; api/crud/refactor → MEDIUM; migrate/system/architecture → HEAVY）
+  1. 关键词匹配（简单关键词 → LIGHT; api/crud/refactor → MEDIUM;
+     migrate/system/architecture → HEAVY）
   2. 描述长度（短 → LIGHT, 长 → HEAVY）
   3. 提及的文件数量（1 文件 → LIGHT, 2-5 → MEDIUM, 5+ → HEAVY）
   4. 任务类型检测（bug_fix, feature, refactor, migration, architecture）
@@ -183,10 +184,14 @@ HEAVY_KEYWORDS: list[str] = [
 # 任务类型关键词映射
 TASK_TYPE_KEYWORDS: dict[str, list[str]] = {
     "bug_fix": ["fix", "bug", "修复", "错误", "error", "崩溃", "crash", "异常", "exception"],
-    "feature": ["feature", "新增", "添加", "实现", "开发", "创建", "功能", "add", "implement", "create"],
+    "feature": [
+        "feature", "新增", "添加", "实现", "开发", "创建", "功能", "add", "implement", "create",
+    ],
     "refactor": ["refactor", "重构", "优化", "improve", "改造", "改进", "enhance"],
     "migration": ["migrate", "迁移", "升级", "upgrade", "搬迁", "切换"],
-    "architecture": ["architecture", "架构", "design", "设计", "系统", "system", "platform", "平台"],
+    "architecture": [
+        "architecture", "架构", "design", "设计", "系统", "system", "platform", "平台",
+    ],
 }
 
 
@@ -385,7 +390,7 @@ class TaskGrader:
             r"(\d+)\s*(?:个|份|处)\s*(?:文件|file|模块|module)",
             re.IGNORECASE,
         )
-        file_matches = file_pattern.findall(desc)
+        _ = file_pattern.findall(desc)
         # 也尝试匹配直接提到的文件数量
         file_count = 0
         for m in re.finditer(r"(\d+)\s*(?:个|份|处)\s*(?:文件|file)", desc):
