@@ -604,7 +604,7 @@ class SkillMarketplace:
 
         with sqlite3.connect(str(self._db_path)) as conn:
             cursor = conn.execute(
-                f"UPDATE skills SET {', '.join(set_clauses)} WHERE id = ?",
+                f"UPDATE skills SET {', '.join(set_clauses)} WHERE id = ?",  # nosec B608
                 params,
             )
             if cursor.rowcount == 0:

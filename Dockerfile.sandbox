@@ -1,0 +1,41 @@
+# PyCoder Docker 沙箱镜像 — 对标 Codex Sandbox
+# 用于隔离执行 AI 生成的代码，默认禁用网络、限制资源
+#
+# 构建: docker build -f Dockerfile.sandbox -t pycoder-sandbox:latest .
+# 使用: 由 sandbox_executor.py 自动管理容器生命周期
+
+FROM python:3.14-slim
+
+LABEL org.pycoder.sandbox="true"
+LABEL version="1.0.0"
+LABEL description="PyCoder 安全沙箱 — 隔离执行 AI 生成代码"
+
+# 安全配置
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PIP_NO_CACHE_DIR=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# 创建非 root 用户
+RUN useradd --create-home --shell /bin/bash sandbox \
+    && mkdir -p /workspace /sandbox/output \
+    && chown -R sandbox:sandbox /workspace /sandbox/output
+
+# 安装常用开发依赖
+RUN pip install --no-cache-dir \
+    pytest==8.* \
+    ruff==0.* \
+    mypy==1.* \
+    black==24.* \
+    requests==2.* \
+    click==8.* \
+    pydantic==2.*
+
+# 设置工作目录
+WORKDIR /workspace
+
+# 切换到非 root 用户
+USER sandbox
+
+# 默认命令
+CMD ["python", "--version"]

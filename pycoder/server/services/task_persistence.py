@@ -571,6 +571,97 @@ class TaskPersistence:
         await self._ensure_initialized()
         return await asyncio.to_thread(self.get_stats)
 
+    # ── 断点续跑增强: 服务重启自动恢复 ──
+
+    async def auto_restore(self) -> list[TaskState]:
+        """服务重启后自动恢复所有暂停的任务
+
+        对标 Codex 任务持久化 + Hermes 会话恢复:
+        - 扫描数据库中 status='paused' 的任务
+        - 按 updated_at 排序，优先恢复最近操作的任务
+        - 返回恢复的任务列表
+
+        Returns:
+            已恢复的任务列表
+        """
+        await self._ensure_initialized()
+        return await asyncio.to_thread(self._auto_restore_sync)
+
+    def _auto_restore_sync(self) -> list[TaskState]:
+        """同步自动恢复实现"""
+        conn = self._get_conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM task_states WHERE status = 'paused' "
+                "ORDER BY updated_at DESC LIMIT 50"
+            ).fetchall()
+        finally:
+            conn.close()
+
+        restored: list[TaskState] = []
+        for row in rows:
+            task = TaskState.from_dict(dict(row))
+            # 恢复为运行中状态
+            task.status = "running"
+            task.updated_at = time.time()
+            self._save_sync(task)
+            restored.append(task)
+            logger.info("auto_restore: 恢复任务 %s (%s)", task.task_id, task.description[:50])
+
+        if restored:
+            logger.info("auto_restore: 共恢复 %d 个暂停任务", len(restored))
+        else:
+            logger.debug("auto_restore: 无暂停任务需要恢复")
+
+        return restored
+
+    async def get_running_tasks(self) -> list[TaskState]:
+        """获取所有运行中的任务（用于后台任务监控）"""
+        await self._ensure_initialized()
+        return await asyncio.to_thread(self._get_running_tasks_sync)
+
+    def _get_running_tasks_sync(self) -> list[TaskState]:
+        """同步获取运行中任务"""
+        conn = self._get_conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM task_states WHERE status = 'running' "
+                "ORDER BY created_at ASC LIMIT 100"
+            ).fetchall()
+        finally:
+            conn.close()
+
+        return [TaskState.from_dict(dict(row)) for row in rows]
+
+    async def cleanup_expired(self, max_age_days: int = 30) -> int:
+        """清理过期任务
+
+        Args:
+            max_age_days: 最大保留天数
+
+        Returns:
+            清理的任务数量
+        """
+        await self._ensure_initialized()
+        return await asyncio.to_thread(self._cleanup_expired_sync, max_age_days)
+
+    def _cleanup_expired_sync(self, max_age_days: int = 30) -> int:
+        """同步清理过期任务"""
+        cutoff = time.time() - (max_age_days * 86400)
+        conn = self._get_conn()
+        try:
+            cursor = conn.execute(
+                "DELETE FROM task_states WHERE updated_at < ? AND status IN ('done', 'failed')",
+                (cutoff,),
+            )
+            conn.commit()
+            deleted = cursor.rowcount
+            if deleted > 0:
+                logger.info("cleanup: 清理了 %d 个过期任务", deleted)
+            return deleted
+        finally:
+            conn.close()
+
 
 # ══════════════════════════════════════════════════════════
 # 单例
@@ -767,6 +858,56 @@ def register_capabilities(registry: Any) -> list[CapabilityDefinition]:
     )
     definitions.append(def_resume)
     registry.register(def_resume, handler=_handle_resume)
+
+    # ── task.auto_restore ──────────────────────────
+
+    async def _handle_auto_restore(
+        params: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
+        """服务重启自动恢复处理器"""
+        restored = await persistence.auto_restore()
+        return {
+            "restored_count": len(restored),
+            "tasks": [t.to_dict() for t in restored],
+        }
+
+    def_auto_restore = CapabilityDefinition(
+        id="task.auto_restore",
+        name="自动恢复暂停任务",
+        description="服务重启后自动恢复所有暂停状态的任务为运行中",
+        category=CapabilityCategory.SYSTEM,
+        permission=TrustLevel.WORKSPACE_WRITE,
+        execution=ExecutionMode.SYNC,
+        side_effects=[SideEffect.FILE_READ, SideEffect.FILE_WRITE],
+        version="2.0.0",
+        timeout_ms=30000,
+        tags=["task", "restore", "recovery", "auto"],
+    )
+    definitions.append(def_auto_restore)
+    registry.register(def_auto_restore, handler=_handle_auto_restore)
+
+    # ── task.cleanup ───────────────────────────────
+
+    async def _handle_cleanup(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+        """清理过期任务处理器"""
+        max_age_days = int(params.get("max_age_days", 30))
+        deleted = await persistence.cleanup_expired(max_age_days)
+        return {"deleted_count": deleted, "max_age_days": max_age_days}
+
+    def_cleanup = CapabilityDefinition(
+        id="task.cleanup",
+        name="清理过期任务",
+        description="清理超过指定天数的已完成/失败任务",
+        category=CapabilityCategory.SYSTEM,
+        permission=TrustLevel.WORKSPACE_WRITE,
+        execution=ExecutionMode.SYNC,
+        side_effects=[SideEffect.FILE_WRITE],
+        version="2.0.0",
+        timeout_ms=30000,
+        tags=["task", "cleanup", "maintenance"],
+    )
+    definitions.append(def_cleanup)
+    registry.register(def_cleanup, handler=_handle_cleanup)
 
     logger.info("任务持久化能力已注册到 V2 总线: %d 个能力", len(definitions))
     return definitions
