@@ -87,6 +87,12 @@ from pycoder.server.routers.gateway_api import router as gateway_router
 from pycoder.server.routers.gateway_api import ws_router as gateway_ws_router
 from pycoder.server.routers.guard_api import router as guard_router
 from pycoder.server.routers.sandbox_api import router as sandbox_router
+from pycoder.server.routers.dag_api import router as dag_router
+from pycoder.server.routers.task_api import router as task_api_router
+from pycoder.server.routers.report_api import router as report_router
+from pycoder.server.routers.skills_marketplace_api import router as skills_marketplace_router
+from pycoder.server.routers.agents_api import router as agents_router
+from pycoder.server.routers.learning_api import router as learning_router
 from pycoder.server.ws_handler import websocket_chat
 from pycoder.server.ws_handler_v2 import websocket_chat_v2
 
@@ -594,6 +600,14 @@ app.include_router(gateway_ws_router)  # 网关 WebSocket
 app.include_router(sandbox_router)  # Docker 沙箱执行
 app.include_router(deep_memory_router)  # 深度记忆系统
 app.include_router(guard_router)  # 幻觉抑制守卫
+
+# ── Phase 2-3 升级: 新增核心能力 API 路由 ──
+app.include_router(dag_router)  # DAG 并行任务调度
+app.include_router(task_api_router)  # 任务评分与持久化
+app.include_router(report_router)  # 进化报告生成
+app.include_router(skills_marketplace_router)  # 技能市场
+app.include_router(agents_router)  # 专业 Agent 团队
+app.include_router(learning_router)  # 闭环学习循环
 
 # WebSocket（独立挂载）
 app.include_router(collab_ws_router)

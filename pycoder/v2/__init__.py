@@ -328,6 +328,16 @@ class V2Engine:
         except Exception as e:
             logger.warning("闭环学习循环能力注册失败: %s", e)
 
+        logger.info("注册多模态感知能力...")
+        try:
+            from pycoder.server.services.multimodal_perception import (
+                register_capabilities as register_perception,
+            )
+
+            register_perception(self.registry)
+        except Exception as e:
+            logger.warning("多模态感知能力注册失败: %s", e)
+
         # 2. 记忆引擎加载持久化数据
         if self.config.enable_consciousness:
             self.consciousness.set_mode(OperatingMode.AWARE)
