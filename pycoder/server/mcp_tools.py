@@ -69,6 +69,7 @@ def list_builtin_tools() -> list[dict]:
 
 async def call_builtin_tool(name: str, args: dict) -> MCPCallResult:
     """通过 V2 引擎调用内置工具"""
+    from pycoder.bus.protocol import CapabilityCall
     from pycoder.server.app import get_v2_engine
 
     v2 = get_v2_engine()
@@ -77,7 +78,12 @@ async def call_builtin_tool(name: str, args: dict) -> MCPCallResult:
     candidate_ids = [f"tools.{name}", f"v1.{name}", name]
     for cid in candidate_ids:
         try:
-            result = v2.registry.call(cid, args)
+            call_req = CapabilityCall(
+                capability_id=cid, params=args, caller="shim"
+            )
+            result = await v2.registry.call(
+                call_req, {"caller": "shim", "permission_level": 4}
+            )
             if result and getattr(result, "success", False):
                 return MCPCallResult(
                     success=True,

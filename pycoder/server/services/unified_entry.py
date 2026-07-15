@@ -423,262 +423,98 @@ class UnifiedEntryAgent:
         }
         await progress_reporter.advance("route", f"已路由至 {', '.join(mode_names)} 模式")
 
-        # 发送 mode 切换状态事件
-        for task in tasks:
-            mode = task["mode"]
-            if mode == TaskCategory.HERMES:
-                yield {
-                    "type": "agent_status",
-                    "message": "🔧 自动切换到 Hermes 结构化工作模式",
-                }
-            elif mode == TaskCategory.AGENT:
-                yield {
-                    "type": "agent_status",
-                    "message": "👥 自动启用 Agent 团队协作模式",
-                }
-
-        # ══════════════════════════════════════════════════════
-        # 步骤4: 执行模式（流式）+ 后台插件并行执行
-        # ══════════════════════════════════════════════════════
+        # ── 变量定义 ──
         results: list[ModeResult] = []
         mode_content = ""
+        if tasks:
+            mode = tasks[0]["mode"]
+            mode_name = mode.value  # "chat" / "hermes" / "agent"
+        else:
+            mode_name = "chat"
 
-        # 启动后台插件/技能执行任务（与 AI 生成并行）
-        bg_task = None
-        try:
-            bg_task = asyncio.create_task(
-                plugin_executor.execute_all(user_message, shared_context),
-            )
-        except (RuntimeError, ValueError) as e:
-            logger.debug("create_plugin_executor_task_failed: %s", e)
-            pass
-        # P7: 启动自动插件/Skills 补全检测（后台静默执行）
-        ap_bg_task = None
-        try:
-            from pycoder.server.services.auto_plugin_manager import (
-                get_plugin_manager,
-            )
-
-            ap_mgr = get_plugin_manager()
-            ap_bg_task = asyncio.create_task(
-                ap_mgr.auto_fulfill(user_message),
-            )
-        except (RuntimeError, ImportError, ValueError) as e:
-            logger.debug("create_auto_plugin_task_failed: %s", e)
-            pass
-        await progress_reporter.advance("llm", "正在调用 AI 模型生成响应...")
-
-        # ── 立即刷新进度到前端，确保用户看到进度条启动 ──
+        # ── 发送模式切换状态 ──
+        mode_emoji = {
+            "chat": "💬", "hermes": "🔧", "agent": "👥"
+        }
+        mode_label = {
+            "chat": "AI 对话模式",
+            "hermes": "Hermes 结构化工作模式",
+            "agent": "Agent 团队协作模式",
+        }
+        yield {
+            "type": "agent_status",
+            "status": "started",
+            "message": (
+                f"{mode_emoji.get(mode_name, '🔧')} "
+                f"启用 {mode_label.get(mode_name, mode_name)}"
+            ),
+        }
+        await progress_reporter.advance(
+            "route", f"已路由至 {mode_name} 模式"
+        )
         async for ev in flush_progress():
             yield ev
 
-        for task in tasks:
-            mode = task["mode"]
-            start = int(time.monotonic() * 1000)
-            max_retries = 2
-            retry_count = 0
-            success = False
+        # ── 使用执行管线 ──
+        start = int(time.monotonic() * 1000)
+        success = False
 
-            for _attempt in range(max_retries):
-                try:
-                    if mode == TaskCategory.CHAT:
-                        async for ev in self._execute_chat_stream(
-                            intent.beautified_command or intent.raw_input,
-                            context,
-                            history_context,
-                        ):
-                            etype = ev.get("type", "")
-                            if etype == "token":
-                                mode_content += ev.get("data") or ev.get("content", "")
-                                yield ev
-                            elif etype == "reasoning":
-                                yield ev
-                            elif etype == "done":
-                                mode_content = ev.get("content") or mode_content
-                                success = True
-                                yield ev
-                            elif etype in (
-                                "error",
-                                "agent_status",
-                                "agent_step",
-                                "progress",
-                                "plugin_event",
-                            ):
-                                yield ev
-                            else:
-                                yield ev
-                    elif mode == TaskCategory.HERMES:
-                        async for ev in self._execute_hermes_stream(
-                            intent.beautified_command or intent.raw_input,
-                            context,
-                            history_context,
-                        ):
-                            etype = ev.get("type", "")
-                            if etype == "token":
-                                mode_content += ev.get("data") or ev.get("content", "")
-                                yield ev
-                            elif etype == "reasoning":
-                                yield ev
-                            elif etype == "done":
-                                mode_content = ev.get("content") or mode_content
-                                success = True
-                                yield ev
-                            elif etype in (
-                                "error",
-                                "agent_status",
-                                "agent_step",
-                                "progress",
-                                "plugin_event",
-                            ):
-                                yield ev
-                            else:
-                                yield ev
-                    elif mode == TaskCategory.AGENT:
-                        agent_tool_count = 0
-                        agent_file_count = 0
-                        agent_iter_count = 0
-                        async for ev in self._execute_agent_stream(
-                            intent.beautified_command or intent.raw_input,
-                            context,
-                            history_context,
-                        ):
-                            etype = ev.get("type", "")
-                            if etype in ("token", "agent_chunk"):
-                                mode_content += ev.get("data") or ev.get("content", "")
-                                yield ev
-                            elif etype in ("done", "agent_result"):
-                                mode_content = (
-                                    ev.get("content") or ev.get("summary", "") or mode_content
-                                )
-                                success = True
-                                agent_iter_count = ev.get("iterations", 0)
-                                agent_tool_count = ev.get("tool_count", 0)
-                                agent_file_count = len(ev.get("files_written", []))
-                                # 补充进度事件
-                                yield {
-                                    "type": "progress",
-                                    "phase": "llm",
-                                    "stage": "Agent 执行完成",
-                                    "current_step": 4,
-                                    "total_steps": 6,
-                                    "percent": 70,
-                                    "elapsed_seconds": 0,
-                                    "eta_seconds": 0,
-                                    "milestones": [],
-                                }
-                                yield ev
-                            elif etype == "error":
-                                yield ev
-                            elif etype == "status":
-                                # agent_loop 的状态事件 → 转发为 agent_status
-                                status_text = ev.get("status", "")
-                                iteration = ev.get("iteration", 0)
-                                max_iter = ev.get("max", 0)
-                                tool_calls = ev.get("tool_calls", [])
-                                if status_text == "analyzing":
-                                    yield {
-                                        "type": "agent_status",
-                                        "status": "started",
-                                        "message": "🔍 正在分析任务...",
-                                    }
-                                elif status_text == "thinking":
-                                    pct = int(
-                                        iteration / max(max_iter, 1) * 100
-                                    ) if max_iter else 0
-                                    # 每轮发送进度事件
-                                    yield {
-                                        "type": "progress",
-                                        "phase": "llm",
-                                        "stage": (
-                                            f"🤖 Agent 执行中 ({iteration}/{max_iter})"
-                                        ),
-                                        "current_step": 3,
-                                        "total_steps": 6,
-                                        "percent": int(
-                                            50 + pct * 0.2
-                                        ),
-                                        "elapsed_seconds": 0,
-                                        "eta_seconds": 0,
-                                        "milestones": [],
-                                    }
-                                    yield {
-                                        "type": "agent_status",
-                                        "status": "working",
-                                        "message": (
-                                            f"🧠 思考中 ({iteration}/{max_iter}, {pct}%)"
-                                        ),
-                                    }
-                                elif status_text == "executing":
-                                    tools_str = (
-                                        ", ".join(tool_calls[:5])
-                                        if tool_calls
-                                        else "工具"
-                                    )
-                                    yield {
-                                        "type": "agent_status",
-                                        "status": "working",
-                                        "message": f"⚡ 执行: {tools_str}...",
-                                    }
-                            elif etype == "tool_result":
-                                # agent_loop 的工具结果 → 转发为 agent_step
-                                yield {
-                                    "type": "agent_step",
-                                    "step": "tool_result",
-                                    "tool_name": ev.get("tool_name", "unknown"),
-                                    "result": str(ev.get("result", ""))[:2000],
-                                }
-                            else:
-                                # 透传所有其他事件类型（strategy 配置等）
-                                yield ev
-
-                            # 在每轮事件间隙排放进度队列
-                            async for p_ev in flush_progress():
-                                yield p_ev
-
-                    if success:
-                        break
-                    retry_count += 1
-                    yield {
-                        "type": "agent_status",
-                        "message": f"⚠️ {mode.value} 模式执行失败，自动重试 ({retry_count}/{max_retries})",
-                    }
-                except Exception as e:
-                    retry_count += 1
-                    if retry_count >= max_retries:
-                        yield {
-                            "type": "error",
-                            "message": f"{mode.value} 模式执行失败: {str(e)[:200]}",
-                        }
-                        break
-
-            # 在 AI 生成间隙排放进度队列中的插件事件
-            async for ev in flush_progress():
-                yield ev
-
-            elapsed = int(time.monotonic() * 1000) - start
-            results.append(
-                ModeResult(
-                    mode=mode,
-                    success=success,
-                    content=mode_content,
-                    error="" if success else f"执行失败，已重试 {retry_count} 次",
-                    duration_ms=elapsed,
-                    retries=retry_count,
-                )
+        try:
+            from pycoder.server.services.execution_pipeline import (
+                ExecutionPipeline,
+                get_execution_config,
             )
+            from pycoder.server.chat_bridge import ChatBridge
 
-        # ── 等待后台插件/技能执行完成（最多等10s）──
-        if bg_task is not None:
-            try:
-                await asyncio.wait_for(bg_task, timeout=10.0)
-            except (TimeoutError, Exception):
-                pass
-        # P7: 等待自动插件/Skills 补全检测完成
-        if ap_bg_task is not None:
-            try:
-                await asyncio.wait_for(ap_bg_task, timeout=8.0)
-            except (TimeoutError, Exception):
-                pass
+            config = get_execution_config(mode_name)
+            bridge = ChatBridge()
+            if self.api_key:
+                bridge.configure(model=self.model, api_key=self.api_key)
+            pipeline = ExecutionPipeline(config)
+
+            async for ev in pipeline.execute(
+                intent.beautified_command or intent.raw_input,
+                bridge,
+                history_context,
+            ):
+                etype = ev.get("type", "")
+                if etype == "done":
+                    mode_content = ev.get("content", "") or mode_content
+                    success = True
+                    yield ev
+                elif etype == "error":
+                    yield ev
+                else:
+                    if etype == "token":
+                        mode_content += ev.get("data") or ev.get(
+                            "content", ""
+                        )
+                    yield ev
+
+            await bridge.close()
+        except Exception as e:
+            logger.error(
+                "execution_pipeline_failed mode=%s error=%s",
+                mode_name, str(e),
+            )
+            yield {
+                "type": "error",
+                "message": f"{mode_name} 模式执行失败: {str(e)[:200]}",
+            }
+
+        elapsed = int(time.monotonic() * 1000) - start
+        results.append(
+            ModeResult(
+                mode=mode,
+                success=success,
+                content=mode_content,
+                error="" if success else "执行失败",
+                duration_ms=elapsed,
+                retries=0,
+            )
+        )
+
+        # 在 AI 生成间隙排放进度队列中的插件事件
         async for ev in flush_progress():
             yield ev
 
