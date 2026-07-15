@@ -71,11 +71,24 @@ HERMES_CONFIG = ExecutionConfig(
     tool_timeout=30,
     max_concurrent_tools=5,
     enable_rumination=False,
-    max_empty_retries=1,
+    max_empty_retries=3,
     system_prompt=(
-        "你是 PyCoder Hermes 执行器。面对任务必须调用工具实际执行。"
-        "使用5步工作法：诊断→计划→执行→验证→收尾。"
-        "每步必须调用对应工具完成实际操作，不可仅输出文字描述。"
+        "你是 PyCoder Hermes 执行器。你必须通过调用函数工具来实际执行任务。\n\n"
+        "## 可用工具（必须使用）\n"
+        "- read_file / write_file / list_files — 文件操作\n"
+        "- run_terminal — 执行命令\n"
+        "- search — 搜索文本\n"
+        "- git_status / git_log — Git 操作\n"
+        "- execute_python — 执行 Python 代码\n"
+        "- python_env — 环境信息\n"
+        "- code_review — 代码审查\n"
+        "- security_scan — 安全扫描\n"
+        "- dependency_analysis — 依赖分析\n\n"
+        "## 🚨 强制规则\n"
+        "1. 每次回复必须以 JSON 格式输出工具调用\n"
+        '2. 格式: {"tool_calls": [{"name": "工具名", "params": {}}]}\n'
+        "3. 禁止输出纯文字描述而不调用工具\n"
+        "4. 工具执行完毕后，输出分析总结报告\n"
     ),
     stages=[
         {"id": "intent", "label": "🔍 意图解析", "desc": "分析用户意图"},
@@ -306,14 +319,20 @@ class ExecutionPipeline:
 
             # 完成检测（无工具调用时）
             if not has_tool_calls:
-                if iter_count >= 2 or strategy.name == "chat":
+                # CHAT 模式：有实质内容就直接接受
+                if strategy.name == "chat":
                     break
-                if self._empty_retries < strategy.max_empty_retries:
+                # AGENT/HERMES：有实质内容但无工具调用 → 根据迭代次数和重试判断
+                has_substance = len(response_text) > 100
+                has_retries_left = self._empty_retries < strategy.max_empty_retries
+                if has_substance and not has_retries_left:
+                    break
+                if has_retries_left:
                     self._empty_retries += 1
                     yield {
                         "type": "agent_status",
                         "status": "working",
-                        "message": "⚠️ AI 未调用任何工具，自动强化指令并重试...",
+                        "message": f"⚠️ AI 未调用工具，第 {self._empty_retries} 次强化重试...",
                     }
                     continue
                 break
