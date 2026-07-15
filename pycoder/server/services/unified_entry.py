@@ -534,23 +534,42 @@ class UnifiedEntryAgent:
                             else:
                                 yield ev
                     elif mode == TaskCategory.AGENT:
+                        agent_tool_count = 0
+                        agent_file_count = 0
+                        agent_iter_count = 0
                         async for ev in self._execute_agent_stream(
                             intent.beautified_command or intent.raw_input,
                             context,
                             history_context,
                         ):
-                            if ev.get("type") in ("token", "agent_chunk"):
+                            etype = ev.get("type", "")
+                            if etype in ("token", "agent_chunk"):
                                 mode_content += ev.get("data") or ev.get("content", "")
                                 yield ev
-                            elif ev.get("type") in ("done", "agent_result"):
+                            elif etype in ("done", "agent_result"):
                                 mode_content = (
                                     ev.get("content") or ev.get("summary", "") or mode_content
                                 )
                                 success = True
+                                agent_iter_count = ev.get("iterations", 0)
+                                agent_tool_count = ev.get("tool_count", 0)
+                                agent_file_count = len(ev.get("files_written", []))
+                                # 补充进度事件
+                                yield {
+                                    "type": "progress",
+                                    "phase": "llm",
+                                    "stage": "Agent 执行完成",
+                                    "current_step": 4,
+                                    "total_steps": 6,
+                                    "percent": 70,
+                                    "elapsed_seconds": 0,
+                                    "eta_seconds": 0,
+                                    "milestones": [],
+                                }
                                 yield ev
-                            elif ev.get("type") == "error":
+                            elif etype == "error":
                                 yield ev
-                            elif ev.get("type") == "status":
+                            elif etype == "status":
                                 # agent_loop 的状态事件 → 转发为 agent_status
                                 status_text = ev.get("status", "")
                                 iteration = ev.get("iteration", 0)
@@ -563,20 +582,44 @@ class UnifiedEntryAgent:
                                         "message": "🔍 正在分析任务...",
                                     }
                                 elif status_text == "thinking":
-                                    pct = int(iteration / max(max_iter, 1) * 100) if max_iter else 0
+                                    pct = int(
+                                        iteration / max(max_iter, 1) * 100
+                                    ) if max_iter else 0
+                                    # 每轮发送进度事件
+                                    yield {
+                                        "type": "progress",
+                                        "phase": "llm",
+                                        "stage": (
+                                            f"🤖 Agent 执行中 ({iteration}/{max_iter})"
+                                        ),
+                                        "current_step": 3,
+                                        "total_steps": 6,
+                                        "percent": int(
+                                            50 + pct * 0.2
+                                        ),
+                                        "elapsed_seconds": 0,
+                                        "eta_seconds": 0,
+                                        "milestones": [],
+                                    }
                                     yield {
                                         "type": "agent_status",
                                         "status": "working",
-                                        "message": f"🧠 思考中 ({iteration}/{max_iter}, {pct}%)",
+                                        "message": (
+                                            f"🧠 思考中 ({iteration}/{max_iter}, {pct}%)"
+                                        ),
                                     }
                                 elif status_text == "executing":
-                                    tools_str = ", ".join(tool_calls[:5]) if tool_calls else "工具"
+                                    tools_str = (
+                                        ", ".join(tool_calls[:5])
+                                        if tool_calls
+                                        else "工具"
+                                    )
                                     yield {
                                         "type": "agent_status",
                                         "status": "working",
                                         "message": f"⚡ 执行: {tools_str}...",
                                     }
-                            elif ev.get("type") == "tool_result":
+                            elif etype == "tool_result":
                                 # agent_loop 的工具结果 → 转发为 agent_step
                                 yield {
                                     "type": "agent_step",
@@ -587,6 +630,10 @@ class UnifiedEntryAgent:
                             else:
                                 # 透传所有其他事件类型（strategy 配置等）
                                 yield ev
+
+                            # 在每轮事件间隙排放进度队列
+                            async for p_ev in flush_progress():
+                                yield p_ev
 
                     if success:
                         break
@@ -660,15 +707,39 @@ class UnifiedEntryAgent:
         async for ev in flush_progress():
             yield ev
 
-        # ── 最终 done 事件 ──
+        # ── 构建综合执行报告 ──
+        total_tool_calls = 0
+        total_duration = 0
+        for mode_task in results:
+            total_tool_calls += getattr(mode_task, "retries", 0) or 0
+            total_duration += getattr(mode_task, "duration_ms", 0) or 0
+
+        # 从 mode_content 估算工具调用次数
+        tool_call_indicators = mode_content.count("🔧 执行")
+        summary_parts = []
+        if tool_call_indicators > 0:
+            summary_parts.append(f"⚡ 工具调用 {tool_call_indicators} 次")
+        if total_duration > 0:
+            summary_parts.append(f"⏱ 耗时 {total_duration / 1000:.1f}s")
+        summary_line = " | ".join(summary_parts) if summary_parts else ""
+
+        # ── 最终 done 事件（带综合报告）──
         await progress_reporter.advance("done", "全部任务执行完成")
         async for ev in flush_progress():
             yield ev
 
+        enriched_content = merged
+        if summary_line:
+            enriched_content = (
+                f"{merged}\n\n---\n📊 **执行摘要**\n{summary_line}"
+            )
+
         yield {
             "type": "done",
-            "content": merged,
+            "content": enriched_content,
             "v2_engine": True,
+            "tool_calls_count": tool_call_indicators,
+            "duration_ms": total_duration,
         }
 
         # P6: 上下文保持 — 记录 AI 回复到上下文窗口 + 标记锚点命中
