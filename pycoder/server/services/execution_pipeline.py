@@ -53,9 +53,10 @@ CHAT_CONFIG = ExecutionConfig(
     max_empty_retries=0,
     system_prompt=(
         "你是 PyCoder 编程助手。"
-        "你可以调用函数工具来读写文件、执行命令、搜索代码。"
-        "对于纯知识问答直接回复，不需要调用工具。"
-        "对于需要实际操作的任务，直接调用工具完成。"
+        "你可以用 JSON 工具调用来执行实际操作。"
+        "格式: {\"tool_calls\": [{\"name\": \"read_file\", \"params\": {\"path\": \"xxx\"}}]}\n"
+        "对于纯知识问答直接文字回复。"
+        "对于需要操作文件/命令/代码的任务，必须调用工具执行。"
     ),
     stages=[
         {"id": "intent", "label": "🔍 意图解析", "desc": "分析用户意图"},
@@ -138,6 +139,25 @@ class ExecutionPipeline:
         self._start_time = time.monotonic()
         self._last_had_tools = False
         self._empty_retries = 0
+        self._last_yield_time = 0.0  # 上次 yield 时间戳（用于 keepalive）
+
+    async def _maybe_keepalive(self, phase: str = "llm"):
+        """检查并发送 keepalive 心跳（如果超过 12 秒未 yield）"""
+        now = time.monotonic()
+        if now - self._last_yield_time > 12:
+            self._last_yield_time = now
+            return {
+                "type": "progress",
+                "phase": phase,
+                "stage": "⏳ AI 推理中...",
+                "current_step": 2,
+                "total_steps": len(self.config.stages),
+                "percent": 55,
+                "elapsed_seconds": int(now - self._start_time),
+                "eta_seconds": 0,
+                "milestones": [],
+            }
+        return None
 
     async def execute(
         self,
@@ -206,7 +226,13 @@ class ExecutionPipeline:
 
             # 构建 prompt
             if iter_count == 1:
-                prompt = f"请完成以下任务:\n\n{effective_message}"
+                if strategy.name != "chat":
+                    prompt = (
+                        f"请直接输出 JSON 工具调用来完成任务:\n\n"
+                        f"{effective_message}\n\n"
+                    )
+                else:
+                    prompt = effective_message
                 if strategy.enable_rumination:
                     prompt += "\n\n请先分析需求，再逐步执行。每3步进行一次反思复盘。"
             elif self._last_had_tools:
@@ -235,31 +261,25 @@ class ExecutionPipeline:
             has_tool_calls = False
             tool_call_names: list[str] = []
 
+            # 重置 keepalive 计时器
+            self._last_yield_time = time.monotonic()
+
             try:
                 async for ev in bridge.chat_stream(prompt):
                     if ev.event_type == "token":
+                        self._last_yield_time = time.monotonic()
                         response_text += ev.content
                         total_tokens += len(ev.content)
                         yield {"type": "token", "data": ev.content,
                                "content": ev.content}
                         if "🔧" in ev.content:
-                            tn = ev.content.replace("🔧 执行 ", "").strip()[:40]
+                            tn = ev.content.replace(
+                                "🔧 执行 ", ""
+                            ).strip()[:40]
                             tool_call_names.append(tn)
                             has_tool_calls = True
-                        # 每 20 token 发一次进度心跳
-                        if total_tokens % 20 == 0:
-                            yield {
-                                "type": "progress",
-                                "phase": "llm",
-                                "stage": f"生成中... ({total_tokens} tokens)",
-                                "current_step": 2,
-                                "total_steps": len(strategy.stages),
-                                "percent": min(50 + pct // 2, 65),
-                                "elapsed_seconds": 0,
-                                "eta_seconds": 0,
-                                "milestones": [],
-                            }
                     elif ev.event_type == "reasoning":
+                        # reasoning 期间也可能长时间无 yield
                         yield {"type": "reasoning", "content": ev.content}
                     elif ev.event_type == "done":
                         response_text = ev.content or response_text
