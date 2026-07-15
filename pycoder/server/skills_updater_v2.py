@@ -20,6 +20,16 @@ from pathlib import Path
 from pycoder.server.log import log
 
 
+def _validate_url(url: str) -> str:
+    """验证 URL 协议仅允许 http/https"""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"不允许的 URL 协议: {parsed.scheme}")
+    return url
+
+
 @dataclass
 class EnhancedSkill:
     """增强的技能数据模型"""
@@ -442,6 +452,7 @@ class EnhancedSkillsFetcher:
         """从 GitHub Search API 拉取"""
         import urllib.request
 
+        _validate_url(url)
         req = urllib.request.Request(
             url,
             headers={
@@ -484,6 +495,7 @@ class EnhancedSkillsFetcher:
 
         skills = []
         try:
+            _validate_url(url)
             req = urllib.request.Request(
                 url,
                 headers={
@@ -538,6 +550,7 @@ class EnhancedSkillsFetcher:
 
         skills = []
         try:
+            _validate_url(readme_url)
             req = urllib.request.Request(
                 readme_url,
                 headers={"User-Agent": "PyCoder-Skills-Bot/2.0"},
@@ -582,6 +595,7 @@ class EnhancedSkillsFetcher:
         import urllib.request
 
         try:
+            _validate_url(url)
             req = urllib.request.Request(
                 url,
                 headers={"User-Agent": "PyCoder-Skills-Bot/2.0"},
@@ -634,6 +648,7 @@ class EnhancedSkillsFetcher:
         """从 Hugging Face API 拉取"""
         import urllib.request
 
+        _validate_url(url)
         req = urllib.request.Request(
             url,
             headers={"User-Agent": "PyCoder-Skills-Bot/2.0"},

@@ -30,6 +30,17 @@ SNAPSHOT_DIR = UPGRADE_DIR / "snapshots"
 GITHUB_API = "https://api.github.com/repos/zhao8672-art/pycoder/releases/latest"
 GITHUB_TAGS = "https://api.github.com/repos/zhao8672-art/pycoder/tags"
 
+
+def _validate_url(url: str) -> str:
+    """验证 URL 协议仅允许 http/https"""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"不允许的 URL 协议: {parsed.scheme}")
+    return url
+
+
 # ── 数据模型 ──────────────────────────────────────────────
 
 
@@ -110,6 +121,7 @@ def check_version() -> VersionInfo:
         import urllib.error
         import urllib.request
 
+        _validate_url(GITHUB_API)
         req = urllib.request.Request(
             GITHUB_API,
             headers={
@@ -253,6 +265,7 @@ def health_check() -> HealthCheckResult:
     try:
         import urllib.request
 
+        _validate_url("https://api.github.com")
         req = urllib.request.Request(
             "https://api.github.com",
             headers={"User-Agent": "PyCoder-HealthCheck"},

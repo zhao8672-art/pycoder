@@ -473,7 +473,7 @@ class SkillMarketplace:
         with sqlite3.connect(str(self._db_path)) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                f"SELECT * FROM skills WHERE {where_clause} "
+                f"SELECT * FROM skills WHERE {where_clause} "  # nosec B608
                 "ORDER BY rating DESC, install_count DESC",
                 params,
             ).fetchall()
@@ -519,7 +519,7 @@ class SkillMarketplace:
         with sqlite3.connect(str(self._db_path)) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                f"SELECT * FROM skills WHERE {where_clause} ORDER BY {order_clause} LIMIT ?",
+                f"SELECT * FROM skills WHERE {where_clause} ORDER BY {order_clause} LIMIT ?",  # nosec B608
                 [*params, limit],
             ).fetchall()
 

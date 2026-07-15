@@ -110,7 +110,7 @@ class PermissionPolicy:
 
     def _is_in_allowed(self, path: str) -> bool:
         p = Path(path).as_posix()
-        if self.allow_temp and ("/tmp/" in p or "/Temp/" in p):
+        if self.allow_temp and ("/tmp/" in p or "/Temp/" in p):  # nosec B108
             return True
         return any(p.startswith(a) for a in self.allowed_paths)
 

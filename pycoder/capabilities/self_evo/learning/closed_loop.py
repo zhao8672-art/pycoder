@@ -932,7 +932,7 @@ class ClosedLearningLoop:
                 f"""SELECT * FROM learned_skills
                     WHERE pruned = 0 AND ({conditions})
                     ORDER BY success_rate DESC, usage_count DESC
-                    LIMIT ?""",
+                    LIMIT ?""",  # nosec B608
                 (*params, limit),
             ).fetchall()
 
@@ -956,7 +956,7 @@ class ClosedLearningLoop:
                 f"""SELECT * FROM learning_observations
                     WHERE {conditions}
                     ORDER BY timestamp DESC
-                    LIMIT ?""",
+                    LIMIT ?""",  # nosec B608
                 (*params, limit),
             ).fetchall()
 

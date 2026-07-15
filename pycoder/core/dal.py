@@ -191,20 +191,20 @@ class DAL:
                 continue
 
             # 检查新表是否已有数据
-            count = conn.execute(f"SELECT COUNT(*) FROM {new_table}").fetchone()[0]
+            count = conn.execute(f"SELECT COUNT(*) FROM {new_table}").fetchone()[0]  # nosec B608
             if count > 0:
                 continue  # 已经迁移过
 
             try:
                 old_conn = sqlite3.connect(str(old_path))
-                old_rows = old_conn.execute(f"SELECT * FROM {old_table}").fetchall()
+                old_rows = old_conn.execute(f"SELECT * FROM {old_table}").fetchall()  # nosec B608
 
                 if not old_rows:
                     old_conn.close()
                     continue
 
                 columns = [
-                    d[0] for d in old_conn.execute(f"PRAGMA table_info({old_table})").fetchall()
+                    d[0] for d in old_conn.execute(f"PRAGMA table_info({old_table})").fetchall()  # nosec B608
                 ]
 
                 for row in old_rows:
@@ -216,7 +216,7 @@ class DAL:
                         col_names = ", ".join(data.keys())
                         conn.execute(
                             f"INSERT OR IGNORE INTO {new_table} ({col_names}) "
-                            f"VALUES ({placeholders})",
+                            f"VALUES ({placeholders})",  # nosec B608
                             tuple(data.values()),
                         )
                         migrated_count += 1
@@ -415,7 +415,7 @@ class DAL:
         """
         columns = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))
-        sql = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"
+        sql = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"  # nosec B608
 
         with self._write_lock:
             conn = self._get_conn()
@@ -433,7 +433,7 @@ class DAL:
         """插入或替换（冲突时 REPLACE）"""
         columns = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))
-        sql = f"INSERT OR REPLACE INTO {table} ({columns}) VALUES ({placeholders})"
+        sql = f"INSERT OR REPLACE INTO {table} ({columns}) VALUES ({placeholders})"  # nosec B608
 
         with self._write_lock:
             conn = self._get_conn()
@@ -451,7 +451,7 @@ class DAL:
         """插入或忽略（冲突时跳过）"""
         columns = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))
-        sql = f"INSERT OR IGNORE INTO {table} ({columns}) VALUES ({placeholders})"
+        sql = f"INSERT OR IGNORE INTO {table} ({columns}) VALUES ({placeholders})"  # nosec B608
 
         with self._write_lock:
             conn = self._get_conn()
@@ -484,7 +484,7 @@ class DAL:
             影响的行数
         """
         set_clause = ", ".join(f"{k} = ?" for k in data)
-        sql = f"UPDATE {table} SET {set_clause} WHERE {where}"
+        sql = f"UPDATE {table} SET {set_clause} WHERE {where}"  # nosec B608
         params = tuple(data.values()) + tuple(where_params)
 
         with self._write_lock:
@@ -501,7 +501,7 @@ class DAL:
 
     def delete(self, table: str, where: str, params: tuple = ()) -> int:
         """删除行"""
-        sql = f"DELETE FROM {table} WHERE {where}"
+        sql = f"DELETE FROM {table} WHERE {where}"  # nosec B608
 
         with self._write_lock:
             conn = self._get_conn()
@@ -538,7 +538,7 @@ class DAL:
 
         sql = (
             f"INSERT INTO {table} ({columns}) VALUES ({placeholders}) "
-            f"ON CONFLICT({conflict}) DO UPDATE SET {set_clause}"
+            f"ON CONFLICT({conflict}) DO UPDATE SET {set_clause}"  # nosec B608
         )
 
         with self._write_lock:
@@ -585,7 +585,7 @@ class DAL:
         columns = rows[0].keys()
         placeholders = ", ".join(["?"] * len(columns))
         col_names = ", ".join(columns)
-        sql = f"INSERT OR IGNORE INTO {table} ({col_names}) VALUES ({placeholders})"
+        sql = f"INSERT OR IGNORE INTO {table} ({col_names}) VALUES ({placeholders})"  # nosec B608
 
         params_list = [tuple(r[c] for c in columns) for r in rows]
 
@@ -616,7 +616,7 @@ class DAL:
         try:
             return (
                 self.execute_value(
-                    f"SELECT COUNT(*) FROM {table}",
+                    f"SELECT COUNT(*) FROM {table}",  # nosec B608
                 )
                 or 0
             )

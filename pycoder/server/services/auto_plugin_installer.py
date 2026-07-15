@@ -33,6 +33,16 @@ _SKILLS_INSTALL_DIR = Path.home() / ".pycoder" / "skills"
 _INSTALL_LOG = Path.home() / ".pycoder" / "install_log.jsonl"
 
 
+def _validate_url(url: str) -> str:
+    """验证 URL 协议仅允许 http/https"""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"不允许的 URL 协议: {parsed.scheme}")
+    return url
+
+
 @dataclass
 class InstallResult:
     """安装结果"""
@@ -176,6 +186,7 @@ class AutoPluginInstaller:
         try:
             import urllib.request
 
+            _validate_url(url)
             req = urllib.request.Request(
                 url,
                 headers={

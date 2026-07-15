@@ -184,7 +184,7 @@ class DockerSandbox:
             # 文件系统隔离
             "--read-only",
             "--tmpfs",
-            "/tmp:rw,size=64m",
+            "/tmp:rw,size=64m",  # nosec B108
             # 网络隔离
             "--network",
             "none" if not self.network_enabled else "bridge",

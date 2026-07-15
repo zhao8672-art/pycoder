@@ -53,6 +53,16 @@ SOURCES = {
 UPDATE_INTERVAL_SECONDS = 43200  # 12 小时
 
 
+def _validate_url(url: str) -> str:
+    """验证 URL 协议仅允许 http/https"""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"不允许的 URL 协议: {parsed.scheme}")
+    return url
+
+
 @dataclass
 class FetchedSkill:
     """爬取到的原始 skill 数据"""
@@ -178,6 +188,7 @@ class SkillsFetcher:
         """同步拉取单个数据源（在线程中运行，不阻塞事件循环）"""
         import urllib.request
 
+        _validate_url(config["url"])
         req = urllib.request.Request(
             config["url"],
             headers=dict(config["headers"].items()),

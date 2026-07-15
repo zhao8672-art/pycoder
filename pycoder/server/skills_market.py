@@ -33,6 +33,16 @@ LOCAL_REGISTRY_PATH = Path.home() / ".pycoder" / "skills_registry.json"
 UPDATE_INTERVAL_SECONDS = 43200  # 24 小时
 
 
+def _validate_url(url: str) -> str:
+    """验证 URL 协议仅允许 http/https"""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"不允许的 URL 协议: {parsed.scheme}")
+    return url
+
+
 @dataclass
 class SkillEntry:
     """注册表中的单个技能条目"""
@@ -147,6 +157,7 @@ class SkillsMarketManager:
             # 强制重新加载本地注册表，并重置缓存标志
             self._load_local(force=True)
 
+            _validate_url(REMOTE_REGISTRY_URL)
             req = urllib.request.Request(
                 REMOTE_REGISTRY_URL,
                 headers={"User-Agent": "PyCoder-Skills/1.0"},
@@ -311,6 +322,7 @@ class SkillsMarketManager:
                     ]
                     for raw_url in raw_urls:
                         try:
+                            _validate_url(raw_url)
                             req = urllib.request.Request(
                                 raw_url,
                                 headers={"User-Agent": "PyCoder-Skills/1.0"},
@@ -330,6 +342,7 @@ class SkillsMarketManager:
                             log.debug("skills_github_raw_failed", url=raw_url, error=str(e))
                             continue
 
+                _validate_url(entry.url)
                 req = urllib.request.Request(
                     entry.url,
                     headers={"User-Agent": "PyCoder-Skills/1.0"},
@@ -363,6 +376,7 @@ class SkillsMarketManager:
                     try:
                         import urllib.request
 
+                        _validate_url(readme_url)
                         req = urllib.request.Request(
                             readme_url, headers={"User-Agent": "PyCoder-Skills/1.0"}
                         )

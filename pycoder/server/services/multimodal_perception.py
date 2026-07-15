@@ -779,6 +779,692 @@ def _classify_error(keywords: list[str]) -> str:
 
 
 # ══════════════════════════════════════════════════════════
+# P2-1: 视觉模型客户端 (Vision Model Client)
+# 对标 Codex Computer Use — 调用 GPT-4V/Claude Vision 进行语义理解
+# ══════════════════════════════════════════════════════════
+
+
+@dataclass
+class VisionResult:
+    """视觉模型分析结果"""
+
+    description: str = ""
+    objects: list[dict[str, Any]] = field(default_factory=list)
+    text_content: str = ""
+    ui_elements: list[dict[str, Any]] = field(default_factory=list)
+    source_type: str = "vision_model"
+    model: str = ""
+    processing_time_ms: float = 0.0
+
+
+class VisionModelClient:
+    """视觉模型客户端 — 调用 GPT-4V/Claude Vision 进行图像语义理解
+
+    对标 Codex 的屏幕视觉识别能力，支持:
+    - 图像内容语义描述
+    - 对象检测与分类
+    - UI 元素识别（按钮、输入框、菜单、图标等）
+    - 代码/错误截图深度理解
+    - 屏幕截图前后对比分析
+    """
+
+    # 默认视觉模型配置
+    _DEFAULT_VISION_MODEL = "gpt-4o"
+    _DEFAULT_VISION_PROVIDER = "openai"
+
+    def __init__(
+        self,
+        model: str | None = None,
+        api_key: str | None = None,
+        api_base: str | None = None,
+    ):
+        self._model = model or self._DEFAULT_VISION_MODEL
+        self._api_key = api_key
+        self._api_base = api_base
+
+    async def analyze(
+        self,
+        image_path: str | Path,
+        prompt: str = "",
+        *,
+        detail: str = "auto",
+    ) -> VisionResult:
+        """使用视觉模型分析图像内容。
+
+        Args:
+            image_path: 图像文件路径
+            prompt: 可选的引导提示词
+            detail: 图像细节级别 (auto/low/high)
+
+        Returns:
+            VisionResult 分析结果
+        """
+        start = time.monotonic()
+        path = Path(image_path)
+        if not path.exists():
+            return VisionResult(
+                description=f"文件不存在: {image_path}",
+                processing_time_ms=(time.monotonic() - start) * 1000,
+            )
+
+        try:
+            import base64
+
+            # 读取并编码图像
+            ext = path.suffix.lower()
+            mime_map = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+                ".bmp": "image/bmp",
+            }
+            mime = mime_map.get(ext, "image/png")
+            image_data = base64.b64encode(path.read_bytes()).decode()
+
+            system_prompt = (
+                "你是一个专业的计算机视觉分析助手。请详细描述图像内容，"
+                "包括：1) 整体场景和布局 2) 关键文本和数字 3) 可交互的UI元素 4) 颜色和视觉层次。"
+                "如果图像包含代码，请识别编程语言和关键逻辑。"
+                "如果图像包含错误信息，请提取错误类型、行号和堆栈。"
+                "以结构化的 JSON 格式返回结果。"
+            )
+
+            user_content = [
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{mime};base64,{image_data}",
+                        "detail": detail,
+                    },
+                }
+            ]
+            if prompt:
+                user_content.append({"type": "text", "text": prompt})
+
+            # 尝试使用 AGNES 视觉模型（免费 + OpenAI 兼容）
+            result = await self._call_vision_api(system_prompt, user_content)
+            processing_time = (time.monotonic() - start) * 1000
+            result.processing_time_ms = round(processing_time, 2)
+            result.model = self._model
+            return result
+
+        except Exception as e:
+            logger.warning("视觉模型分析失败: %s", e)
+            processing_time = (time.monotonic() - start) * 1000
+            return VisionResult(
+                description=f"分析失败: {e}",
+                processing_time_ms=round(processing_time, 2),
+                model=self._model,
+            )
+
+    async def detect_ui_elements(
+        self,
+        image_path: str | Path,
+    ) -> VisionResult:
+        """检测图像中的 UI 元素（按钮、输入框、菜单、图标等）。
+
+        对标 Codex Computer Use 的 UI 元素识别能力。
+
+        Args:
+            image_path: 截图文件路径
+
+        Returns:
+            VisionResult 包含 UI 元素列表和坐标
+        """
+        prompt = (
+            "请识别图像中的所有 UI 元素，包括：\n"
+            "1. 按钮 (button) — 文字、位置、颜色、状态\n"
+            "2. 输入框 (input/textfield) — 标签、占位符、当前值\n"
+            "3. 下拉菜单 (dropdown/select) — 选项列表\n"
+            "4. 复选框/单选框 (checkbox/radio) — 标签、选中状态\n"
+            "5. 导航菜单 (navigation/menu) — 菜单项\n"
+            "6. 标签页 (tab) — 标签名称、当前激活\n"
+            "7. 对话框/弹窗 (dialog/modal) — 标题、内容、按钮\n"
+            "8. 表格/列表 (table/list) — 列标题、行数\n"
+            "9. 图标 (icon) — 类型推测\n"
+            "10. 链接 (link) — 文字、目标推测\n\n"
+            "返回 JSON 格式: {\"ui_elements\": [{\"type\":\"...\", \"label\":\"...\", "
+            "\"position\":\"top-left|center|...\", \"state\":\"...\", \"text\":\"...\"}], "
+            "\"overall_layout\": \"...\", \"primary_action\": \"...\"}"
+        )
+        return await self.analyze(image_path, prompt=prompt)
+
+    async def compare_screenshots(
+        self,
+        before_path: str | Path,
+        after_path: str | Path,
+    ) -> VisionResult:
+        """对比两张截图，分析前后差异。
+
+        对标 Codex 的屏幕变化检测，用于验证操作结果。
+
+        Args:
+            before_path: 操作前截图
+            after_path: 操作后截图
+
+        Returns:
+            VisionResult 包含差异分析
+        """
+        before = Path(before_path)
+        after = Path(after_path)
+        if not before.exists():
+            return VisionResult(description=f"文件不存在: {before_path}")
+        if not after.exists():
+            return VisionResult(description=f"文件不存在: {after_path}")
+
+        import base64
+
+        before_data = base64.b64encode(before.read_bytes()).decode()
+        after_data = base64.b64encode(after.read_bytes()).decode()
+
+        ext_b = before.suffix.lower()
+        ext_a = after.suffix.lower()
+        mime_map = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".gif": "image/gif",
+            ".webp": "image/webp",
+        }
+        mime_b = mime_map.get(ext_b, "image/png")
+        mime_a = mime_map.get(ext_a, "image/png")
+
+        system_prompt = (
+            "你是一个专业的 UI 变化检测分析助手。对比两张截图，"
+            "分析操作前后的差异，重点关注：新增/消失的元素、文本变化、颜色变化、布局变化。"
+            "返回 JSON: {\"changes\": [...], \"summary\": \"...\"}"
+        )
+
+        user_content = [
+            {"type": "text", "text": "操作前截图:"},
+            {"type": "image_url", "image_url": {"url": f"data:{mime_b};base64,{before_data}"}},
+            {"type": "text", "text": "操作后截图:"},
+            {"type": "image_url", "image_url": {"url": f"data:{mime_a};base64,{after_data}"}},
+        ]
+
+        start = time.monotonic()
+        try:
+            result = await self._call_vision_api(system_prompt, user_content)
+            result.processing_time_ms = round((time.monotonic() - start) * 1000, 2)
+            result.model = self._model
+            result.source_type = "screenshot_diff"
+            return result
+        except Exception as e:
+            logger.warning("截图对比分析失败: %s", e)
+            return VisionResult(
+                description=f"对比失败: {e}",
+                processing_time_ms=round((time.monotonic() - start) * 1000, 2),
+                model=self._model,
+            )
+
+    async def _call_vision_api(
+        self,
+        system_prompt: str,
+        user_content: list[dict[str, Any]],
+    ) -> VisionResult:
+        """调用视觉模型 API（OpenAI 兼容格式）。
+
+        优先使用 AGNES 免费模型，回退到配置的视觉模型。
+        """
+        import json as _json
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ]
+
+        request_body: dict[str, Any] = {
+            "model": self._model,
+            "messages": messages,
+            "max_tokens": 2048,
+            "temperature": 0.1,
+        }
+
+        # 尝试使用 AGNES 视觉模型（免费）
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        api_base = self._api_base or "https://apihub.agnes-ai.com/v1"
+
+        # 获取 API key
+        import os
+
+        api_key = self._api_key
+        if not api_key:
+            api_key = os.environ.get("AGNES_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(
+                    f"{api_base}/chat/completions",
+                    headers=headers,
+                    json=request_body,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    content = data["choices"][0]["message"].get("content", "")
+                    return self._parse_vision_response(content)
+                else:
+                    logger.warning(
+                        "视觉模型 API 错误: status=%d, body=%s",
+                        resp.status_code,
+                        resp.text[:300],
+                    )
+                    return VisionResult(
+                        description=f"API 错误: {resp.status_code}",
+                    )
+        except Exception as e:
+            logger.warning("视觉模型调用失败: %s", e)
+            # 回退到本地分析
+            return self._fallback_local_analysis(user_content)
+
+    def _parse_vision_response(self, content: str) -> VisionResult:
+        """解析视觉模型响应，提取结构化结果"""
+        import json as _json
+        import re
+
+        result = VisionResult(description=content[:500])
+
+        # 尝试提取 JSON
+        try:
+            json_match = re.search(r"\{[\s\S]*\}", content)
+            if json_match:
+                parsed = _json.loads(json_match.group())
+                if "ui_elements" in parsed:
+                    result.ui_elements = parsed["ui_elements"]
+                if "description" in parsed:
+                    result.description = parsed["description"]
+                if "objects" in parsed:
+                    result.objects = parsed["objects"]
+                if "text_content" in parsed:
+                    result.text_content = parsed["text_content"]
+        except (_json.JSONDecodeError, KeyError):
+            pass
+
+        return result
+
+    def _fallback_local_analysis(
+        self,
+        user_content: list[dict[str, Any]],
+    ) -> VisionResult:
+        """视觉模型不可用时的本地回退分析"""
+        # 尝试从 user_content 中提取图像进行本地分析
+        for item in user_content:
+            if isinstance(item, dict) and item.get("type") == "image_url":
+                url = item["image_url"]["url"]
+                if url.startswith("data:"):
+                    # 解码 base64 图像进行本地分析
+                    import base64
+                    import tempfile
+
+                    try:
+                        data_part = url.split(",", 1)[1]
+                        img_bytes = base64.b64decode(data_part)
+                        with tempfile.NamedTemporaryFile(
+                            suffix=".png", delete=False
+                        ) as tmp:
+                            tmp.write(img_bytes)
+                            tmp_path = tmp.name
+
+                        analyzer = ImageAnalyzer()
+                        meta = analyzer.analyze(tmp_path)
+                        ocr = analyzer.extract_text(tmp_path)
+                        colors = analyzer.detect_error_colors(tmp_path)
+
+                        Path(tmp_path).unlink(missing_ok=True)
+
+                        return VisionResult(
+                            description=f"本地分析 (回退模式): {meta.get('width')}x{meta.get('height')}, "
+                            f"格式: {meta.get('format')}",
+                            text_content=ocr.get("text", ""),
+                            source_type="fallback_local",
+                        )
+                    except Exception as e:
+                        logger.debug("本地回退分析失败: %s", e)
+
+        return VisionResult(description="视觉模型不可用，本地分析失败")
+
+
+# ══════════════════════════════════════════════════════════
+# P2-1: UI 元素检测器
+# 对标 Codex Computer Use — UI 元素识别与坐标定位
+# ══════════════════════════════════════════════════════════
+
+
+@dataclass
+class UIElement:
+    """UI 元素"""
+
+    element_type: str  # button, input, dropdown, checkbox, radio, tab, dialog, table, icon, link, text
+    label: str = ""
+    text: str = ""
+    position: str = ""  # top-left, center, bottom-right, etc.
+    bbox: dict[str, int] = field(default_factory=dict)  # {x, y, w, h}
+    state: str = ""  # active, disabled, selected, focused, normal
+    confidence: float = 0.0
+
+
+@dataclass
+class UIDetectionResult:
+    """UI 检测结果"""
+
+    elements: list[UIElement] = field(default_factory=list)
+    overall_layout: str = ""
+    primary_action: str = ""
+    screen_size: dict[str, int] = field(default_factory=dict)
+    processing_time_ms: float = 0.0
+
+
+class UIElementDetector:
+    """UI 元素检测器 — 对标 Codex Computer Use
+
+    支持:
+    - 从截图识别 UI 元素（按钮、输入框、菜单等）
+    - 基于视觉模型的语义元素识别
+    - 基于颜色/形状的启发式元素检测（回退模式）
+    - 屏幕坐标定位
+    - 操作建议生成
+    """
+
+    # 常见 UI 元素颜色特征（RGB 范围）
+    _UI_COLOR_PATTERNS: dict[str, tuple[tuple[int, int, int], tuple[int, int, int]]] = {
+        "button_blue": ((30, 100, 200), (80, 180, 255)),
+        "button_green": ((30, 150, 50), (80, 220, 100)),
+        "button_red": ((180, 30, 30), (255, 80, 80)),
+        "button_gray": ((180, 180, 180), (230, 230, 230)),
+        "input_white": ((240, 240, 240), (255, 255, 255)),
+        "error_red": ((200, 30, 30), (255, 80, 80)),
+        "warning_yellow": ((200, 180, 30), (255, 230, 80)),
+        "success_green": ((30, 180, 50), (80, 230, 100)),
+        "dark_text": ((0, 0, 0), (60, 60, 60)),
+        "link_blue": ((30, 80, 200), (80, 150, 255)),
+    }
+
+    def __init__(self, vision_client: VisionModelClient | None = None):
+        self._vision = vision_client or VisionModelClient()
+
+    async def detect(
+        self,
+        image_path: str | Path,
+        *,
+        use_vision: bool = True,
+    ) -> UIDetectionResult:
+        """检测截图中的 UI 元素。
+
+        Args:
+            image_path: 截图文件路径
+            use_vision: 是否使用视觉模型（否则用启发式方法）
+
+        Returns:
+            UIDetectionResult 检测结果
+        """
+        start = time.monotonic()
+        path = Path(image_path)
+
+        if not path.exists():
+            return UIDetectionResult(
+                processing_time_ms=(time.monotonic() - start) * 1000,
+            )
+
+        # 获取屏幕尺寸
+        screen_size = {}
+        if HAS_PIL:
+            try:
+                img = Image.open(path)
+                screen_size = {"width": img.width, "height": img.height}
+                img.close()
+            except Exception:
+                pass
+
+        if use_vision:
+            result = await self._detect_with_vision(path)
+        else:
+            result = self._detect_heuristic(path)
+
+        result.screen_size = screen_size
+        result.processing_time_ms = round((time.monotonic() - start) * 1000, 2)
+        return result
+
+    async def _detect_with_vision(self, path: Path) -> UIDetectionResult:
+        """使用视觉模型检测 UI 元素"""
+        vision_result = await self._vision.detect_ui_elements(path)
+        elements: list[UIElement] = []
+
+        for el in vision_result.ui_elements:
+            elements.append(
+                UIElement(
+                    element_type=el.get("type", "unknown"),
+                    label=el.get("label", ""),
+                    text=el.get("text", ""),
+                    position=el.get("position", ""),
+                    bbox=el.get("bbox", {}),
+                    state=el.get("state", "normal"),
+                    confidence=el.get("confidence", 0.7),
+                )
+            )
+
+        return UIDetectionResult(
+            elements=elements,
+            overall_layout=vision_result.description[:200],
+        )
+
+    def _detect_heuristic(self, path: Path) -> UIDetectionResult:
+        """启发式 UI 元素检测（不依赖视觉模型）"""
+        if not HAS_PIL:
+            return UIDetectionResult()
+
+        elements: list[UIElement] = []
+        try:
+            img = Image.open(path)
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            w, h = img.width, img.height
+
+            # 缩小图像以加速处理
+            scale = max(1, min(w, h) // 300)
+            small = img.resize((w // scale, h // scale))
+            pixels = list(small.getdata())
+
+            # 颜色统计
+            from collections import Counter
+
+            color_counts = Counter(pixels)
+            total = len(pixels)
+
+            # 检测按钮色块
+            blue_pixels = sum(
+                c
+                for color, c in color_counts.items()
+                if len(color) >= 3
+                and 30 < color[0] < 100
+                and 100 < color[1] < 200
+                and 180 < color[2] < 255
+            )
+            green_pixels = sum(
+                c
+                for color, c in color_counts.items()
+                if len(color) >= 3
+                and 30 < color[0] < 100
+                and 150 < color[1] < 230
+                and 30 < color[2] < 120
+            )
+            red_pixels = sum(
+                c
+                for color, c in color_counts.items()
+                if len(color) >= 3
+                and 180 < color[0] < 255
+                and 30 < color[1] < 100
+                and 30 < color[2] < 100
+            )
+            white_pixels = sum(
+                c
+                for color, c in color_counts.items()
+                if len(color) >= 3
+                and color[0] > 230
+                and color[1] > 230
+                and color[2] > 230
+            )
+
+            ratio = lambda p: round(p / total, 3) if total > 0 else 0.0
+
+            if ratio(blue_pixels) > 0.01:
+                elements.append(
+                    UIElement(
+                        element_type="button",
+                        label="蓝色按钮",
+                        confidence=min(ratio(blue_pixels) * 10, 0.9),
+                        position="detected_by_color",
+                    )
+                )
+            if ratio(green_pixels) > 0.01:
+                elements.append(
+                    UIElement(
+                        element_type="button",
+                        label="绿色按钮",
+                        confidence=min(ratio(green_pixels) * 10, 0.9),
+                        position="detected_by_color",
+                    )
+                )
+            if ratio(red_pixels) > 0.01:
+                elements.append(
+                    UIElement(
+                        element_type="error_indicator",
+                        label="错误/警告区域",
+                        confidence=min(ratio(red_pixels) * 10, 0.9),
+                        position="detected_by_color",
+                    )
+                )
+            if ratio(white_pixels) > 0.3:
+                elements.append(
+                    UIElement(
+                        element_type="input",
+                        label="输入区域（浅色背景）",
+                        confidence=0.6,
+                        position="detected_by_color",
+                    )
+                )
+
+            img.close()
+
+            layout = f"布局: {w}x{h}, "
+            if ratio(white_pixels) > 0.5:
+                layout += "浅色主题界面"
+            elif ratio(white_pixels) < 0.2:
+                layout += "深色主题界面"
+            else:
+                layout += "混合主题界面"
+
+            return UIDetectionResult(
+                elements=elements,
+                overall_layout=layout,
+            )
+
+        except Exception as e:
+            logger.debug("启发式 UI 检测失败: %s", e)
+            return UIDetectionResult()
+
+    def find_element_by_label(
+        self,
+        elements: list[UIElement],
+        label: str,
+    ) -> UIElement | None:
+        """根据标签查找 UI 元素。
+
+        Args:
+            elements: UI 元素列表
+            label: 标签文本（支持模糊匹配）
+
+        Returns:
+            匹配的 UIElement 或 None
+        """
+        label_lower = label.lower()
+        for el in elements:
+            if label_lower in el.label.lower() or label_lower in el.text.lower():
+                return el
+        return None
+
+    def suggest_action(
+        self,
+        elements: list[UIElement],
+        intent: str,
+    ) -> dict[str, Any]:
+        """根据意图建议操作。
+
+        Args:
+            elements: UI 元素列表
+            intent: 用户意图描述
+
+        Returns:
+            建议的操作字典
+        """
+        intent_lower = intent.lower()
+
+        # 点击意图
+        if any(w in intent_lower for w in ("点击", "click", "按", "press", "选择", "select")):
+            # 提取目标
+            for el in elements:
+                if el.label.lower() in intent_lower or el.text.lower() in intent_lower:
+                    return {
+                        "action": "click",
+                        "target": el.label or el.text,
+                        "element_type": el.element_type,
+                        "position": el.position,
+                        "confidence": el.confidence,
+                    }
+            return {"action": "click", "target": intent, "suggestion": "需要在屏幕上定位目标"}
+
+        # 输入意图
+        if any(w in intent_lower for w in ("输入", "type", "填写", "fill", "enter", "write")):
+            input_elements = [el for el in elements if el.element_type in ("input", "textfield")]
+            if input_elements:
+                return {
+                    "action": "type",
+                    "target": input_elements[0].label or "输入框",
+                    "element_type": "input",
+                    "confidence": input_elements[0].confidence,
+                }
+            return {"action": "type", "target": "输入区域", "suggestion": "未检测到明确的输入框"}
+
+        # 滚动意图
+        if any(w in intent_lower for w in ("滚动", "scroll", "下滑", "上滑", "翻页")):
+            direction = "down"
+            if any(w in intent_lower for w in ("上滑", "up", "向上")):
+                direction = "up"
+            return {"action": "scroll", "direction": direction}
+
+        # 等待意图
+        if any(w in intent_lower for w in ("等待", "wait", "加载", "loading")):
+            return {"action": "wait", "reason": "等待页面加载或操作完成"}
+
+        return {"action": "unknown", "message": "无法确定操作意图", "intent": intent}
+
+
+# 全局实例
+_vision_client: VisionModelClient | None = None
+_ui_detector: UIElementDetector | None = None
+
+
+def get_vision_client() -> VisionModelClient:
+    """获取全局视觉模型客户端"""
+    global _vision_client
+    if _vision_client is None:
+        _vision_client = VisionModelClient()
+    return _vision_client
+
+
+def get_ui_detector() -> UIElementDetector:
+    """获取全局 UI 元素检测器"""
+    global _ui_detector
+    if _ui_detector is None:
+        _ui_detector = UIElementDetector()
+    return _ui_detector
+
+
+# ══════════════════════════════════════════════════════════
 # 能力注册
 # ══════════════════════════════════════════════════════════
 
@@ -910,7 +1596,155 @@ def register_capabilities(registry: Any) -> None:
         handler=_get_stats,
     )
 
+    # ── P2-1: 视觉模型能力 ──
+
+    async def _vision_analyze(params: dict[str, Any], ctx: dict[str, Any]) -> dict[str, Any]:
+        """使用视觉模型分析图像"""
+        image_path = params.get("image_path", "")
+        if not image_path:
+            return {"success": False, "error": "缺少 image_path 参数"}
+        prompt = params.get("prompt", "")
+        client = get_vision_client()
+        result = await client.analyze(image_path, prompt=prompt)
+        return {
+            "success": True,
+            "description": result.description,
+            "text_content": result.text_content,
+            "ui_elements": result.ui_elements,
+            "objects": result.objects,
+            "model": result.model,
+            "processing_time_ms": result.processing_time_ms,
+        }
+
+    registry.register(
+        CapabilityDefinition(
+            id="perception.vision_analyze",
+            name="视觉模型分析",
+            description="使用 GPT-4V/Claude Vision 等视觉模型进行图像语义分析，支持对象检测、UI 识别、代码/错误截图理解",
+            category=CapabilityCategory.SYSTEM,
+            permission=TrustLevel.READ_ONLY,
+            execution=ExecutionMode.ASYNC,
+            side_effects=[SideEffect.FILE_READ, SideEffect.LLM_CALL],
+            schema={
+                "type": "object",
+                "properties": {
+                    "image_path": {
+                        "type": "string",
+                        "description": "图像文件的绝对路径",
+                    },
+                    "prompt": {
+                        "type": "string",
+                        "description": "可选的引导提示词",
+                    },
+                },
+                "required": ["image_path"],
+            },
+            tags=["perception", "vision", "ai", "gpt-4v", "claude", "视觉分析"],
+        ),
+        handler=_vision_analyze,
+    )
+
+    async def _ui_detect(params: dict[str, Any], ctx: dict[str, Any]) -> dict[str, Any]:
+        """检测 UI 元素"""
+        image_path = params.get("image_path", "")
+        if not image_path:
+            return {"success": False, "error": "缺少 image_path 参数"}
+        use_vision = params.get("use_vision", True)
+        detector = get_ui_detector()
+        result = await detector.detect(image_path, use_vision=use_vision)
+        return {
+            "success": True,
+            "elements": [
+                {
+                    "type": el.element_type,
+                    "label": el.label,
+                    "text": el.text,
+                    "position": el.position,
+                    "state": el.state,
+                    "confidence": el.confidence,
+                }
+                for el in result.elements
+            ],
+            "overall_layout": result.overall_layout,
+            "screen_size": result.screen_size,
+            "processing_time_ms": result.processing_time_ms,
+        }
+
+    registry.register(
+        CapabilityDefinition(
+            id="perception.ui_detect",
+            name="UI 元素检测",
+            description="检测截图中的 UI 元素（按钮、输入框、菜单、对话框等），支持视觉模型和启发式两种模式",
+            category=CapabilityCategory.SYSTEM,
+            permission=TrustLevel.READ_ONLY,
+            execution=ExecutionMode.ASYNC,
+            side_effects=[SideEffect.FILE_READ, SideEffect.LLM_CALL],
+            schema={
+                "type": "object",
+                "properties": {
+                    "image_path": {
+                        "type": "string",
+                        "description": "截图文件的绝对路径",
+                    },
+                    "use_vision": {
+                        "type": "boolean",
+                        "description": "是否使用视觉模型（默认 true）",
+                    },
+                },
+                "required": ["image_path"],
+            },
+            tags=["perception", "ui", "computer-use", "screen", "UI检测"],
+        ),
+        handler=_ui_detect,
+    )
+
+    async def _compare_screenshots(params: dict[str, Any], ctx: dict[str, Any]) -> dict[str, Any]:
+        """对比两张截图"""
+        before = params.get("before", "")
+        after = params.get("after", "")
+        if not before or not after:
+            return {"success": False, "error": "缺少 before 或 after 参数"}
+        client = get_vision_client()
+        result = await client.compare_screenshots(before, after)
+        return {
+            "success": True,
+            "description": result.description,
+            "ui_elements": result.ui_elements,
+            "objects": result.objects,
+            "model": result.model,
+            "processing_time_ms": result.processing_time_ms,
+        }
+
+    registry.register(
+        CapabilityDefinition(
+            id="perception.compare_screenshots",
+            name="截图对比分析",
+            description="对比两张截图，分析操作前后的 UI 变化差异",
+            category=CapabilityCategory.SYSTEM,
+            permission=TrustLevel.READ_ONLY,
+            execution=ExecutionMode.ASYNC,
+            side_effects=[SideEffect.FILE_READ, SideEffect.LLM_CALL],
+            schema={
+                "type": "object",
+                "properties": {
+                    "before": {
+                        "type": "string",
+                        "description": "操作前截图路径",
+                    },
+                    "after": {
+                        "type": "string",
+                        "description": "操作后截图路径",
+                    },
+                },
+                "required": ["before", "after"],
+            },
+            tags=["perception", "compare", "diff", "screenshot", "截图对比"],
+        ),
+        handler=_compare_screenshots,
+    )
+
     logger.info(
         "多模态感知能力已注册: "
-        "perception.analyze_image, perception.analyze_screenshot, perception.stats"
+        "perception.analyze_image, perception.analyze_screenshot, perception.stats, "
+        "perception.vision_analyze, perception.ui_detect, perception.compare_screenshots"
     )

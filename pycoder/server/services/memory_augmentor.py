@@ -183,7 +183,7 @@ class MemoryAugmentor:
             rows = conn.execute(
                 "SELECT id, project, key, content, tags, importance, "
                 "access_count, created_at, last_accessed, ttl_days "
-                f"FROM long_term_memory WHERE {where} "
+                f"FROM long_term_memory WHERE {where} "  # nosec B608
                 "ORDER BY importance DESC, access_count DESC "
                 f"LIMIT {min(max_results, 20)}",
                 params,

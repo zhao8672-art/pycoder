@@ -283,7 +283,7 @@ class SandboxExecutor:
             "100",  # 限制进程数
             "--read-only",  # 只读文件系统
             "--tmpfs",
-            "/tmp:rw,noexec,nosuid,size=64m",
+            "/tmp:rw,noexec,nosuid,size=64m",  # nosec B108
             "--cap-drop",
             "ALL",  # 删除所有内核能力
             "--security-opt",

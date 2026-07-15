@@ -261,22 +261,6 @@ async def save_task(req: SaveTaskRequest) -> SaveTaskResponse:
     )
 
 
-@router.get("/{task_id}", response_model=TaskDetailResponse)
-async def load_task(task_id: str) -> TaskDetailResponse:
-    """
-    加载任务详情
-
-    根据 task_id 从数据库加载完整的任务状态信息。
-    """
-    persistence = _get_persistence()
-    task = await persistence.load_task(task_id)
-
-    if task is None:
-        raise HTTPException(status_code=404, detail=f"任务不存在: {task_id}")
-
-    return _task_to_detail(task)
-
-
 @router.get("/list", response_model=TaskListResponse)
 async def list_tasks(
     status: str | None = Query(default=None, description="按状态过滤"),
@@ -385,3 +369,19 @@ async def get_task_stats() -> TaskStatsResponse:
         avg_steps_completed=stats.get("avg_steps_completed", 0.0),
         db_path=stats.get("db_path", ""),
     )
+
+
+@router.get("/{task_id}", response_model=TaskDetailResponse)
+async def load_task(task_id: str) -> TaskDetailResponse:
+    """
+    加载任务详情
+
+    根据 task_id 从数据库加载完整的任务状态信息。
+    """
+    persistence = _get_persistence()
+    task = await persistence.load_task(task_id)
+
+    if task is None:
+        raise HTTPException(status_code=404, detail=f"任务不存在: {task_id}")
+
+    return _task_to_detail(task)

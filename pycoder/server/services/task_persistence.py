@@ -358,7 +358,7 @@ class TaskPersistence:
             {where_clause}
             ORDER BY updated_at DESC
             LIMIT ? OFFSET ?
-        """
+        """  # nosec B608
         params.extend([limit, offset])
 
         def _do_list() -> list[sqlite3.Row]:

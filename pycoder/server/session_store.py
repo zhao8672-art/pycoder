@@ -254,7 +254,7 @@ class SessionStore:
 
         with self._connect() as conn:
             conn.execute(
-                f"UPDATE sessions SET {set_clause} WHERE id = ?",
+                f"UPDATE sessions SET {set_clause} WHERE id = ?",  # nosec B608
                 values,
             )
 
@@ -270,7 +270,7 @@ class SessionStore:
         with self._connect() as conn:
             placeholders = ",".join("?" * len(session_ids))
             cursor = conn.execute(
-                f"DELETE FROM sessions WHERE id IN ({placeholders})",
+                f"DELETE FROM sessions WHERE id IN ({placeholders})",  # nosec B608
                 session_ids,
             )
             return cursor.rowcount

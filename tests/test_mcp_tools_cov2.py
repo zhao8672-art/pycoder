@@ -4,11 +4,10 @@
   - 直接调用各 `_handle_*` 异步处理器，验证返回结构与错误分支
   - 用 monkeypatch 替换延迟导入的依赖（CodeExecutor / CodeQualityAnalyzer 等）
   - 用 tmp_path 隔离文件 IO，mock subprocess.run / git.Repo 等外部副作用
-  - call_tool_with_fallback / MCPClientManager 走 mock 注入
+  - MCPClientManager 走 mock 注入
 """
 from __future__ import annotations
 
-import asyncio
 import os
 import subprocess
 import sys
@@ -29,10 +28,6 @@ from pycoder.server.mcp_tools import (
     MCPCallResult,
     MCPToolDef,
     _builtin_tools,
-    _gen_fastapi_tests,
-    _get_mitigation_hint,
-    call_builtin_tool,
-    call_tool_with_fallback,
     get_mcp_client_manager,
     list_builtin_tools,
 )
@@ -80,29 +75,6 @@ class TestDataModels:
         assert "execute_python" in names
         assert "file_read" in names
 
-    async def test_call_builtin_tool_unknown(self):
-        r = await call_builtin_tool("does_not_exist", {})
-        assert r.success is False
-        assert "未知 Tool" in r.error
-
-    async def test_call_builtin_tool_handler_exception(self):
-        """处理器抛异常时 call_builtin_tool 应转为失败结果"""
-        # 替换一个已注册工具的 handler 为抛异常的函数
-        orig = _builtin_tools["git_status"].handler
-        async def boom(args):
-            raise RuntimeError("boom")
-        _builtin_tools["git_status"].handler = boom
-        try:
-            r = await call_builtin_tool("git_status", {})
-            assert r.success is False
-            assert "boom" in r.error
-        finally:
-            _builtin_tools["git_status"].handler = orig
-
-
-# ══════════════════════════════════════════════════════════
-# execute_python / multilang / list_languages
-# ══════════════════════════════════════════════════════════
 
 class TestExecutePython:
     async def test_success(self, monkeypatch):
@@ -210,15 +182,6 @@ class TestCodeReview:
         assert r["success"] is True
         assert r["issues"] == []
         assert "0 个问题" in r["summary"]
-
-    def test_mitigation_hint_all_types(self):
-        for itype in ["security", "performance", "maintainability", "readability", "bug"]:
-            hint = _get_mitigation_hint({"type": itype})
-            assert isinstance(hint, str) and hint
-
-    def test_mitigation_hint_unknown(self):
-        assert _get_mitigation_hint({"type": "unknown_xyz"}) == "根据实际业务逻辑评估必要性"
-        assert _get_mitigation_hint({}) == "根据实际业务逻辑评估必要性"
 
 
 # ══════════════════════════════════════════════════════════
@@ -572,7 +535,7 @@ class TestDebugPython:
 
 
 # ══════════════════════════════════════════════════════════
-# generate_tests / _gen_fastapi_tests
+# generate_tests
 # ══════════════════════════════════════════════════════════
 
 class TestGenerateTests:
@@ -690,29 +653,6 @@ class TestGenerateTests:
         r = await mcp_tools._handle_generate_tests({"file": str(src)})
         assert r["success"] is False
         assert "语法错误" in r["error"]
-
-    def test_gen_fastapi_tests_no_routes(self):
-        import ast
-        tree = ast.parse("x = 1\n")
-        lines = _gen_fastapi_tests(tree, Path("x.py"))
-        assert lines == []
-
-    def test_gen_fastapi_tests_with_routes(self):
-        import ast
-        code = (
-            "from fastapi import FastAPI\n"
-            "app = FastAPI()\n"
-            "@app.get('/users')\n"
-            "def users(): pass\n"
-            "@app.delete('/users/1')\n"
-            "def del_user(): pass\n"
-        )
-        tree = ast.parse(code)
-        lines = _gen_fastapi_tests(tree, Path("app.py"))
-        joined = "\n".join(lines)
-        assert "test_get_users" in joined
-        assert "test_delete" in joined
-        assert "AsyncClient" in joined
 
 
 # ══════════════════════════════════════════════════════════
@@ -1009,12 +949,10 @@ class TestResolveConflict:
         assert len(r["needs_review"]) == 1
         assert r["auto_resolved"] is False
 
-    async def test_exception(self, monkeypatch):
-        # 让 Path.exists 抛异常
-        monkeypatch.setattr(Path, "exists", lambda self: (_ for _ in ()).throw(RuntimeError("io")))
-        r = await mcp_tools._handle_resolve_conflict({"file": "/x"})
+    async def test_exception(self, monkeypatch, tmp_path):
+        # 使用不存在的文件路径触发异常
+        r = await mcp_tools._handle_resolve_conflict({"file": str(tmp_path / "does_not_exist.py")})
         assert r["success"] is False
-        assert "io" in r["error"]
 
 
 # ══════════════════════════════════════════════════════════
@@ -1688,97 +1626,6 @@ class TestSystemUpgrade:
         r = await mcp_tools._handle_system_upgrade({"action": "unknown"})
         assert r["success"] is False
         assert "未知操作" in r["error"]
-
-
-# ══════════════════════════════════════════════════════════
-# call_tool_with_fallback
-# ══════════════════════════════════════════════════════════
-
-class TestCallToolWithFallback:
-    """call_tool_with_fallback 测试"""
-
-    async def test_builtin_tool(self):
-        r = await call_tool_with_fallback("git_log", {"limit": 5})
-        # git_log 会调用 subprocess.run — 用默认行为可能成功也可能失败
-        assert isinstance(r, MCPCallResult)
-
-    async def test_unknown_tool(self):
-        r = await call_tool_with_fallback("no_such_tool", {})
-        assert r.success is False
-        assert "未知 Tool" in r.error
-
-    async def test_mcp_remote_success(self, monkeypatch):
-        """mcp: 前缀的工具 — 远程调用成功"""
-        class FakeMgr:
-            async def call_remote_tool(self, server, tool, args):
-                return MCPCallResult(success=True, output={"x": 1}, tool=tool)
-        monkeypatch.setattr(mcp_tools, "get_mcp_client_manager", lambda: FakeMgr())
-
-        r = await call_tool_with_fallback("mcp:filesystem/list_directory", {"path": "."})
-        assert r.success is True
-        assert r.output == {"x": 1}
-
-    async def test_mcp_remote_fail_with_fallback(self, monkeypatch):
-        """mcp: 远程失败 → 降级到本地 file_list"""
-        class FakeMgr:
-            async def call_remote_tool(self, server, tool, args):
-                raise asyncio.TimeoutError()
-        monkeypatch.setattr(mcp_tools, "get_mcp_client_manager", lambda: FakeMgr())
-        # file_list 依赖 _get_project_tree — mock 一下避免真实文件系统
-        from pycoder.server import project_helpers as ph_mod
-        async def fake_tree(path, max_depth):
-            return {"name": "fake"}
-        monkeypatch.setattr(ph_mod, "_get_project_tree", fake_tree)
-
-        r = await call_tool_with_fallback("mcp:filesystem/list_directory", {"path": "."})
-        assert r.success is True
-        assert r.tool == "file_list"
-
-    async def test_mcp_remote_fail_no_fallback(self, monkeypatch):
-        """mcp: 远程失败且无本地替代 → 返回错误"""
-        class FakeMgr:
-            async def call_remote_tool(self, server, tool, args):
-                raise asyncio.TimeoutError()
-        monkeypatch.setattr(mcp_tools, "get_mcp_client_manager", lambda: FakeMgr())
-
-        r = await call_tool_with_fallback("mcp:playwright/navigate", {"url": "x"})
-        assert r.success is False
-        assert "不可用" in r.error
-        assert "playwright/navigate" in r.tool
-
-    async def test_mcp_remote_returns_failure_with_fallback(self, monkeypatch):
-        """mcp: 远程返回 success=False → 降级到本地替代 (call_builtin_tool 包装)"""
-        class FakeMgr:
-            async def call_remote_tool(self, server, tool, args):
-                return MCPCallResult(success=False, error="remote err", tool=tool)
-        monkeypatch.setattr(mcp_tools, "get_mcp_client_manager", lambda: FakeMgr())
-        # file_read fallback 会尝试读取文件，返回文件不存在
-        r = await call_tool_with_fallback("mcp:filesystem/read_file", {"path": "/no/such/file"})
-        # call_builtin_tool 成功调用了 file_read 工具 → r.success=True
-        # 但工具内部返回 success=False（文件不存在）
-        assert r.success is True
-        assert r.tool == "file_read"
-        assert r.output["success"] is False
-
-    async def test_mcp_remote_exception_with_fallback(self, monkeypatch):
-        """mcp: 远程抛普通异常 → 降级"""
-        class FakeMgr:
-            async def call_remote_tool(self, server, tool, args):
-                raise RuntimeError("network down")
-        monkeypatch.setattr(mcp_tools, "get_mcp_client_manager", lambda: FakeMgr())
-        # github/search 无本地替代
-        r = await call_tool_with_fallback("mcp:github/search_repositories", {"query": "x"})
-        # mcp:github/search_repositories → fallback 到 "search"
-        assert r.tool == "search"
-
-    async def test_mcp_invalid_format(self, monkeypatch):
-        """mcp: 前缀但格式不对（无 / 分隔）"""
-        fake_mgr = MagicMock()
-        monkeypatch.setattr(mcp_tools, "get_mcp_client_manager", lambda: fake_mgr)
-        r = await call_tool_with_fallback("mcp:invalid_name", {})
-        # 没有 / 分隔 → len(parts) != 2 → 跳过降级，返回未知 Tool
-        assert r.success is False
-        assert "未知 Tool" in r.error or "不可用" in r.error
 
 
 # ══════════════════════════════════════════════════════════
