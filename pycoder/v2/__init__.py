@@ -256,6 +256,78 @@ class V2Engine:
         except Exception as e:
             logger.warning("闭环验证引擎能力注册失败: %s", e)
 
+        # ── Phase 2 升级: 核心能力提升 ──
+        logger.info("注册 DAG 并行任务调度能力...")
+        try:
+            from pycoder.brain.dag_scheduler import register_capabilities as register_dag
+
+            register_dag(self.registry)
+        except Exception as e:
+            logger.warning("DAG 并行任务调度能力注册失败: %s", e)
+
+        logger.info("注册任务难度分级能力...")
+        try:
+            from pycoder.server.services.task_grader import register_capabilities as register_grader
+
+            register_grader(self.registry)
+        except Exception as e:
+            logger.warning("任务难度分级能力注册失败: %s", e)
+
+        logger.info("注册任务持久化能力...")
+        try:
+            from pycoder.server.services.task_persistence import (
+                register_capabilities as register_task_persist,
+            )
+
+            register_task_persist(self.registry)
+        except Exception as e:
+            logger.warning("任务持久化能力注册失败: %s", e)
+
+        logger.info("注册进化报告生成能力...")
+        try:
+            from pycoder.server.services.evolution_report import (
+                register_capabilities as register_report,
+            )
+
+            register_report(self.registry)
+        except Exception as e:
+            logger.warning("进化报告生成能力注册失败: %s", e)
+
+        # ── Phase 3 升级: 生态与扩展 ──
+        logger.info("注册技能市场能力...")
+        try:
+            from pycoder.skills import register_capabilities as register_skills
+
+            register_skills(self.registry)
+        except Exception as e:
+            logger.warning("技能市场能力注册失败: %s", e)
+
+        logger.info("注册 MCP 协议适配能力...")
+        try:
+            from pycoder.bus.mcp_adapter import register_capabilities as register_mcp
+
+            register_mcp(self.registry)
+        except Exception as e:
+            logger.warning("MCP 协议适配能力注册失败: %s", e)
+
+        logger.info("注册专业 Agent 团队能力...")
+        try:
+            from pycoder.brain.specialized_agents import register_capabilities as register_team
+
+            register_team(self.registry)
+        except Exception as e:
+            logger.warning("专业 Agent 团队能力注册失败: %s", e)
+
+        logger.info("注册闭环学习循环能力...")
+        try:
+            from pycoder.capabilities.self_evo.learning.closed_loop import (
+                register_capabilities as register_learning,
+            )
+
+            register_learning(self.registry)
+        except Exception as e:
+            logger.warning("闭环学习循环能力注册失败: %s", e)
+
         # 2. 记忆引擎加载持久化数据
         if self.config.enable_consciousness:
             self.consciousness.set_mode(OperatingMode.AWARE)

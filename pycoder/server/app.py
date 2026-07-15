@@ -80,6 +80,13 @@ from pycoder.server.routers.visualize import router as visualize_router
 
 # 系统能力升级: 新增模块 API 路由
 from pycoder.server.routers.workspace_api import router as workspace_api_router
+
+# Phase 1 升级: 新增核心能力 API 路由
+from pycoder.server.routers.deep_memory_api import router as deep_memory_router
+from pycoder.server.routers.gateway_api import router as gateway_router
+from pycoder.server.routers.gateway_api import ws_router as gateway_ws_router
+from pycoder.server.routers.guard_api import router as guard_router
+from pycoder.server.routers.sandbox_api import router as sandbox_router
 from pycoder.server.ws_handler import websocket_chat
 from pycoder.server.ws_handler_v2 import websocket_chat_v2
 
@@ -580,6 +587,13 @@ app.include_router(knowledge_api_router)
 app.include_router(memory_api_router)
 app.include_router(notify_api_router)
 app.include_router(notify_ws_router)  # WebSocket 通知端点
+
+# ── Phase 1 升级: 新增核心能力 API 路由 ──
+app.include_router(gateway_router)  # 多平台消息网关
+app.include_router(gateway_ws_router)  # 网关 WebSocket
+app.include_router(sandbox_router)  # Docker 沙箱执行
+app.include_router(deep_memory_router)  # 深度记忆系统
+app.include_router(guard_router)  # 幻觉抑制守卫
 
 # WebSocket（独立挂载）
 app.include_router(collab_ws_router)
