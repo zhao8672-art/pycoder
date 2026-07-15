@@ -329,6 +329,26 @@ class UnifiedEntryAgent:
                     extra={"session_id": session_id, "error": str(e)},
                 )
 
+        # ── P2: 解析 @file:path 引用并加载文件内容 ──
+        import re as _re2
+        mentioned_files = _re2.findall(r"@file:(\S+)", user_message)
+        file_context = ""
+        if mentioned_files:
+            try:
+                from pathlib import Path as _P2
+                from pycoder.server.routers.files import get_workspace_root
+                work_dir = _P2(get_workspace_root())
+                for mf in mentioned_files[:5]:
+                    target = (work_dir / mf).resolve()
+                    if target.is_relative_to(work_dir) and target.exists():
+                        content = target.read_text(encoding="utf-8")
+                        file_context += (
+                            f"\n## 文件 {mf}\n"
+                            f"```\n{content[:1000]}\n```\n"
+                        )
+            except Exception:
+                pass
+
         # ── 上下文管理：任务追踪 + 偏离检测 ──
         ctx_orch = get_orchestrator()
         if not ctx_orch.tracker.is_active:

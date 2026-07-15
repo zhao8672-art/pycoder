@@ -17,9 +17,15 @@ def register(registry: Any) -> None:
         registry,
         "tools.search.text",
         "文本搜索",
-        "在项目中搜索文本内容（关键词匹配）",
+        "在项目中搜索文本。mode=semantic 使用向量语义搜索（需先索引）",
         {
             "query": {"type": "string", "description": "搜索关键词"},
+            "mode": {
+                "type": "string",
+                "enum": ["keyword", "semantic"],
+                "default": "keyword",
+                "description": "搜索模式: keyword=关键词, semantic=语义",
+            },
             "include_pattern": {"type": "string", "default": "**/*.py"},
             "max_results": {"type": "number", "default": 20},
         },

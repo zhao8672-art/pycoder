@@ -260,7 +260,12 @@ class ChatBridge:
             logger.debug("memory_compress_failed error=%s", e)
             return ""
 
-    async def chat_stream(self, message: str) -> AsyncIterator[ChatEvent]:
+    async def chat_stream(
+        self,
+        message: str,
+        *,
+        tool_names: list[str] | None = None,  # P0: 限制工具集，None=全部
+    ) -> AsyncIterator[ChatEvent]:
         """流式聊天 — 支持多轮工具调用循环
 
         当 AI 发起 function call 时，自动执行工具、将结果反馈给 AI，
@@ -268,6 +273,7 @@ class ChatBridge:
 
         Args:
             message: 用户消息
+            tool_names: 可选，限制注入的工具名称列表。None=注入所有工具
 
         Yields:
             ChatEvent: event_type ∈ {"token", "reasoning", "done", "error"}
@@ -330,6 +336,11 @@ class ChatBridge:
             all_tools = list_builtin_tools()
             skip_tools = {"refresh_extensions", "skills_sync_v2", "system_upgrade"}
 
+            # P0: 如果指定了 tool_names，只注入这些工具
+            if tool_names is not None:
+                name_set = set(tool_names)
+                all_tools = [t for t in all_tools if t.get("name", "") in name_set]
+
             # ── V2: 合并 V2 能力到工具列表 ──
             try:
                 from pycoder.server.app import get_v2_engine
@@ -337,6 +348,10 @@ class ChatBridge:
                 v2_engine = get_v2_engine()
                 if v2_engine:
                     for cap in v2_engine.registry.list_all():
+                        # P0: 如果指定了 tool_names，也过滤 V2 能力
+                        cap_short = cap.id.split(".")[-1]
+                        if tool_names is not None and cap_short not in name_set:
+                            continue
                         tools_payload.append(
                             {
                                 "type": "function",
@@ -660,6 +675,77 @@ class ChatBridge:
 # ══════════════════════════════════════════════════════════
 # 工具函数
 # ══════════════════════════════════════════════════════════
+
+
+def estimate_tokens(text: str) -> int:
+    """估算文本的 token 数量 (~每中文字符1token，每英文词1.3token)"""
+    if not text:
+        return 0
+
+
+# ══════════════════════════════════════════════════════════
+# P4: 多模型路由支持
+# ══════════════════════════════════════════════════════════
+
+MODEL_ROUTING: dict[str, dict[str, str]] = {
+    "deepseek": {
+        "provider": "deepseek",
+        "model": "deepseek-chat",
+        "base": "https://api.deepseek.com",
+    },
+    "deepseek-reasoner": {
+        "provider": "deepseek",
+        "model": "deepseek-reasoner",
+        "base": "https://api.deepseek.com",
+    },
+    "qwen": {
+        "provider": "qwen",
+        "model": "qwen-coder-plus",
+        "base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    },
+    "glm": {
+        "provider": "glm",
+        "model": "glm-4-flash",
+        "base": "https://open.bigmodel.cn/api/paas/v4",
+    },
+    "gpt-4o-mini": {
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "base": "https://api.openai.com/v1",
+    },
+}
+
+
+def _resolve_model_endpoint(model: str) -> tuple[str, str]:
+    """解析模型名称为 API Base URL + 实际模型名
+
+    Args:
+        model: 模型名称（deepseek/qwen/glm/gpt-4o-mini 等）
+
+    Returns:
+        (api_base_url, resolved_model_name)
+    """
+    # 检查是否匹配已知模型
+    route = MODEL_ROUTING.get(model)
+    if route:
+        return route["base"], route["model"]
+
+    # 通过前缀匹配
+    for prefix, route in [
+        ("deepseek-reasoner", MODEL_ROUTING.get("deepseek-reasoner")),
+        ("deepseek", MODEL_ROUTING.get("deepseek")),
+        ("qwen", MODEL_ROUTING.get("qwen")),
+        ("glm", MODEL_ROUTING.get("glm")),
+        ("gpt", MODEL_ROUTING.get("gpt-4o-mini")),
+    ]:
+        if model.startswith(prefix) and route:
+            return route["base"], model
+
+    # 默认回退到 DeepSeek
+    return (
+        PROVIDER_API_BASES.get("deepseek", "https://api.deepseek.com"),
+        model,
+    )
 
 
 def estimate_tokens(text: str) -> int:

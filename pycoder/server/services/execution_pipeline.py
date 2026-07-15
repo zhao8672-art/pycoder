@@ -138,6 +138,31 @@ def get_execution_config(mode: str) -> ExecutionConfig:
 
 
 # ══════════════════════════════════════════════════════════
+# P0: 按模式动态选择工具集
+# ══════════════════════════════════════════════════════════
+
+TOOL_TIERS: dict[str, list[str] | None] = {
+    "chat": [
+        "read_file", "write_file", "list_files", "search",
+        "run_terminal", "git_status", "execute_python", "python_env",
+    ],
+    "hermes": [
+        "read_file", "write_file", "list_files", "search",
+        "run_terminal", "git_status", "git_log",
+        "execute_python", "python_env",
+        "code_review", "format_code", "docker_status",
+        "security_scan", "dependency_analysis",
+    ],
+    "agent": None,  # 全部 48 个工具
+}
+
+
+def get_tool_names_for_mode(mode: str) -> list[str] | None:
+    """获取指定模式的工具名称列表（None = 全部）"""
+    return TOOL_TIERS.get(mode)
+
+
+# ══════════════════════════════════════════════════════════
 # 执行管线
 # ══════════════════════════════════════════════════════════
 
@@ -216,6 +241,15 @@ class ExecutionPipeline:
         }
         await asyncio.sleep(0)
 
+        # P0: 根据模式选择工具集
+        tool_names = get_tool_names_for_mode(strategy.name)
+        if tool_names:
+            logger.info(
+                "pipeline_tool_tier mode=%s tool_count=%d",
+                strategy.name,
+                len(tool_names),
+            )
+
         # ── Stage 2-4: LLM Invoke → Parse → Execute ──
         full_content = ""
         total_tokens = 0
@@ -278,7 +312,9 @@ class ExecutionPipeline:
             self._last_yield_time = time.monotonic()
 
             try:
-                async for ev in bridge.chat_stream(prompt):
+                async for ev in bridge.chat_stream(
+                    prompt, tool_names=tool_names
+                ):
                     if ev.event_type == "token":
                         self._last_yield_time = time.monotonic()
                         response_text += ev.content
