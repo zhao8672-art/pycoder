@@ -211,6 +211,51 @@ class V2Engine:
         except Exception as e:
             logger.warning("通知与任务调度能力注册失败: %s", e)
 
+        # ── Phase 1 升级: 新增核心能力模块 ──
+        logger.info("注册多平台消息网关能力...")
+        try:
+            from pycoder.gateway import register_capabilities as register_gateway
+
+            register_gateway(self.registry)
+        except Exception as e:
+            logger.warning("多平台消息网关能力注册失败: %s", e)
+
+        logger.info("注册 Docker 沙箱执行能力...")
+        try:
+            from pycoder.safety.sandbox_executor import register_sandbox_capabilities
+
+            register_sandbox_capabilities(self.registry)
+        except Exception as e:
+            logger.warning("Docker 沙箱执行能力注册失败: %s", e)
+
+        logger.info("注册深度记忆系统能力...")
+        try:
+            from pycoder.memory.deep_memory import register_capabilities as register_deep_memory
+
+            register_deep_memory(self.registry)
+        except Exception as e:
+            logger.warning("深度记忆系统能力注册失败: %s", e)
+
+        logger.info("注册幻觉抑制能力...")
+        try:
+            from pycoder.server.services.hallucination_guard import (
+                register_capabilities as register_guard,
+            )
+
+            register_guard(self.registry)
+        except Exception as e:
+            logger.warning("幻觉抑制能力注册失败: %s", e)
+
+        logger.info("注册闭环验证引擎能力...")
+        try:
+            from pycoder.server.services.closed_loop_engine import (
+                register_capabilities as register_closed_loop,
+            )
+
+            register_closed_loop(self.registry)
+        except Exception as e:
+            logger.warning("闭环验证引擎能力注册失败: %s", e)
+
         # 2. 记忆引擎加载持久化数据
         if self.config.enable_consciousness:
             self.consciousness.set_mode(OperatingMode.AWARE)
