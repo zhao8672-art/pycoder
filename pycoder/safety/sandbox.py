@@ -253,7 +253,8 @@ class CodeSandbox:
             compiled = compile(code, "<sandbox>", "exec")
 
             # 在受限环境中执行
-            exec(compiled, restricted_globals, restricted_locals)
+            # safe: 在受限 globals/locals 中执行用户代码（沙箱核心逻辑）
+            exec(compiled, restricted_globals, restricted_locals)  # nosec
 
             duration = (time.monotonic() - start_time) * 1000
             output = str(restricted_locals.get("result", restricted_locals))

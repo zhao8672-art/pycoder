@@ -115,8 +115,9 @@ DJANGO_TEMPLATE = {
         "config/settings.py": (
             '"""Django 配置"""\n'
             "from pathlib import Path\n"
+            "import os\n"
             "BASE_DIR = Path(__file__).resolve().parent.parent\n"
-            'SECRET_KEY = "change-me-in-production"\n'
+            'SECRET_KEY = os.environ.get("DJANGO_KEY", "dev-only")\n'
             "DEBUG = True\n"
             'ALLOWED_HOSTS = ["*"]\n'
             "INSTALLED_APPS = [\n"

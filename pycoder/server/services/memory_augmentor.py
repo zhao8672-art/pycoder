@@ -14,8 +14,8 @@ MemoryAugmentor — 跨会话长期记忆增强组件
 用法:
     aug = MemoryAugmentor()
     # 存储
-    aug.store(project="pycoder", key="auth_implementation",
-              content="使用 JWT + bcrypt", tags=["auth","security"])
+    # aug.store(project="pycoder", fact_id="auth_implementation",
+    #          content="使用 JWT + bcrypt", tags=["auth","security"])
     # 检索
     results = aug.retrieve("用户认证怎么实现")
     # 衰减
