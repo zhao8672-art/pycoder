@@ -72,13 +72,15 @@ class GradeResponse(BaseModel):
     """任务难度分级响应"""
 
     level: str = Field(..., description="难度级别: LIGHT/MEDIUM/HEAVY")
-    max_steps: int = Field(..., description="最大执行步数")
+    level_value: int = Field(..., description="难度级别数值: 1/2/3")
+    label: str = Field(default="", description="级别中文标签")
+    max_iterations: int = Field(..., description="最大执行迭代数")
     temperature: float = Field(..., description="推理温度")
     max_tokens: int = Field(..., description="最大输出 token 数")
-    reasoning_depth: str = Field(..., description="推理深度: fast/standard/deep")
-    description: str = Field(default="", description="级别描述")
-    score: int = Field(default=0, description="复杂度评分 0-100")
-    detected_types: list[str] = Field(default_factory=list, description="检测到的任务类型")
+    timeout_seconds: float = Field(default=300.0, description="超时秒数")
+    score: float = Field(default=0.0, description="复杂度评分 0-100")
+    dimensions: dict[str, float] = Field(default_factory=dict, description="各维度得分")
+    reasoning: list[str] = Field(default_factory=list, description="评级理由")
 
 
 class SaveTaskRequest(BaseModel):
@@ -199,28 +201,29 @@ async def grade_task(req: GradeRequest) -> GradeResponse:
     评估任务难度
 
     根据任务描述文本自动分析复杂度，返回 LIGHT/MEDIUM/HEAVY 三级分级
-    和推荐执行参数（温度、最大步数、token 数等）。
+    和推荐执行参数（温度、最大迭代数、token 数等）。
     """
     grader = _get_grader()
-    grade: TaskGrade = grader.grade(req.description)
+    grade: TaskGrade = grader.assess(req.description)
 
     logger.info(
-        "任务分级: 描述长度=%d → 级别=%s 评分=%d 类型=%s",
+        "任务分级: 描述长度=%d → 级别=%s 评分=%.1f",
         len(req.description),
-        grade.level,
+        grade.level.name,
         grade.score,
-        grade.detected_types,
     )
 
     return GradeResponse(
-        level=grade.level,
-        max_steps=grade.max_steps,
+        level=grade.level.name,
+        level_value=int(grade.level),
+        label=grade.label,
+        max_iterations=grade.max_iterations,
         temperature=grade.temperature,
         max_tokens=grade.max_tokens,
-        reasoning_depth=grade.reasoning_depth,
-        description=grade.description,
-        score=grade.score,
-        detected_types=grade.detected_types,
+        timeout_seconds=grade.timeout_seconds,
+        score=round(grade.score, 1),
+        dimensions={k: round(v, 1) for k, v in grade.dimensions.items()},
+        reasoning=grade.reasoning,
     )
 
 

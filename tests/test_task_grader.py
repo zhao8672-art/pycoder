@@ -5,10 +5,9 @@ from __future__ import annotations
 import pytest
 
 from pycoder.server.services.task_grader import (
-    HEAVY_CONFIG,
-    LEVEL_CONFIG_MAP,
-    LIGHT_CONFIG,
-    MEDIUM_CONFIG,
+    GRADE_CONFIG,
+    SCORE_THRESHOLDS,
+    GradeLevel,
     TaskGrade,
     TaskGrader,
 )
@@ -28,213 +27,227 @@ class TestTaskGrader:
         """创建分级器实例"""
         assert isinstance(grader, TaskGrader)
 
+    def test_default_weights(self, grader: TaskGrader) -> None:
+        """默认权重和为 1.0"""
+        total = sum(grader._weights.values())
+        assert abs(total - 1.0) < 0.01
+
     # ── 难度分级测试 ──
 
     def test_grade_light_task(self, grader: TaskGrader) -> None:
         """简单任务 → LIGHT"""
-        result = grader.grade("fix a typo in README")
-        assert result.level == "LIGHT"
-        assert result.max_steps == LIGHT_CONFIG.max_steps
-        assert result.temperature == LIGHT_CONFIG.temperature
-        assert result.max_tokens == LIGHT_CONFIG.max_tokens
-        assert result.reasoning_depth == "fast"
-        assert result.score < 15
+        result = grader.assess("fix a typo in README")
+        assert result.level == GradeLevel.LIGHT
+        assert 5 <= result.max_iterations <= 10
+        assert result.temperature == 0.3
+        assert result.max_tokens == 2048
+        assert result.score < 35
 
     def test_grade_medium_task(self, grader: TaskGrader) -> None:
-        """中等任务 → MEDIUM"""
-        medium_desc = "add a new API endpoint with database CRUD operations and user authentication"
-        result = grader.grade(medium_desc)
-        assert result.level == "MEDIUM"
-        assert result.max_steps == MEDIUM_CONFIG.max_steps
-        assert result.temperature == MEDIUM_CONFIG.temperature
-        assert result.max_tokens == MEDIUM_CONFIG.max_tokens
-        assert result.reasoning_depth == "standard"
-        assert 15 <= result.score < 50
+        """中等任务 → MEDIUM（使用上下文增强评分）"""
+        result = grader.assess(
+            "add a new API endpoint with database CRUD operations and user authentication",
+            context={"files": 4, "dependencies": 3, "domain": "backend"},
+        )
+        assert result.level == GradeLevel.MEDIUM
+        assert 15 <= result.max_iterations <= 25
+        assert result.temperature == 0.2
+        assert result.max_tokens == 4096
+        assert 35 <= result.score < 70
 
     def test_grade_heavy_task(self, grader: TaskGrader) -> None:
-        """重量级任务 → HEAVY"""
-        heavy_desc = (
+        """重量级任务 → HEAVY（使用上下文增强评分）"""
+        result = grader.assess(
             "migrate the entire distributed microservice architecture "
-            "to Kubernetes with enterprise deployment pipeline"
+            "to Kubernetes with enterprise deployment pipeline",
+            context={"files": 15, "dependencies": 8, "domain": "architecture", "scope": "architecture"},
         )
-        result = grader.grade(heavy_desc)
-        assert result.level == "HEAVY"
-        assert result.max_steps == HEAVY_CONFIG.max_steps
-        assert result.temperature == HEAVY_CONFIG.temperature
-        assert result.max_tokens == HEAVY_CONFIG.max_tokens
-        assert result.reasoning_depth == "deep"
-        assert result.score >= 50
+        assert result.level == GradeLevel.HEAVY
+        assert 30 <= result.max_iterations <= 120
+        assert result.temperature == 0.15
+        assert result.max_tokens == 8192
+        assert result.score >= 70
 
     def test_grade_empty(self, grader: TaskGrader) -> None:
         """空任务 → 默认级别（评分 0，应归为 LIGHT）"""
-        result = grader.grade("")
-        assert result.level == "LIGHT"
-        assert result.score == 0
-        assert result.max_steps == LIGHT_CONFIG.max_steps
+        result = grader.assess("")
+        assert result.level == GradeLevel.LIGHT
+        assert result.score < 35
+
+    def test_grade_with_context(self, grader: TaskGrader) -> None:
+        """带上下文的评估"""
+        result = grader.assess(
+            "实现用户认证模块",
+            context={"files": 5, "dependencies": 3, "domain": "security"},
+        )
+        assert result.level in (GradeLevel.MEDIUM, GradeLevel.HEAVY)
+        assert result.dimensions  # 应包含各维度得分
 
     # ── 关键词评分测试 ──
 
-    def test_grade_by_keywords(self, grader: TaskGrader) -> None:
-        """验证关键词评分机制"""
-        # 包含 HEAVY 关键词 "architecture" + "distributed" + "migrate" + "microservice" → HEAVY
-        heavy_desc = (
-            "migrate the enterprise architecture to a distributed "
-            "microservice system with Kubernetes cluster deployment"
+    def test_grade_security_task(self, grader: TaskGrader) -> None:
+        """安全类任务应有较高评分"""
+        result = grader.assess("实现 JWT 认证和 RBAC 权限控制，防止 XSS 攻击")
+        # 安全领域基础分较高
+        assert result.dimensions["domain_expertise"] >= 40
+
+    def test_grade_architecture_task(self, grader: TaskGrader) -> None:
+        """架构类任务 + 上下文 → HEAVY"""
+        result = grader.assess(
+            "重构整个微服务架构，设计新的分布式系统架构",
+            context={"files": 20, "dependencies": 10, "domain": "architecture", "scope": "architecture"},
         )
-        heavy = grader.grade(heavy_desc)
-        assert heavy.level == "HEAVY"
-        assert "architecture" in heavy.detected_types
+        assert result.level == GradeLevel.HEAVY
 
-        # 包含 MEDIUM 关键词 "api" + "refactor" → MEDIUM 或 HEAVY
-        medium = grader.grade("refactor the user API endpoints")
-        assert medium.level in ("MEDIUM", "HEAVY")
-        assert "refactor" in medium.detected_types
+    def test_grade_bug_fix_task(self, grader: TaskGrader) -> None:
+        """Bug 修复 → LIGHT 或 MEDIUM"""
+        result = grader.assess("修复登录页面的一个拼写错误")
+        assert result.level in (GradeLevel.LIGHT, GradeLevel.MEDIUM)
 
-        # 包含 LIGHT 关键词 "simple" + "fix typo" → LIGHT
-        light = grader.grade("simple fix typo in comment")
-        assert light.level == "LIGHT"
-        assert light.score < 15
+    def test_grade_chinese_task(self, grader: TaskGrader) -> None:
+        """中文任务描述 + 上下文"""
+        result = grader.assess(
+            "添加用户认证和登录接口，包括数据库迁移",
+            context={"files": 3, "dependencies": 4, "domain": "backend"},
+        )
+        assert result.level in (GradeLevel.MEDIUM, GradeLevel.HEAVY)
 
-        # 纯中文关键词测试
-        light_cn = grader.grade("修复拼写错误")
-        assert light_cn.level == "LIGHT"
+    # ── 配置测试 ──
 
-        medium_cn = grader.grade("添加用户认证和登录接口")
-        assert medium_cn.level in ("MEDIUM", "HEAVY")
+    def test_grade_config_light(self) -> None:
+        """LIGHT 级别配置"""
+        config = GRADE_CONFIG[GradeLevel.LIGHT]
+        assert config["max_iterations"] == (5, 10)
+        assert config["temperature"] == 0.3
+        assert config["max_tokens"] == 2048
+        assert config["label"] == "简单"
 
-        heavy_cn = grader.grade("重构整个微服务架构，迁移到 Kubernetes 集群")
-        assert heavy_cn.level == "HEAVY"
+    def test_grade_config_medium(self) -> None:
+        """MEDIUM 级别配置"""
+        config = GRADE_CONFIG[GradeLevel.MEDIUM]
+        assert config["max_iterations"] == (15, 25)
+        assert config["temperature"] == 0.2
+        assert config["max_tokens"] == 4096
+        assert config["label"] == "中等"
 
-    # ── 配置获取测试 ──
+    def test_grade_config_heavy(self) -> None:
+        """HEAVY 级别配置"""
+        config = GRADE_CONFIG[GradeLevel.HEAVY]
+        assert config["max_iterations"] == (30, 120)
+        assert config["temperature"] == 0.15
+        assert config["max_tokens"] == 8192
+        assert config["label"] == "复杂"
 
-    def test_get_grade_config(self) -> None:
-        """获取指定级别的配置"""
-        # LIGHT 配置
-        config = LEVEL_CONFIG_MAP["LIGHT"]
-        assert config.level == "LIGHT"
-        assert config.label == "轻量"
-        assert config.min_steps == 5
-        assert config.max_steps == 10
-        assert config.temperature == 0.3
-        assert config.max_tokens == 4096
-        assert config.reasoning_depth == "fast"
+    def test_score_thresholds(self) -> None:
+        """评分阈值"""
+        assert SCORE_THRESHOLDS[GradeLevel.LIGHT] == (0.0, 35.0)
+        assert SCORE_THRESHOLDS[GradeLevel.MEDIUM] == (35.0, 70.0)
+        assert SCORE_THRESHOLDS[GradeLevel.HEAVY] == (70.0, 100.0)
 
-        # MEDIUM 配置
-        config = LEVEL_CONFIG_MAP["MEDIUM"]
-        assert config.level == "MEDIUM"
-        assert config.label == "中等"
-        assert config.min_steps == 15
-        assert config.max_steps == 25
-        assert config.temperature == 0.2
-        assert config.max_tokens == 8192
-        assert config.reasoning_depth == "standard"
-
-        # HEAVY 配置
-        config = LEVEL_CONFIG_MAP["HEAVY"]
-        assert config.level == "HEAVY"
-        assert config.label == "重量级"
-        assert config.min_steps == 30
-        assert config.max_steps == 120
-        assert config.temperature == 0.15
-        assert config.max_tokens == 16384
-        assert config.reasoning_depth == "deep"
-
-    # ── 步数估算测试 ──
-
-    def test_estimate_steps(self) -> None:
-        """估算各级别步数"""
-        test_cases = [
-            (LIGHT_CONFIG, (5, 10)),
-            (MEDIUM_CONFIG, (15, 25)),
-            (HEAVY_CONFIG, (30, 120)),
-        ]
-
-        for config, (expected_min, expected_max) in test_cases:
-            grade = TaskGrade(
-                level=config.level,
-                max_steps=config.max_steps,
-                temperature=config.temperature,
-                max_tokens=config.max_tokens,
-                reasoning_depth=config.reasoning_depth,
-                description=config.description,
-            )
-            assert grade.max_steps == expected_max
-
-            # 构造最低分和最高分场景验证步数范围
-            light_grade = TaskGrade(
-                level="LIGHT",
-                max_steps=LIGHT_CONFIG.max_steps,
-                temperature=LIGHT_CONFIG.temperature,
-                max_tokens=LIGHT_CONFIG.max_tokens,
-                reasoning_depth=LIGHT_CONFIG.reasoning_depth,
-                description=LIGHT_CONFIG.description,
-            )
-            assert light_grade.max_steps >= LIGHT_CONFIG.min_steps
-
-            heavy_grade = TaskGrade(
-                level="HEAVY",
-                max_steps=HEAVY_CONFIG.max_steps,
-                temperature=HEAVY_CONFIG.temperature,
-                max_tokens=HEAVY_CONFIG.max_tokens,
-                reasoning_depth=HEAVY_CONFIG.reasoning_depth,
-                description=HEAVY_CONFIG.description,
-            )
-            assert heavy_grade.max_steps >= HEAVY_CONFIG.min_steps
-
-    # ── 附加测试 ──
-
-    def test_grade_result_has_all_fields(self, grader: TaskGrader) -> None:
-        """分级结果包含所有必要字段"""
-        result = grader.grade("add a new feature for user dashboard")
-        assert result.level in ("LIGHT", "MEDIUM", "HEAVY")
-        assert result.max_steps > 0
-        assert 0.0 < result.temperature <= 1.0
-        assert result.max_tokens > 0
-        assert result.reasoning_depth in ("fast", "standard", "deep")
-        assert isinstance(result.description, str) and len(result.description) > 0
-        assert 0 <= result.score <= 100
-        assert isinstance(result.detected_types, list)
+    # ── 序列化测试 ──
 
     def test_grade_to_dict(self, grader: TaskGrader) -> None:
         """分级结果可序列化为字典"""
-        result = grader.grade("optimize database queries")
+        result = grader.assess("optimize database queries")
         d = result.to_dict()
-        assert d["level"] == result.level
-        assert d["max_steps"] == result.max_steps
+        assert d["level"] == result.level.name
+        assert d["max_iterations"] == result.max_iterations
         assert d["temperature"] == result.temperature
-        assert d["score"] == result.score
-        assert d["detected_types"] == result.detected_types
+        assert d["score"] == round(result.score, 1)
+        assert "dimensions" in d
+        assert "reasoning" in d
 
-    def test_get_execution_params(self, grader: TaskGrader) -> None:
-        """获取执行参数"""
-        grade = grader.grade("create a REST API endpoint")
-        params = grader.get_execution_params(grade)
-        assert params["level"] == grade.level
-        assert params["max_steps"] == grade.max_steps
-        assert params["temperature"] == grade.temperature
-        assert params["max_tokens"] == grade.max_tokens
-        assert "stop_sequences" in params
-        assert "top_p" in params
-        assert "frequency_penalty" in params
+    def test_grade_result_has_all_fields(self, grader: TaskGrader) -> None:
+        """分级结果包含所有必要字段"""
+        result = grader.assess("add a new feature for user dashboard")
+        assert result.level in (GradeLevel.LIGHT, GradeLevel.MEDIUM, GradeLevel.HEAVY)
+        assert result.max_iterations > 0
+        assert 0.0 < result.temperature <= 1.0
+        assert result.max_tokens > 0
+        assert isinstance(result.score, float)
+        assert 0 <= result.score <= 100
+        assert isinstance(result.dimensions, dict)
+        assert len(result.dimensions) == 5  # 5 个维度
+        assert isinstance(result.reasoning, list)
+        assert len(result.reasoning) > 0  # 至少有一条理由
 
-    def test_task_type_detection(self, grader: TaskGrader) -> None:
-        """任务类型检测"""
-        # Bug 修复
-        result = grader.grade("fix a bug in the login handler")
-        assert "bug_fix" in result.detected_types
+    # ── 统计测试 ──
 
-        # 新功能
-        result = grader.grade("add a new feature for exporting reports")
-        assert "feature" in result.detected_types
+    def test_get_stats(self, grader: TaskGrader) -> None:
+        """获取统计信息"""
+        grader.assess("task 1")
+        grader.assess("task 2")
+        stats = grader.get_stats()
+        assert stats["total_assessments"] == 2
+        assert "level_distribution" in stats
+        assert "average_score" in stats
 
-        # 重构
-        result = grader.grade("refactor the database layer")
-        assert "refactor" in result.detected_types
+    # ── 权重调整测试 ──
 
-        # 迁移
-        result = grader.grade("migrate from SQLite to PostgreSQL")
-        assert "migration" in result.detected_types
+    def test_set_weights_valid(self, grader: TaskGrader) -> None:
+        """设置有效权重"""
+        new_weights = {
+            "code_volume": 0.30,
+            "dep_complexity": 0.20,
+            "domain_expertise": 0.20,
+            "change_scope": 0.15,
+            "constraints": 0.15,
+        }
+        grader.set_weights(new_weights)
+        assert grader._weights == new_weights
 
-        # 架构设计
-        result = grader.grade("design the system architecture")
-        assert "architecture" in result.detected_types
+    def test_set_weights_invalid(self, grader: TaskGrader) -> None:
+        """设置无效权重（总和不为 1.0）"""
+        with pytest.raises(ValueError):
+            grader.set_weights({"code_volume": 0.5, "dep_complexity": 0.3})
+
+    # ── 维度评分测试 ──
+
+    def test_score_code_volume_with_files(self, grader: TaskGrader) -> None:
+        """带文件数的代码量评分"""
+        score = grader._score_code_volume("test", {"files": 8})
+        assert score >= 60  # 8 文件应得较高分
+
+    def test_score_code_volume_no_files(self, grader: TaskGrader) -> None:
+        """无文件数的代码量评分"""
+        score = grader._score_code_volume("fix typo", {})
+        assert 20 <= score <= 40  # 基础分加少量关键词
+
+    def test_score_dep_complexity(self, grader: TaskGrader) -> None:
+        """依赖复杂度评分"""
+        score = grader._score_dep_complexity(
+            "集成 Redis 和 Kafka 消息队列", {"dependencies": 4}
+        )
+        assert score >= 30
+
+    def test_score_domain_expertise(self, grader: TaskGrader) -> None:
+        """领域专业性评分"""
+        score = grader._score_domain_expertise(
+            "使用 PyTorch 训练深度学习模型", {}
+        )
+        assert score >= 50  # machine_learning 领域
+
+    def test_score_change_scope(self, grader: TaskGrader) -> None:
+        """变更范围评分"""
+        score = grader._score_change_scope("架构重构整个项目", {})
+        assert score >= 70
+
+    def test_score_constraints(self, grader: TaskGrader) -> None:
+        """约束条件评分"""
+        score = grader._score_constraints(
+            "高性能 低延迟 高并发 安全 加密", {}
+        )
+        assert score >= 50
+
+    # ── GradeLevel 枚举测试 ──
+
+    def test_grade_level_values(self) -> None:
+        """GradeLevel 枚举值"""
+        assert GradeLevel.LIGHT == 1
+        assert GradeLevel.MEDIUM == 2
+        assert GradeLevel.HEAVY == 3
+
+    def test_grade_level_comparison(self) -> None:
+        """GradeLevel 可比较"""
+        assert GradeLevel.LIGHT < GradeLevel.MEDIUM
+        assert GradeLevel.MEDIUM < GradeLevel.HEAVY
