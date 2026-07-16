@@ -40,6 +40,19 @@ from pycoder.ai.nlu import (  # noqa: F401
     RuleClassifier,
     get_nlu_engine,
 )
+from pycoder.ai.generation import (  # noqa: F401
+    IterativeGenerator,
+    MultiStrategyGenerator,
+    SinglePassGenerator,
+    TestDrivenGenerator,
+    get_generator,
+)
+from pycoder.ai.security import (  # noqa: F401
+    CompositeSecurityScanner,
+    MetricsAnalyzer,
+    VulnerabilityScanner,
+    get_scanner,
+)
 from pycoder.ai.benchmark.analyzer import (  # noqa: F401
     CompetitiveAnalyzer,
     get_analyzer,
@@ -108,6 +121,17 @@ __all__ = [
     "EmbeddingMatcher",
     "DeepAnalyzer",
     "get_nlu_engine",
+    # 生成模块
+    "MultiStrategyGenerator",
+    "SinglePassGenerator",
+    "IterativeGenerator",
+    "TestDrivenGenerator",
+    "get_generator",
+    # 安全模块
+    "CompositeSecurityScanner",
+    "MetricsAnalyzer",
+    "VulnerabilityScanner",
+    "get_scanner",
     # 类型定义
     "CodeGenerationRequest",
     "CodeGenerationResult",
