@@ -122,30 +122,82 @@ class ChatBridge:
         self._messages: list[dict] = []
 
     async def chat(self, prompt: str, *, max_tokens: int = 1000) -> str:
-        """简单同步聊天 — 供自进化引擎等内部组件使用"""
+        """简单同步聊天 — 供自进化引擎等内部组件使用，内置 Provider 降级"""
         client = await ChatBridge._get_client()
-        headers = {
-            "Authorization": f"Bearer {self.config.api_key}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": self.config.model or "deepseek-chat",
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": max_tokens,
-            "temperature": 0.3,
-        }
+
+        # 构建 Provider 降级链
+        fallback_providers: list[tuple[str, str, str, str]] = []
         try:
-            resp = await client.post(
-                f"{self.config.api_base}/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=60,
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                return data["choices"][0]["message"]["content"]
-        except (OSError, ValueError, KeyError, AttributeError):
+            from pycoder.providers.auth import PROVIDER_DEFS, ModelManager
+
+            mm = ModelManager()
+            detected = mm.auto_detect()
+            for pname, pdefs in sorted(PROVIDER_DEFS.items(), key=lambda x: x[1]["priority"]):
+                if pname in detected:
+                    pkey = detected[pname]
+                    model_id = pdefs["recommended_model"]
+                    pbase = PROVIDER_API_BASES.get(pname, "https://api.deepseek.com")
+                    fallback_providers.append((model_id, pkey, pbase, pname))
+        except (ImportError, RuntimeError, OSError):
             pass
+
+        # 确保 Key 已设置
+        if not self.config.api_key:
+            try:
+                mm = ModelManager()
+                detected = mm.auto_detect()
+                provider = _detect_provider(self.config.model)
+                if provider in detected:
+                    self.config.api_key = detected[provider]
+                elif detected:
+                    self.config.api_key = next(iter(detected.values()))
+            except (ImportError, RuntimeError, OSError):
+                pass
+
+        api_key = self.config.api_key or os.environ.get("DEEPSEEK_API_KEY", "")
+        if not api_key:
+            return ""
+
+        tried: set[str] = set()
+        for try_model, try_key, try_base, try_prov in (
+            [(self.config.model, api_key, self.config.api_base, _detect_provider(self.config.model))]
+            + fallback_providers
+        ):
+            model_key = f"{try_prov}:{try_model}"
+            if model_key in tried:
+                continue
+            tried.add(model_key)
+
+            headers = {
+                "Authorization": f"Bearer {try_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": try_model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+                "temperature": 0.3,
+            }
+            try:
+                resp = await client.post(
+                    f"{try_base.rstrip('/')}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    timeout=60,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return data["choices"][0]["message"]["content"]
+                elif resp.status_code == 401:
+                    logger.warning("chat_sync_401 provider=%s key_invalid, trying next", try_prov)
+                    continue
+                else:
+                    logger.warning("chat_sync_error provider=%s status=%d", try_prov, resp.status_code)
+                    continue
+            except (OSError, ValueError, KeyError, AttributeError) as e:
+                logger.warning("chat_sync_exception provider=%s error=%s", try_prov, e)
+                continue
+
         return ""
 
     @classmethod
@@ -283,7 +335,35 @@ class ChatBridge:
         # P5: 可观测性 — 记录开始时间
         _start_time = time.perf_counter()
 
-        # 从 ModelManager 全面检测 Key（环境变量 → ~/.pycoder/config.json）
+        # ── 构建 Provider 降级链 ──
+        # 按优先级获取所有可用 Provider，当主 Provider 返回 401 时自动降级
+        fallback_providers: list[tuple[str, str, str]] = []
+        try:
+            from pycoder.providers.auth import PROVIDER_DEFS, ModelManager
+
+            mm = ModelManager()
+            detected = mm.auto_detect()
+            # 按 PROVIDER_DEFS 优先级排序
+            for pname, pdefs in sorted(PROVIDER_DEFS.items(), key=lambda x: x[1]["priority"]):
+                if pname in detected:
+                    pkey = detected[pname]
+                    model_id = pdefs["recommended_model"]
+                    pbase = PROVIDER_API_BASES.get(pname, "https://api.deepseek.com")
+                    fallback_providers.append((model_id, pkey, pbase))
+            if not fallback_providers:
+                # 尝试从环境变量直接读取
+                for env_key, model_id, base in [
+                    ("DEEPSEEK_API_KEY", "deepseek-chat", "https://api.deepseek.com"),
+                    ("OPENAI_API_KEY", "gpt-4o-mini", "https://api.openai.com/v1"),
+                ]:
+                    k = os.environ.get(env_key, "")
+                    if k:
+                        fallback_providers.append((model_id, k, base))
+                        break
+        except (ImportError, RuntimeError, OSError) as e:
+            logger.debug("fallback_providers_setup_failed error=%s", e)
+
+        # ── 重置：从 ModelManager 获取当前 Provider 的 Key ──
         if not self.config.api_key:
             try:
                 from pycoder.providers.auth import ModelManager
@@ -294,7 +374,6 @@ class ChatBridge:
                 if provider in detected:
                     self.config.api_key = detected[provider]
                 elif detected:
-                    # 用第一个可用 Key
                     self.config.api_key = next(iter(detected.values()))
             except (ImportError, RuntimeError, OSError) as e:
                 logger.debug("modelmanager_fallback_failed error=%s", e)
@@ -430,6 +509,7 @@ class ChatBridge:
         all_content = ""
         total_usage: dict = {}
         max_rounds = 5
+        tried_providers: set[str] = set()
 
         # ── 工具调用循环 ──
         for round_num in range(max_rounds):
@@ -464,6 +544,60 @@ class ChatBridge:
                     json=payload,
                     headers=headers,
                 ) as response:
+                    if response.status_code == 401:
+                        error_body = await response.aread()
+                        err_text = error_body.decode()[:300]
+                        current_model = self.config.model
+                        tried_providers.add(current_model)
+
+                        # 尝试降级到下一个可用 Provider
+                        if fallback_providers:
+                            next_prov = None
+                            for nm, nk, nb in fallback_providers:
+                                if nm not in tried_providers:
+                                    next_prov = (nm, nk, nb)
+                                    break
+                            if next_prov:
+                                nm, nk, nb = next_prov
+                                logger.warning(
+                                    "provider_401_fallback from=%s to=%s reason=%s",
+                                    current_model, nm, err_text[:100],
+                                )
+                                self.config.model = nm
+                                self.config.api_key = nk
+                                self.config.api_base = nb
+                                api_key = nk
+                                is_deepseek = nm.startswith("deepseek")
+                                # 更新请求头
+                                headers["Authorization"] = f"Bearer {nk}"
+                                # 更新 payload model
+                                payload["model"] = nm
+                                # 重建 KV cache 等 DeepSeek 特有选项
+                                if is_deepseek and self.config.enable_thinking:
+                                    payload["reasoning_effort"] = self.config.reasoning_effort
+                                elif "reasoning_effort" in payload:
+                                    del payload["reasoning_effort"]
+                                if is_deepseek and self.config.enable_cache:
+                                    payload["enable_cache"] = True
+                                elif "enable_cache" in payload:
+                                    del payload["enable_cache"]
+                                yield ChatEvent(
+                                    event_type="token",
+                                    content=f"\n⚠️ {current_model} Key 无效，自动降级到 {nm}...\n",
+                                )
+                                continue  # 重试当前轮次
+                        # 所有 Provider 均失败
+                        yield ChatEvent(
+                            event_type="error",
+                            content=(
+                                f"❌ **所有 API Key 均无效**\n"
+                                f"已尝试 {len(tried_providers)} 个提供商，均返回认证失败。\n\n"
+                                f"请在 Settings 面板更新 API Key，或发送:\n"
+                                f"  `/setup deepseek YOUR_NEW_KEY`"
+                            ),
+                        )
+                        return
+
                     if response.status_code != 200:
                         error_body = await response.aread()
                         yield ChatEvent(

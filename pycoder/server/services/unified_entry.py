@@ -709,8 +709,14 @@ class UnifiedEntryAgent:
                         content = await self._execute_hermes_sync(context)
                     elif mode == TaskCategory.AGENT:
                         content = await self._execute_agent_sync(context)
-                    success = True
-                    break
+                    if content:
+                        success = True
+                        break
+                    else:
+                        error = "返回内容为空（API Key 可能无效）"
+                        retry_count += 1
+                        if retry_count >= max_retries:
+                            break
                 except Exception as e:
                     retry_count += 1
                     error = str(e)[:300]
@@ -999,7 +1005,24 @@ class UnifiedEntryAgent:
         if results and results[0].success:
             raw_content = results[0].content
         else:
-            return "所有模式执行失败，请查看系统故障处理方案。"
+            # 收集具体错误信息
+            err_details = []
+            for r in results:
+                if not r.success:
+                    err = r.error or "执行失败"
+                    err_details.append(f"{r.mode.value}: {err[:100]}")
+            err_str = "；".join(err_details) if err_details else "未知错误"
+            logger.warning("all_modes_failed errors=%s", err_str)
+            return (
+                "❌ **AI 功能执行失败**\n\n"
+                f"错误详情: {err_str}\n\n"
+                "可能原因:\n"
+                "1. API Key 无效 — 请打开 ⚙ Settings → API Key 管理 重新配置\n"
+                "2. 网络连接问题\n"
+                "3. 模型服务暂时不可用\n\n"
+                "💡 快捷配置: 发送 `/setup deepseek YOUR_NEW_KEY`\n"
+                "💡 查看可用提供商: 发送 `/setup guide`"
+            )
 
         # 去除 LLM 输出中可能残留的【标记】块
         cleaned = self._strip_internal_markers(raw_content)
