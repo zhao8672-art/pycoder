@@ -64,6 +64,7 @@ PROVIDER_API_BASES = {
     "glm": "https://open.bigmodel.cn/api/paas/v4",
     "openai": "https://api.openai.com/v1",
     "nvidia": "https://integrate.api.nvidia.com/v1",
+    "agnes": "https://apihub.agnes-ai.com/v1",
 }
 
 
@@ -78,6 +79,8 @@ def _detect_provider(model: str) -> str:
         return "openai"
     if model.startswith("z-") or model.startswith("nvidia-"):
         return "nvidia"
+    if model.startswith("agnes"):
+        return "agnes"
     return "deepseek"
 
 
