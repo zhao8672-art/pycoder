@@ -33,19 +33,112 @@ async def get_env():
 
 @router.post("/api/config/setup")
 async def config_setup(req: dict):
+    """设置 API Key + 可选默认模型"""
     from pycoder.providers.setup_wizard import set_api_key
 
     provider = req.get("provider") or req.get("key_provider") or ""
     api_key = req.get("api_key") or req.get("key") or ""
+    default_model = req.get("default_model", "")
     result = set_api_key(provider, api_key)
+    if default_model:
+        from pycoder.config.settings import get_config_path, save_config
+
+        cfg = {}
+        cfg_path = get_config_path()
+        if cfg_path.exists():
+            import json
+            cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+        cfg["default_model"] = default_model
+        save_config(cfg)
+        result["default_model"] = default_model
     return result
 
 
 @router.get("/api/config/keys")
 async def config_keys():
+    """获取所有 Provider 的 Key 配置状态"""
     from pycoder.providers.setup_wizard import check_all_keys
 
-    return {"providers": check_all_keys()}
+    mgr_keys = check_all_keys()
+    # 同时返回当前可用模型推荐
+    from pycoder.providers.auth import get_model_manager
+
+    mgr = get_model_manager()
+    detected = mgr.get_all_keys()
+    return {
+        "providers": mgr_keys,
+        "has_any_key": len(detected) > 0,
+        "recommended_model": mgr.recommend()[0] if detected else "deepseek-chat",
+    }
+
+
+@router.get("/api/models")
+async def list_models():
+    """列出所有可用模型及其状态"""
+    from pycoder.providers.auth import PROVIDER_DEFS, get_model_manager
+
+    mgr = get_model_manager()
+    detected = mgr.get_all_keys()
+    models = []
+    for pid, defs in PROVIDER_DEFS.items():
+        has_key = pid in detected
+        models.append({
+            "provider": pid,
+            "name": defs["name"],
+            "configured": has_key,
+            "recommended_model": defs["recommended_model"],
+            "register_url": defs["register_url"],
+            "free_trial": defs.get("free_trial", ""),
+            "env_var": defs["env_vars"][0],
+        })
+    return {"models": models, "has_any_key": len(detected) > 0}
+
+
+@router.post("/api/config/validate-key")
+async def validate_api_key(req: dict):
+    """验证 API Key 是否有效"""
+    from pycoder.providers.auth import get_model_manager
+
+    provider = req.get("provider", "")
+    api_key = req.get("api_key", "")
+    if not provider or not api_key:
+        return {"success": False, "error": "需指定 provider 和 api_key"}
+    mgr = get_model_manager()
+    valid = await mgr.validate_key(provider, api_key)
+    return {"success": valid, "provider": provider}
+
+
+@router.get("/api/config/guide")
+async def config_guide(provider: str = ""):
+    """获取配置引导信息"""
+    from pycoder.providers.auth import PROVIDER_DEFS
+
+    if provider:
+        defs = PROVIDER_DEFS.get(provider)
+        if not defs:
+            return {"success": False, "error": f"未知 provider: {provider}"}
+        return {
+            "provider": provider,
+            "name": defs["name"],
+            "register_url": defs["register_url"],
+            "env_var": defs["env_vars"][0],
+            "free_trial": defs.get("free_trial", ""),
+            "recommended_model": defs["recommended_model"],
+        }
+    # 返回所有 provider 配置引导
+    return {
+        "providers": [
+            {
+                "provider": pid,
+                "name": defs["name"],
+                "register_url": defs["register_url"],
+                "env_var": defs["env_vars"][0],
+                "free_trial": defs.get("free_trial", ""),
+                "recommended_model": defs["recommended_model"],
+            }
+            for pid, defs in PROVIDER_DEFS.items()
+        ]
+    }
 
 
 @router.get("/api/model/config")

@@ -315,6 +315,60 @@ async def _handle_chat_v2(msg: dict, ws: WebSocket, session_id: str, current_mod
         await ws.send_json({"type": "error", "message": "No API Key configured"})
         return
 
+    # ── /setup 命令: 直接在聊天中配置 API Key ──────────
+    if message.startswith("/setup"):
+        parts = message.split(maxsplit=2)
+        if len(parts) == 1:
+            # 显示引导
+            from pycoder.providers.auth import PROVIDER_DEFS, get_model_manager
+            mgr = get_model_manager()
+            guide = mgr.format_setup_guide()
+            await ws.send_json({
+                "type": "content",
+                "content": f"```\n{guide}\n```\n\n**快捷配置:** 发送 `/setup deepseek YOUR_API_KEY`",
+            })
+            await ws.send_json({"type": "done", "content": ""})
+            return
+        provider = parts[1].lower()
+        if provider == "guide":
+            from pycoder.providers.auth import PROVIDER_DEFS, get_model_manager
+            mgr = get_model_manager()
+            guide = mgr.format_setup_guide()
+            await ws.send_json({"type": "content", "content": f"```\n{guide}\n```"})
+            await ws.send_json({"type": "done", "content": ""})
+            return
+        if len(parts) < 3:
+            await ws.send_json({
+                "type": "content",
+                "content": (
+                    f"用法: `/setup {provider} YOUR_API_KEY`\n"
+                    f"示例: `/setup deepseek sk-abc123`\n\n"
+                    "查看所有提供商: `/setup guide`"
+                ),
+            })
+            await ws.send_json({"type": "done", "content": ""})
+            return
+        api_key_value = parts[2]
+        from pycoder.providers.setup_wizard import set_api_key
+        result = set_api_key(provider, api_key_value)
+        if result.get("success"):
+            # 刷新 api_key 变量
+            api_key = _get_api_key_for_model(effective_model)
+            await ws.send_json({
+                "type": "content",
+                "content": f"✅ **{provider} API Key 已配置成功!**\n现在可以正常使用 AI 功能了 🚀",
+            })
+        else:
+            await ws.send_json({
+                "type": "content",
+                "content": (
+                    f"❌ 配置失败: {result.get('error', '未知错误')}\n"
+                    "支持提供商: deepseek, qwen, glm, openai, openrouter, nvidia"
+                ),
+            })
+        await ws.send_json({"type": "done", "content": ""})
+        return
+
     # V2: 记录审计事件
     if v2:
         try:

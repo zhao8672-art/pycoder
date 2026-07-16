@@ -148,6 +148,42 @@ else:
     _sync_api_key_to_file(_API_KEY)
 
 
+# ── 启动时检测 LLM API Key，无则打印引导 ─────────────────
+def _check_llm_keys_on_startup():
+    """检查是否有任意 LLM API Key 已配置，无则打印引导。"""
+    try:
+        from pycoder.providers.auth import ModelManager
+
+        mm = ModelManager()
+        detected = mm.auto_detect()
+        if detected:
+            providers = ", ".join(detected.keys())
+            _logger.info("llm_api_keys_detected: %s", providers)
+            return
+
+        _logger.warning(
+            "\n"
+            "╔══════════════════════════════════════════════════════╗\n"
+            "║  ⚠️  未检测到任何 AI 模型 API Key                  ║\n"
+            "║  请配置至少一个提供商才能使用 AI 功能               ║\n"
+            "║                                                    ║\n"
+            "║  快速开始 — 设置环境变量:                          ║\n"
+            "║    set DEEPSEEK_API_KEY=sk-xxx                     ║\n"
+            "║                                                    ║\n"
+            "║  或打开 Settings 面板 → API Key 管理                ║\n"
+            "║                                                    ║\n"
+            "║  免费获取 Key:                                     ║\n"
+            "║    https://platform.deepseek.com/api_keys          ║\n"
+            "╚══════════════════════════════════════════════════════╝"
+        )
+    except (ImportError, RuntimeError, OSError) as e:
+        _logger.debug("llm_key_check_skipped: %s", e)
+
+
+# 在模块加载时执行检测
+_check_llm_keys_on_startup()
+
+
 class APIKeyMiddleware(BaseHTTPMiddleware):
     """API 密钥验证中间件
 

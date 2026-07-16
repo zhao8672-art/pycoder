@@ -283,9 +283,35 @@ class ChatBridge:
         # P5: 可观测性 — 记录开始时间
         _start_time = time.perf_counter()
 
-        api_key = self.config.api_key or os.environ.get("DEEPSEEK_API_KEY", "")
+        # 从 ModelManager 全面检测 Key（环境变量 → ~/.pycoder/config.json）
+        if not self.config.api_key:
+            try:
+                from pycoder.providers.auth import ModelManager
+
+                mm = ModelManager()
+                detected = mm.auto_detect()
+                provider = _detect_provider(self.config.model)
+                if provider in detected:
+                    self.config.api_key = detected[provider]
+                elif detected:
+                    # 用第一个可用 Key
+                    self.config.api_key = next(iter(detected.values()))
+            except (ImportError, RuntimeError, OSError) as e:
+                logger.debug("modelmanager_fallback_failed error=%s", e)
+
+        api_key = self.config.api_key
         if not api_key:
-            yield ChatEvent(event_type="error", content="未配置 API Key，请运行 --setup 配置")
+            yield ChatEvent(
+                event_type="error",
+                content=(
+                    "⚠️ **未配置 AI 模型 API Key**\n\n"
+                    "请通过以下任一方式配置:\n"
+                    "1. **环境变量**: 设置 `DEEPSEEK_API_KEY=sk-xxx`\n"
+                    "2. **Settings 面板**: 打开左侧 ⚙ 设置 → API Key 管理 → 输入 Key\n"
+                    "3. **快速配置**: 发送 `/setup deepseek YOUR_API_KEY`\n\n"
+                    "💡 免费获取 Key: https://platform.deepseek.com/api_keys"
+                ),
+            )
             return
 
         # ── 构建消息上下文 ──
