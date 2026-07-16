@@ -1,21 +1,32 @@
 """
-统一 Agent 执行循环 — 一个循环驱动所有策略
+统一 Agent 执行循环 — 一个循环驱动所有策略，集成智能路由
 
 特性:
+  - 智能路由: 根据意图分析动态调整执行参数（V2 新增）
   - 读并行/写串行（来自 AgentOrchestrator）
   - 反思机制每3轮（来自 ReActLoop）
   - 内联代码块自动写入（来自 AutonomousPipeline）
   - 完成信号自动检测（来自 AutonomousPipeline）
   - 统一格式解析（JSON/FILE/ReAct/代码块）
+  - 反馈学习: 实时收集执行信号（V2 新增）
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Any
 
+from pycoder.brain.context_enhancer import ContextEnhancer, get_context_enhancer
+from pycoder.brain.feedback_loop import FeedbackLoop, get_feedback_loop
+from pycoder.brain.intelligent_router import (
+    IntelligentRouter,
+    RoutingDecision,
+    get_intelligent_router,
+)
 from pycoder.server.services.agent_parser import parse_response, validate_tool_call
 from pycoder.server.services.agent_strategies import AgentStrategy
 from pycoder.server.services.agent_tools import execute_agent_tool
@@ -33,26 +44,37 @@ WORKSPACE = Path(
 
 
 class UnifiedAgentLoop:
-    """统一 Agent 执行循环"""
+    """统一 Agent 执行循环（V2: 集成智能路由和反馈学习）"""
 
     def __init__(
         self,
         strategy: AgentStrategy,
         workspace: Path = WORKSPACE,
+        router: IntelligentRouter | None = None,
+        feedback: FeedbackLoop | None = None,
+        context_enhancer: ContextEnhancer | None = None,
+        enable_intelligent_routing: bool = False,
     ):
         self.strategy = strategy
         self.workspace = workspace
         self._rumination_count = 0
         self._last_iteration_had_tools = False  # 标记上一轮是否真正执行了工具
 
+        # V2: 智能路由模块
+        self._router = router or get_intelligent_router()
+        self._feedback = feedback or get_feedback_loop()
+        self._context_enhancer = context_enhancer or get_context_enhancer()
+        self._enable_intelligent_routing = enable_intelligent_routing
+
     async def chat_stream(
         self,
         message: str,
         bridge,  # LLMProvider (BridgeLLMProvider) — 提供 stream()/add_message()/configure()
         context: str = "",
+        session_id: str = "",
     ) -> AsyncIterator[dict]:
         """
-        统一执行流
+        统一执行流（V2: 集成智能路由决策）
 
         Yields:
             {"type": "status", "status": "analyzing"|"executing"|"thinking",
@@ -67,6 +89,119 @@ class UnifiedAgentLoop:
         all_tool_calls: list[dict] = []
         all_results: list[str] = []
         written_files: list[str] = []
+
+        start_time = time.monotonic()
+
+        # ═══════════════════════════════════════════════
+        # V2: 智能路由决策
+        # ═══════════════════════════════════════════════
+        decision: RoutingDecision | None = None
+        if self._enable_intelligent_routing:
+            try:
+                # 上下文增强
+                enhanced = self._context_enhancer.process_message(
+                    message, session_id=session_id
+                )
+                if enhanced.resolved_message != message:
+                    logger.info(
+                        "context_enhanced: original='%s' resolved='%s'",
+                        message[:50], enhanced.resolved_message[:50],
+                    )
+
+                # 路由决策
+                decision = self._router.decide(enhanced.resolved_message)
+
+                # 动态调整执行参数
+                max_iterations = decision.execution_config.max_iterations
+                timeout = decision.execution_config.tool_timeout
+
+                logger.info(
+                    "intelligent_routing: domain=%s type=%s complexity=%s "
+                    "agent=%s tools=%d iterations=%d confidence=%.2f",
+                    decision.intent.technical_domain,
+                    decision.intent.task_type,
+                    decision.intent.complexity,
+                    decision.agent.primary_agent,
+                    decision.tool_plan.estimated_tool_calls,
+                    max_iterations,
+                    decision.confidence,
+                )
+
+                # 直接回答路径（无需 Agent 和工具）
+                if (decision.agent.primary_agent == "none"
+                        and decision.tool_plan.allow_direct_answer):
+                    yield {
+                        "type": "status",
+                        "status": "analyzing",
+                        "iteration": 0,
+                        "max": 1,
+                        "progress_pct": 50,
+                        "routing": {
+                            "domain": decision.intent.technical_domain,
+                            "task_type": decision.intent.task_type,
+                            "complexity": decision.intent.complexity,
+                            "agent": "none",
+                            "decision_time_ms": decision.decision_time_ms,
+                        },
+                    }
+                    # 直接回答
+                    bridge.configure(
+                        system_prompt="你是 PyCoder AI 助手。请用中文简洁回答用户问题。",
+                        max_tokens=2048,
+                    )
+                    response_text = ""
+                    try:
+                        async for event in bridge.stream(message):
+                            if event.event_type == "token":
+                                response_text += event.content
+                            elif event.event_type == "error":
+                                yield {"type": "error", "message": event.content}
+                                return
+                            elif event.event_type == "done":
+                                response_text = event.content or response_text
+                    except Exception as e:
+                        yield {"type": "error", "message": f"LLM 调用失败: {e}"}
+                        return
+
+                    self._context_enhancer.record_assistant_response(
+                        session_id, response_text[:500],
+                        topic=decision.intent.task_type,
+                    )
+                    yield {
+                        "type": "agent_result",
+                        "status": "done",
+                        "summary": response_text[:2000] if response_text else "已处理完成",
+                        "iterations": 1,
+                        "tool_count": 0,
+                        "files_written": [],
+                        "routing": decision.to_dict() if decision else None,
+                    }
+                    return
+
+                # 需要追问用户
+                if decision.intent.needs_clarification:
+                    questions = decision.intent.clarification_questions
+                    yield {
+                        "type": "agent_result",
+                        "status": "clarification_needed",
+                        "summary": (
+                            "为了更好地帮助您，请确认以下信息：\n"
+                            + "\n".join(f"- {q}" for q in questions)
+                        ),
+                        "questions": questions,
+                        "ambiguity_notes": decision.intent.ambiguity_notes,
+                        "iterations": 0,
+                        "tool_count": 0,
+                    }
+                    return
+
+            except Exception as e:
+                logger.warning("intelligent_routing_failed: %s, falling back to default", e)
+                decision = None
+
+        # ═══════════════════════════════════════════════
+        # 构建系统提示词
+        # ═══════════════════════════════════════════════
 
         # 构建系统提示词（注入缓存优化规则）
         system_prompt = strategy.system_prompt
@@ -179,7 +314,7 @@ class UnifiedAgentLoop:
 
             # 3. 完成信号检测
             if parsed.completion:
-                yield {
+                done_result = {
                     "type": "agent_result",
                     "status": "done",
                     "summary": parsed.summary or response_text[:500],
@@ -187,6 +322,19 @@ class UnifiedAgentLoop:
                     "tool_count": len(all_tool_calls),
                     "files_written": written_files,
                 }
+                if decision:
+                    done_result["routing"] = decision.to_dict()
+
+                # V2: 记录反馈
+                self._record_feedback(
+                    decision, session_id, completed=True,
+                    reason="done", iterations=iteration,
+                    tool_calls=len(all_tool_calls),
+                    tool_success=len(all_tool_calls),  # 简化：假设到达这里的都是成功的
+                    execution_time_ms=(time.monotonic() - start_time) * 1000,
+                )
+
+                yield done_result
                 return
 
             # 4. 处理代码块（自动写入文件）
@@ -241,7 +389,7 @@ class UnifiedAgentLoop:
                     logger.warning("agent_loop_p1_no_json_toolcalls iteration=2")
                     continue
                 # 既没有工具也没有代码块，视为完成
-                yield {
+                done_result = {
                     "type": "agent_result",
                     "status": "done",
                     "summary": response_text[:500],
@@ -249,6 +397,18 @@ class UnifiedAgentLoop:
                     "tool_count": len(all_tool_calls),
                     "files_written": written_files,
                 }
+                if decision:
+                    done_result["routing"] = decision.to_dict()
+
+                self._record_feedback(
+                    decision, session_id, completed=True,
+                    reason="done_no_tools", iterations=iteration,
+                    tool_calls=len(all_tool_calls),
+                    tool_success=len(all_tool_calls),
+                    execution_time_ms=(time.monotonic() - start_time) * 1000,
+                )
+
+                yield done_result
                 return
 
             # 6. 执行工具
@@ -337,7 +497,7 @@ class UnifiedAgentLoop:
                     )
 
         # 达到最大迭代次数
-        yield {
+        max_iter_result = {
             "type": "agent_result",
             "status": "completed",
             "summary": (
@@ -351,3 +511,83 @@ class UnifiedAgentLoop:
             "tool_count": len(all_tool_calls),
             "files_written": written_files,
         }
+        if decision:
+            max_iter_result["routing"] = decision.to_dict()
+
+        # V2: 记录反馈
+        self._record_feedback(
+            decision, session_id, completed=False,
+            reason="max_iterations", iterations=max_iterations,
+            tool_calls=len(all_tool_calls),
+            tool_success=len(all_tool_calls),
+            execution_time_ms=(time.monotonic() - start_time) * 1000,
+        )
+
+        yield max_iter_result
+
+    # ═══════════════════════════════════════════════════
+    # V2: 反馈学习辅助方法
+    # ═══════════════════════════════════════════════════
+
+    def _record_feedback(
+        self,
+        decision: RoutingDecision | None,
+        session_id: str,
+        completed: bool,
+        reason: str,
+        iterations: int,
+        tool_calls: int,
+        tool_success: int,
+        execution_time_ms: float,
+    ) -> None:
+        """记录执行反馈到反馈学习循环"""
+        if not decision or not self._enable_intelligent_routing:
+            return
+
+        try:
+            signal = self._feedback.start_signal(
+                session_id=session_id,
+                intent=decision.intent,
+                agent=decision.agent,
+                tool_plan=decision.tool_plan,
+                strategy=decision.execution_config.strategy,
+                max_iterations=decision.execution_config.max_iterations,
+            )
+            self._feedback.end_signal(
+                signal,
+                completed=completed,
+                completion_reason=reason,
+                iterations=iterations,
+                tool_calls=tool_calls,
+                tool_success=tool_success,
+                tool_failure=tool_calls - tool_success,
+                execution_time_ms=execution_time_ms,
+            )
+        except Exception as e:
+            logger.debug("feedback_record_failed: %s", e)
+
+    def record_user_rating(
+        self,
+        rating: int,
+        text: str = "",
+        reaction: str = "",
+        session_id: str = "",
+    ) -> None:
+        """记录用户反馈评分"""
+        try:
+            self._feedback.record_user_rating(
+                signal=self._feedback.start_signal(session_id=session_id),
+                rating=rating,
+                text=text,
+                reaction=reaction,
+            )
+        except Exception as e:
+            logger.debug("user_rating_record_failed: %s", e)
+
+    def get_feedback_stats(self) -> Any:
+        """获取反馈统计"""
+        return self._feedback.get_stats()
+
+    def get_feedback_recommendations(self) -> list[str]:
+        """获取优化建议"""
+        return self._feedback.get_recommendations()
