@@ -53,6 +53,19 @@ from pycoder.ai.security import (  # noqa: F401
     VulnerabilityScanner,
     get_scanner,
 )
+from pycoder.ai.completion import (  # noqa: F401
+    FIMCodeCompleter,
+    get_completer,
+)
+from pycoder.ai.cache import (  # noqa: F401
+    PromptCache,
+    get_cache,
+)
+from pycoder.ai.dialog import (  # noqa: F401
+    DialogState,
+    DialogStateTracker,
+    get_tracker,
+)
 from pycoder.ai.benchmark.analyzer import (  # noqa: F401
     CompetitiveAnalyzer,
     get_analyzer,
@@ -132,6 +145,16 @@ __all__ = [
     "MetricsAnalyzer",
     "VulnerabilityScanner",
     "get_scanner",
+    # 补全模块
+    "FIMCodeCompleter",
+    "get_completer",
+    # 缓存模块
+    "PromptCache",
+    "get_cache",
+    # 对话模块
+    "DialogStateTracker",
+    "DialogState",
+    "get_tracker",
     # 类型定义
     "CodeGenerationRequest",
     "CodeGenerationResult",
