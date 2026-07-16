@@ -108,11 +108,19 @@ RISK_PATTERNS: list[str] = [
     r"reboot",
 ]
 
+# 非 trivial 的短命令模式（长度 < 5 但需要工具调用）
+NOT_TRIVIAL_SHORT_PATTERNS: list[str] = [
+    r"^(ls|dir|pwd|cd|mv|cp|rm|git|npm|pip|go|rs|cargo)$",  # 系统命令
+    r"^\w+\.\w+$",  # 文件路径如 "app.py"
+    r"^\w+\(\)$",  # 函数调用如 "run()"
+    r"^\w+\s+\w+",  # 命令+参数如 "git status"
+]
+
 # 歧义检测
 AMBIGUITY_PATTERNS: dict[str, str] = {
     r"这个|那个|它|那个文件|刚才的|上面的|下面": "含模糊代词，缺少具体对象引用",
-    r"修改|修复|优化|重构": "提到修改操作但未指定目标文件",
-    r"写|生成|开发|创建.*项目|搭建": "涉及开发但未指定技术栈/框架",
+    r"(?:修改|修复|优化|重构|改一下|改)\s*$|(?:(?:修改|修复|优化|重构)\s*(?:一下|这个|那个|它))": "提到修改操作但未指定目标文件",
+    r"^(?:写|生成|开发|创建|搭建)\s*$|(?:写一个|生成一个|开发一个|创建一个|搭建一个)(?!\w+\.\w+)": "涉及开发但未指定技术栈/框架或文件名",
 }
 
 
@@ -239,7 +247,13 @@ class IntentAnalyzer:
         for pattern in TRIVIAL_PATTERNS:
             if re.match(pattern, msg_lower):
                 return True
-        return len(msg_lower) < 5 and "?" not in msg_lower
+        # 短消息检查：排除常见的系统命令和代码模式
+        if len(msg_lower) < 5 and "?" not in msg_lower:
+            for pattern in NOT_TRIVIAL_SHORT_PATTERNS:
+                if re.match(pattern, msg_lower):
+                    return False  # 不是 trivial，需要工具处理
+            return True
+        return False
 
     @staticmethod
     def _detect_domain(msg_lower: str) -> str:

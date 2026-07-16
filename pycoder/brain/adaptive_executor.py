@@ -34,11 +34,12 @@ from pycoder.brain.intent_analyzer import IntentAnalysis
 from pycoder.brain.agent_selector import AgentSelection
 from pycoder.brain.tool_planner import ToolPlan
 from pycoder.brain.feedback_loop import FeedbackLoop, ExecutionSignal, get_feedback_loop
+from pycoder.server.services.agent_parser import parse_response
+from pycoder.server.services.agent_parser import WRITE_TOOLS as WRITE_SAFE_TOOLS
+from pycoder.server.services.agent_tools import execute_agent_tool
 
 logger = logging.getLogger(__name__)
 
-# 写操作工具集合
-WRITE_SAFE_TOOLS = {"write_file", "patch_file", "create_file", "overwrite_file"}
 WORKSPACE = Path(
     __import__("os").environ.get(
         "PYCODER_WORKSPACE",
@@ -118,33 +119,14 @@ def classify_error(error_msg: str) -> str:
 
 
 # ══════════════════════════════════════════════════════════
-# 终止条件检测
+# 终止条件检测（复用 agent_parser 的完成检测逻辑）
 # ══════════════════════════════════════════════════════════
 
-COMPLETION_INDICATORS: list[str] = [
-    # 中文完成信号
-    "任务完成", "已完成", "执行完毕", "全部完成", "操作完成",
-    "✅", "✔", "✓",
-    # 英文完成信号
-    "task completed", "done", "finished", "all done",
-    "i have completed", "successfully completed",
-]
 
-STUCK_INDICATORS: list[str] = [
-    "我不知道", "无法完成", "无法执行", "无法处理",
-    "i don't know", "unable to", "cannot", "can't",
-    "not possible", "impossible",
-]
-
-
-def is_completion_signal(response: str) -> bool:
-    """检测 LLM 响应是否为完成信号"""
-    lower = response.lower()
-    # 检查是否包含任何完成指示词
-    hit = any(indicator.lower() in lower for indicator in COMPLETION_INDICATORS)
-    # 排除干扰：如果同时又包含"困惑"类词汇，不算完成
-    stuck = any(indicator.lower() in lower for indicator in STUCK_INDICATORS)
-    return hit and not stuck
+def _is_completion_signal(response_text: str) -> bool:
+    """检测 LLM 响应是否为完成信号（复用 agent_parser 解析）"""
+    parsed = parse_response(response_text)
+    return parsed.completion
 
 
 # ══════════════════════════════════════════════════════════
@@ -440,7 +422,7 @@ class AdaptiveExecutor:
             parsed = self._parse_response(response_text)
 
             # 完成信号检测
-            if parsed.get("completion") or is_completion_signal(response_text):
+            if parsed.get("completion") or _is_completion_signal(response_text):
                 ctx.stop_reason = "done"
                 yield {
                     "type": "done",
@@ -584,7 +566,6 @@ class AdaptiveExecutor:
 
         for attempt in range(max_retries + 1):
             try:
-                from pycoder.server.services.agent_tools import execute_agent_tool
                 result = await execute_agent_tool(
                     tool_name,
                     params,
@@ -692,63 +673,14 @@ class AdaptiveExecutor:
 
     @staticmethod
     def _parse_response(response_text: str) -> dict:
-        """解析 LLM 响应"""
-        import json
-        import re
-
-        result: dict = {
-            "tool_calls": [],
-            "file_blocks": [],
-            "completion": False,
-            "summary": "",
+        """解析 LLM 响应（复用 agent_parser）"""
+        parsed = parse_response(response_text)
+        return {
+            "tool_calls": parsed.tool_calls,
+            "file_blocks": parsed.file_blocks,
+            "completion": parsed.completion,
+            "summary": parsed.summary,
         }
-
-        text = response_text.strip()
-
-        # 尝试提取 JSON 工具调用
-        # 优先匹配 tool_calls 格式
-        tc_pattern = re.compile(r'"tool_calls"\s*:\s*\[(.*?)\]', re.DOTALL)
-        match = tc_pattern.search(text)
-        if match:
-            try:
-                calls = json.loads("[" + match.group(1) + "]")
-                result["tool_calls"] = calls
-            except json.JSONDecodeError:
-                pass
-
-        # 匹配单个工具调用
-        if not result["tool_calls"]:
-            single_pattern = re.compile(r'\{"name"\s*:\s*"(\w+)"\s*,\s*"params"\s*:\s*(\{[^}]+\})\}')
-            for m in single_pattern.finditer(text):
-                try:
-                    result["tool_calls"].append({
-                        "name": m.group(1),
-                        "params": json.loads(m.group(2)),
-                    })
-                except json.JSONDecodeError:
-                    pass
-
-        # 提取代码块（可能包含文件路径）
-        code_pattern = re.compile(
-            r'```(?:\w+)?\s*(?:\n|\r\n?)(.*?)(?:\n|\r\n?)```', re.DOTALL
-        )
-        for m in code_pattern.finditer(text):
-            content = m.group(1).strip()
-            if content:
-                # 尝试从上下文推断文件路径
-                path_hint = re.search(
-                    r'(?:path|file|文件|写入|保存到)[\s:：]*[`"\']?([^\s`"\'\n]+\.\w+)',
-                    text, re.IGNORECASE,
-                )
-                path = path_hint.group(1) if path_hint else "output.txt"
-                result["file_blocks"].append({"path": path, "content": content})
-
-        # 检测完成信号
-        if is_completion_signal(text) and not result["tool_calls"]:
-            result["completion"] = True
-            result["summary"] = text[:500]
-
-        return result
 
 
 # ══════════════════════════════════════════════════════════

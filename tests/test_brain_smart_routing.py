@@ -196,7 +196,7 @@ class TestAgentSelector:
         assert result.primary_agent in ("developer", "architect")
 
     def test_debug_returns_debugger(self):
-        """调试任务应选择 debugger"""
+        """调试任务应选择 debugger/fixer/security"""
         selector = AgentSelector()
         intent = IntentAnalysis(
             raw_input="修复 app.py 的 bug",
@@ -206,7 +206,7 @@ class TestAgentSelector:
             complexity_score=45,
         )
         result = selector.select(intent)
-        assert result.primary_agent in ("debugger", "fixer")
+        assert result.primary_agent in ("debugger", "fixer", "security")
 
     def test_architect_task_returns_architect(self):
         """架构设计应选择 architect"""

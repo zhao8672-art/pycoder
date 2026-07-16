@@ -28,13 +28,12 @@ from pycoder.brain.intelligent_router import (
     get_intelligent_router,
 )
 from pycoder.server.services.agent_parser import parse_response, validate_tool_call
+from pycoder.server.services.agent_parser import WRITE_TOOLS as WRITE_SAFE_TOOLS
 from pycoder.server.services.agent_strategies import AgentStrategy
 from pycoder.server.services.agent_tools import execute_agent_tool
 
 logger = logging.getLogger(__name__)
 
-# 写操作工具集合
-WRITE_SAFE_TOOLS = {"write_file", "patch_file", "create_file", "overwrite_file"}
 WORKSPACE = Path(
     __import__("os").environ.get(
         "PYCODER_WORKSPACE",
@@ -65,6 +64,7 @@ class UnifiedAgentLoop:
         self._feedback = feedback or get_feedback_loop()
         self._context_enhancer = context_enhancer or get_context_enhancer()
         self._enable_intelligent_routing = enable_intelligent_routing
+        self._last_signal: Any = None  # V2: 最近一次执行的信号，用于用户评分关联
 
     async def chat_stream(
         self,
@@ -89,6 +89,8 @@ class UnifiedAgentLoop:
         all_tool_calls: list[dict] = []
         all_results: list[str] = []
         written_files: list[str] = []
+        tool_success_count: int = 0  # V2: 追踪成功工具调用数
+        tool_failure_count: int = 0  # V2: 追踪失败工具调用数
 
         start_time = time.monotonic()
 
@@ -330,7 +332,7 @@ class UnifiedAgentLoop:
                     decision, session_id, completed=True,
                     reason="done", iterations=iteration,
                     tool_calls=len(all_tool_calls),
-                    tool_success=len(all_tool_calls),  # 简化：假设到达这里的都是成功的
+                    tool_success=tool_success_count,
                     execution_time_ms=(time.monotonic() - start_time) * 1000,
                 )
 
@@ -404,7 +406,7 @@ class UnifiedAgentLoop:
                     decision, session_id, completed=True,
                     reason="done_no_tools", iterations=iteration,
                     tool_calls=len(all_tool_calls),
-                    tool_success=len(all_tool_calls),
+                    tool_success=tool_success_count,
                     execution_time_ms=(time.monotonic() - start_time) * 1000,
                 )
 
@@ -431,6 +433,7 @@ class UnifiedAgentLoop:
                 ok, err = validate_tool_call(tc)
                 if not ok:
                     yield {"type": "tool_result", "tool_name": tc["name"], "result": f"❌ {err}"}
+                    tool_failure_count += 1
                     continue
 
                 all_tool_calls.append(tc)
@@ -442,6 +445,7 @@ class UnifiedAgentLoop:
                         timeout=timeout,
                     )
                     all_results.append(str(result))
+                    tool_success_count += 1
                     yield {
                         "type": "tool_result",
                         "tool_name": tc["name"],
@@ -457,14 +461,15 @@ class UnifiedAgentLoop:
                     err_msg = f"❌ 工具执行失败: {e}"
                     yield {"type": "tool_result", "tool_name": tc["name"], "result": err_msg}
                     bridge.add_message("assistant", err_msg)
+                    tool_failure_count += 1
 
             # 读操作：并行执行
             if readers:
 
-                async def _execute_one(tc: dict) -> tuple[str, str | None]:
+                async def _execute_one(tc: dict) -> tuple[str, str | None, bool]:
                     ok, err = validate_tool_call(tc)
                     if not ok:
-                        return tc["name"], f"❌ {err}"
+                        return tc["name"], f"❌ {err}", False
                     try:
                         r = await execute_agent_tool(
                             tc["name"],
@@ -472,15 +477,19 @@ class UnifiedAgentLoop:
                             self.workspace,
                             timeout=timeout,
                         )
-                        return tc["name"], str(r)
+                        return tc["name"], str(r), True
                     except Exception as e:
-                        return tc["name"], f"❌ 工具执行失败: {e}"
+                        return tc["name"], f"❌ 工具执行失败: {e}", False
 
                 read_tasks = [_execute_one(tc) for tc in readers]
                 for coro in asyncio.as_completed(read_tasks):
-                    tool_name, result = await coro
+                    tool_name, result, success = await coro
                     all_tool_calls.append({"name": tool_name, "params": {}})
                     all_results.append(result or "")
+                    if success:
+                        tool_success_count += 1
+                    else:
+                        tool_failure_count += 1
                     # M9: list_agent_configs 等大型列表需要更大的截断上限
                     result_str = result or ""
                     max_preview = 2000 if tool_name == "list_agent_configs" else 500
@@ -519,7 +528,7 @@ class UnifiedAgentLoop:
             decision, session_id, completed=False,
             reason="max_iterations", iterations=max_iterations,
             tool_calls=len(all_tool_calls),
-            tool_success=len(all_tool_calls),
+            tool_success=tool_success_count,
             execution_time_ms=(time.monotonic() - start_time) * 1000,
         )
 
@@ -563,6 +572,7 @@ class UnifiedAgentLoop:
                 tool_failure=tool_calls - tool_success,
                 execution_time_ms=execution_time_ms,
             )
+            self._last_signal = signal  # 保存供后续用户评分使用
         except Exception as e:
             logger.debug("feedback_record_failed: %s", e)
 
@@ -573,10 +583,13 @@ class UnifiedAgentLoop:
         reaction: str = "",
         session_id: str = "",
     ) -> None:
-        """记录用户反馈评分"""
+        """记录用户反馈评分（关联到最近一次执行）"""
         try:
+            signal = self._last_signal
+            if signal is None:
+                signal = self._feedback.start_signal(session_id=session_id)
             self._feedback.record_user_rating(
-                signal=self._feedback.start_signal(session_id=session_id),
+                signal=signal,
                 rating=rating,
                 text=text,
                 reaction=reaction,

@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -66,21 +67,21 @@ AGENT_CAPABILITY_MATRIX: dict[str, dict] = {
     },
     "debugger": {
         "name": "调试专家",
-        "description": "定位和修复 Bug",
+        "description": "深度定位和修复复杂 Bug，进行根因分析",
         "domains": ["python", "js", "go", "rust", "general"],
         "task_types": ["debug"],
-        "complexity_range": (15, 70),
-        "model_tier": "standard",
-        "suitable_for": "Bug 修复、错误排查、异常处理",
+        "complexity_range": (25, 80),
+        "model_tier": "premium",
+        "suitable_for": "复杂 Bug 修复、根因分析、异常排查、性能问题",
     },
     "fixer": {
         "name": "缺陷修复师",
-        "description": "精准修复缺陷",
+        "description": "快速精准修复已知缺陷，最小化改动",
         "domains": ["python", "js", "go", "rust"],
         "task_types": ["debug", "refactor"],
-        "complexity_range": (10, 50),
+        "complexity_range": (10, 40),
         "model_tier": "standard",
-        "suitable_for": "精准补丁、最小改动修复",
+        "suitable_for": "精准补丁、已知错误修复、小范围重构",
     },
     "architect": {
         "name": "架构师",
@@ -166,11 +167,49 @@ class AgentSelector:
     """智能 Agent 选择器
 
     根据意图分析结果，通过多维评分选择最合适的 Agent。
+    支持 FeedbackLoop 自适应权重，持续优化选择准确性。
     """
 
-    def __init__(self) -> None:
+    def __init__(self, adaptive_weights: dict | None = None) -> None:
         self._success_history: dict[str, dict[str, int]] = {}  # agent_id -> {total, success}
+        self._success_lock = threading.Lock()
         self._capability_matrix = AGENT_CAPABILITY_MATRIX
+
+        # 自适应权重（可从 FeedbackLoop 注入）
+        if adaptive_weights:
+            self._weight_domain = adaptive_weights.get("domain", 0.30)
+            self._weight_task_type = adaptive_weights.get("task_type", 0.25)
+            self._weight_complexity = adaptive_weights.get("complexity", 0.20)
+            self._weight_history = adaptive_weights.get("history", 0.15)
+            self._weight_speed = adaptive_weights.get("speed", 0.10)
+        else:
+            self._weight_domain = 0.30
+            self._weight_task_type = 0.25
+            self._weight_complexity = 0.20
+            self._weight_history = 0.15
+            self._weight_speed = 0.10
+
+    def set_adaptive_weights(self, weights: dict) -> None:
+        """设置自适应权重（从 FeedbackLoop 获取）
+
+        Args:
+            weights: 包含 domain/task_type/complexity/history/speed 的权重字典
+        """
+        self._weight_domain = weights.get("domain", self._weight_domain)
+        self._weight_task_type = weights.get("task_type", self._weight_task_type)
+        self._weight_complexity = weights.get("complexity", self._weight_complexity)
+        self._weight_history = weights.get("history", self._weight_history)
+        self._weight_speed = weights.get("speed", self._weight_speed)
+
+    def get_adaptive_weights(self) -> dict[str, float]:
+        """获取当前自适应权重"""
+        return {
+            "domain": self._weight_domain,
+            "task_type": self._weight_task_type,
+            "complexity": self._weight_complexity,
+            "history": self._weight_history,
+            "speed": self._weight_speed,
+        }
 
     def select(self, intent: IntentAnalysis) -> AgentSelection:
         """根据意图分析结果选择 Agent
@@ -247,11 +286,11 @@ class AgentSelector:
 
             scores = self._calculate_scores(intent, agent_id, capability)
             total = (
-                scores["domain"] * 0.30
-                + scores["task_type"] * 0.25
-                + scores["complexity"] * 0.20
-                + scores["history"] * 0.15
-                + scores["speed"] * 0.10
+                scores["domain"] * self._weight_domain
+                + scores["task_type"] * self._weight_task_type
+                + scores["complexity"] * self._weight_complexity
+                + scores["history"] * self._weight_history
+                + scores["speed"] * self._weight_speed
             )
             scores["total"] = total
             scores["reason"] = self._build_reason(intent, agent_id, capability, scores)
@@ -308,13 +347,14 @@ class AgentSelector:
         return scores
 
     def _get_history_score(self, agent_id: str, intent: IntentAnalysis) -> float:
-        """获取历史成功率得分"""
-        history = self._success_history.get(agent_id)
-        if not history or history.get("total", 0) < 3:
-            return 50  # 无足够数据，默认中等
-        total = history["total"]
-        success = history["success"]
-        return (success / total) * 100
+        """获取历史成功率得分（线程安全）"""
+        with self._success_lock:
+            history = self._success_history.get(agent_id)
+            if not history or history.get("total", 0) < 3:
+                return 50  # 无足够数据，默认中等
+            total = history["total"]
+            success = history["success"]
+            return (success / total) * 100
 
     def _build_reason(self, intent: IntentAnalysis, agent_id: str, capability: dict, scores: dict) -> str:
         """构建选择理由"""
@@ -344,12 +384,13 @@ class AgentSelector:
         return int((base + per_complexity) * multiplier)
 
     def record_result(self, agent_id: str, success: bool) -> None:
-        """记录 Agent 执行结果，用于历史成功率计算"""
-        if agent_id not in self._success_history:
-            self._success_history[agent_id] = {"total": 0, "success": 0}
-        self._success_history[agent_id]["total"] += 1
-        if success:
-            self._success_history[agent_id]["success"] += 1
+        """记录 Agent 执行结果，用于历史成功率计算（线程安全）"""
+        with self._success_lock:
+            if agent_id not in self._success_history:
+                self._success_history[agent_id] = {"total": 0, "success": 0}
+            self._success_history[agent_id]["total"] += 1
+            if success:
+                self._success_history[agent_id]["success"] += 1
 
     def get_agent_info(self, agent_id: str) -> dict | None:
         """获取 Agent 能力信息"""

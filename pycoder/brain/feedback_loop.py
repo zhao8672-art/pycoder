@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -284,6 +285,11 @@ class FeedbackLoop:
         self._recent_signals: list[ExecutionSignal] = []  # 最近 100 条
         self._recent_max: int = 100
 
+        # 增量统计缓存
+        self._stats_cache: AggregatedStats | None = None
+        self._stats_dirty: bool = True
+        self._stats_lock = threading.Lock()
+
         # 确保目录存在
         self._signals_path.parent.mkdir(parents=True, exist_ok=True)
         self._experiences_path.mkdir(parents=True, exist_ok=True)
@@ -381,6 +387,9 @@ class FeedbackLoop:
         self._pending_signals.append(signal)
         self._recent_signals.append(signal)
 
+        # 标记统计缓存失效
+        self._stats_dirty = True
+
         # 维护最近信号窗口
         if len(self._recent_signals) > self._recent_max:
             self._recent_signals = self._recent_signals[-self._recent_max:]
@@ -471,7 +480,18 @@ class FeedbackLoop:
         return changes
 
     def get_stats(self) -> AggregatedStats:
-        """获取聚合统计"""
+        """获取聚合统计（增量缓存，线程安全）"""
+        with self._stats_lock:
+            if not self._stats_dirty and self._stats_cache is not None:
+                return self._stats_cache
+
+            stats = self._compute_stats()
+            self._stats_cache = stats
+            self._stats_dirty = False
+            return stats
+
+    def _compute_stats(self) -> AggregatedStats:
+        """全量计算聚合统计"""
         stats = AggregatedStats()
         signals = self._recent_signals
 

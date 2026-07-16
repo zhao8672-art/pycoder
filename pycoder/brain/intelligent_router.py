@@ -8,8 +8,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
-from dataclasses import dataclass, field
+import time
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from pycoder.brain.intent_analyzer import IntentAnalysis, IntentAnalyzer, get_intent_analyzer
@@ -144,13 +146,19 @@ class IntelligentRouter:
 
         Args:
             message: 用户原始消息
-            use_deep: 是否使用 LLM 深度分析（会增加延迟）
+            use_deep: 是否使用 LLM 深度分析（会增加延迟但不适用于同步调用）
 
         Returns:
             RoutingDecision 路由决策结果
         """
-        import time
         start = time.monotonic()
+
+        # 缓存检查：同一消息复用决策
+        cache_key = hashlib.md5(message.encode()).hexdigest()
+        if cache_key in self._decision_cache:
+            cached = self._decision_cache[cache_key]
+            logger.debug("routing_cache_hit: key=%s", cache_key[:8])
+            return cached
 
         # 1. 意图分析
         intent = self._intent_analyzer.analyze(message)
@@ -181,6 +189,11 @@ class IntelligentRouter:
             decision_method="rule",
         )
 
+        # 缓存决策结果（最大 100 条）
+        if len(self._decision_cache) >= 100:
+            self._decision_cache.pop(next(iter(self._decision_cache)))
+        self._decision_cache[cache_key] = decision
+
         logger.info(
             "routing_decision: domain=%s type=%s complexity=%s agent=%s tools=%d confidence=%.2f",
             intent.technical_domain, intent.task_type, intent.complexity,
@@ -190,8 +203,11 @@ class IntelligentRouter:
         return decision
 
     async def decide_deep(self, message: str) -> RoutingDecision:
-        """使用 LLM 深度分析做路由决策（异步）"""
-        import time
+        """使用 LLM 深度分析做路由决策（异步）
+
+        要求先通过 set_llm() 设置 LLM 提供商。
+        未设置 LLM 时自动降级为规则模式。
+        """
         start = time.monotonic()
 
         # 深度意图分析
@@ -238,31 +254,11 @@ class IntelligentRouter:
 
         # 根据 Agent 模型分层调整
         if agent.model_tier == "premium":
-            config = ExecutionConfig(
-                max_iterations=config.max_iterations,
-                tool_timeout=config.tool_timeout,
-                temperature=0.2,
-                max_tokens=config.max_tokens,
-                enable_rumination=config.enable_rumination,
-                enable_snapshots=config.enable_snapshots,
-                enable_qa_review=config.enable_qa_review,
-                max_concurrent_tools=config.max_concurrent_tools,
-                strategy=config.strategy,
-            )
+            config = replace(config, temperature=0.2)
 
-        # 多 Agent 协作 → team 策略
+        # 多 Agent 协作 → team 策略，启用 QA 审查
         if agent.secondary_agents:
-            config = ExecutionConfig(
-                max_iterations=config.max_iterations,
-                tool_timeout=config.tool_timeout,
-                temperature=config.temperature,
-                max_tokens=config.max_tokens,
-                enable_rumination=config.enable_rumination,
-                enable_snapshots=config.enable_snapshots,
-                enable_qa_review=True,
-                max_concurrent_tools=config.max_concurrent_tools,
-                strategy="team",
-            )
+            config = replace(config, enable_qa_review=True, strategy="team")
 
         return config
 

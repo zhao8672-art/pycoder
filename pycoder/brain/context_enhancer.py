@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -148,6 +149,7 @@ class ContextEnhancer:
 
     def __init__(self) -> None:
         self._sessions: dict[str, list[ConversationTurn]] = {}
+        self._sessions_lock = threading.Lock()
 
     def process_message(
         self,
@@ -181,6 +183,9 @@ class ContextEnhancer:
         if history:
             ctx.previous_topics = self._get_previous_topics(history)
             ctx.is_topic_shift = self._detect_topic_shift(message, ctx.current_topic, ctx.previous_topics)
+            # 话题切换时，过滤只保留与新话题相关的历史（最近 2 轮）
+            if ctx.is_topic_shift:
+                history = self._filter_history_for_topic(history, ctx.current_topic)
 
         # 4. 提取相关文件
         ctx.relevant_files = self._extract_relevant_files(message, history)
@@ -237,8 +242,9 @@ class ContextEnhancer:
         return "\n".join(lines)
 
     def clear_session(self, session_id: str) -> None:
-        """清除会话"""
-        self._sessions.pop(session_id, None)
+        """清除会话（线程安全）"""
+        with self._sessions_lock:
+            self._sessions.pop(session_id, None)
 
     # ── 内部实现 ──────────────────────────────────────
 
@@ -461,14 +467,15 @@ class ContextEnhancer:
         return result
 
     def _add_turn(self, session_id: str, turn: ConversationTurn) -> None:
-        """添加对话轮次"""
-        if session_id not in self._sessions:
-            self._sessions[session_id] = []
-        self._sessions[session_id].append(turn)
+        """添加对话轮次（线程安全）"""
+        with self._sessions_lock:
+            if session_id not in self._sessions:
+                self._sessions[session_id] = []
+            self._sessions[session_id].append(turn)
 
-        # 限制历史长度
-        if len(self._sessions[session_id]) > 50:
-            self._sessions[session_id] = self._sessions[session_id][-50:]
+            # 限制历史长度
+            if len(self._sessions[session_id]) > 50:
+                self._sessions[session_id] = self._sessions[session_id][-50:]
 
     @staticmethod
     def _get_last_user_message(history: list[ConversationTurn]) -> str:
@@ -517,6 +524,28 @@ class ContextEnhancer:
     def _get_topic_keywords(topic: str) -> list[str]:
         """获取话题关键词"""
         return TOPIC_KEYWORDS.get(topic, [])
+
+    @staticmethod
+    def _filter_history_for_topic(
+        history: list[ConversationTurn],
+        current_topic: str,
+    ) -> list[ConversationTurn]:
+        """话题切换时过滤历史，只保留与新话题相关或最近 2 轮"""
+        if not history:
+            return history
+        # 保留最近 2 轮 + 与新话题关键词匹配的轮次
+        keywords = set(TOPIC_KEYWORDS.get(current_topic, []))
+        relevant: list[ConversationTurn] = []
+        for turn in history:
+            if any(kw in turn.content for kw in keywords):
+                relevant.append(turn)
+        # 确保至少保留最近 2 轮
+        recent = history[-2:]
+        for t in recent:
+            if t not in relevant:
+                relevant.append(t)
+        # 按原始顺序排序
+        return sorted(relevant, key=lambda t: history.index(t) if t in history else 0)
 
 
 # ══════════════════════════════════════════════════════════
