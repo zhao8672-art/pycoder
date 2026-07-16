@@ -28,6 +28,7 @@ from pycoder.gateway.adapters.cli import CLIAdapter
 from pycoder.gateway.adapters.discord import DiscordAdapter
 from pycoder.gateway.adapters.slack import SlackAdapter
 from pycoder.gateway.adapters.telegram import TelegramAdapter
+from pycoder.gateway.adapters.wechat import WeChatAdapter
 from pycoder.gateway.message_router import MessageRouter
 from pycoder.gateway.session_manager import Session, SessionManager
 
@@ -1099,6 +1100,248 @@ class TestCLIAdapter:
         adapter = CLIAdapter()
         msg = adapter._normalize_from_string("  hello  ")
         assert msg.content == "hello"
+
+
+class TestWeChatAdapter:
+    """微信适配器测试"""
+
+    def test_normalize_text_message(self) -> None:
+        """测试规范化微信文本消息"""
+        adapter = WeChatAdapter()
+        raw = {
+            "ToUserName": "gh_123",
+            "FromUserName": "o_abc",
+            "CreateTime": 1700000000,
+            "MsgType": "text",
+            "Content": "你好",
+            "MsgId": 1001,
+        }
+        msg = adapter._normalize_from_dict(raw)
+        assert msg.platform == "wechat"
+        assert msg.user_id == "o_abc"
+        assert msg.content == "你好"
+        assert msg.message_type == "text"
+        assert msg.session_id == "wx_o_abc"
+
+    def test_normalize_image_message(self) -> None:
+        """测试规范化微信图片消息"""
+        adapter = WeChatAdapter()
+        raw = {
+            "FromUserName": "o_user",
+            "MsgType": "image",
+            "PicUrl": "https://example.com/img.jpg",
+            "MediaId": "media_001",
+        }
+        msg = adapter._normalize_from_dict(raw)
+        assert msg.message_type == "image"
+        assert "example.com" in msg.content
+
+    def test_normalize_image_no_url(self) -> None:
+        """测试规范化微信图片消息（无 PicUrl）"""
+        adapter = WeChatAdapter()
+        raw = {
+            "FromUserName": "o_user",
+            "MsgType": "image",
+            "MediaId": "media_001",
+        }
+        msg = adapter._normalize_from_dict(raw)
+        assert msg.content == "[图片]"
+        assert msg.message_type == "image"
+
+    def test_normalize_voice_message(self) -> None:
+        """测试规范化微信语音消息"""
+        adapter = WeChatAdapter()
+        raw = {
+            "FromUserName": "o_user",
+            "MsgType": "voice",
+            "MediaId": "media_002",
+            "Format": "amr",
+        }
+        msg = adapter._normalize_from_dict(raw)
+        assert msg.content == "[语音]"
+        assert msg.message_type == "audio"
+
+    def test_normalize_voice_with_recognition(self) -> None:
+        """测试规范化微信语音消息（含识别结果）"""
+        adapter = WeChatAdapter()
+        raw = {
+            "FromUserName": "o_user",
+            "MsgType": "voice",
+            "MediaId": "media_003",
+            "Recognition": "今天天气怎么样",
+        }
+        msg = adapter._normalize_from_dict(raw)
+        assert msg.content == "今天天气怎么样"
+
+    def test_normalize_video_message(self) -> None:
+        """测试规范化微信视频消息"""
+        adapter = WeChatAdapter()
+        raw = {
+            "FromUserName": "o_user",
+            "MsgType": "video",
+            "MediaId": "media_004",
+        }
+        msg = adapter._normalize_from_dict(raw)
+        assert msg.content == "[视频]"
+        assert msg.message_type == "file"
+
+    def test_normalize_location_message(self) -> None:
+        """测试规范化微信位置消息"""
+        adapter = WeChatAdapter()
+        raw = {
+            "FromUserName": "o_user",
+            "MsgType": "location",
+            "Location_X": "39.9042",
+            "Location_Y": "116.4074",
+            "Label": "北京",
+        }
+        msg = adapter._normalize_from_dict(raw)
+        assert "北京" in msg.content
+        assert "39.9042" in msg.content
+
+    def test_normalize_link_message(self) -> None:
+        """测试规范化微信链接消息"""
+        adapter = WeChatAdapter()
+        raw = {
+            "FromUserName": "o_user",
+            "MsgType": "link",
+            "Title": "PyCoder 官网",
+            "Url": "https://pycoder.dev",
+        }
+        msg = adapter._normalize_from_dict(raw)
+        assert "PyCoder 官网" in msg.content
+        assert "pycoder.dev" in msg.content
+
+    def test_normalize_event_subscribe(self) -> None:
+        """测试规范化微信关注事件"""
+        adapter = WeChatAdapter()
+        raw = {
+            "FromUserName": "o_user",
+            "MsgType": "event",
+            "Event": "subscribe",
+        }
+        msg = adapter._normalize_from_dict(raw)
+        assert msg.message_type == "event"
+        assert "关注" in msg.content
+
+    def test_normalize_event_unsubscribe(self) -> None:
+        """测试规范化微信取消关注事件"""
+        adapter = WeChatAdapter()
+        raw = {
+            "FromUserName": "o_user",
+            "MsgType": "event",
+            "Event": "unsubscribe",
+        }
+        msg = adapter._normalize_from_dict(raw)
+        assert "取消关注" in msg.content
+
+    def test_normalize_event_menu_click(self) -> None:
+        """测试规范化微信菜单点击事件"""
+        adapter = WeChatAdapter()
+        raw = {
+            "FromUserName": "o_user",
+            "MsgType": "event",
+            "Event": "CLICK",
+            "EventKey": "KEY_HELP",
+        }
+        msg = adapter._normalize_from_dict(raw)
+        assert "KEY_HELP" in msg.content
+
+    def test_normalize_unknown_type(self) -> None:
+        """测试规范化未知消息类型"""
+        adapter = WeChatAdapter()
+        raw = {
+            "FromUserName": "o_user",
+            "MsgType": "unknown_type",
+        }
+        msg = adapter._normalize_from_dict(raw)
+        assert "未知消息类型" in msg.content
+
+    def test_normalize_from_xml_string(self) -> None:
+        """测试从 XML 字符串规范化微信消息"""
+        adapter = WeChatAdapter()
+        xml = (
+            "<xml>"
+            "<ToUserName>gh_123</ToUserName>"
+            "<FromUserName>o_abc</FromUserName>"
+            "<CreateTime>1700000000</CreateTime>"
+            "<MsgType>text</MsgType>"
+            "<Content>测试消息</Content>"
+            "<MsgId>1001</MsgId>"
+            "</xml>"
+        )
+        msg = adapter._normalize_from_xml_string(xml)
+        assert msg.platform == "wechat"
+        assert msg.user_id == "o_abc"
+        assert msg.content == "测试消息"
+
+    def test_normalize_from_xml_invalid(self) -> None:
+        """测试从无效 XML 规范化微信消息"""
+        adapter = WeChatAdapter()
+        msg = adapter._normalize_from_xml_string("not valid xml")
+        assert msg.platform == "wechat"
+        assert "解析失败" in msg.content
+
+    def test_normalize_from_object(self) -> None:
+        """测试从对象规范化微信消息"""
+
+        class MockWeChatMsg:
+            FromUserName = "o_user"
+            MsgType = "text"
+            Content = "hello"
+            CreateTime = 1700000000
+            MsgId = 1001
+
+        adapter = WeChatAdapter()
+        msg = adapter._normalize_from_object(MockWeChatMsg())
+        assert msg.user_id == "o_user"
+        assert msg.content == "hello"
+
+    def test_normalize_from_object_error(self) -> None:
+        """测试从对象规范化失败时的降级"""
+
+        class BrokenMsg:
+            @property
+            def FromUserName(self) -> None:
+                raise RuntimeError("simulated error")
+
+        adapter = WeChatAdapter()
+        msg = adapter._normalize_from_object(BrokenMsg())
+        assert msg.user_id == "unknown"
+        assert "解析失败" in msg.content
+
+    def test_verify_signature_valid(self) -> None:
+        """测试微信签名验证"""
+        adapter = WeChatAdapter(token="test_token")
+        # 正确的签名: sha1(sort([test_token, timestamp, nonce]))
+        import hashlib
+        timestamp = "1234567890"
+        nonce = "abc123"
+        tmp = sorted(["test_token", timestamp, nonce])
+        expected = hashlib.sha1("".join(tmp).encode()).hexdigest()
+        assert adapter.verify_signature(expected, timestamp, nonce) is True
+
+    def test_verify_signature_invalid(self) -> None:
+        """测试微信签名验证失败"""
+        adapter = WeChatAdapter(token="test_token")
+        assert adapter.verify_signature("wrong_signature", "123", "abc") is False
+
+    def test_verify_signature_no_token(self) -> None:
+        """测试未配置 Token 时签名验证"""
+        adapter = WeChatAdapter()
+        assert adapter.verify_signature("any", "123", "abc") is False
+
+    def test_wechat_mode_enterprise(self) -> None:
+        """测试企业微信模式"""
+        adapter = WeChatAdapter(
+            app_id="wx_corp",
+            app_secret="secret",
+            corp_id="corp_001",
+            agent_id="agent_001",
+            mode="wecom",
+        )
+        assert adapter.platform == "wechat"
+        assert adapter._mode == "wecom"
 
 
 # ═══════════════════════════════════════════════

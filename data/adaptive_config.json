@@ -1,0 +1,20 @@
+{
+  "agent_weights": {
+    "domain": 0.3,
+    "task_type": 0.25,
+    "complexity": 0.2,
+    "history": 0.15,
+    "speed": 0.1
+  },
+  "tool": {
+    "parallel_threshold": 5,
+    "retry_max": 1,
+    "timeout_scale": 1.0
+  },
+  "thresholds": {
+    "min_confidence": 0.5,
+    "deep_analysis": 0.7,
+    "max_iter_buffer": 5
+  },
+  "learning_rate": 0.1
+}

@@ -13,6 +13,7 @@ from pycoder.gateway.adapters.cli import CLIAdapter
 from pycoder.gateway.adapters.discord import DiscordAdapter
 from pycoder.gateway.adapters.slack import SlackAdapter
 from pycoder.gateway.adapters.telegram import TelegramAdapter
+from pycoder.gateway.adapters.wechat import WeChatAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ def get_all_adapters() -> list[PlatformAdapter]:
         平台适配器实例列表
     """
     adapters: list[PlatformAdapter] = []
-    for cls in [TelegramAdapter, DiscordAdapter, SlackAdapter, CLIAdapter]:
+    for cls in [TelegramAdapter, DiscordAdapter, SlackAdapter, WeChatAdapter, CLIAdapter]:
         try:
             adapters.append(cls())
         except Exception as e:
@@ -36,6 +37,7 @@ __all__ = [
     "TelegramAdapter",
     "DiscordAdapter",
     "SlackAdapter",
+    "WeChatAdapter",
     "CLIAdapter",
     "get_all_adapters",
 ]
