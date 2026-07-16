@@ -49,13 +49,17 @@ export const SettingsPanel: React.FC = () => {
 
   const handleSaveKey = async () => {
     if (!apiKey.trim()) return;
-    // 自动识别提供商
+    // 自动识别提供商（按 currentModel 优先，避免 sk- 前缀误判）
     let provider = 'deepseek';
-    if (apiKey.startsWith('sk-') && apiKey.length > 10) provider = 'openai';
     if (currentModel.startsWith('qwen')) provider = 'qwen';
-    if (currentModel.startsWith('glm')) provider = 'glm';
+    else if (currentModel.startsWith('glm')) provider = 'glm';
+    else if (currentModel.startsWith('gpt') || currentModel.startsWith('o')) provider = 'openai';
+    else if (currentModel.startsWith('agnes')) provider = 'agnes';
+    else if (currentModel.startsWith('deepseek')) provider = 'deepseek';
+    // 兜底: 根据 Key 格式猜测（sk- 可能是 openai 或 deepseek）
+    else if (apiKey.startsWith('sk-') && apiKey.length > 10) provider = 'openai';
 
-    const res = await BackendAPI.config.setup(provider, apiKey);
+    const res = await BackendAPI.config.setup(provider, apiKey, currentModel);
     if (res?.success) {
       setSaveMsg('✅ 保存成功');
       setKeyStatus({ ...keyStatus, [provider]: true });

@@ -298,10 +298,10 @@ export const BackendAPI = {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(policy),
       }),
-    setup: (provider: string, apiKey: string) =>
+    setup: (provider: string, apiKey: string, model?: string) =>
       request<{ success: boolean }>('/api/config/setup', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, api_key: apiKey }),
+        body: JSON.stringify({ provider, api_key: apiKey, model }),
       }),
   },
 
