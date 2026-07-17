@@ -154,25 +154,28 @@ class ModelManager:
         """
         self._detected = {}
 
-        # 1. 从环境变量检测
+        # 1. 从配置文件检测（最高优先级：Settings 面板保存的值）
+        config = _load_config()
+        api_keys = config.get("provider", {}).get("api_keys", {})
+        for provider, key in api_keys.items():
+            if key:
+                self._detected[provider] = key
+
+        # 2. 从环境变量检测（补充 config 中没有的 Key）
         for provider, defs in PROVIDER_DEFS.items():
+            if provider in self._detected:
+                continue  # config 中已存在，不覆盖
             for env_var in defs["env_vars"]:
                 key = os.environ.get(env_var, "").strip()
                 if key:
                     self._detected[provider] = key
                     break
 
-        # 2. 从配置文件检测
-        config = _load_config()
-        api_keys = config.get("provider", {}).get("api_keys", {})
-        for provider, key in api_keys.items():
-            if key and provider not in self._detected:
-                self._detected[provider] = key
-
-        # 3. 将检测到的 Key 写入环境变量
+        # 3. 将检测到的 Key 写入环境变量（确保 env var 最新）
         for provider, key in self._detected.items():
-            env_name = PROVIDER_DEFS[provider]["env_vars"][0]
-            os.environ[env_name] = key
+            if provider in PROVIDER_DEFS:
+                env_name = PROVIDER_DEFS[provider]["env_vars"][0]
+                os.environ[env_name] = key
 
         return dict(self._detected)
 
