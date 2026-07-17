@@ -1,8 +1,6 @@
 chromadb 未安装，向量搜索将回退到 SQLite 模式
 封闭学习循环数据库已初始化: C:\Users\Administrator\.pycoder\learning\closed_loop.db
 API 认证已启用（来自 PYCODER_API_KEY 环境变量）
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-detected_key provider=agnes preview=sk-scS4V3pNV...PAZ4 len=51
 llm_api_keys_detected: deepseek, agnes
 recommendation_db_tables_created at C:\Users\Administrator/.pycoder/pycoder.db
 sandbox_docker_selected
@@ -63,21 +61,3 @@ V2 引擎初始化完成 — 179 个能力已注册, 信任级别: FULL_AUTONOMY
 v2_engine_initialized: capabilities=179 trust=FULL_AUTONOMY
 plugin_registry_initialized: plugins=1
 scheduler_started: 4 tasks registered (skills×2, extensions×2)
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-detected_key provider=agnes preview=sk-scS4V3pNV...PAZ4 len=51
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-detected_key provider=agnes preview=sk-scS4V3pNV...PAZ4 len=51
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-detected_key provider=agnes preview=sk-scS4V3pNV...PAZ4 len=51
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-detected_key provider=agnes preview=sk-scS4V3pNV...PAZ4 len=51
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-token_usage_recorded input=955 output=61 session_total=1016 hourly_total=1016
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-detected_key provider=agnes preview=sk-scS4V3pNV...PAZ4 len=51
-HTTP Request: POST https://apihub.agnes-ai.com/v1/chat/completions "HTTP/1.1 200 OK"
-token_usage_recorded input=1186 output=5260 session_total=7462 hourly_total=7462
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-detected_key provider=agnes preview=sk-scS4V3pNV...PAZ4 len=51
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-detected_key provider=agnes preview=sk-scS4V3pNV...PAZ4 len=51
