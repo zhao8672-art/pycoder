@@ -587,3 +587,52 @@ key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90d
 detected_key provider=deepseek preview=sk-15fb33719...90db len=35
 skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
 all_modes_failed errors=chat: 执行失败
+INFO:     127.0.0.1:8487 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1624 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10712 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11186 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8232 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13549 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14376 - "GET /api/health HTTP/1.1" 200 OK
+[2m2026-07-17T14:21:46.336009Z[0m [[32m[1minfo     [0m] [1mws_v2_disconnect              [0m [[0m[1m[34mpycoder[0m][0m [36mextra[0m=[35m{'session_id': 'dfa963b7-20e5-4a78-a344-d3dc0cb6bdef'}[0m
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:3350 - "POST /api/config/validate-key HTTP/1.1" 200 OK
+HTTP Request: POST https://apihub.agnes-ai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+INFO:     127.0.0.1:12601 - "POST /api/config/validate-key HTTP/1.1" 200 OK
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+token_usage_recorded input=924 output=15 session_total=1918 hourly_total=1918
+INFO:     127.0.0.1:3373 - "POST /api/chat HTTP/1.1" 200 OK
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+HTTP Request: POST https://apihub.agnes-ai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+D2_CHAT_401 model=agnes-2.0-flash base=https://apihub.agnes-ai.com/v1 status=401 body={"error":{"code":"","message":"无效的令牌 (request id: 20260717142217509451584qJoUyXu5)","type":"AgnesAI_
+provider_401_fallback from=agnes-2.0-flash to=deepseek-chat reason={"error":{"code":"","message":"无效的令牌 (request id: 20260717142217509451584qJoUyXu5)","type":"AgnesAI_
+INFO:     127.0.0.1:3396 - "POST /api/chat HTTP/1.1" 200 OK
+任务难度评估: level=LIGHT score=19.5 max_iter=7 task=列出当前目录下所有.txt文件
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=1 tool=file_list args={'path': '.'}
+tool_round_complete round=1 tools=1
+幻觉验证完成: 评分=85.0/100 | 耗时=571.5ms | 声明=12
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=2 tool=search_quick_open args={'query': '.txt', 'max_results': 20}
+tool_round_complete round=2 tools=1
+幻觉验证完成: 评分=70.0/100 | 耗时=1001.2ms | 声明=11
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=3 tool=shell_run_terminal args={'command': 'dir /b *.txt 2>nul || find . -maxdepth 1 -name "*.txt" -type f 2>/dev/null || echo "Checking with python..."'}
+tool_round_complete round=3 tools=1
+幻觉验证完成: 评分=100.0/100 | 耗时=0.4ms | 声明=0
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=4 tool=shell_run_terminal args={'command': 'Get-ChildItem -Path . -Filter *.txt -File | Select-Object Name'}
+tool_round_complete round=4 tools=1
+幻觉验证完成: 评分=85.0/100 | 耗时=522.1ms | 声明=1
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+token_usage_recorded input=27482 output=237 session_total=29637 hourly_total=29637
+幻觉验证完成: 评分=10.0/100 | 耗时=607.2ms | 声明=7
+INFO:     127.0.0.1:3399 - "POST /api/chat HTTP/1.1" 200 OK
