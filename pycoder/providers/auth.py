@@ -137,6 +137,10 @@ def _save_config(config: dict):
 class ModelManager:
     """统一的模型与 Key 管理器"""
 
+    # 已知失效 Key 黑名单（自动加入，避免反复 401）
+    _blocked_keys: set[str] = set()
+    _verified_providers: set[str] = set()
+
     def __init__(self):
         self._detected: dict[str, str] = {}  # provider → api_key
         self._selected_model: str = ""
@@ -162,15 +166,20 @@ class ModelManager:
             if key:
                 self._detected[provider] = key
 
-        # 2. 从环境变量检测（仅补充 config 中没有的，绝不覆盖）
+        # 2. 从环境变量检测（过滤已知失效 Key）
         for provider, defs in PROVIDER_DEFS.items():
             if provider in self._detected:
-                continue  # config 中已存在，不覆盖
+                continue
             for env_var in defs["env_vars"]:
                 key = os.environ.get(env_var, "").strip()
-                if key:
+                if key and key not in ModelManager._blocked_keys:
                     self._detected[provider] = key
                     break
+        # 清理已被黑名单标记的 Key
+        for provider in list(self._detected.keys()):
+            if self._detected[provider] in ModelManager._blocked_keys:
+                logger.warning("blocked_key_removed provider=%s", provider)
+                del self._detected[provider]
 
         # 3. 冲突检测：如果 config 和 env var 不一致，记录到日志
         for provider in PROVIDER_DEFS:
@@ -345,6 +354,57 @@ class ModelManager:
 
         return "\n".join(lines)
 
+    # ── Key 失效标记与持久化 ──
+
+    def mark_key_invalid(self, provider: str):
+        """标记 Key 失效（加入黑名单，永久跳过）"""
+        key = self._detected.get(provider, "")
+        if key:
+            ModelManager._blocked_keys.add(key)
+            self._validated[provider] = False
+            logger.warning("key_marked_invalid provider=%s prefix=%s...%s",
+                provider, key[:12], key[-4:])
+            config = _load_config()
+            if "blocked_keys" not in config:
+                config["blocked_keys"] = []
+            if key not in config["blocked_keys"]:
+                config["blocked_keys"].append(key)
+                _save_config(config)
+            if provider in self._detected:
+                del self._detected[provider]
+
+    def mark_key_valid(self, provider: str):
+        """标记 Key 有效"""
+        ModelManager._verified_providers.add(provider)
+        self._validated[provider] = True
+
+    def load_blocked_keys(self):
+        """从配置加载已知失效 Key"""
+        config = _load_config()
+        for key in config.get("blocked_keys", []):
+            ModelManager._blocked_keys.add(key)
+
+    def save_key(self, provider: str, api_key: str, set_default: bool = True) -> dict:
+        """保存 API Key 到配置文件"""
+        if provider not in PROVIDER_DEFS:
+            return {"success": False, "error": f"不支持的提供商: {provider}"}
+        config = _load_config()
+        if "provider" not in config:
+            config["provider"] = {}
+        if "api_keys" not in config["provider"]:
+            config["provider"]["api_keys"] = {}
+        config["provider"]["api_keys"][provider] = api_key
+        if set_default:
+            config["provider"]["default"] = provider
+        _save_config(config)
+        os.environ[PROVIDER_DEFS[provider]["env_vars"][0]] = api_key
+        self._detected[provider] = api_key
+        return {"success": True, "message": f"✅ {PROVIDER_DEFS[provider]['name']} Key 已保存"}
+
+    def get_saved_key(self, provider: str) -> str:
+        config = _load_config()
+        return config.get("provider", {}).get("api_keys", {}).get(provider, "")
+
     # ── 模型偏好持久化 ──
 
     def save_model_preference(self, model_id: str) -> dict:
@@ -409,11 +469,16 @@ class ModelManager:
             if info and info.provider in self._detected:
                 return (user_model, info.provider)
 
-        # 2. 按优先级排序可用提供商
+        # 2. 按优先级排序可用提供商，跳过黑名单
         available = []
         for provider, defs in PROVIDER_DEFS.items():
             if provider in self._detected:
-                available.append((defs["priority"], provider, defs["recommended_model"]))
+                key = self._detected[provider]
+                if key in ModelManager._blocked_keys:
+                    continue
+                available.append(
+                    (defs["priority"], provider, defs["recommended_model"])
+                )
 
         if not available:
             return (DEFAULT_FREE_MODEL, "deepseek")
@@ -466,5 +531,6 @@ def get_model_manager() -> ModelManager:
     global _instance
     if _instance is None:
         _instance = ModelManager()
+        _instance.load_blocked_keys()
         _instance.auto_detect()
     return _instance

@@ -764,16 +764,19 @@ class ChatBridge:
                         error_body = await response.aread()
                         err_text = error_body.decode()[:300]
                         current_model = self.config.model
-                        # D2: 诊断日志
+                        current_provider = _detect_provider(current_model)
                         logger.error(
-                            "D2_CHAT_401 model=%s base=%s key_pref=%s status=%d body=%s",
-                            current_model,
-                            self.config.api_base,
-                            self.config.api_key[:12] + "..." if self.config.api_key else "NOKEY",
-                            response.status_code,
-                            err_text[:100],
+                            "D2_CHAT_401 model=%s base=%s status=%d body=%s",
+                            current_model, self.config.api_base,
+                            response.status_code, err_text[:100],
                         )
                         tried_providers.add(current_model)
+                        # 🔴 自动失效标记：401 Key 永久加入黑名单
+                        try:
+                            from pycoder.providers.auth import get_model_manager
+                            get_model_manager().mark_key_invalid(current_provider)
+                        except (ImportError, RuntimeError, ValueError, TypeError):
+                            pass
 
                         # 尝试降级到下一个可用 Provider
                         if fallback_providers:
