@@ -493,20 +493,20 @@ class ChatBridge:
         # ── 构建消息上下文 ──
         messages = self._get_effective_messages()
 
-        # ── 注入缓存命中率优化规则 + V2 能力 ──
-        caps = self._build_capabilities_block()
+        # ── 注入缓存规则 + 能力块（仅 tool 模式注入能力清单）──
         effective_system = self.config.system_prompt
-        # 1) 将缓存优化规则追加到 system prompt
         if effective_system:
             from pycoder.prompts.cache_rules import inject_cache_rules
 
             effective_system = inject_cache_rules(effective_system, lang="zh")
-        # 2) 追加 V2 能力块
-        if caps:
-            if effective_system:
-                effective_system = effective_system + "\n\n---\n" + caps
-            else:
-                effective_system = caps
+        # 仅 tool 模式注入 V2 能力块（chat 模式不需要）
+        if force_tools:
+            caps = self._build_capabilities_block()
+            if caps:
+                if effective_system:
+                    effective_system = effective_system + "\n\n---\n" + caps
+                else:
+                    effective_system = caps
 
         # 3) 规范化消息结构（system 在 [0]，差异化在末尾，字段顺序固定）
         from pycoder.prompts.cache_rules import canonicalize_messages
@@ -530,65 +530,63 @@ class ChatBridge:
         except (ImportError, RuntimeError, OSError, ValueError, TypeError) as e:
             logger.warning("cost_check_failed error=%s", e)
 
-        # ── 构建 tools payload（仅首轮需要） ──
+        # ── 构建 tools payload（仅 tool 模式构建，chat 模式为空）──
         tools_payload: list[dict] = []
-        try:
-            from pycoder.server.mcp_tools import list_builtin_tools
-
-            all_tools = list_builtin_tools()
-            skip_tools = {"refresh_extensions", "skills_sync_v2", "system_upgrade"}
-
-            # P0: 如果指定了 tool_names，只注入这些工具
-            if tool_names is not None:
-                name_set = set(tool_names)
-                all_tools = [t for t in all_tools if t.get("name", "") in name_set]
-
-            # ── V2: 合并 V2 能力到工具列表 ──
+        if force_tools:
             try:
-                from pycoder.server.app import get_v2_engine
+                from pycoder.server.mcp_tools import list_builtin_tools
 
-                v2_engine = get_v2_engine()
-                if v2_engine:
-                    for cap in v2_engine.registry.list_all():
-                        # P0: 如果指定了 tool_names，也过滤 V2 能力
-                        cap_short = cap.id.split(".")[-1]
-                        if tool_names is not None and cap_short not in name_set:
-                            continue
-                        tools_payload.append(
-                            {
-                                "type": "function",
-                                "function": {
-                                    "name": cap.id.replace(".", "_"),
-                                    "description": f"[V2] {cap.description}",
-                                    "parameters": cap.schema
-                                    or {"type": "object", "properties": {}},
-                                },
-                            }
-                        )
-            except (ImportError, AttributeError, TypeError, ValueError):
-                pass
+                all_tools = list_builtin_tools()
+                skip_tools = {"refresh_extensions", "skills_sync_v2", "system_upgrade"}
 
-            for t in all_tools:
-                import re as _re
+                if tool_names is not None:
+                    name_set = set(tool_names)
+                    all_tools = [t for t in all_tools if t.get("name", "") in name_set]
 
-                name = t.get("name", "")
-                if name in skip_tools:
-                    continue
-                # 防御: 确保工具名符合 ^[a-zA-Z0-9_-]+$
-                safe_name = _re.sub(r"[^a-zA-Z0-9_-]", "_", name)
-                schema = t.get("input_schema", {"type": "object", "properties": {}})
-                tools_payload.append(
-                    {
-                        "type": "function",
-                        "function": {
-                            "name": safe_name,
-                            "description": t.get("description", ""),
-                            "parameters": schema,
-                        },
-                    }
-                )
-        except (ImportError, RuntimeError) as e:
-            logger.warning("tools_injection_failed error=%s", e)
+                # ── V2: 合并 V2 能力到工具列表 ──
+                try:
+                    from pycoder.server.app import get_v2_engine
+
+                    v2_engine = get_v2_engine()
+                    if v2_engine:
+                        for cap in v2_engine.registry.list_all():
+                            cap_short = cap.id.split(".")[-1]
+                            if tool_names is not None and cap_short not in name_set:
+                                continue
+                            tools_payload.append(
+                                {
+                                    "type": "function",
+                                    "function": {
+                                        "name": cap.id.replace(".", "_"),
+                                        "description": f"[V2] {cap.description}",
+                                        "parameters": cap.schema
+                                        or {"type": "object", "properties": {}},
+                                    },
+                                }
+                            )
+                except (ImportError, AttributeError, TypeError, ValueError):
+                    pass
+
+                for t in all_tools:
+                    import re as _re
+
+                    name = t.get("name", "")
+                    if name in skip_tools:
+                        continue
+                    safe_name = _re.sub(r"[^a-zA-Z0-9_-]", "_", name)
+                    schema = t.get("input_schema", {"type": "object", "properties": {}})
+                    tools_payload.append(
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": safe_name,
+                                "description": t.get("description", ""),
+                                "parameters": schema,
+                            },
+                        }
+                    )
+            except (ImportError, RuntimeError) as e:
+                logger.warning("tools_injection_failed error=%s", e)
 
         # ── 缓存命中率优化: 规范化 tools 序列顺序 ──
         from pycoder.prompts.cache_rules import canonicalize_tools

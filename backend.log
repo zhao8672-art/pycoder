@@ -1,0 +1,758 @@
+
+======================================================================
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+  ⚠️  安全警告: PYCODER_CLOUD_JWT_SECRET 环境变量未设置！
+  当前使用随机临时密钥，服务器重启后所有用户 Token 将失效。
+  生产环境请执行:
+    export PYCODER_CLOUD_JWT_SECRET=$(python -c "import secrets; print(secrets.token_urlsafe(32))")  # Linux/macOS
+    $env:PYCODER_CLOUD_JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(32))")  # Windows
+=
+chromadb 未安装，向量搜索将回退到 SQLite 模式
+封闭学习循环数据库已初始化: C:\Users\Administrator\.pycoder\learning\closed_loop.db
+API 认证已启用（复用 ~/.pycoder/.api_key 中的 Key）
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+llm_api_keys_detected: agnes, deepseek
+INFO:     Started server process [49504]
+INFO:     Waiting for application startup.
+recommendation_db_tables_created at C:\Users\Administrator/.pycoder/pycoder.db
+sandbox_docker_selected
+memory_bank_initialized empty=true
+di_container_initialized: ['CodeSandbox', 'FileSystem', 'LLMProvider']
+env_tool_version_low: name=npm, version=unknown
+env_tool_optional_missing: name=clangd
+env_tool_optional_missing: name=jdtls
+env_tool_optional_missing: name=gopls
+env_tool_optional_missing: name=typescript-language-server
+初始化 Pycoder V2 引擎...
+注册编辑器能力...
+注册系统能力...
+注册自进化能力...
+加载进化历史: 5 条记录
+自我进化引擎已初始化 (LLM=ready)
+注册跨工作区能力...
+注册浏览器增强能力...
+注册知识更新能力...
+注册多语言 LSP 能力...
+注册环境工具能力...
+注册智能 IO 能力...
+注册会话记忆能力...
+注册通知与任务调度能力...
+注册多平台消息网关能力...
+网关能力已注册到 V2 总线: 4 个能力
+注册 Docker 沙箱执行能力...
+沙箱执行器能力已注册到 V2 总线
+注册深度记忆系统能力...
+deep_memory_capabilities_registered chroma_available=False
+注册幻觉抑制能力...
+幻觉守卫能力已注册: 4 个能力
+注册闭环验证引擎能力...
+闭环验证引擎能力已注册到 V2 总线: 5 个能力
+注册 DAG 并行任务调度能力...
+DAG 调度器能力已注册: 5 个能力
+注册任务难度分级能力...
+任务难度评估能力已注册: 2 个能力
+注册任务持久化能力...
+任务持久化能力已注册到 V2 总线: 7 个能力
+注册进化报告生成能力...
+进化报告能力已注册: 2 个能力
+注册技能市场能力...
+技能市场能力已注册
+注册 MCP 协议适配能力...
+MCP 协议适配器能力已注册（7 个能力）
+注册专业 Agent 团队能力...
+Agent 团队能力已注册（4 个能力）
+注册闭环学习循环能力...
+封闭学习循环能力已注册: 5 个能力
+注册多模态感知能力...
+pytesseract 未安装，OCR 文字提取不可用。请执行: pip install pytesseract
+多模态感知能力注册失败: type object 'SideEffect' has no attribute 'LLM_CALL'
+意识引擎模式: idle → aware
+意识引擎已启动: mode=aware memories=1
+V1 工具迁移完成: 48 tools
+V2 引擎初始化完成 — 179 个能力已注册, 信任级别: FULL_AUTONOMY
+v2_engine_initialized: capabilities=179 trust=FULL_AUTONOMY
+plugin_registry_initialized: plugins=1
+scheduler_started: 4 tasks registered (skills×2, extensions×2)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8423 (Press CTRL+C to quit)
+INFO:     127.0.0.1:5211 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5231 - "WebSocket /ws/chat/v2?api_key=REDACTED-PYCODER-API-KEY" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:5232 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5233 - "WebSocket /ws/terminal?api_key=REDACTED-PYCODER-API-KEY" [accepted]
+INFO:     connection open
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+INFO:     127.0.0.1:5232 - "GET /api/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5245 - "GET /api/env HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5246 - "GET /api/git/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5247 - "GET /api/sessions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5247 - "GET /api/files/workspace/restore HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7849 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11412 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7095 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14602 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6146 - "GET /api/health HTTP/1.1" 200 OK
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+INFO:     127.0.0.1:11897 - "GET /api/models HTTP/1.1" 200 OK
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
+HTTP Request: POST https://apihub.agnes-ai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+D2_CHAT_401 model=agnes-2.0-flash base=https://apihub.agnes-ai.com/v1 key_pref=8X8ztGQQ2HpP... status=401 body={"error":{"code":"","message":"无效的令牌 (request id: 20260717120534853672963UyOk69qK)","type":"AgnesAI_
+provider_401_fallback from=agnes-2.0-flash to=deepseek-chat reason={"error":{"code":"","message":"无效的令牌 (request id: 20260717120534853672963UyOk69qK)","type":"AgnesAI_
+INFO:     127.0.0.1:11898 - "POST /api/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9805 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12454 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14143 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10568 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11868 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1828 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3636 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7382 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5418 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8790 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4527 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12157 - "GET /api/health HTTP/1.1" 200 OK
+pipeline_tool_tier mode=hermes tool_count=14
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
+HTTP Request: POST https://apihub.agnes-ai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+D2_CHAT_401 model=agnes-2.0-flash base=https://apihub.agnes-ai.com/v1 key_pref=8X8ztGQQ2HpP... status=401 body={"error":{"code":"","message":"无效的令牌 (request id: 20260717121133445106254PrsxXcIr)","type":"AgnesAI_
+provider_401_fallback from=agnes-2.0-flash to=deepseek-chat reason={"error":{"code":"","message":"无效的令牌 (request id: 20260717121133445106254PrsxXcIr)","type":"AgnesAI_
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'ls -la'}
+mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'cat README.md 2>/dev/null || echo "No README.md"'}
+mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'cat pyproject.toml 2>/dev/null || echo "No pyproject.toml"'}
+tool_round_complete round=2 tools=3
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Name'}
+mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-Content README.md -ErrorAction SilentlyContinue'}
+mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-Content pyproject.toml -ErrorAction SilentlyContinue'}
+tool_round_complete round=3 tools=3
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path pycoder -Recurse -Directory | Select-Object -ExpandProperty FullName'}
+mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path pycoder -Filter "*.py" -Recurse | Select-Object -ExpandProperty Name'}
+tool_round_complete round=4 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path pycoder -Filter "*.py" -Recurse | Select-Object -ExpandProperty FullName'}
+tool_round_complete round=5 tools=1
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:8615 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=6 tool=tools_shell_run_terminal args={'command': 'Get-Content -Path pycoder/__main__.py -ErrorAction SilentlyContinue'}
+mcp_tool_call_from_ai round=6 tool=tools_shell_run_terminal args={'command': 'Get-Content -Path pycoder/core/__init__.py -ErrorAction SilentlyContinue'}
+mcp_tool_call_from_ai round=6 tool=tools_shell_run_terminal args={'command': 'Get-Content -Path pycoder/ai/__init__.py -ErrorAction SilentlyContinue'}
+tool_round_complete round=6 tools=3
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=7 tool=tools_shell_run_terminal args={'command': 'Get-Content -Path pycoder/server/__init__.py -ErrorAction SilentlyContinue'}
+mcp_tool_call_from_ai round=7 tool=tools_shell_run_terminal args={'command': 'Get-Content -Path pycoder/server/services/autonomous_pipeline.py -ErrorAction SilentlyContinue -TotalCount 100'}
+mcp_tool_call_from_ai round=7 tool=tools_shell_run_terminal args={'command': 'Get-Content -Path pycoder/self_evolution/__init__.py -ErrorAction SilentlyContinue -TotalCount 100'}
+tool_round_complete round=7 tools=3
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=8 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path pycoder/capabilities -Recurse -Filter "*.py" -Name'}
+mcp_tool_call_from_ai round=8 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path pycoder/server/services -Filter "*.py" -Name'}
+mcp_tool_call_from_ai round=8 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path pycoder/services -Filter "*.py" -Name -ErrorAction SilentlyContinue'}
+tool_round_complete round=8 tools=3
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=1 tool=git_status args={}
+mcp_tool_call_from_ai round=1 tool=git_log args={'limit': 5}
+tool_round_complete round=1 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'find . -type f -name "*.py" | head -30'}
+tool_round_complete round=2 tools=1
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Recurse -Filter "*.py" | Select-Object -First 30 FullName'}
+mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Recurse -Filter "*.json" | Select-Object -First 20 FullName'}
+tool_round_complete round=3 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path "C:\\Users\\Administrator\\Desktop\\pycode" -Depth 0 | Where-Object { $_.Name -notlike ".venv*" -and $_.Name -notlike "node_modules*" } | Select-Object Name, Length, L
+tool_round_complete round=4 tools=1
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'cd C:\\Users\\Administrator\\Desktop\\pycode; git diff HEAD~1 --stat'}
+tool_round_complete round=5 tools=1
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=1 tool=git_status args={}
+mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'ls -la /', 'cwd': '/'}
+tool_round_complete round=1 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'dir', 'cwd': '/'}
+mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'dir'}
+tool_round_complete round=2 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'dir /b'}
+mcp_tool_call_from_ai round=3 tool=git_log args={'limit': 5}
+tool_round_complete round=3 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'dir /b *.py *.json *.md *.yaml *.yml *.toml *.cfg *.txt'}
+tool_round_complete round=4 tools=1
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Filter "*.py" | Select-Object Name'}
+mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem | Select-Object Name'}
+tool_round_complete round=5 tools=2
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=1 tool=git_status args={'path': '.'}
+mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'pwd && ls -la'}
+tool_round_complete round=1 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:6166 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Name'}
+mcp_tool_call_from_ai round=2 tool=git_log args={'limit': 10}
+tool_round_complete round=2 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-Content check_ai_v2.py -Head 30'}
+mcp_tool_call_from_ai round=3 tool=tools_quality_dependency_analysis args={'path': '.'}
+tool_round_complete round=3 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-Content .\\.venv\\pyvenv.cfg -Head 10'}
+mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'python --version 2>&1'}
+tool_round_complete round=4 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+token_usage_recorded input=12027 output=783 session_total=12810 hourly_total=12810
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'ls -la'}
+tool_round_complete round=1 tools=1
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem', 'cwd': 'C:\\Users\\Administrator\\Desktop\\pycode'}
+tool_round_complete round=2 tools=1
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=3 tool=git_status args={'path': 'C:\\Users\\Administrator\\Desktop\\pycode'}
+mcp_tool_call_from_ai round=3 tool=git_log args={'limit': 10}
+tool_round_complete round=3 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Recurse -Name -File | Select-Object -First 50', 'cwd': 'C:\\Users\\Administrator\\Desktop\\pycode'}
+tool_round_complete round=4 tools=1
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'Get-Content check_ai_v2.py -Head 100', 'cwd': 'C:\\Users\\Administrator\\Desktop\\pycode'}
+tool_round_complete round=5 tools=1
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'ls -la /', 'timeout': 10}
+mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'pwd && ls -la', 'timeout': 10}
+tool_round_complete round=1 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'cd C:\\Users\\Administrator\\Desktop\\pycode && dir', 'timeout': 10}
+mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'dir /s /b C:\\Users\\Administrator\\Desktop\\pycode\\*.py 2>nul', 'timeout': 10}
+tool_round_complete round=2 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Set-Location "C:\\Users\\Administrator\\Desktop\\pycode"; Get-ChildItem', 'timeout': 10}
+tool_round_complete round=3 tools=1
+INFO:     127.0.0.1:7596 - "GET /api/health HTTP/1.1" 200 OK
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Recurse -Filter *.py -Name C:\\Users\\Administrator\\Desktop\\pycode 2>$null', 'timeout': 10}
+mcp_tool_call_from_ai round=4 tool=git_status args={}
+mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Recurse C:\\Users\\Administrator\\Desktop\\pycode\\app', 'timeout': 10}
+tool_round_complete round=4 tools=3
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Recurse C:\\Users\\Administrator\\Desktop\\pycode\\app\\src\\models; Get-ChildItem -Recurse C:\\Users\\Administrator\\Desktop\\pycode\\app\\src\\routers; Get-ChildItem -Rec
+mcp_tool_call_from_ai round=5 tool=git_log args={'limit': 10}
+tool_round_complete round=5 tools=2
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+token_usage_recorded input=9592 output=307 session_total=22709 hourly_total=22709
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'pwd && ls -la'}
+mcp_tool_call_from_ai round=1 tool=git_status args={'path': '.'}
+tool_round_complete round=1 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'dir /B', 'cwd': 'C:\\Users\\Administrator\\Desktop\\pycode'}
+mcp_tool_call_from_ai round=2 tool=git_log args={'limit': 10}
+tool_round_complete round=2 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=3 tool=editor_code_search args={'query': 'TODO|FIXME|HACK', 'file_pattern': '*.py', 'max_results': 20}
+mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'cmd /c "dir /B"', 'cwd': 'C:\\Users\\Administrator\\Desktop\\pycode'}
+tool_round_complete round=3 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'cmd /c "type pyproject.toml"', 'cwd': 'C:\\Users\\Administrator\\Desktop\\pycode'}
+mcp_tool_call_from_ai round=4 tool=editor_code_search args={'query': 'Hermes', 'file_pattern': '*.py', 'max_results': 5}
+tool_round_complete round=4 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:13077 - "GET /api/health HTTP/1.1" 200 OK
+token_usage_recorded input=14126 output=579 session_total=37414 hourly_total=37414
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+token_usage_recorded input=9592 output=467 session_total=47473 hourly_total=47473
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=1 tool=git_status args={'path': '.'}
+mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'pwd && ls -la', 'timeout': 10}
+tool_round_complete round=1 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'echo %CD% && dir /B', 'timeout': 10}
+tool_round_complete round=2 tools=1
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-Location', 'timeout': 10}
+mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem', 'timeout': 10}
+tool_round_complete round=3 tools=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=4 tool=git_log args={'limit': 5}
+tool_round_complete round=4 tools=1
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Name *.py', 'timeout': 10}
+tool_round_complete round=5 tools=1
+INFO:     127.0.0.1:11641 - "GET /api/health HTTP/1.1" 200 OK
+[2m2026-07-17T12:14:04.995903Z[0m [[32m[1minfo     [0m] [1mws_v2_disconnect              [0m [[0m[1m[34mpycoder[0m][0m [36mextra[0m=[35m{'session_id': 'deb842d4-5ada-4ab6-8832-6a64fec07150'}[0m
