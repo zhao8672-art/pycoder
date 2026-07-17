@@ -427,7 +427,7 @@ key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90d
 detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
 detected_key provider=deepseek preview=sk-15fb33719...90db len=35
 llm_api_keys_detected: agnes, deepseek
-INFO:     Started server process [49504]
+INFO:     Started server process [29624]
 INFO:     Waiting for application startup.
 recommendation_db_tables_created at C:\Users\Administrator/.pycoder/pycoder.db
 sandbox_docker_selected
@@ -490,11 +490,11 @@ plugin_registry_initialized: plugins=1
 scheduler_started: 4 tasks registered (skills×2, extensions×2)
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8423 (Press CTRL+C to quit)
-INFO:     127.0.0.1:5211 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5231 - "WebSocket /ws/chat/v2?api_key=REDACTED-PYCODER-API-KEY" [accepted]
+INFO:     127.0.0.1:14003 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14033 - "WebSocket /ws/chat/v2?api_key=REDACTED-PYCODER-API-KEY" [accepted]
 INFO:     connection open
-INFO:     127.0.0.1:5232 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5233 - "WebSocket /ws/terminal?api_key=REDACTED-PYCODER-API-KEY" [accepted]
+INFO:     127.0.0.1:14034 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14035 - "WebSocket /ws/terminal?api_key=REDACTED-PYCODER-API-KEY" [accepted]
 INFO:     connection open
 key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
 detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
@@ -505,254 +505,27 @@ detected_key provider=deepseek preview=sk-15fb33719...90db len=35
 key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
 detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
 detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-INFO:     127.0.0.1:5232 - "GET /api/models HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5245 - "GET /api/env HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5246 - "GET /api/git/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5247 - "GET /api/sessions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5247 - "GET /api/files/workspace/restore HTTP/1.1" 200 OK
-INFO:     127.0.0.1:7849 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:11412 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:7095 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14602 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6146 - "GET /api/health HTTP/1.1" 200 OK
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-INFO:     127.0.0.1:11897 - "GET /api/models HTTP/1.1" 200 OK
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+INFO:     127.0.0.1:14034 - "GET /api/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14036 - "GET /api/env HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14037 - "GET /api/git/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14038 - "GET /api/sessions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14038 - "GET /api/files/workspace/restore HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2277 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6671 - "GET /api/health HTTP/1.1" 200 OK
+pipeline_tool_tier mode=chat tool_count=8
 key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
 detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
 detected_key provider=deepseek preview=sk-15fb33719...90db len=35
 skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
 HTTP Request: POST https://apihub.agnes-ai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
-D2_CHAT_401 model=agnes-2.0-flash base=https://apihub.agnes-ai.com/v1 key_pref=8X8ztGQQ2HpP... status=401 body={"error":{"code":"","message":"无效的令牌 (request id: 20260717120534853672963UyOk69qK)","type":"AgnesAI_
-provider_401_fallback from=agnes-2.0-flash to=deepseek-chat reason={"error":{"code":"","message":"无效的令牌 (request id: 20260717120534853672963UyOk69qK)","type":"AgnesAI_
-INFO:     127.0.0.1:11898 - "POST /api/chat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9805 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:12454 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14143 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:10568 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:11868 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1828 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:3636 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:7382 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5418 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:8790 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:4527 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:12157 - "GET /api/health HTTP/1.1" 200 OK
-pipeline_tool_tier mode=hermes tool_count=14
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
-HTTP Request: POST https://apihub.agnes-ai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
-D2_CHAT_401 model=agnes-2.0-flash base=https://apihub.agnes-ai.com/v1 key_pref=8X8ztGQQ2HpP... status=401 body={"error":{"code":"","message":"无效的令牌 (request id: 20260717121133445106254PrsxXcIr)","type":"AgnesAI_
-provider_401_fallback from=agnes-2.0-flash to=deepseek-chat reason={"error":{"code":"","message":"无效的令牌 (request id: 20260717121133445106254PrsxXcIr)","type":"AgnesAI_
+D2_CHAT_401 model=agnes-2.0-flash base=https://apihub.agnes-ai.com/v1 key_pref=8X8ztGQQ2HpP... status=401 body={"error":{"code":"","message":"无效的令牌 (request id: 20260717131922658329929X7J7ioDs)","type":"AgnesAI_
+provider_401_fallback from=agnes-2.0-flash to=deepseek-chat reason={"error":{"code":"","message":"无效的令牌 (request id: 20260717131922658329929X7J7ioDs)","type":"AgnesAI_
 HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'ls -la'}
-mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'cat README.md 2>/dev/null || echo "No README.md"'}
-mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'cat pyproject.toml 2>/dev/null || echo "No pyproject.toml"'}
-tool_round_complete round=2 tools=3
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Name'}
-mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-Content README.md -ErrorAction SilentlyContinue'}
-mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-Content pyproject.toml -ErrorAction SilentlyContinue'}
-tool_round_complete round=3 tools=3
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path pycoder -Recurse -Directory | Select-Object -ExpandProperty FullName'}
-mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path pycoder -Filter "*.py" -Recurse | Select-Object -ExpandProperty Name'}
-tool_round_complete round=4 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path pycoder -Filter "*.py" -Recurse | Select-Object -ExpandProperty FullName'}
-tool_round_complete round=5 tools=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-INFO:     127.0.0.1:8615 - "GET /api/health HTTP/1.1" 200 OK
-mcp_tool_call_from_ai round=6 tool=tools_shell_run_terminal args={'command': 'Get-Content -Path pycoder/__main__.py -ErrorAction SilentlyContinue'}
-mcp_tool_call_from_ai round=6 tool=tools_shell_run_terminal args={'command': 'Get-Content -Path pycoder/core/__init__.py -ErrorAction SilentlyContinue'}
-mcp_tool_call_from_ai round=6 tool=tools_shell_run_terminal args={'command': 'Get-Content -Path pycoder/ai/__init__.py -ErrorAction SilentlyContinue'}
-tool_round_complete round=6 tools=3
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=7 tool=tools_shell_run_terminal args={'command': 'Get-Content -Path pycoder/server/__init__.py -ErrorAction SilentlyContinue'}
-mcp_tool_call_from_ai round=7 tool=tools_shell_run_terminal args={'command': 'Get-Content -Path pycoder/server/services/autonomous_pipeline.py -ErrorAction SilentlyContinue -TotalCount 100'}
-mcp_tool_call_from_ai round=7 tool=tools_shell_run_terminal args={'command': 'Get-Content -Path pycoder/self_evolution/__init__.py -ErrorAction SilentlyContinue -TotalCount 100'}
-tool_round_complete round=7 tools=3
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=8 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path pycoder/capabilities -Recurse -Filter "*.py" -Name'}
-mcp_tool_call_from_ai round=8 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path pycoder/server/services -Filter "*.py" -Name'}
-mcp_tool_call_from_ai round=8 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path pycoder/services -Filter "*.py" -Name -ErrorAction SilentlyContinue'}
-tool_round_complete round=8 tools=3
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=1 tool=git_status args={}
-mcp_tool_call_from_ai round=1 tool=git_log args={'limit': 5}
-tool_round_complete round=1 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'find . -type f -name "*.py" | head -30'}
-tool_round_complete round=2 tools=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Recurse -Filter "*.py" | Select-Object -First 30 FullName'}
-mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Recurse -Filter "*.json" | Select-Object -First 20 FullName'}
-tool_round_complete round=3 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Path "C:\\Users\\Administrator\\Desktop\\pycode" -Depth 0 | Where-Object { $_.Name -notlike ".venv*" -and $_.Name -notlike "node_modules*" } | Select-Object Name, Length, L
-tool_round_complete round=4 tools=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'cd C:\\Users\\Administrator\\Desktop\\pycode; git diff HEAD~1 --stat'}
-tool_round_complete round=5 tools=1
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=1 tool=git_status args={}
-mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'ls -la /', 'cwd': '/'}
-tool_round_complete round=1 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'dir', 'cwd': '/'}
-mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'dir'}
-tool_round_complete round=2 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'dir /b'}
-mcp_tool_call_from_ai round=3 tool=git_log args={'limit': 5}
-tool_round_complete round=3 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'dir /b *.py *.json *.md *.yaml *.yml *.toml *.cfg *.txt'}
-tool_round_complete round=4 tools=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Filter "*.py" | Select-Object Name'}
-mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem | Select-Object Name'}
-tool_round_complete round=5 tools=2
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=1 tool=git_status args={'path': '.'}
-mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'pwd && ls -la'}
-tool_round_complete round=1 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-INFO:     127.0.0.1:6166 - "GET /api/health HTTP/1.1" 200 OK
-mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Name'}
-mcp_tool_call_from_ai round=2 tool=git_log args={'limit': 10}
-tool_round_complete round=2 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-Content check_ai_v2.py -Head 30'}
-mcp_tool_call_from_ai round=3 tool=tools_quality_dependency_analysis args={'path': '.'}
-tool_round_complete round=3 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-Content .\\.venv\\pyvenv.cfg -Head 10'}
-mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'python --version 2>&1'}
-tool_round_complete round=4 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-token_usage_recorded input=12027 output=783 session_total=12810 hourly_total=12810
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'ls -la'}
-tool_round_complete round=1 tools=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem', 'cwd': 'C:\\Users\\Administrator\\Desktop\\pycode'}
-tool_round_complete round=2 tools=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=3 tool=git_status args={'path': 'C:\\Users\\Administrator\\Desktop\\pycode'}
-mcp_tool_call_from_ai round=3 tool=git_log args={'limit': 10}
-tool_round_complete round=3 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Recurse -Name -File | Select-Object -First 50', 'cwd': 'C:\\Users\\Administrator\\Desktop\\pycode'}
-tool_round_complete round=4 tools=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'Get-Content check_ai_v2.py -Head 100', 'cwd': 'C:\\Users\\Administrator\\Desktop\\pycode'}
-tool_round_complete round=5 tools=1
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'ls -la /', 'timeout': 10}
-mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'pwd && ls -la', 'timeout': 10}
-tool_round_complete round=1 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'cd C:\\Users\\Administrator\\Desktop\\pycode && dir', 'timeout': 10}
-mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'dir /s /b C:\\Users\\Administrator\\Desktop\\pycode\\*.py 2>nul', 'timeout': 10}
-tool_round_complete round=2 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Set-Location "C:\\Users\\Administrator\\Desktop\\pycode"; Get-ChildItem', 'timeout': 10}
-tool_round_complete round=3 tools=1
-INFO:     127.0.0.1:7596 - "GET /api/health HTTP/1.1" 200 OK
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Recurse -Filter *.py -Name C:\\Users\\Administrator\\Desktop\\pycode 2>$null', 'timeout': 10}
-mcp_tool_call_from_ai round=4 tool=git_status args={}
-mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Recurse C:\\Users\\Administrator\\Desktop\\pycode\\app', 'timeout': 10}
-tool_round_complete round=4 tools=3
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Recurse C:\\Users\\Administrator\\Desktop\\pycode\\app\\src\\models; Get-ChildItem -Recurse C:\\Users\\Administrator\\Desktop\\pycode\\app\\src\\routers; Get-ChildItem -Rec
-mcp_tool_call_from_ai round=5 tool=git_log args={'limit': 10}
-tool_round_complete round=5 tools=2
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-token_usage_recorded input=9592 output=307 session_total=22709 hourly_total=22709
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'pwd && ls -la'}
-mcp_tool_call_from_ai round=1 tool=git_status args={'path': '.'}
-tool_round_complete round=1 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'dir /B', 'cwd': 'C:\\Users\\Administrator\\Desktop\\pycode'}
-mcp_tool_call_from_ai round=2 tool=git_log args={'limit': 10}
-tool_round_complete round=2 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=3 tool=editor_code_search args={'query': 'TODO|FIXME|HACK', 'file_pattern': '*.py', 'max_results': 20}
-mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'cmd /c "dir /B"', 'cwd': 'C:\\Users\\Administrator\\Desktop\\pycode'}
-tool_round_complete round=3 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=4 tool=tools_shell_run_terminal args={'command': 'cmd /c "type pyproject.toml"', 'cwd': 'C:\\Users\\Administrator\\Desktop\\pycode'}
-mcp_tool_call_from_ai round=4 tool=editor_code_search args={'query': 'Hermes', 'file_pattern': '*.py', 'max_results': 5}
-tool_round_complete round=4 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-INFO:     127.0.0.1:13077 - "GET /api/health HTTP/1.1" 200 OK
-token_usage_recorded input=14126 output=579 session_total=37414 hourly_total=37414
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-token_usage_recorded input=9592 output=467 session_total=47473 hourly_total=47473
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=1 tool=git_status args={'path': '.'}
-mcp_tool_call_from_ai round=1 tool=tools_shell_run_terminal args={'command': 'pwd && ls -la', 'timeout': 10}
-tool_round_complete round=1 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=2 tool=tools_shell_run_terminal args={'command': 'echo %CD% && dir /B', 'timeout': 10}
-tool_round_complete round=2 tools=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-Location', 'timeout': 10}
-mcp_tool_call_from_ai round=3 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem', 'timeout': 10}
-tool_round_complete round=3 tools=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=4 tool=git_log args={'limit': 5}
-tool_round_complete round=4 tools=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=5 tool=tools_shell_run_terminal args={'command': 'Get-ChildItem -Name *.py', 'timeout': 10}
-tool_round_complete round=5 tools=1
-INFO:     127.0.0.1:11641 - "GET /api/health HTTP/1.1" 200 OK
-[2m2026-07-17T12:14:04.995903Z[0m [[32m[1minfo     [0m] [1mws_v2_disconnect              [0m [[0m[1m[34mpycoder[0m][0m [36mextra[0m=[35m{'session_id': 'deb842d4-5ada-4ab6-8832-6a64fec07150'}[0m
+token_usage_recorded input=9348 output=582 session_total=9930 hourly_total=9930
+幻觉验证完成: 评分=100.0/100 | 耗时=2.6ms | 声明=0
+INFO:     127.0.0.1:7569 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3317 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4559 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3829 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14083 - "GET /api/health HTTP/1.1" 200 OK
+[2m2026-07-17T13:21:53.104882Z[0m [[32m[1minfo     [0m] [1mws_v2_disconnect              [0m [[0m[1m[34mpycoder[0m][0m [36mextra[0m=[35m{'session_id': '04dce8d5-79a7-4569-8432-8ae3c009ede3'}[0m

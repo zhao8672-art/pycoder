@@ -460,12 +460,33 @@ class ChatBridge:
         max_tool_rounds = 5
         force_tools = True
         if mode == "auto":
-            effective_mode, force_tools, max_tool_rounds = self._classify_intent(message)
+            effective_mode, force_tools, max_tool_rounds = (
+                await self._route_with_nlu(message)
+            )
             if effective_mode == "chat":
                 logger.debug(
                     "intent_router chat_mode msg_len=%d preview=%s",
                     len(message), message[:50],
                 )
+
+        # ── P0-3: 任务难度分级（仅在 tool 模式）──
+        _task_grade = None
+        if force_tools:
+            try:
+                from pycoder.server.services.task_grader import get_task_grader
+                grader = get_task_grader()
+                _task_grade = grader.assess(
+                    message, context={"mode": effective_mode},
+                )
+                max_tool_rounds = _task_grade.max_iterations
+                self.config.temperature = _task_grade.temperature
+                logger.debug(
+                    "task_grader level=%s score=%.0f rounds=%d temp=%.2f",
+                    _task_grade.level.name, _task_grade.score,
+                    max_tool_rounds, _task_grade.temperature,
+                )
+            except (ImportError, RuntimeError, ValueError, TypeError) as e:
+                logger.debug("task_grader_failed error=%s", e)
 
         # ── 构建 Provider 降级链 ──
         # 按优先级获取所有可用 Provider，当主 Provider 返回 401 时自动降级
@@ -577,6 +598,39 @@ class ChatBridge:
                 if tool_names is not None:
                     name_set = set(tool_names)
                     all_tools = [t for t in all_tools if t.get("name", "") in name_set]
+                else:
+                    # ── P0-4: 智能工具裁剪（根据任务类型过滤）──
+                    _cat_map = {
+                        "code_generation": {"read_file", "write_file", "create_file",
+                            "search_code", "execute_python", "list_files", "shell_exec"},
+                        "debugging": {"read_file", "execute_python", "search_code",
+                            "shell_exec", "git_diff", "git_log", "lsp_diagnostics"},
+                        "refactoring": {"read_file", "write_file", "patch_file",
+                            "search_code", "shell_exec", "git_diff"},
+                        "code_review": {"read_file", "search_code", "git_diff",
+                            "shell_exec"},
+                        "testing": {"read_file", "write_file", "execute_python",
+                            "shell_exec", "install_package"},
+                        "git_operations": {"git_status", "git_add", "git_commit",
+                            "git_diff", "git_log", "git_push", "git_branch", "read_file"},
+                    }
+                    _nlu_cat = ""
+                    if _task_grade and _task_grade.reasoning:
+                        _nlu_cat = _task_grade.reasoning[0] if _task_grade.reasoning else ""
+                    _allowed = None
+                    for _cat, _tools in _cat_map.items():
+                        if _cat in _nlu_cat or _cat in effective_mode:
+                            _allowed = _tools
+                            break
+                    if _allowed:
+                        _full_count = len(all_tools)
+                        all_tools = [
+                            t for t in all_tools if t.get("name", "") in _allowed
+                        ]
+                        logger.debug(
+                            "tool_selection_filtered before=%d after=%d",
+                            _full_count, len(all_tools),
+                        )
 
                 # ── V2: 合并 V2 能力到工具列表 ──
                 try:
@@ -639,6 +693,29 @@ class ChatBridge:
         all_content = ""
         total_usage: dict = {}
         tried_providers: set[str] = set()
+
+        # ── P1-3: 多模型融合择优（chat模式 + ≥2 provider）──
+        if not force_tools and len(fallback_providers) >= 2:
+            try:
+                from pycoder.ai.fusion.engine import FusionEngine, FusionMode
+                _fusion = FusionEngine()
+                # 仅用前 2 个 provider 做融合（控制延迟）
+                _f_result = await _fusion.fuse(
+                    prompt=message,
+                    mode=FusionMode.BEST_OF_N,
+                    providers=fallback_providers[:2],
+                )
+                if _f_result and getattr(_f_result, "confidence", 0) > 0.7:
+                    content = getattr(_f_result, "content", "")
+                    if content:
+                        yield ChatEvent(event_type="token", content=content)
+                        yield ChatEvent(
+                            event_type="done", content=content,
+                            usage={"fusion": True, "provider": "multi"},
+                        )
+                        return
+            except (ImportError, RuntimeError, ValueError, TypeError, AttributeError):
+                pass
 
         # ── ReAct 工具调用循环 ──
         for round_num in range(max(max_tool_rounds, 1)):
@@ -853,8 +930,30 @@ class ChatBridge:
                 )
 
                 try:
-                    # ── V2: 优先通过能力总线执行 ──
-                    result_str = None
+                    # ── P2-1: Docker沙箱包装（shell_exec/execute_python走沙箱）──
+                    _use_docker = tool_name in ("shell_exec", "run_command", "execute_python")
+                    _sandbox_result = None
+                    if _use_docker:
+                        try:
+                            from pycoder.adapters.docker_sandbox import DockerSandbox
+                            _sb = DockerSandbox()
+                            _code = tool_args.get("command", "")
+                            _sb_result = await _sb.execute(_code, timeout=30)
+                            if _sb_result.success:
+                                _sandbox_result = json.dumps({
+                                    "stdout": _sb_result.stdout[:2000],
+                                    "stderr": _sb_result.stderr[:500],
+                                    "sandbox": "docker",
+                                    "exit_code": _sb_result.exit_code,
+                                }, ensure_ascii=False, indent=2)
+                        except (ImportError, RuntimeError, ValueError, TypeError):
+                            pass
+
+                    if _sandbox_result:
+                        result_str = _sandbox_result
+                    else:
+                        # ── V2: 优先通过能力总线执行 ──
+                        result_str = None
                     try:
                         from pycoder.server.app import get_v2_engine
 
@@ -928,17 +1027,61 @@ class ChatBridge:
                 except (ImportError, RuntimeError, ValueError, TypeError, json.JSONDecodeError):
                     pass
 
-            # ── P1-1: Rumination 反思机制（每轮工具后）──
+            # ── P1-1: RuminationEngine 反思机制（每轮工具后）──
             if force_tools and round_num > 0:
-                _reflect_msg = (
-                    "🔍 **反思检查（铁律）**：\n"
-                    "1. 上一步操作的结果是否符合预期？\n"
-                    "2. 用户原始需求是否已被满足？\n"
-                    "3. 如果有偏差，立即纠正；如果已完成，停止调用工具。\n"
-                    "请先输出反思结果，再决定下一步。"
-                )
-                messages.append({"role": "system", "content": _reflect_msg})
-                self._rumination_count += 1
+                try:
+                    from pycoder.ai.rumination import get_rumination_engine
+                    _re = get_rumination_engine()
+                    _rr = await _re.mid_execute(
+                        tool_name=tool_name,
+                        actual=result_str if result_str else "",
+                        round_num=round_num,
+                    )
+                    if _rr.deviation_score > 0.4:
+                        messages.append({
+                            "role": "system", "content": _rr.correction_msg,
+                        })
+                    self._rumination_count += 1
+                except (ImportError, RuntimeError, ValueError, TypeError):
+                    _reflect_msg = (
+                        "🔍 反思: 操作结果是否符合预期？"
+                        "如有偏差请纠正，如已完成请停止。"
+                    )
+                    messages.append({"role": "system", "content": _reflect_msg})
+
+            # ── P2-3: 代码自愈回滚（.py写入后自动语法验证）──
+            if force_tools and tool_name in (
+                "write_file", "create_file", "patch_file",
+            ):
+                _path = tool_args.get("path", "")
+                if _path and _path.endswith(".py"):
+                    try:
+                        from pycoder.server.mcp_tools import call_builtin_tool
+                        _exec_r = await call_builtin_tool(
+                            "execute_python", {
+                                "code": (
+                                    "import py_compile; "
+                                    f"py_compile.compile(r'{_path}', doraise=True); "
+                                    "print('SYNTAX_OK')"
+                                ),
+                            },
+                        )
+                        if _exec_r.success:
+                            yield ChatEvent(
+                                event_type="token",
+                                content=f"✅ {_path} 语法验证通过\n",
+                            )
+                        else:
+                            _err = str(_exec_r.output)[:300]
+                            messages.append({
+                                "role": "system",
+                                "content": (
+                                    f"⚠️ {_path} 语法错误: {_err}\n"
+                                    "请立即修复并重新写入。"
+                                ),
+                            })
+                    except (ImportError, RuntimeError, ValueError, TypeError):
+                        pass
 
             # 🔴 铁律: 多步任务每轮后注入阶段报告指令
             if max_tool_rounds > 1 and force_tools:
