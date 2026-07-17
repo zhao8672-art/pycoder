@@ -30,6 +30,19 @@ export class PythonBackendManager extends EventEmitter {
   }
 
   async start(): Promise<boolean> {
+    // 如果设置了 SKIP_EMBEDDED_BACKEND=1，则不启动内嵌后端，仅检查外部后端
+    if (process.env.SKIP_EMBEDDED_BACKEND === '1') {
+      const alreadyRunning = await this.checkHealth();
+      if (alreadyRunning) {
+        this.status = 'running';
+        this.startHealthCheck();
+        return true;
+      }
+      this.status = 'error';
+      this.emit('status-change', 'error');
+      return false;
+    }
+
     if (this.status === 'running') {
       return true;
     }
