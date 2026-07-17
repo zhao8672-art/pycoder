@@ -875,6 +875,43 @@ class ChatBridge:
 
             logger.info("tool_round_complete round=%d tools=%d", round_num + 1, len(tool_calls))
 
+            # 🔴 铁律: 多步任务每轮后注入阶段报告指令
+            if max_tool_rounds > 1 and force_tools:
+                remaining = max_tool_rounds - round_num - 1
+                if remaining > 0:
+                    # 还有后续步骤 → 要求阶段报告
+                    stage_num = round_num + 1
+                    stage_msg = (
+                        f"📌 **阶段报告 {stage_num}/{max_tool_rounds} 要求**：\n"
+                        f"请先输出当前步骤的**阶段报告**（做了什么、结果、下一步），"
+                        f"然后再决定是否继续调用工具。格式：\n"
+                        f"`📌 阶段 {stage_num}: [当前步骤名称] — ✅/❌ [状态描述] — 下一步: [计划]`\n"
+                        f"**剩余 {remaining} 步**。"
+                    )
+                else:
+                    # 最后一步 → 要求最终完整报告
+                    stage_msg = (
+                        "🔴 **最终报告要求**：这是最后一步。请输出完整的**任务总结报告**：\n"
+                        "📋 任务报告\n"
+                        "├─ 用户需求: （概括）\n"
+                        "├─ 完整执行步骤: （列出所有步骤）\n"
+                        "├─ 完成状态: ✅已完成\n"
+                        "├─ 产出物: （文件列表）\n"
+                        "└─ 后续建议: （如有）\n"
+                        "**不要再调用工具，直接输出上述报告。**"
+                    )
+                messages.append({"role": "system", "content": stage_msg})
+                yield ChatEvent(
+                    event_type="token",
+                    content=f"\n📋 📌 阶段报告 {stage_num}/{max_tool_rounds} 已请求...\n",
+                )
+            elif round_num == max_tool_rounds - 1 and max_tool_rounds <= 1:
+                # 单步任务 → 要求最终报告
+                messages.append({"role": "system", "content": (
+                    "🔴 **输出任务报告**：请输出完整任务报告（需求、步骤、状态、产出物），不要继续调用工具。"
+                )})
+            # else: 单步 chat 模式无工具有报告 → LLM 自然会回复
+
         # P5: 可观测性 — 记录延迟和 token 消耗
         try:
             from pycoder.server.services.observability import get_metrics, track_tokens
