@@ -210,6 +210,37 @@ async def websocket_chat_v2(ws: WebSocket):
                     )
                 continue
 
+            # ── chat 消息（委托给 V1 chat_handler）──
+            if msg_type == "chat":
+                user_message = msg.get("message", "")
+                if not user_message:
+                    await ws.send_json(
+                        {"type": "error", "message": "chat requires 'message' field"}
+                    )
+                    continue
+                requested_model = msg.get("model", "") or current_model
+                try:
+                    from pycoder.server.chat_handler import _run_chat_stream as chat_stream_fn
+
+                    async for event in chat_stream_fn(
+                        session_id,
+                        user_message,
+                        requested_model,
+                        msg.get("system_prompt"),
+                        hermes=msg.get("hermes", False),
+                        reasoning_effort=msg.get("reasoning_effort", "medium"),
+                        enable_cache=msg.get("enable_cache", True),
+                    ):
+                        await ws.send_json(event)
+                        await asyncio.sleep(0)
+                except Exception as e:
+                    log.error("ws_v2_chat_failed", error=str(e))
+                    await ws.send_json({
+                        "type": "error",
+                        "message": f"chat: {str(e)[:200]}",
+                    })
+                continue
+
             # ── execute_plan / agent 模式（委托给 V1 handler）──
             if msg_type in ("execute_plan", "agent_chunk"):
                 if msg_type == "execute_plan":
