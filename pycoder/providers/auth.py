@@ -205,58 +205,6 @@ class ModelManager:
         """获取所有 Key"""
         return dict(self._detected)
 
-    # ── 模型推荐 ──
-
-    def recommend(self, task_type: str = "coding") -> tuple[str, str]:
-        """
-        智能推荐最佳可用模型。
-
-        Args:
-            task_type: "coding" | "chat" | "reasoning" | "vision" | "cheap"
-
-        Returns:
-            (model_id, provider_name)
-        """
-        self.auto_detect()
-
-        if not self._detected:
-            return (DEFAULT_FREE_MODEL, "deepseek")
-
-        # 按优先级排序可用提供商
-        available = []
-        for provider, defs in PROVIDER_DEFS.items():
-            if provider in self._detected:
-                available.append((defs["priority"], provider, defs["recommended_model"]))
-
-        if not available:
-            return (DEFAULT_FREE_MODEL, "deepseek")
-
-        # 按优先级排序
-        available.sort(key=lambda x: x[0])
-
-        # 根据任务类型推荐
-        if task_type == "cheap":
-            # 最低成本: GLM > DeepSeek > Qwen > OpenAI
-            for _, provider, model in available:
-                if provider == "glm":
-                    return (model, provider)
-            return (available[0][2], available[0][1])
-
-        if task_type == "reasoning":
-            # 需要推理: DeepSeek Reasoner > 其他
-            if "deepseek" in self._detected:
-                return ("deepseek-reasoner", "deepseek")
-            return (available[0][2], available[0][1])
-
-        if task_type == "vision":
-            # 视觉: GLM-4V > GPT-4o > 其他
-            if "glm" in self._detected:
-                return ("glm-4v-flash", "glm")
-            return (available[0][2], available[0][1])
-
-        # 默认: coding — 按优先级返回
-        return (available[0][2], available[0][1])
-
     def get_model_info(self, model_id: str) -> ModelInfo | None:
         """获取模型元数据"""
         if model_id in ALL_MODELS:
@@ -265,16 +213,19 @@ class ModelManager:
 
     def get_available_models(self) -> list[dict]:
         """
-        获取当前可用的模型列表。
+        获取当前可用的模型列表（含 API Base 等信息）。
 
         Returns:
             [{"id": "...", "name": "...", "provider": "...", ...}, ...]
         """
         self.auto_detect()
+        custom_bases = self.get_all_custom_api_bases()
         result = []
         for mid, info in ALL_MODELS.items():
             provider = info.provider
             has_key = provider in self._detected
+            # 优先使用自定义 API Base
+            api_base = custom_bases.get(mid, info.api_base)
             result.append(
                 {
                     "id": mid,
@@ -282,8 +233,13 @@ class ModelManager:
                     "provider": provider,
                     "available": has_key,
                     "pricing": f"${info.pricing_input:.2f}/${info.pricing_output:.2f}",
+                    "pricing_input": info.pricing_input,
+                    "pricing_output": info.pricing_output,
                     "context": info.context_window,
+                    "max_output": info.max_output_tokens,
+                    "api_base": api_base,
                     "features": self._get_features(info),
+                    "custom_api_base": mid in custom_bases,
                 }
             )
         return result
@@ -389,33 +345,100 @@ class ModelManager:
 
         return "\n".join(lines)
 
-    # ── 配置持久化 ──
+    # ── 模型偏好持久化 ──
 
-    def save_key(self, provider: str, api_key: str, set_default: bool = True) -> dict:
-        """保存 API Key"""
-        if provider not in PROVIDER_DEFS:
-            return {"success": False, "error": f"不支持的提供商: {provider}"}
-
+    def save_model_preference(self, model_id: str) -> dict:
+        """保存用户选择的模型到配置（下次启动自动使用）"""
+        if model_id not in ALL_MODELS:
+            return {"success": False, "error": f"未知模型: {model_id}"}
         config = _load_config()
+        config["selected_model"] = model_id
+        # 同时更新默认模型，确保推荐也优先使用
         if "provider" not in config:
             config["provider"] = {}
-        if "api_keys" not in config["provider"]:
-            config["provider"]["api_keys"] = {}
-        config["provider"]["api_keys"][provider] = api_key
-        if set_default:
-            config["provider"]["default"] = provider
+        config["provider"]["default_model"] = model_id
         _save_config(config)
+        self._selected_model = model_id
+        return {"success": True, "message": f"✅ 默认模型已切换为 {model_id}"}
 
-        # 写入环境变量
-        os.environ[PROVIDER_DEFS[provider]["env_vars"][0]] = api_key
-        self._detected[provider] = api_key
-
-        return {"success": True, "message": f"✅ {PROVIDER_DEFS[provider]['name']} Key 已保存"}
-
-    def get_saved_key(self, provider: str) -> str:
-        """获取已保存的 Key"""
+    def load_model_preference(self) -> str:
+        """读取用户保存的模型偏好"""
         config = _load_config()
-        return config.get("provider", {}).get("api_keys", {}).get(provider, "")
+        return config.get("selected_model", "") or config.get("provider", {}).get("default_model", "")
+
+    def save_custom_api_base(self, model_id: str, api_base: str) -> dict:
+        """保存自定义 API Base URL（允许用户覆写任意模型的 API 端点）"""
+        config = _load_config()
+        if "custom_api_bases" not in config:
+            config["custom_api_bases"] = {}
+        config["custom_api_bases"][model_id] = api_base
+        _save_config(config)
+        return {"success": True, "message": f"✅ {model_id} 的 API 地址已设为 {api_base}"}
+
+    def get_custom_api_base(self, model_id: str) -> str:
+        """获取用户自定义的 API Base URL"""
+        config = _load_config()
+        return config.get("custom_api_bases", {}).get(model_id, "")
+
+    def get_all_custom_api_bases(self) -> dict[str, str]:
+        """获取所有自定义 API Base URL"""
+        config = _load_config()
+        return config.get("custom_api_bases", {})
+
+    def recommend(self, task_type: str = "coding") -> tuple[str, str]:
+        """
+        智能推荐最佳可用模型。
+
+        优先级: 用户手动选择 > 配置默认 > 按优先级排序
+
+        Args:
+            task_type: "coding" | "chat" | "reasoning" | "vision" | "cheap"
+
+        Returns:
+            (model_id, provider_name)
+        """
+        self.auto_detect()
+
+        if not self._detected:
+            return (DEFAULT_FREE_MODEL, "deepseek")
+
+        # 1. 用户已手动选择 → 优先使用
+        user_model = self.load_model_preference()
+        if user_model:
+            info = ALL_MODELS.get(user_model)
+            if info and info.provider in self._detected:
+                return (user_model, info.provider)
+
+        # 2. 按优先级排序可用提供商
+        available = []
+        for provider, defs in PROVIDER_DEFS.items():
+            if provider in self._detected:
+                available.append((defs["priority"], provider, defs["recommended_model"]))
+
+        if not available:
+            return (DEFAULT_FREE_MODEL, "deepseek")
+
+        available.sort(key=lambda x: x[0])
+
+        # 根据任务类型推荐
+        if task_type == "cheap":
+            for _, provider, model in available:
+                if provider == "glm":
+                    return (model, provider)
+            return (available[0][2], available[0][1])
+
+        if task_type == "reasoning":
+            if "deepseek" in self._detected:
+                return ("deepseek-reasoner", "deepseek")
+            return (available[0][2], available[0][1])
+
+        if task_type == "vision":
+            if "glm" in self._detected:
+                return ("glm-4v-flash", "glm")
+            return (available[0][2], available[0][1])
+
+        # 默认: coding — 按优先级返回
+        return (available[0][2], available[0][1])
 
     # ── 内部 ──
 

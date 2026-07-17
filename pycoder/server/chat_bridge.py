@@ -69,6 +69,9 @@ PROVIDER_API_BASES = {
 
 
 def _detect_provider(model: str) -> str:
+    """检测模型所属的提供商 — 支持更多模型前缀"""
+    if not model:
+        return "deepseek"
     if model.startswith("deepseek"):
         return "deepseek"
     if model.startswith("qwen"):
@@ -77,10 +80,19 @@ def _detect_provider(model: str) -> str:
         return "glm"
     if model.startswith("gpt") or model.startswith("o"):
         return "openai"
+    if model.startswith("claude"):
+        return "anthropic"
+    if model.startswith("gemini"):
+        return "google"
     if model.startswith("z-") or model.startswith("nvidia-"):
         return "nvidia"
     if model.startswith("agnes"):
         return "agnes"
+    if model.startswith("openrouter"):
+        return "openrouter"
+    # 包含斜杠的模型 ID（如 google/gemini-2.0-flash）→ openrouter
+    if "/" in model:
+        return "openrouter"
     return "deepseek"
 
 
@@ -227,7 +239,11 @@ class ChatBridge:
         system_prompt: str | None = None,
         max_tokens: int | None = None,
     ):
-        """配置模型、API Key、系统提示词和最大 Token 数"""
+        """配置模型、API Key、系统提示词和最大 Token 数
+
+        自动检测 provider 并设置 api_base，
+        同时检查用户是否自定义了该模型的 API 端点。
+        """
         if model:
             self.config.model = model
         if api_key:
@@ -241,6 +257,15 @@ class ChatBridge:
         provider = _detect_provider(self.config.model)
         if provider in PROVIDER_API_BASES:
             self.config.api_base = PROVIDER_API_BASES[provider]
+
+        # 检查用户自定义 API Base（最高优先级）
+        try:
+            from pycoder.providers.auth import ModelManager
+            custom_base = ModelManager().get_custom_api_base(self.config.model)
+            if custom_base:
+                self.config.api_base = custom_base
+        except (ImportError, AttributeError, RuntimeError):
+            pass
 
     def add_message(self, role: str, content: str):
         """添加上下文消息"""

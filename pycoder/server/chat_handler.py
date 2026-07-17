@@ -65,30 +65,23 @@ def _get_effective_model(requested: str | None = None) -> str:
 
 
 def _get_api_key_for_model(model: str) -> str:
-    """Get the API key for the given model."""
+    """获取模型对应的 API Key（支持所有模型，无硬编码前缀限制）"""
     try:
+        from pycoder.server.chat_bridge import _detect_provider
+
         mgr = get_model_manager()
-        provider = "deepseek"
-        if model.startswith("qwen"):
-            provider = "qwen"
-        elif model.startswith("glm"):
-            provider = "glm"
-        elif model.startswith("gpt"):
-            provider = "openai"
-        elif model.startswith("claude"):
-            provider = "anthropic"
-        elif model.startswith("gemini"):
-            provider = "google"
-        elif model.startswith("z-") or "/" in model:
-            provider = "nvidia"
-        return (
-            mgr.get_key(provider) or get_api_key(provider) or os.environ.get("DEEPSEEK_API_KEY", "")
-        )
-    except (ValueError, KeyError, AttributeError) as e:
+        provider = _detect_provider(model)
+        key = mgr.get_key(provider) or get_api_key(provider) or ""
+        if key:
+            return key
+        # 兜底: 从任何已检测到的 Key 中取第一个
+        all_keys = mgr.get_all_keys()
+        if all_keys:
+            return next(iter(all_keys.values()))
+        return os.environ.get("DEEPSEEK_API_KEY", "")
+    except (ValueError, KeyError, AttributeError, ImportError) as e:
         logger.warning("api_key_lookup_failed", extra={"model": model, "error": str(e)})
-        if model.startswith("deepseek"):
-            return get_api_key("deepseek") or os.environ.get("DEEPSEEK_API_KEY", "")
-        return ""
+        return os.environ.get("DEEPSEEK_API_KEY", "")
 
 
 def _read_file_head(path: str, max_chars: int = 2000) -> str:

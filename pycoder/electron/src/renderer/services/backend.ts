@@ -50,6 +50,20 @@ type SuccessResponse = { success: boolean; error?: string };
 export const BackendAPI = {
   health: () => request<HealthResponse>('/api/health'),
   models: () => request<ModelsResponse>('/api/models'),
+  model: {
+    select: (modelId: string) =>
+      request<SuccessResponse>('/api/model/select', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: modelId }),
+      }),
+    current: () => request<{ success: boolean; model: ModelInfo & { user_selected: boolean }; available_models: ModelInfo[] }>('/api/model/current'),
+    setCustomApiBase: (modelId: string, apiBase: string) =>
+      request<SuccessResponse>('/api/model/custom-api-base', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: modelId, api_base: apiBase }),
+      }),
+    getCustomApiBases: () => request<{ success: boolean; custom_api_bases: Record<string, string> }>('/api/model/custom-api-bases'),
+  },
   env: () => request<EnvResponse>('/api/env'),
 
   sessions: {

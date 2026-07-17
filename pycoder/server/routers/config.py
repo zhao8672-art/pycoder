@@ -102,24 +102,76 @@ async def config_keys():
 
 @router.get("/api/models")
 async def list_models():
-    """列出所有可用模型及其状态"""
-    from pycoder.providers.auth import PROVIDER_DEFS, get_model_manager
+    """列出所有可用模型及其完整信息（含可用性、API Base、定价等）"""
+    from pycoder.providers.auth import get_model_manager
 
     mgr = get_model_manager()
-    detected = mgr.get_all_keys()
-    models = []
-    for pid, defs in PROVIDER_DEFS.items():
-        has_key = pid in detected
-        models.append({
-            "provider": pid,
-            "name": defs["name"],
-            "configured": has_key,
-            "recommended_model": defs["recommended_model"],
-            "register_url": defs["register_url"],
-            "free_trial": defs.get("free_trial", ""),
-            "env_var": defs["env_vars"][0],
-        })
-    return {"models": models, "has_any_key": len(detected) > 0}
+    models = mgr.get_available_models()
+    return {
+        "models": models,
+        "total": len(models),
+        "recommended_model": mgr.recommend()[0],
+    }
+
+
+@router.post("/api/model/select")
+async def select_model(req: dict):
+    """用户选择默认模型（持久化到配置文件）"""
+    from pycoder.providers.auth import get_model_manager
+
+    model_id = req.get("model", "")
+    if not model_id:
+        return {"success": False, "error": "请指定 model ID"}
+    mgr = get_model_manager()
+    result = mgr.save_model_preference(model_id)
+    return result
+
+
+@router.get("/api/model/current")
+async def get_current_model():
+    """获取当前生效的模型配置"""
+    from pycoder.providers.auth import ALL_MODELS, get_model_manager
+
+    mgr = get_model_manager()
+    user_model = mgr.load_model_preference()
+    recommended_id, provider = mgr.recommend()
+    effective_model = user_model or recommended_id
+    info = ALL_MODELS.get(effective_model)
+    custom_api_base = mgr.get_custom_api_base(effective_model)
+    return {
+        "success": True,
+        "model": {
+            "id": effective_model,
+            "name": info.name if info else effective_model,
+            "provider": provider,
+            "api_base": custom_api_base or (info.api_base if info else ""),
+            "context_window": info.context_window if info else 0,
+            "user_selected": bool(user_model),
+        },
+        "available_models": mgr.get_available_models(),
+    }
+
+
+@router.post("/api/model/custom-api-base")
+async def set_custom_api_base(req: dict):
+    """设置自定义 API Base URL（允许用户使用任意兼容的 API 端点）"""
+    from pycoder.providers.auth import get_model_manager
+
+    model_id = req.get("model", "")
+    api_base = req.get("api_base", "")
+    if not model_id or not api_base:
+        return {"success": False, "error": "请指定 model 和 api_base"}
+    mgr = get_model_manager()
+    return mgr.save_custom_api_base(model_id, api_base)
+
+
+@router.get("/api/model/custom-api-bases")
+async def get_custom_api_bases():
+    """获取所有自定义 API Base URL"""
+    from pycoder.providers.auth import get_model_manager
+
+    mgr = get_model_manager()
+    return {"success": True, "custom_api_bases": mgr.get_all_custom_api_bases()}
 
 
 @router.post("/api/config/validate-key")

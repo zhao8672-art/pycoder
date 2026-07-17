@@ -90,8 +90,15 @@ export interface ModelInfo {
   id: string;
   name: string;
   provider: string;
+  available: boolean;
   contextWindow: number;
-  pricing: { input: number; output: number };
+  pricing: string;
+  pricing_input: number;
+  pricing_output: number;
+  max_output: number;
+  api_base: string;
+  features: string[];
+  custom_api_base: boolean;
 }
 
 // === API 响应类型（替换 request<any>） ===
@@ -108,7 +115,7 @@ export interface HealthResponse {
 }
 
 export interface ModelsResponse {
-  models: Array<{ id: string; name: string; provider: string }>;
+  models: ModelInfo[];
   total: number;
   recommended_model: string;
 }

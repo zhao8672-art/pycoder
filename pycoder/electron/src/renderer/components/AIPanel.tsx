@@ -768,13 +768,22 @@ export const AIPanel: React.FC<Props> = ({ wsClient }) => {
           <select
             className="ai-model-select"
             value={currentModel}
-            onChange={(e) => useAppStore.getState().setCurrentModel(e.target.value)}
+            onChange={(e) => {
+              const modelId = e.target.value;
+              useAppStore.getState().setCurrentModel(modelId);
+              // 持久化到后端
+              BackendAPI.model.select(modelId);
+            }}
           >
             {models.map((m: any) => (
-              <option key={m.id} value={m.id}>{m.name || m.id}</option>
+              <option key={m.id} value={m.id} disabled={!m.available}>
+                {m.available ? '✅ ' : '❌ '}{m.name || m.id}
+              </option>
             ))}
           </select>
-          <span className="tag-bubble purple">{'BYOK'}</span>
+          <span className="tag-bubble purple" title="BYOK - 使用自有 API Key">
+            {(models as any[]).find((m: any) => m.id === currentModel)?.available ? '🟢' : '⛔'}
+          </span>
         </div>
       )}
 
