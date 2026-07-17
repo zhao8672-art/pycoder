@@ -39,7 +39,7 @@ PROVIDER_DEFS = {
         "free_trial": "注册即送 500 万 tokens",
         "price_summary": "输入 $0.14/M, 输出 $0.28/M",
         "recommended_model": "deepseek-chat",
-        "priority": 1,  # 最高优先级（性价比最高）
+        "priority": 0,  # 最高优先级（性价比最高，Key 有效）
     },
     "qwen": {
         "name": "通义千问 (阿里云 DashScope)",
@@ -93,7 +93,7 @@ PROVIDER_DEFS = {
         "free_trial": "永久免费，无限调用",
         "price_summary": "输入 $0/M, 输出 $0/M",
         "recommended_model": "agnes-2.0-flash",
-        "priority": 0,  # 最高优先级（免费）
+        "priority": 99,  # 最低优先级（Key 经常失效）
     },
 }
 
