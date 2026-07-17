@@ -154,6 +154,26 @@ class LiveLearner:
 
     def get_stats(self) -> dict:
         """获取学习统计"""
+        patterns = []
+        if self._db_ready:
+            try:
+                conn = sqlite3.connect(str(LIVE_DB))
+                cursor = conn.execute(
+                    "SELECT pattern_name, success_count, total_count, avg_rounds "
+                    "FROM patterns ORDER BY total_count DESC LIMIT 5"
+                )
+                for row in cursor:
+                    patterns.append({
+                        "name": row[0],
+                        "success_rate": round(
+                            row[1] / max(row[2], 1), 2,
+                        ),
+                        "avg_rounds": round(row[3], 1),
+                    })
+                conn.close()
+            except (OSError, sqlite3.Error):
+                pass
+
         return {
             "total_observations": len(self._observations),
             "recent_success_rate": (
@@ -162,8 +182,39 @@ class LiveLearner:
                 )
                 if self._observations else 0
             ),
-            "total_patterns": 0,
+            "total_patterns": len(patterns),
+            "patterns": patterns,
         }
+
+    async def apply_feedback(self) -> str:
+        """加载历史经验作为下次对话的前置知识"""
+        if not self._db_ready:
+            return ""
+        try:
+            conn = sqlite3.connect(str(LIVE_DB))
+            cursor = conn.execute(
+                "SELECT pattern_name, success_count, total_count, avg_rounds "
+                "FROM patterns WHERE CAST(success_count AS REAL) / "
+                "CAST(MAX(total_count, 1) AS REAL) > 0.7 "
+                "AND total_count >= 3 "
+                "ORDER BY total_count DESC LIMIT 3"
+            )
+            patterns = list(cursor)
+            conn.close()
+
+            if not patterns:
+                return ""
+
+            lines = ["📚 **自进化经验池**（从历史对话中学习）:"]
+            for pname, sc, tc, ar in patterns:
+                lines.append(
+                    f"- {pname}: 成功率 {sc}/{tc} "
+                    f"({round(sc/max(tc,1)*100)}%), 平均 {round(ar,1)} 轮"
+                )
+            return "\n".join(lines)
+        except (OSError, sqlite3.Error) as e:
+            logger.debug("apply_feedback_failed error=%s", e)
+            return ""
 
 
 # 全局单例

@@ -642,6 +642,13 @@ class ChatBridge:
                             cap_short = cap.id.split(".")[-1]
                             if tool_names is not None and cap_short not in name_set:
                                 continue
+                            # ── P0-4: V2能力也按类别过滤 ──
+                            if _allowed:
+                                _cap_matches = any(
+                                    t in cap.id for t in _allowed
+                                )
+                                if not _cap_matches:
+                                    continue
                             tools_payload.append(
                                 {
                                     "type": "function",
@@ -937,7 +944,7 @@ class ChatBridge:
                         try:
                             from pycoder.adapters.docker_sandbox import DockerSandbox
                             _sb = DockerSandbox()
-                            _code = tool_args.get("command", "")
+                            _code = tool_args.get("command", "") or tool_args.get("code", "")
                             _sb_result = await _sb.execute(_code, timeout=30)
                             if _sb_result.success:
                                 _sandbox_result = json.dumps({
@@ -946,8 +953,21 @@ class ChatBridge:
                                     "sandbox": "docker",
                                     "exit_code": _sb_result.exit_code,
                                 }, ensure_ascii=False, indent=2)
-                        except (ImportError, RuntimeError, ValueError, TypeError):
-                            pass
+                        except (ImportError, RuntimeError, ValueError, TypeError, OSError):
+                            # Docker 不可用 → 子进程沙箱降级
+                            try:
+                                from pycoder.adapters.subprocess_sandbox import SubprocessSandbox
+                                _sb2 = SubprocessSandbox()
+                                _sb_result2 = await _sb2.execute(_code, timeout=30)
+                                if _sb_result2.success:
+                                    _sandbox_result = json.dumps({
+                                        "stdout": _sb_result2.stdout[:2000],
+                                        "stderr": _sb_result2.stderr[:500],
+                                        "sandbox": "subprocess",
+                                        "exit_code": _sb_result2.exit_code,
+                                    }, ensure_ascii=False, indent=2)
+                            except (ImportError, RuntimeError, ValueError, TypeError, OSError):
+                                pass
 
                     if _sandbox_result:
                         result_str = _sandbox_result
@@ -1179,6 +1199,21 @@ class ChatBridge:
             except (ImportError, RuntimeError, ValueError, TypeError):
                 pass
 
+        # ── P1-1: Rumination 最终反思评分 ──
+        _rumination_summary = ""
+        try:
+            from pycoder.ai.rumination import get_rumination_engine
+            _re = get_rumination_engine()
+            if force_tools and all_content:
+                await _re.post_execute(all_content)
+            _score = _re.score()
+            _rumination_summary = (
+                f"反思{_score['rounds']}次 "
+                f"质量{_score['status']} "
+            )
+        except (ImportError, RuntimeError, ValueError, TypeError):
+            pass
+
         # ── P2-2: 在线自进化 — 每次 chat 结束记录经验 ──
         try:
             from pycoder.capabilities.self_evo.live import get_live_learner
@@ -1202,8 +1237,9 @@ class ChatBridge:
                     "\n\n---\n📋 **任务摘要**\n"
                     f"├─ 执行模式: {effective_mode}\n"
                     f"├─ 工具轮次: {round_num + 1}\n"
-                    f"├─ 反思次数: {self._rumination_count}\n"
-                    f"└─ 幻觉验证: {'⚠️ 低于阈值' if _hallucination_warning else '✅ 通过'}"
+                    f"├─ 反思评分: {_rumination_summary}\n"
+                    f"├─ 幻觉验证: {'⚠️ 低于阈值' if _hallucination_warning else '✅ 通过'}\n"
+                    f"└─ {_rumination_summary if not _has_report else ''}"
                 )
 
         yield ChatEvent(

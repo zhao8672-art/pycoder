@@ -405,6 +405,19 @@ async def _run_chat_stream(
     bridge.config.enable_thinking = True
     bridge.config.enable_cache = enable_cache
 
+    # ── P2-2: 自进化经验注入（加载历史成功模式）──
+    try:
+        from pycoder.capabilities.self_evo.live import get_live_learner
+        _learner = get_live_learner()
+        _feedback = await getattr(_learner, "apply_feedback", lambda: "")()
+        if _feedback:
+            if bridge.config.system_prompt:
+                bridge.config.system_prompt += "\n\n" + _feedback
+            else:
+                bridge.config.system_prompt = _feedback
+    except (ImportError, RuntimeError, ValueError, TypeError):
+        pass
+
     store = get_session_store()
 
     # FIX #2: 加载最近几十条消息作为跨会话上下文
