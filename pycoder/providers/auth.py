@@ -148,11 +148,12 @@ class ModelManager:
     def auto_detect(self) -> dict[str, str]:
         """
         自动检测所有可用的 API Key。
-        搜索顺序: 环境变量 → 配置文件
+        优先级: config.json > 环境变量
 
         Returns: {provider_name: api_key, ...}
         """
         self._detected = {}
+        logger = logging.getLogger(__name__)
 
         # 1. 从配置文件检测（最高优先级：Settings 面板保存的值）
         config = _load_config()
@@ -161,7 +162,7 @@ class ModelManager:
             if key:
                 self._detected[provider] = key
 
-        # 2. 从环境变量检测（补充 config 中没有的 Key）
+        # 2. 从环境变量检测（仅补充 config 中没有的，绝不覆盖）
         for provider, defs in PROVIDER_DEFS.items():
             if provider in self._detected:
                 continue  # config 中已存在，不覆盖
@@ -171,11 +172,28 @@ class ModelManager:
                     self._detected[provider] = key
                     break
 
-        # 3. 将检测到的 Key 写入环境变量（确保 env var 最新）
+        # 3. 冲突检测：如果 config 和 env var 不一致，记录到日志
+        for provider in PROVIDER_DEFS:
+            cfg_key = api_keys.get(provider, "")
+            if not cfg_key:
+                continue
+            env_name = PROVIDER_DEFS[provider]["env_vars"][0]
+            env_key = os.environ.get(env_name, "")
+            if env_key and env_key != cfg_key:
+                logger.warning(
+                    "key_conflict provider=%s env=%s...%s config=%s...%s "
+                    "config 已优先使用",
+                    provider,
+                    env_key[:12], env_key[-4:],
+                    cfg_key[:12], cfg_key[-4:],
+                )
+
+        # 4. 启动诊断日志
         for provider, key in self._detected.items():
-            if provider in PROVIDER_DEFS:
-                env_name = PROVIDER_DEFS[provider]["env_vars"][0]
-                os.environ[env_name] = key
+            logger.info(
+                "detected_key provider=%s preview=%s...%s len=%d",
+                provider, key[:12], key[-4:], len(key),
+            )
 
         return dict(self._detected)
 
