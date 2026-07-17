@@ -1,33 +1,43 @@
-"""修复 config.json - 分离 DeepSeek/OpenAI Key 并设置默认模型"""
-import json, shutil, os
+"""修复 config.json - 清理损坏的 Key 和重复配置"""
+import json, shutil
 
-path = r'C:\Users\Administrator\.pycoder\config.json'
-backup = path + '.bak'
+path = r"C:\Users\Administrator\.pycoder\config.json"
+backup = path + ".bak"
 
-# 备份
 shutil.copy2(path, backup)
-print(f"备份已创建: {backup}")
+print(f"备份: {backup}")
 
-d = json.load(open(path, encoding='utf-8'))
-prov = d.setdefault('provider', {})
-keys = prov.setdefault('api_keys', {})
+d = json.load(open(path, encoding="utf-8"))
+prov = d.setdefault("provider", {})
+keys = prov.setdefault("api_keys", {})
 
 print("=== 修复前 ===")
-print(json.dumps({k: v[:10]+'...'+v[-4:] for k, v in keys.items()}, ensure_ascii=False))
-print(f"Default model: {prov.get('default_model', 'N/A')}")
+for k, v in keys.items():
+    print(f"  {k}: {v[:15]}...{v[-4:] if v else 'EMPTY'} ({len(v) if v else 0} chars)")
+print(f"  default_model: {prov.get('default_model', 'N/A')}")
 
-# 修复1: deepseek 和 openai 共用同一个 Key
-# 保留 Key 到 openai 下（它实际是 OpenAI Key）
-# deepseek 清空
-if keys.get('deepseek') and keys.get('openai') and keys['deepseek'] == keys['openai']:
-    print("\n[修复] 移除 deepseek 下的错误 OpenAI Key")
-    # 保留 openai 的 key 不变
-    # deepseek 留空让用户后续配置
-    del keys['deepseek']
-    # 重新置空
-    print("[提示] DeepSeek Key 已移除，请到 Settings 中配置正确的 DeepSeek Key")
+# 修复1: 修复被模型名污染的 Agnes Key
+agnes_env = "REDACTED-PYCODER-OLD-KEY"
+if keys.get("agnes") and "2.0 Flash" in keys["agnes"]:
+    keys["agnes"] = agnes_env
+    print("\n[修复] agnes key 被污染 -> 已修复")
 
-# 修复2: 设置默认模型为 agnes-2.0-flash (免费可用)
+# 修复2: deepseek key 如果是占位符或空的，保留但提示
+if not keys.get("deepseek") or "FIXME" in keys.get("deepseek", ""):
+    print("\n[提示] deepseek key 未配置，请通过 Settings 面板配置")
+
+# 修复3: 移除重复的 default_model
+if "default_model" in d and "default_model" in prov:
+    d.pop("default_model", None)
+    print("\n[修复] 重复 default_model -> 已清理")
+
+json.dump(d, open(path, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+print("\n=== 修复后 ===")
+for k, v in keys.items():
+    print(f"  {k}: {v[:15]}...{v[-4:] if v else 'EMPTY'} ({len(v) if v else 0} chars)")
+print(f"  default_model: {prov.get('default_model', 'N/A')}")
+print("\n✅ 修复完成，请重启后端")
+
 if 'agnes' in keys and keys['agnes']:
     old_default = prov.get('default_model', 'N/A')
     prov['default_model'] = 'agnes-2.0-flash'

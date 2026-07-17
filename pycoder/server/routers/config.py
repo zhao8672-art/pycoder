@@ -33,11 +33,7 @@ async def get_env():
 
 @router.post("/api/config/setup")
 async def config_setup(req: dict):
-    """设置 API Key + 可选默认模型
-
-    后端安全网: 根据 model 参数自动纠错 provider。
-    防止前端 sk- 前缀误判（DeepSeek/OpenAI 都以 sk- 开头）。
-    """
+    """设置 API Key + 可选默认模型"""
     from pycoder.providers.auth import PROVIDER_DEFS
     from pycoder.providers.setup_wizard import set_api_key
     from pycoder.server.chat_bridge import _detect_provider
@@ -47,19 +43,31 @@ async def config_setup(req: dict):
     default_model = req.get("default_model", "")
     model = req.get("model", "")
 
+    # ── 日志: 记录保存请求的原始数据 ──
+    import logging
+    _log = logging.getLogger(__name__)
+    _log.info(
+        "config_setup provider=%s key_len=%d key_prefix=%s model=%s",
+        provider, len(api_key), api_key[:12] if api_key else "(empty)", model,
+    )
+
     # ── 后端安全网: 根据 model 自动纠错 provider ──
     if model and provider:
         model_provider = _detect_provider(model)
         if model_provider != provider and model_provider in PROVIDER_DEFS:
-            # 前端可能误判了 provider（如 DeepSeek Key 被判断为 openai）
-            import logging
-            logging.getLogger(__name__).warning(
-                "provider_auto_correct: frontend=%s→corrected=%s (model=%s)",
+            _log.warning(
+                "provider_auto_correct: frontend=%s -> corrected=%s (model=%s)",
                 provider, model_provider, model,
             )
             provider = model_provider
 
+    # ── 空 Key 校验 ──
+    if not api_key:
+        _log.warning("config_setup_rejected: empty api_key provider=%s", provider)
+        return {"success": False, "error": "API Key 不能为空"}
+
     result = set_api_key(provider, api_key)
+    _log.info("config_setup_result success=%s provider=%s", result.get("success"), provider)
     if default_model:
         from pycoder.config.settings import get_config_path, save_config
 
