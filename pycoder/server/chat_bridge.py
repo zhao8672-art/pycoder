@@ -615,7 +615,9 @@ class ChatBridge:
                             "git_diff", "git_log", "git_push", "git_branch", "read_file"},
                     }
                     _nlu_cat = ""
-                    if _task_grade and _task_grade.reasoning:
+                    if self._nlu_cache:
+                        _nlu_cat = str(self._nlu_cache.get("category", ""))
+                    elif _task_grade and _task_grade.reasoning:
                         _nlu_cat = _task_grade.reasoning[0] if _task_grade.reasoning else ""
                     _allowed = None
                     for _cat, _tools in _cat_map.items():
@@ -937,9 +939,9 @@ class ChatBridge:
                 )
 
                 try:
-                    # ── P2-1: Docker沙箱包装（shell_exec/execute_python走沙箱）──
+                    # ── P2-1: Docker沙箱（shell_exec/execute_python优先）──
                     _use_docker = tool_name in ("shell_exec", "run_command", "execute_python")
-                    _sandbox_result = None
+                    result_str = None
                     if _use_docker:
                         try:
                             from pycoder.adapters.docker_sandbox import DockerSandbox
@@ -947,20 +949,19 @@ class ChatBridge:
                             _code = tool_args.get("command", "") or tool_args.get("code", "")
                             _sb_result = await _sb.execute(_code, timeout=30)
                             if _sb_result.success:
-                                _sandbox_result = json.dumps({
+                                result_str = json.dumps({
                                     "stdout": _sb_result.stdout[:2000],
                                     "stderr": _sb_result.stderr[:500],
                                     "sandbox": "docker",
                                     "exit_code": _sb_result.exit_code,
                                 }, ensure_ascii=False, indent=2)
                         except (ImportError, RuntimeError, ValueError, TypeError, OSError):
-                            # Docker 不可用 → 子进程沙箱降级
                             try:
                                 from pycoder.adapters.subprocess_sandbox import SubprocessSandbox
                                 _sb2 = SubprocessSandbox()
                                 _sb_result2 = await _sb2.execute(_code, timeout=30)
                                 if _sb_result2.success:
-                                    _sandbox_result = json.dumps({
+                                    result_str = json.dumps({
                                         "stdout": _sb_result2.stdout[:2000],
                                         "stderr": _sb_result2.stderr[:500],
                                         "sandbox": "subprocess",
@@ -969,44 +970,33 @@ class ChatBridge:
                             except (ImportError, RuntimeError, ValueError, TypeError, OSError):
                                 pass
 
-                    if _sandbox_result:
-                        result_str = _sandbox_result
-                    else:
-                        # ── V2: 优先通过能力总线执行 ──
-                        result_str = None
-                    try:
-                        from pycoder.server.app import get_v2_engine
-
-                        v2_engine = get_v2_engine()
-                        if v2_engine:
-                            cap_id = tool_name.replace("_", ".")
-                            cap_result = await v2_engine.call(
-                                cap_id, tool_args, caller="chatbridge"
-                            )
-                            if cap_result.success:
-                                result_str = json.dumps(
-                                    cap_result.data if cap_result.data else {"ok": True},
-                                    ensure_ascii=False,
-                                    indent=2,
+                    # ── V2/V1: 非沙箱工具走能力总线或 mcp_tools ──
+                    if result_str is None:
+                        try:
+                            from pycoder.server.app import get_v2_engine
+                            v2_engine = get_v2_engine()
+                            if v2_engine:
+                                cap_id = tool_name.replace("_", ".")
+                                cap_result = await v2_engine.call(
+                                    cap_id, tool_args, caller="chatbridge"
                                 )
-                                # M9: 与 V1 路径保持一致的动态截断逻辑
-                                max_result_len = 8000 if tool_name == "list_agent_configs" else 3000
-                                result_str = result_str[:max_result_len]
-                            elif cap_result.error_code != "NOT_FOUND":
-                                result_str = json.dumps(
-                                    {"error": cap_result.error}, ensure_ascii=False
-                                )
-                    except (AttributeError, TypeError, ValueError):
-                        pass
+                                if cap_result.success:
+                                    result_str = json.dumps(
+                                        cap_result.data if cap_result.data else {"ok": True},
+                                        ensure_ascii=False, indent=2,
+                                    )
+                                    max_result_len = 8000 if tool_name == "list_agent_configs" else 3000
+                                    result_str = result_str[:max_result_len]
+                                elif cap_result.error_code != "NOT_FOUND":
+                                    result_str = json.dumps({"error": cap_result.error}, ensure_ascii=False)
+                        except (AttributeError, TypeError, ValueError):
+                            pass
 
-                    # ── V1: 回退到 mcp_tools ──
                     if result_str is None:
                         from pycoder.server.mcp_tools import call_builtin_tool
-
                         result = await call_builtin_tool(tool_name, tool_args)
                         if result.success:
                             result_str = json.dumps(result.output, ensure_ascii=False, indent=2)
-                            # M9: list_agent_configs 等工具输出较大（7角色×12字段≈7KB），提高截断上限
                             max_result_len = 8000 if tool_name == "list_agent_configs" else 3000
                             result_str = result_str[:max_result_len]
                         else:
@@ -1047,11 +1037,12 @@ class ChatBridge:
                 except (ImportError, RuntimeError, ValueError, TypeError, json.JSONDecodeError):
                     pass
 
-            # ── P1-1: RuminationEngine 反思机制（每轮工具后）──
+            # ── P1-1: RuminationEngine（事前+事中）──
             if force_tools and round_num > 0:
                 try:
                     from pycoder.ai.rumination import get_rumination_engine
                     _re = get_rumination_engine()
+                    await _re.pre_execute(tool_name, tool_args)
                     _rr = await _re.mid_execute(
                         tool_name=tool_name,
                         actual=result_str if result_str else "",
@@ -1062,6 +1053,15 @@ class ChatBridge:
                             "role": "system", "content": _rr.correction_msg,
                         })
                     self._rumination_count += 1
+
+                    # 检测严重偏离 → 触发回溯
+                    if _rr.deviation_score > 0.7:
+                        _bk = await _re.backtrack()
+                        if not _bk.should_continue:
+                            messages.append({
+                                "role": "system",
+                                "content": _bk.correction_msg,
+                            })
                 except (ImportError, RuntimeError, ValueError, TypeError):
                     _reflect_msg = (
                         "🔍 反思: 操作结果是否符合预期？"
@@ -1130,6 +1130,7 @@ class ChatBridge:
                         pass
 
             # 🔴 铁律: 多步任务每轮后注入阶段报告指令
+            stage_num = round_num + 1
             if max_tool_rounds > 1 and force_tools:
                 remaining = max_tool_rounds - round_num - 1
                 if remaining > 0:

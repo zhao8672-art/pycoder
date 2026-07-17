@@ -55,7 +55,8 @@ class LiveLearner:
     def _init_db(self) -> None:
         try:
             LIVE_DB.parent.mkdir(parents=True, exist_ok=True)
-            conn = sqlite3.connect(str(LIVE_DB))
+            conn = sqlite3.connect(str(LIVE_DB), timeout=10.0)
+            conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS observations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,7 +96,7 @@ class LiveLearner:
         # 持久化
         if self._db_ready:
             try:
-                conn = sqlite3.connect(str(LIVE_DB))
+                conn = sqlite3.connect(str(LIVE_DB), timeout=10.0)
                 conn.execute(
                     "INSERT INTO observations (task_preview, success, rounds, mode, timestamp)"
                     " VALUES (?, ?, ?, ?, ?)",
@@ -129,7 +130,7 @@ class LiveLearner:
 
         if self._db_ready and success_rate > 0.7:
             try:
-                conn = sqlite3.connect(str(LIVE_DB))
+                conn = sqlite3.connect(str(LIVE_DB), timeout=10.0)
                 conn.execute(
                     "INSERT OR REPLACE INTO patterns"
                     " (pattern_name, success_count, total_count, avg_rounds, last_seen)"
@@ -157,7 +158,7 @@ class LiveLearner:
         patterns = []
         if self._db_ready:
             try:
-                conn = sqlite3.connect(str(LIVE_DB))
+                conn = sqlite3.connect(str(LIVE_DB), timeout=10.0)
                 cursor = conn.execute(
                     "SELECT pattern_name, success_count, total_count, avg_rounds "
                     "FROM patterns ORDER BY total_count DESC LIMIT 5"
@@ -191,7 +192,7 @@ class LiveLearner:
         if not self._db_ready:
             return ""
         try:
-            conn = sqlite3.connect(str(LIVE_DB))
+            conn = sqlite3.connect(str(LIVE_DB), timeout=10.0)
             cursor = conn.execute(
                 "SELECT pattern_name, success_count, total_count, avg_rounds "
                 "FROM patterns WHERE CAST(success_count AS REAL) / "

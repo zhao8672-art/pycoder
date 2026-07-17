@@ -563,3 +563,40 @@ INFO:     127.0.0.1:10761 - "GET /api/health HTTP/1.1" 200 OK
 INFO:     127.0.0.1:1617 - "GET /api/health HTTP/1.1" 200 OK
 INFO:     127.0.0.1:4648 - "GET /api/health HTTP/1.1" 200 OK
 [2m2026-07-17T13:46:41.815691Z[0m [[32m[1minfo     [0m] [1mws_v2_disconnect              [0m [[0m[1m[34mpycoder[0m][0m [36mextra[0m=[35m{'session_id': '04dce8d5-79a7-4569-8432-8ae3c009ede3'}[0m
+INFO:     127.0.0.1:4330 - "GET /api/health HTTP/1.1" 200 OK
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+INFO:     127.0.0.1:4331 - "GET /api/models HTTP/1.1" 200 OK
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+HTTP Request: POST https://apihub.agnes-ai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+D2_CHAT_401 model=agnes-2.0-flash base=https://apihub.agnes-ai.com/v1 key_pref=8X8ztGQQ2HpP... status=401 body={"error":{"code":"","message":"无效的令牌 (request id: 20260717134926283798537dOJifSxv)","type":"AgnesAI_
+provider_401_fallback from=agnes-2.0-flash to=deepseek-chat reason={"error":{"code":"","message":"无效的令牌 (request id: 20260717134926283798537dOJifSxv)","type":"AgnesAI_
+INFO:     127.0.0.1:4332 - "POST /api/chat HTTP/1.1" 200 OK
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+任务难度评估: level=LIGHT score=19.5 max_iter=7 task=读取项目根目录的README.md文件并简要总结
+key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
+detected_key provider=agnes preview=8X8ztGQQ2HpP...PAZ4 len=36
+detected_key provider=deepseek preview=sk-15fb33719...90db len=35
+skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
+HTTP Request: POST https://apihub.agnes-ai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+D2_CHAT_401 model=agnes-2.0-flash base=https://apihub.agnes-ai.com/v1 key_pref=8X8ztGQQ2HpP... status=401 body={"error":{"code":"","message":"无效的令牌 (request id: 20260717134927129191762JbH9Sk1T)","type":"AgnesAI_
+provider_401_fallback from=agnes-2.0-flash to=deepseek-chat reason={"error":{"code":"","message":"无效的令牌 (request id: 20260717134927129191762JbH9Sk1T)","type":"AgnesAI_
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=2 tool=file_read args={'path': 'README.md'}
+tool_round_complete round=2 tools=1
+幻觉验证完成: 评分=70.0/100 | 耗时=2.0ms | 声明=2
+HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+token_usage_recorded input=26141 output=441 session_total=37168 hourly_total=37168
+幻觉验证完成: 评分=70.0/100 | 耗时=0.6ms | 声明=1
+INFO:     127.0.0.1:4349 - "POST /api/chat HTTP/1.1" 200 OK
