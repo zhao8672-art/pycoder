@@ -131,7 +131,6 @@ async def config_status():
             "recommended_model": defs["recommended_model"],
             "register_url": defs["register_url"],
             "free_trial": defs.get("free_trial", ""),
-            "blocked": any(k in ModelManager._blocked_keys for k in [detected.get(pid, "")] if k),
         })
 
     recommended_id, recommended_provider = mgr.recommend()
