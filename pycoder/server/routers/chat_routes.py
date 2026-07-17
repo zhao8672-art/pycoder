@@ -15,20 +15,32 @@ router = APIRouter()
 
 @router.post("/api/completion")
 async def inline_completion(req: Request):
-    """Lightweight inline completion endpoint (Phase 1 #10)"""
+    """FIM 增强内联补全 — FIM引擎 → ChatBridge → 空 三层降级"""
     try:
         body = await req.json()
-        prefix = str(body.get("prefix", ""))[-200:]
-        max_tokens = min(int(body.get("maxTokens", 30)), 50)
+        prefix = str(body.get("prefix", ""))[-500:]
+        suffix = str(body.get("suffix", ""))[:200]
+        language = str(body.get("language", "python"))
+        max_tokens = min(int(body.get("maxTokens", 64)), 128)
+        # Layer 1: FIM 引擎（零 token）
+        try:
+            from pycoder.ai.completion.fim_engine import FIMCodeCompleter
+            fim = FIMCodeCompleter()
+            result = await fim.complete(prefix, suffix, language)
+            if result and len(result) > 3:
+                return {"completion": result[:max_tokens]}
+        except (ImportError, RuntimeError, ValueError, TypeError):
+            pass
+        # Layer 2: ChatBridge 降级
         from pycoder.server.chat_bridge import ChatBridge
-
         bridge = ChatBridge()
         bridge.config.max_tokens = max_tokens
         bridge.config.temperature = 0.2
         bridge.config.enable_thinking = False
-        result = await bridge.chat(prefix, max_tokens=max_tokens)
+        prompt = f"Complete {language} code:\n{prefix}"
+        result = await bridge.chat(prompt, max_tokens=max_tokens)
         await bridge.close()
-        return {"completion": result.strip()[:200]}
+        return {"completion": (result or "").strip()[:max_tokens]}
     except Exception as e:
         return {"completion": "", "error": str(e)[:100]}
 

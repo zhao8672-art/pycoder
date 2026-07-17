@@ -1083,6 +1083,32 @@ class ChatBridge:
                     except (ImportError, RuntimeError, ValueError, TypeError):
                         pass
 
+                # ── 2.2: 写入后五层代码分析 ──
+                if _path and _path.endswith((".py", ".js", ".ts")):
+                    try:
+                        from pycoder.ai.analysis.composite_analyzer import (
+                            CompositeAnalyzer,
+                        )
+                        _analyzer = CompositeAnalyzer()
+                        _analysis = _analyzer.analyze([_path])
+                        if _analysis and _analysis.issues:
+                            _issues = _analysis.issues[:5]
+                            _lines = []
+                            for _i in _issues:
+                                if hasattr(_i, "line") and hasattr(_i, "message"):
+                                    _lines.append(f"  L{_i.line}: {_i.message}")
+                            if _lines:
+                                yield ChatEvent(
+                                    event_type="token",
+                                    content=(
+                                        f"🔍 分析 {_path}: "
+                                        f"{len(_issues)} 问题\n"
+                                        + "\n".join(_lines[:3]) + "\n"
+                                    ),
+                                )
+                    except (ImportError, RuntimeError, ValueError, TypeError, AttributeError):
+                        pass
+
             # 🔴 铁律: 多步任务每轮后注入阶段报告指令
             if max_tool_rounds > 1 and force_tools:
                 remaining = max_tool_rounds - round_num - 1
