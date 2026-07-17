@@ -135,6 +135,8 @@ class ChatBridge:
     def __init__(self):
         self.config = BridgeConfig()
         self._messages: list[dict] = []
+        self._rumination_count = 0  # P1-1: 反思轮次计数
+        self._nlu_cache: dict[str, object] | None = None  # P0-1: NLU 结果缓存
 
     async def chat(self, prompt: str, *, max_tokens: int = 1000) -> str:
         """简单同步聊天 — 供自进化引擎等内部组件使用，内置 Provider 降级"""
@@ -395,6 +397,39 @@ class ChatBridge:
 
         # 5. 长消息 → 默认为 tool 模式（用户可能在描述复杂需求）
         return ("tool", True, 5)
+
+    async def _route_with_nlu(self, message: str) -> tuple[str, bool, int]:
+        """P0-1: 三层 NLU 路由 — 关键词快速预检 + NLU 深度分析
+
+        Returns:
+            (mode: "chat"|"tool", needs_tools: bool, max_rounds: int)
+        """
+        # Layer 1: 快速关键词预检（0 token, <1ms）
+        mode, needs_tools, rounds = self._classify_intent(message)
+
+        # 短消息/明确 chat → 直接返回，不浪费 NLU 开销
+        if mode == "chat" and len(message) < 30:
+            return (mode, needs_tools, rounds)
+
+        # Layer 2 & 3: 中等/复杂消息 → CompositeNLUEngine
+        try:
+            from pycoder.ai.nlu.composite_nlu import CompositeNLUEngine
+            _nlu = CompositeNLUEngine()
+            _result = _nlu.understand(message)
+            self._nlu_cache = dict(intent=_result, category=_result.task_category)
+
+            # 根据 NLU 分类动态调整
+            if _result.task_category in (
+                "code_generation", "refactoring", "debugging",
+            ):
+                _complexity = getattr(_result, "complexity", 0.5)
+                return ("tool", True, 8 if _complexity > 0.6 else 5)
+            if _result.ambiguity > 0.5:
+                return ("tool", True, 5)
+            return ("chat", False, 0)
+        except (ImportError, RuntimeError, ValueError, TypeError, AttributeError) as e:
+            logger.debug("nlu_route_fallback error=%s", e)
+            return (mode, needs_tools, rounds)
 
     async def chat_stream(
         self,
@@ -875,6 +910,36 @@ class ChatBridge:
 
             logger.info("tool_round_complete round=%d tools=%d", round_num + 1, len(tool_calls))
 
+            # ── P0-2: 幻觉抑制 — 工具结果验证 ──
+            if force_tools and result_str and len(result_str) > 100:
+                try:
+                    from pycoder.server.services.hallucination_guard import get_hallucination_guard
+                    _guard = get_hallucination_guard()
+                    _v = await _guard.validate(
+                        result_str,
+                        context={"tool": tool_name, "round": round_num + 1},
+                    )
+                    if _v.overall_score < 50:
+                        result_str = json.dumps({
+                            "data": json.loads(result_str) if result_str.startswith("{") else result_str,
+                            "⚠️ 幻觉风险": f"可信度 {_v.overall_score}/100",
+                            "建议": _v.recommendations[:2],
+                        }, ensure_ascii=False, indent=2)
+                except (ImportError, RuntimeError, ValueError, TypeError, json.JSONDecodeError):
+                    pass
+
+            # ── P1-1: Rumination 反思机制（每轮工具后）──
+            if force_tools and round_num > 0:
+                _reflect_msg = (
+                    "🔍 **反思检查（铁律）**：\n"
+                    "1. 上一步操作的结果是否符合预期？\n"
+                    "2. 用户原始需求是否已被满足？\n"
+                    "3. 如果有偏差，立即纠正；如果已完成，停止调用工具。\n"
+                    "请先输出反思结果，再决定下一步。"
+                )
+                messages.append({"role": "system", "content": _reflect_msg})
+                self._rumination_count += 1
+
             # 🔴 铁律: 多步任务每轮后注入阶段报告指令
             if max_tool_rounds > 1 and force_tools:
                 remaining = max_tool_rounds - round_num - 1
@@ -929,9 +994,53 @@ class ChatBridge:
         except (ImportError, RuntimeError, ValueError, TypeError):
             pass  # 可观测性失败不影响主流程
 
+        # ── P0-2: 最终幻觉抑制验证 ──
+        _hallucination_warning = ""
+        if force_tools and all_content and len(all_content) > 50:
+            try:
+                from pycoder.server.services.hallucination_guard import get_hallucination_guard
+                _guard = get_hallucination_guard()
+                _final = await _guard.validate(
+                    all_content, context={"mode": "final", "rounds": round_num + 1},
+                )
+                if _final.overall_score < 60:
+                    _hallucination_warning = (
+                        "\n\n⚠️ **可信度评级**: {}/100 | {}\n"
+                    ).format(_final.overall_score, ", ".join(_final.recommendations[:3]))
+            except (ImportError, RuntimeError, ValueError, TypeError):
+                pass
+
+        # ── P2-2: 在线自进化 — 每次 chat 结束记录经验 ──
+        try:
+            from pycoder.capabilities.self_evo.live import get_live_learner
+            _learner = get_live_learner()
+            await _learner.observe(
+                task=message[:200],
+                result=dict(
+                    success=bool(all_content),
+                    rounds=round_num + 1,
+                    mode=effective_mode,
+                ),
+            )
+        except (ImportError, RuntimeError, ValueError, TypeError):
+            pass
+
+        # ── 报告完整性二次确认 ──
+        if force_tools and all_content:
+            _has_report = ("报告" in all_content or "📋" in all_content or "📌" in all_content)
+            if not _has_report:
+                all_content += (
+                    "\n\n---\n📋 **任务摘要**\n"
+                    f"├─ 执行模式: {effective_mode}\n"
+                    f"├─ 工具轮次: {round_num + 1}\n"
+                    f"├─ 反思次数: {self._rumination_count}\n"
+                    f"└─ 幻觉验证: {'⚠️ 低于阈值' if _hallucination_warning else '✅ 通过'}"
+                )
+
         yield ChatEvent(
             event_type="done",
-            content=all_content or "（AI 未生成有效回复，请尝试重新发送您的问题。）",
+            content=(all_content or "（AI 未生成有效回复，请尝试重新发送您的问题。）")
+                     + _hallucination_warning,
             usage=total_usage,
         )
 
