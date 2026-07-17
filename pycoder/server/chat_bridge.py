@@ -289,9 +289,9 @@ class ChatBridge:
         return messages
 
     def _check_token_budget(self, messages: list[dict]) -> int:
-        """估算消息列表的 token 数，超出阈值时预警"""
-        total_chars = sum(len(m.get("content", "")) for m in messages)
-        estimated = total_chars // 3
+        """精确计算消息列表的 token 数，超出阈值时预警"""
+        msg_str = json.dumps([{"role": m.get("role", ""), "content": m.get("content", "")} for m in messages])
+        estimated = TokenCounter.count(msg_str)
         if estimated > 60000:
             logger.warning(
                 "context_near_limit estimated=%d limit=64000",
@@ -314,6 +314,48 @@ class ChatBridge:
         except (ImportError, RuntimeError, OSError, ValueError) as e:
             logger.debug("memory_compress_failed error=%s", e)
             return ""
+
+
+# ══════════════════════════════════════════════════════════
+# TokenCounter — 精确 Token 计数器 (tiktoken)
+# ══════════════════════════════════════════════════════════
+
+
+class TokenCounter:
+    """精确 Token 计数器 — 使用 tiktoken (兼容 cl100k_base)
+
+    当 tiktoken 不可用时自动降级为 len//3 估算。
+    """
+
+    _encoders: dict[str, object] = {}
+
+    @classmethod
+    def count(cls, text: str, model: str = "deepseek-chat") -> int:
+        """精确计算 token 数"""
+        try:
+            encoding = cls._get_encoding(model)
+            return len(encoding.encode(text))
+        except (ImportError, KeyError, ValueError):
+            return len(text) // 3  # 降级估算
+
+    @classmethod
+    def truncate(cls, text: str, max_tokens: int, model: str = "deepseek-chat") -> str:
+        """精确截断到指定 token 数"""
+        try:
+            encoding = cls._get_encoding(model)
+            tokens = encoding.encode(text)
+            return encoding.decode(tokens[:max_tokens])
+        except (ImportError, KeyError):
+            return text[:max_tokens * 3]  # 降级截断
+
+    @classmethod
+    def _get_encoding(cls, model: str):
+        """获取编码器（带缓存）"""
+        if model not in cls._encoders:
+            import tiktoken
+            # DeepSeek/Qwen/GLM 兼容 cl100k_base
+            cls._encoders[model] = tiktoken.get_encoding("cl100k_base")
+        return cls._encoders[model]
 
     async def chat_stream(
         self,
@@ -551,6 +593,15 @@ class ChatBridge:
                         error_body = await response.aread()
                         err_text = error_body.decode()[:300]
                         current_model = self.config.model
+                        # D2: 诊断日志
+                        logger.error(
+                            "D2_CHAT_401 model=%s base=%s key_pref=%s status=%d body=%s",
+                            current_model,
+                            self.config.api_base,
+                            self.config.api_key[:12] + "..." if self.config.api_key else "NOKEY",
+                            response.status_code,
+                            err_text[:100],
+                        )
                         tried_providers.add(current_model)
 
                         # 尝试降级到下一个可用 Provider
