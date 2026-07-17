@@ -93,6 +93,7 @@ from pycoder.server.routers.report_api import router as report_router
 from pycoder.server.routers.skills_marketplace_api import router as skills_marketplace_router
 from pycoder.server.routers.agents_api import router as agents_router
 from pycoder.server.routers.learning_api import router as learning_router
+from pycoder.server.routers.web_routes import router as web_router
 from pycoder.server.ws_handler import websocket_chat
 from pycoder.server.ws_handler_v2 import websocket_chat_v2
 
@@ -644,6 +645,7 @@ app.include_router(report_router)  # 进化报告生成
 app.include_router(skills_marketplace_router)  # 技能市场
 app.include_router(agents_router)  # 专业 Agent 团队
 app.include_router(learning_router)  # 闭环学习循环
+app.include_router(web_router)  # 联网搜索
 
 # WebSocket（独立挂载）
 app.include_router(collab_ws_router)
