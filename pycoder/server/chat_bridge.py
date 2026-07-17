@@ -346,28 +346,91 @@ class ChatBridge:
 # ══════════════════════════════════════════════════════════
 
 
+    # ── 智能意图分类 ──
+    _SIMPLE_CHAT_PATTERNS: list[str] = [
+        "你好", "hello", "嗨", "hi", "谢谢", "thanks", "再见", "bye",
+        "你是谁", "介绍", "能做什么", "帮助", "help", "功能",
+        "什么是", "什么是pycoder", "版本", "version",
+        "天气", "今天", "日期", "时间", "joke", "笑话",
+    ]
+    _TOOL_NEEDED_KEYWORDS: list[str] = [
+        "写", "创建", "修改", "删除", "运行", "执行", "测试", "安装",
+        "生成", "构建", "分析", "审查", "重构", "修复", "查找", "搜索",
+        "create", "write", "modify", "delete", "run", "execute", "test",
+        "install", "generate", "build", "analyze", "review", "refactor",
+        "fix", "search", "find", "commit", "git", "deploy", "部署",
+        "file", "code", "代码", "文件", "项目", "project",
+    ]
+
+    def _classify_intent(self, message: str) -> tuple[str, bool, int]:
+        """快速分类用户意图（零 token 成本）
+
+        Returns:
+            (mode: "chat"|"tool", needs_tools: bool, max_rounds: int)
+        """
+        msg_lower = message.lower().strip()
+        msg_len = len(msg_lower)
+
+        # 1. 简单问候/闲聊 → chat 模式
+        for pattern in self._SIMPLE_CHAT_PATTERNS:
+            if msg_lower == pattern or msg_lower.startswith(pattern):
+                return ("chat", False, 0)
+
+        # 2. 超短消息（<10 字符）→ chat 模式
+        if msg_len < 10 and not any(
+            kw in msg_lower for kw in self._TOOL_NEEDED_KEYWORDS
+        ):
+            return ("chat", False, 0)
+
+        # 3. 包含工具操作关键词 → tool 模式
+        tool_keyword_count = sum(1 for kw in self._TOOL_NEEDED_KEYWORDS if kw in msg_lower)
+        if tool_keyword_count >= 2:
+            return ("tool", True, 8)  # 复杂任务允许 8 轮
+        if tool_keyword_count >= 1:
+            return ("tool", True, 5)  # 标准工具任务 5 轮
+
+        # 4. 中等长度（10-50 字符）无明确工具关键词 → chat 模式
+        if msg_len < 50:
+            return ("chat", False, 0)
+
+        # 5. 长消息 → 默认为 tool 模式（用户可能在描述复杂需求）
+        return ("tool", True, 5)
+
     async def chat_stream(
         self,
         message: str,
         *,
-        tool_names: list[str] | None = None,  # P0: 限制工具集，None=全部
+        tool_names: list[str] | None = None,
+        mode: str = "auto",  # "auto"|"chat"|"tool" — 模式覆盖
     ) -> AsyncIterator[ChatEvent]:
-        """流式聊天 — 支持多轮工具调用循环
+        """流式聊天 — ReAct 模式工具调用循环
 
-        当 AI 发起 function call 时，自动执行工具、将结果反馈给 AI，
-        AI 基于结果继续生成回复，直到不再需要工具调用（最多 5 轮）。
+        智能路由: auto 模式下自动检测意图 → chat(无工具) 或 tool(工具调用) 模式。
+        chat 模式直接回复，tool 模式执行 思考→行动→观察 的 ReAct 循环。
 
         Args:
             message: 用户消息
-            tool_names: 可选，限制注入的工具名称列表。None=注入所有工具
+            tool_names: 可选，限制注入的工具名称列表。None=全部
+            mode: "auto" 自动检测 / "chat" 纯对话 / "tool" 强制工具模式
 
         Yields:
             ChatEvent: event_type ∈ {"token", "reasoning", "done", "error"}
         """
         import httpx
 
-        # P5: 可观测性 — 记录开始时间
         _start_time = time.perf_counter()
+
+        # ── 智能意图分类 ──
+        effective_mode = mode
+        max_tool_rounds = 5
+        force_tools = True
+        if mode == "auto":
+            effective_mode, force_tools, max_tool_rounds = self._classify_intent(message)
+            if effective_mode == "chat":
+                logger.debug(
+                    "intent_router chat_mode msg_len=%d preview=%s",
+                    len(message), message[:50],
+                )
 
         # ── 构建 Provider 降级链 ──
         # 按优先级获取所有可用 Provider，当主 Provider 返回 401 时自动降级
@@ -542,16 +605,16 @@ class ChatBridge:
 
         all_content = ""
         total_usage: dict = {}
-        max_rounds = 5
         tried_providers: set[str] = set()
 
-        # ── 工具调用循环 ──
-        for round_num in range(max_rounds):
-            # P2+: 每轮发送进度心跳，保持 WebSocket 活跃
-            yield ChatEvent(
-                event_type="token",
-                content=f"\n🔄 第 {round_num + 1}/{max_rounds} 轮工具调用...\n",
-            )
+        # ── ReAct 工具调用循环 ──
+        for round_num in range(max(max_tool_rounds, 1)):
+            # 仅在非首轮或明确需要工具时显示进度
+            if round_num > 0 and force_tools:
+                yield ChatEvent(
+                    event_type="token",
+                    content=f"\n🔄 第 {round_num + 1}/{max_tool_rounds} 轮...\n",
+                )
             payload: dict = {
                 "model": self.config.model,
                 "messages": messages,

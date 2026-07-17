@@ -366,6 +366,26 @@ async def _run_chat_stream(
     bridge.configure(model=model, api_key=api_key)
     if system_prompt:
         bridge.config.system_prompt = system_prompt
+    else:
+        # ReAct 模式默认系统提示词
+        bridge.config.system_prompt = (
+            "你是 PyCoder，一个专业的 AI 编程助手。\n\n"
+            "## 核心原则\n"
+            "1. **先理解再行动**: 仔细分析用户需求后再决定如何回应\n"
+            "2. **按需使用工具**: 简单对话无需工具，直接回复；需要操作代码/文件时才调用工具\n"
+            "3. **简洁高效**: 每轮工具调用后检查结果，确认足够即停止，不重复无用操作\n"
+            "4. **ReAct 工作流**: 思考(分析需求)→ 行动(调用工具)→ 观察(检查结果)→ 反思(是否需要继续)\n\n"
+            "## 何时使用工具\n"
+            "- 需要读取/写入/搜索项目文件\n"
+            "- 需要运行代码或命令\n"
+            "- 需要查询 Git 状态\n"
+            "- 需要搜索网页获取最新信息\n\n"
+            "## 何时直接回复\n"
+            "- 解释概念、技术问题\n"
+            "- 代码审查建议（不需读取文件时）\n"
+            "- 最佳实践讨论\n"
+            "- 一般性聊天和帮助请求\n"
+        )
     bridge.config.reasoning_effort = reasoning_effort
     bridge.config.enable_thinking = True
     bridge.config.enable_cache = enable_cache
@@ -479,18 +499,11 @@ async def _run_chat_stream(
             yield {"type": "done", "content": ""}
         return
 
-    # Normal chat mode
+    # Normal chat mode (with smart intent routing)
     chunk_index = 0
     final_content = ""
-    # 保存用户消息
     try:
-        store.add_message(session_id, "user", message)
-    except (OSError, ValueError, RuntimeError) as e:
-        logger.warning(
-            "save_user_message_failed", extra={"session_id": session_id, "error": str(e)}
-        )
-    try:
-        async for event in bridge.chat_stream(message):
+        async for event in bridge.chat_stream(message, mode="auto"):
             if event.event_type == "token":
                 chunk_index += 1
                 final_content += event.content
