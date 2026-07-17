@@ -851,6 +851,10 @@ class ChatBridge:
                                 yield ChatEvent(
                                     event_type="reasoning", content=delta["reasoning_content"]
                                 )
+                                # FIX: Agnes/纯推理模型的内容在 reasoning_content 中
+                                if not delta.get("content"):
+                                    round_content += delta["reasoning_content"]
+                                    yield ChatEvent(event_type="token", content=delta["reasoning_content"])
                             if content := delta.get("content"):
                                 round_content += content
                                 yield ChatEvent(event_type="token", content=content)

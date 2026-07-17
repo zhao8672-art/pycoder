@@ -425,8 +425,9 @@ chromadb 未安装，向量搜索将回退到 SQLite 模式
 API 认证已启用（复用 ~/.pycoder/.api_key 中的 Key）
 key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
 detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-llm_api_keys_detected: deepseek
-INFO:     Started server process [62576]
+detected_key provider=agnes preview=sk-scS4V3pNV...PAZ4 len=51
+llm_api_keys_detected: deepseek, agnes
+INFO:     Started server process [41540]
 INFO:     Waiting for application startup.
 recommendation_db_tables_created at C:\Users\Administrator/.pycoder/pycoder.db
 sandbox_docker_selected
@@ -486,153 +487,10 @@ V1 工具迁移完成: 48 tools
 V2 引擎初始化完成 — 179 个能力已注册, 信任级别: FULL_AUTONOMY
 v2_engine_initialized: capabilities=179 trust=FULL_AUTONOMY
 plugin_registry_initialized: plugins=1
+[2m2026-07-17T14:45:51.025128Z[0m [[33m[1mwarning  [0m] [1mscheduler_load_failed         [0m [[0m[1m[34mpycoder[0m][0m [36merror[0m=[35m'Extra data: line 74 column 2 (char 1828)'[0m [36mpath[0m=[35mC:\Users\Administrator\.pycoder\scheduled_tasks.json[0m
 scheduler_started: 4 tasks registered (skills×2, extensions×2)
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8423 (Press CTRL+C to quit)
-INFO:     127.0.0.1:3354 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:3358 - "WebSocket /ws/chat/v2?api_key=REDACTED-PYCODER-API-KEY" [accepted]
-INFO:     connection open
-INFO:     127.0.0.1:3359 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14276 - "WebSocket /ws/terminal?api_key=REDACTED-PYCODER-API-KEY" [accepted]
-INFO:     connection open
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-INFO:     127.0.0.1:3359 - "GET /api/models HTTP/1.1" 200 OK
-INFO:     127.0.0.1:3447 - "GET /api/env HTTP/1.1" 200 OK
-INFO:     127.0.0.1:3448 - "GET /api/git/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:3449 - "GET /api/sessions HTTP/1.1" 200 OK
-INFO:     127.0.0.1:3449 - "GET /api/files/workspace/restore HTTP/1.1" 200 OK
-INFO:     127.0.0.1:2134 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1931 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1464 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:3060 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:10263 - "GET /api/health HTTP/1.1" 200 OK
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-INFO:     127.0.0.1:10268 - "GET /api/models HTTP/1.1" 200 OK
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-token_usage_recorded input=914 output=65 session_total=979 hourly_total=979
-INFO:     127.0.0.1:10269 - "POST /api/chat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:10271 - "GET /api/health HTTP/1.1" 200 OK
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-C:\Users\Administrator\Desktop\pycode\pycoder\server\chat_bridge.py:464: RuntimeWarning: coroutine 'CompositeNLUEngine.understand' was never awaited
-  await self._route_with_nlu(message)
-RuntimeWarning: Enable tracemalloc to get the object allocation traceback
-任务难度评估: level=LIGHT score=19.5 max_iter=7 task=读取项目根目录的README.md文件并简要总结
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=1 tool=file_read args={'path': 'README.md'}
-tool_round_complete round=1 tools=1
-幻觉验证完成: 评分=70.0/100 | 耗时=3.7ms | 声明=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=2 tool=file_read args={'path': 'README.md'}
-tool_round_complete round=2 tools=1
-幻觉验证完成: 评分=70.0/100 | 耗时=1.9ms | 声明=2
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=3 tool=io_smart_read args={'file_path': 'README.md', 'max_tokens': 3000}
-能力 'io.smart_read' 执行失败: 'dict' object can't be awaited
-Traceback (most recent call last):
-  File "C:\Users\Administrator\Desktop\pycode\pycoder\bus\registry.py", line 322, in call
-    data = await handler(call.params, ctx)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-TypeError: 'dict' object can't be awaited
-tool_round_complete round=3 tools=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=4 tool=io_preview_file args={'file_path': 'README.md'}
-能力 'io.preview_file' 执行失败: 'dict' object can't be awaited
-Traceback (most recent call last):
-  File "C:\Users\Administrator\Desktop\pycode\pycoder\bus\registry.py", line 322, in call
-    data = await handler(call.params, ctx)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-TypeError: 'dict' object can't be awaited
-tool_round_complete round=4 tools=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=5 tool=shell_run_terminal args={'command': 'wc -l README.md && head -200 README.md'}
-tool_round_complete round=5 tools=1
-幻觉验证完成: 评分=100.0/100 | 耗时=0.5ms | 声明=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=6 tool=shell_run_terminal args={'command': 'Get-Content README.md -TotalCount 200'}
-tool_round_complete round=6 tools=1
-幻觉验证完成: 评分=70.0/100 | 耗时=1.7ms | 声明=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=7 tool=shell_run_terminal args={'command': 'Get-Content README.md -Tail 100'}
-tool_round_complete round=7 tools=1
-幻觉验证完成: 评分=70.0/100 | 耗时=3358.8ms | 声明=8
-INFO:     127.0.0.1:10272 - "POST /api/chat HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13018 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:7967 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:4101 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13620 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:4049 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13656 - "GET /api/health HTTP/1.1" 200 OK
-pipeline_tool_tier mode=chat tool_count=8
-任务难度评估: level=LIGHT score=34.2 max_iter=9 task=[对话历史回顾]
-用户: 读取项目根目录的README.md文件并简要总结
-助手: 📋 **任务报告**
-├─ **用户需求**: 读取项目根目录 README
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
-all_modes_failed errors=chat: 执行失败
-INFO:     127.0.0.1:8487 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1624 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:10712 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:11186 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:8232 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13549 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14376 - "GET /api/health HTTP/1.1" 200 OK
-[2m2026-07-17T14:21:46.336009Z[0m [[32m[1minfo     [0m] [1mws_v2_disconnect              [0m [[0m[1m[34mpycoder[0m][0m [36mextra[0m=[35m{'session_id': 'dfa963b7-20e5-4a78-a344-d3dc0cb6bdef'}[0m
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-INFO:     127.0.0.1:3350 - "POST /api/config/validate-key HTTP/1.1" 200 OK
-HTTP Request: POST https://apihub.agnes-ai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
-INFO:     127.0.0.1:12601 - "POST /api/config/validate-key HTTP/1.1" 200 OK
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-token_usage_recorded input=924 output=15 session_total=1918 hourly_total=1918
-INFO:     127.0.0.1:3373 - "POST /api/chat HTTP/1.1" 200 OK
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-HTTP Request: POST https://apihub.agnes-ai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
-D2_CHAT_401 model=agnes-2.0-flash base=https://apihub.agnes-ai.com/v1 status=401 body={"error":{"code":"","message":"无效的令牌 (request id: 20260717142217509451584qJoUyXu5)","type":"AgnesAI_
-provider_401_fallback from=agnes-2.0-flash to=deepseek-chat reason={"error":{"code":"","message":"无效的令牌 (request id: 20260717142217509451584qJoUyXu5)","type":"AgnesAI_
-INFO:     127.0.0.1:3396 - "POST /api/chat HTTP/1.1" 200 OK
-任务难度评估: level=LIGHT score=19.5 max_iter=7 task=列出当前目录下所有.txt文件
-key_conflict provider=deepseek env=sk-740c9bed0...9800 config=sk-15fb33719...90db config 已优先使用
-detected_key provider=deepseek preview=sk-15fb33719...90db len=35
-skills_loaded_from_registry count=121 path=C:\Users\Administrator\.pycoder\skills_registry.json
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=1 tool=file_list args={'path': '.'}
-tool_round_complete round=1 tools=1
-幻觉验证完成: 评分=85.0/100 | 耗时=571.5ms | 声明=12
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=2 tool=search_quick_open args={'query': '.txt', 'max_results': 20}
-tool_round_complete round=2 tools=1
-幻觉验证完成: 评分=70.0/100 | 耗时=1001.2ms | 声明=11
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=3 tool=shell_run_terminal args={'command': 'dir /b *.txt 2>nul || find . -maxdepth 1 -name "*.txt" -type f 2>/dev/null || echo "Checking with python..."'}
-tool_round_complete round=3 tools=1
-幻觉验证完成: 评分=100.0/100 | 耗时=0.4ms | 声明=0
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-mcp_tool_call_from_ai round=4 tool=shell_run_terminal args={'command': 'Get-ChildItem -Path . -Filter *.txt -File | Select-Object Name'}
-tool_round_complete round=4 tools=1
-幻觉验证完成: 评分=85.0/100 | 耗时=522.1ms | 声明=1
-HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
-token_usage_recorded input=27482 output=237 session_total=29637 hourly_total=29637
-幻觉验证完成: 评分=10.0/100 | 耗时=607.2ms | 声明=7
-INFO:     127.0.0.1:3399 - "POST /api/chat HTTP/1.1" 200 OK
+ERROR:    [Errno 10048] error while attempting to bind on address ('127.0.0.1', 8423): [winerror 10048] 通常每个套接字地址(协议/网络地址/端口)只允许使用一次。
+INFO:     Waiting for application shutdown.
+关闭 V2 引擎...
+INFO:     Application shutdown complete.
