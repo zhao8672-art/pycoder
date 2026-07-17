@@ -135,7 +135,7 @@ def _save_config(config: dict):
 
 
 class ModelManager:
-    """统一的模型与 Key 管理器"""
+    """统一的模型与 Key 管理器（config.json 是唯一数据源）"""
 
     # 已知失效 Key 黑名单（自动加入，避免反复 401）
     _blocked_keys: set[str] = set()
@@ -147,63 +147,50 @@ class ModelManager:
         self._validated: dict[str, bool] = {}  # provider → is_valid
         self._last_error: str = ""
 
-    # ── API Key 检测 ──
+    # ── 启动引导：从 config.json 加载并同步到环境变量 ──
 
-    def auto_detect(self) -> dict[str, str]:
+    def bootstrap_keys(self) -> dict[str, str]:
+        """从 config.json 加载所有 Key 并同步到 os.environ。
+
+        这是启动时唯一需要调用的方法。之后无论进程如何重启，
+        os.environ 中都会有正确的 Key。
         """
-        自动检测所有可用的 API Key。
-        优先级: config.json > 环境变量
-
-        Returns: {provider_name: api_key, ...}
-        """
-        self._detected = {}
-        logger = logging.getLogger(__name__)
-
-        # 1. 从配置文件检测（最高优先级：Settings 面板保存的值）
         config = _load_config()
         api_keys = config.get("provider", {}).get("api_keys", {})
-        for provider, key in api_keys.items():
-            if key:
-                self._detected[provider] = key
+        self._detected = {}
 
-        # 2. 从环境变量检测（过滤已知失效 Key）
+        for provider, key in api_keys.items():
+            if key and provider in PROVIDER_DEFS:
+                if key in ModelManager._blocked_keys:
+                    continue
+                self._detected[provider] = key
+                # 同步到环境变量（确保子进程和所有模块可见）
+                env_key = PROVIDER_DEFS[provider]["env_vars"][0]
+                os.environ[env_key] = key
+                logger.info(
+                    "bootstrap_key provider=%s prefix=%s...%s",
+                    provider, key[:12], key[-4:],
+                )
+
+        # 加载失效 Key 列表
+        for blocked in config.get("blocked_keys", []):
+            ModelManager._blocked_keys.add(blocked)
+
+        logger.info(
+            "bootstrap_complete providers=%s",
+            list(self._detected.keys()),
+        )
+        return dict(self._detected)
+
+    def auto_detect(self) -> dict[str, str]:
+        """检测所有可用 Key（os.environ 中，由 bootstrap_keys 注入）"""
+        self._detected = {}
         for provider, defs in PROVIDER_DEFS.items():
-            if provider in self._detected:
-                continue
             for env_var in defs["env_vars"]:
                 key = os.environ.get(env_var, "").strip()
                 if key and key not in ModelManager._blocked_keys:
                     self._detected[provider] = key
                     break
-        # 清理已被黑名单标记的 Key
-        for provider in list(self._detected.keys()):
-            if self._detected[provider] in ModelManager._blocked_keys:
-                logger.warning("blocked_key_removed provider=%s", provider)
-                del self._detected[provider]
-
-        # 3. 冲突检测：如果 config 和 env var 不一致，记录到日志
-        for provider in PROVIDER_DEFS:
-            cfg_key = api_keys.get(provider, "")
-            if not cfg_key:
-                continue
-            env_name = PROVIDER_DEFS[provider]["env_vars"][0]
-            env_key = os.environ.get(env_name, "")
-            if env_key and env_key != cfg_key:
-                logger.warning(
-                    "key_conflict provider=%s env=%s...%s config=%s...%s "
-                    "config 已优先使用",
-                    provider,
-                    env_key[:12], env_key[-4:],
-                    cfg_key[:12], cfg_key[-4:],
-                )
-
-        # 4. 启动诊断日志
-        for provider, key in self._detected.items():
-            logger.info(
-                "detected_key provider=%s preview=%s...%s len=%d",
-                provider, key[:12], key[-4:], len(key),
-            )
-
         return dict(self._detected)
 
     def get_key(self, provider: str) -> str:
@@ -385,7 +372,7 @@ class ModelManager:
             ModelManager._blocked_keys.add(key)
 
     def save_key(self, provider: str, api_key: str, set_default: bool = True) -> dict:
-        """保存 API Key 到配置文件"""
+        """保存 API Key 到 config.json，同时同步到环境变量"""
         if provider not in PROVIDER_DEFS:
             return {"success": False, "error": f"不支持的提供商: {provider}"}
         config = _load_config()
@@ -397,7 +384,9 @@ class ModelManager:
         if set_default:
             config["provider"]["default"] = provider
         _save_config(config)
-        os.environ[PROVIDER_DEFS[provider]["env_vars"][0]] = api_key
+        # 同步到当前进程环境变量
+        env_key = PROVIDER_DEFS[provider]["env_vars"][0]
+        os.environ[env_key] = api_key
         self._detected[provider] = api_key
         return {"success": True, "message": f"✅ {PROVIDER_DEFS[provider]['name']} Key 已保存"}
 
@@ -532,5 +521,5 @@ def get_model_manager() -> ModelManager:
     if _instance is None:
         _instance = ModelManager()
         _instance.load_blocked_keys()
-        _instance.auto_detect()
+        _instance.bootstrap_keys()
     return _instance

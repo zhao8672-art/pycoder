@@ -84,19 +84,68 @@ async def config_setup(req: dict):
 
 @router.get("/api/config/keys")
 async def config_keys():
-    """获取所有 Provider 的 Key 配置状态"""
-    from pycoder.providers.setup_wizard import check_all_keys
-
-    mgr_keys = check_all_keys()
-    # 同时返回当前可用模型推荐
-    from pycoder.providers.auth import get_model_manager
+    """获取所有 Provider 的 Key 配置状态（简化版）"""
+    from pycoder.providers.auth import PROVIDER_DEFS, get_model_manager
 
     mgr = get_model_manager()
     detected = mgr.get_all_keys()
+    providers = []
+    for pid, defs in PROVIDER_DEFS.items():
+        has = pid in detected
+        key_preview = ""
+        if has:
+            k = detected[pid]
+            key_preview = f"{k[:10]}...{k[-4:]}" if len(k) > 14 else "****"
+        providers.append({
+            "id": pid,
+            "name": defs["name"],
+            "has_key": has,
+            "key_preview": key_preview,
+            "recommended_model": defs["recommended_model"],
+            "register_url": defs["register_url"],
+            "free_trial": defs.get("free_trial", ""),
+            "price_summary": defs.get("price_summary", ""),
+        })
     return {
-        "providers": mgr_keys,
+        "providers": providers,
+        "any_key": len(detected) > 0,
+    }
+
+
+@router.get("/api/config/status")
+async def config_status():
+    """一键获取完整配置状态（供设置面板使用）"""
+    from pycoder.providers.auth import PROVIDER_DEFS, get_model_manager
+
+    mgr = get_model_manager()
+    detected = mgr.get_all_keys()
+    models = mgr.get_available_models()
+
+    providers = []
+    for pid, defs in PROVIDER_DEFS.items():
+        has = pid in detected
+        providers.append({
+            "id": pid,
+            "name": defs["name"],
+            "has_key": has,
+            "recommended_model": defs["recommended_model"],
+            "register_url": defs["register_url"],
+            "free_trial": defs.get("free_trial", ""),
+            "blocked": any(k in ModelManager._blocked_keys for k in [detected.get(pid, "")] if k),
+        })
+
+    recommended_id, recommended_provider = mgr.recommend()
+    user_model = mgr.load_model_preference()
+
+    return {
+        "success": True,
+        "providers": providers,
         "has_any_key": len(detected) > 0,
-        "recommended_model": mgr.recommend()[0] if detected else "deepseek-chat",
+        "recommended_model": recommended_id,
+        "recommended_provider": recommended_provider,
+        "user_selected_model": user_model or None,
+        "models": models,
+        "total_models": len(models),
     }
 
 
