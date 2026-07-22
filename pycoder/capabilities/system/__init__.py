@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -310,6 +309,8 @@ async def _execute_shell(params: dict[str, Any], context: dict[str, Any]) -> dic
 
 async def _git_status(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """Git 状态"""
+    import subprocess
+
     result = subprocess.run(
         ["git", "status", "--porcelain"],
         capture_output=True,
@@ -321,6 +322,8 @@ async def _git_status(params: dict[str, Any], context: dict[str, Any]) -> dict[s
 
 async def _git_diff(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """Git 差异"""
+    import subprocess
+
     result = subprocess.run(
         ["git", "diff", "--stat"],
         capture_output=True,
@@ -341,6 +344,8 @@ async def _git_diff(params: dict[str, Any], context: dict[str, Any]) -> dict[str
 
 async def _git_commit(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """Git 提交"""
+    import subprocess
+
     message = params["message"]
     cmd = ["git", "add"]
     if params.get("files"):
@@ -364,6 +369,8 @@ async def _git_commit(params: dict[str, Any], context: dict[str, Any]) -> dict[s
 
 async def _git_push(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """Git 推送"""
+    import subprocess
+
     result = subprocess.run(
         ["git", "push"],
         capture_output=True,
@@ -378,6 +385,8 @@ async def _git_push(params: dict[str, Any], context: dict[str, Any]) -> dict[str
 
 async def _install_package(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """安装包"""
+    import subprocess
+
     packages = params["packages"]
     manager = params.get("manager", "pip")
 
@@ -399,6 +408,8 @@ async def _install_package(params: dict[str, Any], context: dict[str, Any]) -> d
 
 async def _list_packages(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """列出已安装包"""
+    import subprocess
+
     result = subprocess.run(
         ["pip", "list", "--format=json"],
         capture_output=True,

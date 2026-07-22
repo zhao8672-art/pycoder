@@ -10,8 +10,8 @@
 |---|---:|---:|---:|
 | `server(services)` | 69 | 29922 | 433 |
 | `server(routers)` | 51 | 12788 | 250 |
-| `capabilities` | 33 | 12741 | 386 |
-| `server(other)` | 53 | 12322 | 232 |
+| `capabilities` | 33 | 12752 | 386 |
+| `server(other)` | 53 | 12363 | 233 |
 | `python` | 26 | 10802 | 415 |
 | `brain` | 15 | 6774 | 451 |
 | `ai` | 38 | 6615 | 174 |
@@ -34,8 +34,8 @@
 | `browser` | 4 | 551 | 137 |
 | `io` | 4 | 543 | 135 |
 | `services` | 4 | 481 | 120 |
+| `__main__.py` | 1 | 459 | 459 |
 | `workspace` | 3 | 458 | 152 |
-| `__main__.py` | 1 | 453 | 453 |
 | `multimodal` | 5 | 439 | 87 |
 | `fs` | 4 | 414 | 103 |
 | `adapters` | 5 | 403 | 80 |
@@ -43,13 +43,14 @@
 | `net` | 2 | 148 | 74 |
 | `plugins` | 3 | 131 | 43 |
 | `config` | 2 | 120 | 60 |
-| `__init__.py` | 1 | 44 | 44 |
-| **合计** | **418** | **123544** | — |
+| `_compat` | 2 | 49 | 24 |
+| `__init__.py` | 1 | 36 | 36 |
+| **合计** | **420** | **123643** | — |
 
 ## 2. `pycoder/server/app.py` 入口分析
 
-- 总行数：**832** （目标 ≤ 200）
-- `import` 语句总数：**106**（去重 90）
+- 总行数：**841** （目标 ≤ 200）
+- `import` 语句总数：**107**（去重 90）
 - `include_router()` 注册次数：**61** （目标 ≤ 5，通过 router_groups 声明式装配）
 
 **越层引用统计**（路由层不应直接 import 以下模块）：
@@ -140,38 +141,27 @@
 | `pycoder.server.ws_handler_v2` | 15 | 1 |
 | `pycoder.server.services.autonomous_pipeline` | 13 | 3 |
 | `pycoder.server.chat_handler` | 12 | 8 |
+| `pycoder.__main__` | 11 | 0 |
 | `pycoder.brain.__init__` | 11 | 0 |
 | `pycoder.ai.__init__` | 11 | 0 |
-| `pycoder.__main__` | 11 | 0 |
 | `pycoder.server.services.unified_entry` | 10 | 1 |
 | `pycoder.server.routers.config` | 10 | 1 |
 | `pycoder.ai.analysis.composite_analyzer` | 7 | 2 |
-| `pycoder.brain.adaptive_executor` | 7 | 1 |
 | `pycoder.server.services.agent_loop` | 7 | 1 |
-| `pycoder.capabilities.self_evo.learning.evo_orchestrator` | 6 | 0 |
-| `pycoder.extensions.__init__` | 6 | 0 |
+| `pycoder.brain.adaptive_executor` | 7 | 1 |
 | `pycoder.gateway.adapters.__init__` | 6 | 0 |
 | `pycoder.server.services.unified_agent` | 6 | 2 |
-| `pycoder.server.routers.advanced_api` | 6 | 1 |
-| `pycoder.ai.analysis.__init__` | 6 | 0 |
 | `pycoder.server.routers.rest_routes` | 6 | 1 |
-| `pycoder.capabilities.tools.exec_mod` | 5 | 0 |
-| `pycoder.capabilities.self_evo.engine` | 5 | 8 |
+| `pycoder.extensions.__init__` | 6 | 0 |
+| `pycoder.ai.analysis.__init__` | 6 | 0 |
+| `pycoder.server.routers.advanced_api` | 6 | 1 |
+| `pycoder.capabilities.self_evo.learning.evo_orchestrator` | 6 | 0 |
+| `pycoder.ai.nlu.composite_nlu` | 5 | 2 |
+| `pycoder.server.services.agent_react_loop` | 5 | 0 |
 
 ## 7. 循环依赖检测
 
-检测到 **15** 个循环依赖（DFS 启发式，可能含小环）：
-
-- 环 1: `pycoder.server.chat_bridge` → `pycoder.ai.nlu.composite_nlu` → `pycoder.ai.nlu.deep_analyzer` → `pycoder.server.chat_bridge`
-- 环 2: `pycoder.server.app` → `pycoder.server.ws_handler` → `pycoder.server.chat_handler` → `pycoder.server.chat_bridge` → `pycoder.server.app`
-- 环 3: `pycoder.server.chat_bridge` → `pycoder.server.services.cost_control` → `pycoder.providers.cost` → `pycoder.server.chat_bridge`
-- 环 4: `pycoder.server.app` → `pycoder.server.ws_handler` → `pycoder.server.chat_handler` → `pycoder.server.chat_bridge` → `pycoder.server.capabilities` → `pycoder.server.mcp_tools` → `pycoder.server.app`
-- 环 5: `pycoder.server.app` → `pycoder.server.ws_handler` → `pycoder.server.chat_handler` → `pycoder.server.app`
-- 环 6: `pycoder.server.app` → `pycoder.server.routers.notify_api` → `pycoder.server.app`
-- 环 7: `pycoder.server.app` → `pycoder.server.routers.team_api` → `pycoder.server.app`
-- 环 8: `pycoder.server.app` → `pycoder.server.routers.terminal` → `pycoder.server.app`
-- 环 9: `pycoder.extensions.packaging` → `pycoder.extensions.manager` → `pycoder.extensions.packaging`
-- 环 10: `pycoder.server.app` → `pycoder.server.routers.gateway_api` → `pycoder.server.app`
+✅ 未检测到循环依赖。
 
 ## 8. 测试覆盖
 
@@ -183,25 +173,20 @@
 
 ## 9. `__init__.py` 导入期副作用
 
-以下 `__init__.py` 存在导入期副作用（影响可测试性，阶段 0 需修复）：
-
-- `pycoder/__init__.py` — 修改 sys, 设置环境变量, 导入 subprocess
-- `pycoder/bus/__init__.py` — 调用 print
-- `pycoder/capabilities/self_evo/__init__.py` — 调用 print
-- `pycoder/capabilities/system/__init__.py` — 导入 subprocess
+✅ 未检测到导入期副作用。
 
 ## 10. 验收基线（升级结束时对比）
 
 | 指标 | 当前 | 目标 | 状态 |
 |---|---:|---:|:---:|
-| `app.py` 行数 | 832 | ≤ 200 | ❌ |
+| `app.py` 行数 | 841 | ≤ 200 | ❌ |
 | `include_router()` 次数 | 61 | ≤ 5 | ❌ |
 | app.py 越层引用 | 2 | = 0 | ❌ |
 | routers 越层引用 | 62 | = 0 | ❌ |
 | v2/ 子目录 | True | False | ❌ |
-| 循环依赖数 | 15 | = 0 | ❌ |
+| 循环依赖数 | 0 | = 0 | ✅ |
 | 高复杂度函数(>20) | 20 | ≤ 3 | ✅ |
-| 导入期副作用 | 4 | = 0 | ❌ |
+| 导入期副作用 | 0 | = 0 | ✅ |
 
 ---
 

@@ -24,6 +24,12 @@ if os.path.isfile(_env_path):
                 _k, _v = _line.split("=", 1)
                 os.environ[_k.strip()] = _v.strip()
 
+# 阶段 0 架构升级：显式触发 subprocess 兼容补丁安装
+# （从 pycoder/__init__.py 的导入期副作用拆出，延迟到此处执行）
+from pycoder import _install_subprocess_compat  # noqa: E402 — .env must be loaded before imports
+
+_install_subprocess_compat()
+
 import argparse  # noqa: E402 — .env must be loaded before imports
 
 from pycoder.python.generate import _run_generate_mode  # noqa: E402

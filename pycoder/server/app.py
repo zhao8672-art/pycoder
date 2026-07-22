@@ -252,6 +252,15 @@ async def verify_ws_auth(ws: WebSocket) -> bool:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期 — 启动时初始化 V2 引擎、推荐数据库、DI 容器和调度器"""
+    # 阶段 0 架构升级：显式触发 subprocess 兼容补丁
+    # （从 pycoder/__init__.py 的导入期副作用拆出，延迟到此处执行）
+    try:
+        from pycoder import _install_subprocess_compat
+
+        _install_subprocess_compat()
+    except ImportError:
+        pass
+
     await _init_recommendation_db()
     _init_di_container()
 

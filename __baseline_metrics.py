@@ -224,9 +224,47 @@ def collect_fanout() -> list[tuple[str, int, int]]:
     return rows[:25]
 
 
-# ── 6. 循环依赖检测（DFS） ────────────────────────────────
+# ── 6. 循环依赖检测（DFS，仅检测模块顶层 import） ──────
 def detect_cycles() -> list[list[str]]:
     imports_of: dict[str, set[str]] = defaultdict(set)
+
+    def _module_level_imports(tree: ast.AST) -> set[str]:
+        """提取模块顶层（不在任何嵌套函数/类中）的 import 目标"""
+        out: set[str] = set()
+
+        class _TopLevelVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.depth = 0  # 嵌套深度
+
+            def visit_FunctionDef(self, node: ast.FunctionDef):
+                self.depth += 1
+                self.generic_visit(node)
+                self.depth -= 1
+
+            def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
+                self.depth += 1
+                self.generic_visit(node)
+                self.depth -= 1
+
+            def visit_ClassDef(self, node: ast.ClassDef):
+                self.depth += 1
+                self.generic_visit(node)
+                self.depth -= 1
+
+            def visit_Import(self, node: ast.Import):
+                if self.depth == 0:
+                    for n in node.names:
+                        out.add(n.name)
+                self.generic_visit(node)
+
+            def visit_ImportFrom(self, node: ast.ImportFrom):
+                if self.depth == 0 and node.module:
+                    out.add(node.module)
+                self.generic_visit(node)
+
+        _TopLevelVisitor().visit(tree)
+        return out
+
     for f in iter_python_files():
         module = "pycoder." + ".".join(f.relative_to(PYCODER).with_suffix("").parts)
         try:
@@ -234,16 +272,12 @@ def detect_cycles() -> list[list[str]]:
             tree = ast.parse(src)
         except (OSError, SyntaxError, ValueError):
             continue
-        for node in ast.walk(tree):
-            target = None
-            if isinstance(node, ast.Import):
-                for n in node.names:
-                    target = n.name
-            elif isinstance(node, ast.ImportFrom) and node.module:
-                target = node.module
-            if target and target.startswith("pycoder."):
+        for target in _module_level_imports(tree):
+            if target.startswith("pycoder."):
                 imports_of[module].add(target)
+
     # DFS 找环（仅长度 >= 2 的环，过滤自环）
+    # 关键：只检测 MODULE-LEVEL 顶层 import（不包含函数/方法内的 lazy import）
     cycles: list[list[str]] = []
     WHITE, GRAY, BLACK = 0, 1, 2
     color: dict[str, int] = defaultdict(int)
@@ -327,13 +361,17 @@ def collect_test_stats() -> dict:
 
 # ── 9. 模块级单例与导入期副作用 ─────────────────────────
 def detect_init_side_effects() -> list[tuple[str, list[str]]]:
-    """检测各包 __init__.py 中的可疑副作用"""
+    """检测各包 __init__.py 中的可疑副作用（基于 AST，排除 docstring/字符串字面量）"""
+    # 这些是真实代码模式，docstring 内的字面量不会被 AST 匹配
     sus_patterns = [
         (r"monkey[-_ ]?patch", "monkey-patch"),
-        (r"\bsys\.[a-z_]+\s*=", "修改 sys"),
-        (r"os\.environ\[", "设置环境变量"),
         (r"^import\s+subprocess", "导入 subprocess"),
-        (r"\bprint\s*\(", "调用 print"),
+    ]
+    # 这些模式只检测表达式语句（不是字符串、注释）
+    expr_patterns = [
+        (r"\bsys\.[a-z_]+\s*=", "修改 sys"),
+        (r"os\.environ\[\s*[\"'][A-Z_]+[\"']\s*\]\s*=", "设置环境变量"),
+        (r"^\s*print\s*\(", "调用 print"),
     ]
     out = []
     for init in PYCODER.rglob("__init__.py"):
@@ -343,10 +381,29 @@ def detect_init_side_effects() -> list[tuple[str, list[str]]]:
             src = init.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        hits = []
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:
+            continue
+        hits: list[str] = []
+        # 1. 源码级模式（monkey-patch 字面、import subprocess）
         for pat, label in sus_patterns:
             if re.search(pat, src, re.MULTILINE):
                 hits.append(label)
+        # 2. AST 表达式语句（排除 docstring 和字符串字面量）
+        for node in tree.body:
+            # 跳过 docstring（Expr 节点 + Constant 字符串）
+            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
+                continue
+            # 跳过被赋值的字符串/常量（匹配模式可能误中的情况）
+            if isinstance(node, ast.Assign):
+                for tgt in node.targets:
+                    if isinstance(tgt, ast.Name) and isinstance(node.value, ast.Constant):
+                        continue
+            node_src = ast.get_source_segment(src, node) or ""
+            for pat, label in expr_patterns:
+                if re.search(pat, node_src, re.MULTILINE):
+                    hits.append(label)
         if hits:
             out.append((init.relative_to(ROOT).as_posix(), hits))
     return out
