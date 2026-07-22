@@ -22,6 +22,8 @@ class OCREngine:
         self._tesseract = self._init_tesseract()
         self._paddle = self._init_paddle()
         self._vision_client: object = None
+        self._vision_timeout: float = 8.0  # LLM Vision OCR 超时阈值
+        self.last_method: str = "none"
 
     def _init_tesseract(self):
         try:
@@ -39,11 +41,12 @@ class OCREngine:
 
     async def extract_text(self, image_data: bytes) -> str:
         """从图片中提取文字"""
+        self.last_method = "none"
         try:
             from PIL import Image
             img = Image.open(BytesIO(image_data))
         except Exception as e:
-            _logger.warning("silently_swallowed: {err}", exc_info=False)
+            _logger.warning("image_open_failed: %s", e)
             return ""
 
         # Layer 1: Tesseract (0.5-2s)
@@ -52,6 +55,7 @@ class OCREngine:
                 import pytesseract
                 text = pytesseract.image_to_string(img, lang="chi_sim+eng")
                 if text.strip():
+                    self.last_method = "tesseract"
                     return text.strip()
             except Exception as exc:
                 logger.debug("Tesseract OCR 失败: %s", exc)
@@ -65,12 +69,40 @@ class OCREngine:
                 result = ocr.ocr(np.array(img))
                 if result and result[0]:
                     texts = [line[1][0] for line in result[0]]
+                    self.last_method = "paddleocr"
                     return "\n".join(texts)
             except Exception as exc:
                 logger.debug("PaddleOCR 失败: %s", exc)
 
-        # Layer 3: LLM Vision 回退 (3-8s)
-        return await self._vision_llm_ocr(img)
+        # Layer 3: LLM Vision 回退 (3-8s, 受超时控制)
+        # 在测试/无网络/无 API Key 场景下快速降级，避免阻塞
+        import asyncio
+        if not self._has_vision_key():
+            self.last_method = "none"
+            return ""
+        try:
+            result = await asyncio.wait_for(
+                self._vision_llm_ocr(img), timeout=self._vision_timeout
+            )
+            return result
+        except asyncio.TimeoutError:
+            logger.warning("LLM Vision OCR 超时 (%.1fs)", self._vision_timeout)
+            self.last_method = "timeout"
+            return ""
+        except Exception as exc:
+            logger.warning("LLM Vision OCR 失败: %s", exc)
+            return ""
+
+    def _has_vision_key(self) -> bool:
+        """检测是否存在视觉模型 API Key (避免无效调用)"""
+        try:
+            from pycoder.providers.auth import get_model_manager
+
+            mm = get_model_manager()
+            detected = mm.auto_detect()
+            return bool(detected.get("openai") or detected.get("deepseek") or detected.get("agnes"))
+        except Exception:
+            return False
 
     async def _vision_llm_ocr(self, image) -> str:
         """使用 LLM 视觉模型进行 OCR"""

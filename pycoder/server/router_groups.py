@@ -143,10 +143,14 @@ def _register_system(app: "FastAPI") -> None:
 
     from pycoder.server.routers.dep_api import router as dep_api_router
     from pycoder.server.routers.env_api import router as env_api_router
+    from pycoder.server.routers.impact_api import router as impact_router  # P1-2 影响分析 API
+    from pycoder.server.routers.dashboard_api import router as dashboard_router  # P1-3 仪表盘 API
 
     app.include_router(session_search_router)
     app.include_router(dep_api_router)
     app.include_router(env_api_router)
+    app.include_router(impact_router)  # P1-2
+    app.include_router(dashboard_router)  # P1-3
     app.include_router(workspace_api_router)
     app.include_router(knowledge_api_router)
     app.include_router(memory_api_router)
@@ -173,9 +177,12 @@ def _register_phase1(app: "FastAPI") -> None:
 def _register_phase23(app: "FastAPI") -> None:
     from pycoder.server.routers.agents_api import router as agents_router
     from pycoder.server.routers.dag_api import router as dag_router
+    from pycoder.server.routers.installer_api import router as installer_router  # P2-3 自迭代安装器 API
     from pycoder.server.routers.learning_api import router as learning_router
     from pycoder.server.routers.mcp_routes import router as mcp_router
     from pycoder.server.routers.media_routes import router as media_router
+    from pycoder.server.routers.multimodal_api import router as multimodal_router  # P2-2 多模态增强 API
+    from pycoder.server.routers.patch_api import router as patch_router  # P2-1 自动补丁 API
     from pycoder.server.routers.report_api import router as report_router
     from pycoder.server.routers.skills_marketplace_api import router as skills_marketplace_router
     from pycoder.server.routers.task_api import router as task_api_router
@@ -189,6 +196,9 @@ def _register_phase23(app: "FastAPI") -> None:
     app.include_router(learning_router)
     app.include_router(web_router)
     app.include_router(media_router)
+    app.include_router(multimodal_router)  # P2-2
+    app.include_router(patch_router)  # P2-1
+    app.include_router(installer_router)  # P2-3
     app.include_router(mcp_router)
 
 
