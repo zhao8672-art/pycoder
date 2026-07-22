@@ -1,0 +1,936 @@
+{
+  "summary": {
+    "timestamp": "2026-07-22 23:01:02",
+    "total_tests": 61,
+    "passed": 59,
+    "failed": 2,
+    "pass_rate": 96.72,
+    "issues_count": 2,
+    "issues_by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 2
+    },
+    "performance": {
+      "health_seq_10": {
+        "samples": 10,
+        "p50_ms": 1172.59,
+        "p95_ms": 1375.97,
+        "max_ms": 1375.97,
+        "min_ms": 1113.82,
+        "mean_ms": 1195.44
+      },
+      "models_seq_10": {
+        "samples": 10,
+        "p50_ms": 1.88,
+        "p95_ms": 2.47,
+        "max_ms": 2.47,
+        "min_ms": 1.69,
+        "mean_ms": 1.96
+      },
+      "health_concurrent_20": {
+        "samples": 20,
+        "p50_ms": 3011.22,
+        "p95_ms": 3011.88,
+        "max_ms": 3039.78,
+        "min_ms": 3007.69,
+        "mean_ms": 3011.75
+      }
+    },
+    "security": {
+      "no_auth": 0,
+      "wrong_auth": 0,
+      "sql_injection": [
+        [
+          "'; DROP TABLE x; --",
+          0
+        ],
+        [
+          "1' OR '1'='1",
+          0
+        ],
+        [
+          "admin'--",
+          404
+        ]
+      ],
+      "path_traversal": [
+        [
+          "../../etc/passwd",
+          400
+        ],
+        [
+          "..\\..\\Windows\\System32\\config\\SAM",
+          400
+        ],
+        [
+          "/etc/passwd",
+          400
+        ]
+      ],
+      "command_injection": [
+        [
+          "; ls -la",
+          200
+        ],
+        [
+          "| cat /etc/passwd",
+          200
+        ],
+        [
+          "$(whoami)",
+          200
+        ]
+      ],
+      "xss": [
+        [
+          "<script>alert(1)</script>",
+          0
+        ],
+        [
+          "<img src=x onerror=alert(1)>",
+          200
+        ],
+        [
+          "javascript:alert(1)",
+          0
+        ]
+      ],
+      "large_payload": [
+        0,
+        4011.681000003591
+      ],
+      "oversized_header": [
+        200,
+        1462.9543000046397
+      ],
+      "rate_limit": {
+        "samples": 50,
+        "p50_ms": 1162.99,
+        "p95_ms": 1242.93,
+        "max_ms": 1374.62
+      }
+    }
+  },
+  "issues": [
+    {
+      "id": "BUG-001",
+      "severity": "LOW",
+      "category": "Functional",
+      "name": "Test mock",
+      "endpoint": "GET /api/test/mock",
+      "expected": [
+        200,
+        422
+      ],
+      "actual": 405,
+      "elapsed_ms": 2.38,
+      "response_sample": "{'detail': 'Method Not Allowed'}",
+      "description": ""
+    },
+    {
+      "id": "BUG-002",
+      "severity": "LOW",
+      "category": "Functional",
+      "name": "Visualize calls",
+      "endpoint": "GET /api/visualize/calls",
+      "expected": [
+        200,
+        422
+      ],
+      "actual": 405,
+      "elapsed_ms": 3.25,
+      "response_sample": "{'detail': 'Method Not Allowed'}",
+      "description": ""
+    }
+  ],
+  "results": [
+    {
+      "category": "Functional",
+      "name": "Health check",
+      "method": "GET",
+      "path": "/api/health",
+      "expected_status": [
+        200
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1447.83,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "V2 health",
+      "method": "GET",
+      "path": "/api/v2/health",
+      "expected_status": [
+        200
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.63,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "V2 status",
+      "method": "GET",
+      "path": "/api/v2/status",
+      "expected_status": [
+        200
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.95,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "V2 stats",
+      "method": "GET",
+      "path": "/api/v2/stats",
+      "expected_status": [
+        200
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.65,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "V2 capabilities",
+      "method": "GET",
+      "path": "/api/v2/capabilities",
+      "expected_status": [
+        200
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 3.37,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "List models",
+      "method": "GET",
+      "path": "/api/models",
+      "expected_status": [
+        200
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.69,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Recommended",
+      "method": "GET",
+      "path": "/api/models/recommended",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 12.82,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Current model",
+      "method": "GET",
+      "path": "/api/model/current",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 3.29,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Config status",
+      "method": "GET",
+      "path": "/api/config/status",
+      "expected_status": [
+        200
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.43,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "List sessions",
+      "method": "GET",
+      "path": "/api/sessions",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.74,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "List all sessions",
+      "method": "GET",
+      "path": "/api/sessions/all",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 404,
+      "elapsed_ms": 1.94,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Memory sessions",
+      "method": "GET",
+      "path": "/api/memory/sessions",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.23,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Memory current",
+      "method": "GET",
+      "path": "/api/memory/current",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 14.38,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Workspace current",
+      "method": "GET",
+      "path": "/api/files/workspace/current",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.77,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Workspace recent",
+      "method": "GET",
+      "path": "/api/files/workspace/recent",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.94,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "List workspaces",
+      "method": "GET",
+      "path": "/api/workspaces/list",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.94,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Git status",
+      "method": "GET",
+      "path": "/api/git/status",
+      "expected_status": [
+        200,
+        500
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 303.17,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Git log",
+      "method": "GET",
+      "path": "/api/git/log",
+      "expected_status": [
+        200,
+        500
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 163.8,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Git branches",
+      "method": "GET",
+      "path": "/api/git/branches",
+      "expected_status": [
+        200,
+        500
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 3.2,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Git remotes",
+      "method": "GET",
+      "path": "/api/git/remotes",
+      "expected_status": [
+        200,
+        500
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 114.33,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Code languages",
+      "method": "GET",
+      "path": "/api/code/languages",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2003.08,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Code capabilities",
+      "method": "GET",
+      "path": "/api/code/capabilities",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.79,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Code exec config",
+      "method": "GET",
+      "path": "/api/code/exec/config",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.1,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Code history",
+      "method": "GET",
+      "path": "/api/code/history",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.04,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "List skills",
+      "method": "GET",
+      "path": "/api/skills",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 69.44,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Skills list v1",
+      "method": "GET",
+      "path": "/api/skills/list",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 47.79,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Skills stats",
+      "method": "GET",
+      "path": "/api/skills/stats",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 81.7,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Skills V2 search",
+      "method": "GET",
+      "path": "/api/skills/v2/search",
+      "expected_status": [
+        200,
+        422
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 43.22,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Skills V2 trending",
+      "method": "GET",
+      "path": "/api/skills/v2/trending",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 6.94,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Skills V2 stats",
+      "method": "GET",
+      "path": "/api/skills/v2/stats/overview",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.42,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Extensions installed",
+      "method": "GET",
+      "path": "/api/extensions/installed",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 4.2,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Extensions recommended",
+      "method": "GET",
+      "path": "/api/extensions/recommended",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 20.26,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Extensions stats",
+      "method": "GET",
+      "path": "/api/extensions/stats",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 12.94,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Extensions commands",
+      "method": "GET",
+      "path": "/api/extensions/commands",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.1,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Extensions cache status",
+      "method": "GET",
+      "path": "/api/extensions/cache-status",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.17,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Evolution history",
+      "method": "GET",
+      "path": "/api/v2/evolution/history",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.75,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Evolution stats",
+      "method": "GET",
+      "path": "/api/v2/evolution/stats",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.25,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Evolution tasks",
+      "method": "GET",
+      "path": "/api/v2/evolution/tasks",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.96,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Trust status",
+      "method": "GET",
+      "path": "/api/v2/trust/status",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 25.28,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Evolution token status",
+      "method": "GET",
+      "path": "/api/v2/evolution/token/status",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.92,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Evolution approvals",
+      "method": "GET",
+      "path": "/api/v2/evolution/approvals",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.73,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Type hint status",
+      "method": "GET",
+      "path": "/api/typehint/status",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.43,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Docstring styles",
+      "method": "GET",
+      "path": "/api/docstring/styles",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.97,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Test mock",
+      "method": "GET",
+      "path": "/api/test/mock",
+      "expected_status": [
+        200,
+        422
+      ],
+      "actual_status": 405,
+      "elapsed_ms": 2.38,
+      "passed": false
+    },
+    {
+      "category": "Functional",
+      "name": "Test coverage",
+      "method": "GET",
+      "path": "/api/test/coverage",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.8,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Test benchmark",
+      "method": "GET",
+      "path": "/api/test/benchmark",
+      "expected_status": [
+        200,
+        422
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 25.22,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Pipeline list",
+      "method": "GET",
+      "path": "/api/pipeline/list",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 3.27,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Scaffold templates",
+      "method": "GET",
+      "path": "/api/scaffold/templates",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2.2,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Async patterns",
+      "method": "GET",
+      "path": "/api/async/patterns",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.36,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "SQLAlchemy models",
+      "method": "GET",
+      "path": "/api/sqlalchemy/models",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.41,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Security types",
+      "method": "GET",
+      "path": "/api/security/types",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.33,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Agent status",
+      "method": "GET",
+      "path": "/api/agent/status",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 1.36,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Dependencies",
+      "method": "GET",
+      "path": "/api/dependencies",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 4.91,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "MCP marketplace",
+      "method": "GET",
+      "path": "/api/mcp/marketplace",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 3.23,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "MCP servers",
+      "method": "GET",
+      "path": "/api/mcp/servers",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 3.11,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Recommendations for-me",
+      "method": "GET",
+      "path": "/api/recommendations/for-me",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 60.21,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Recommendations trending",
+      "method": "GET",
+      "path": "/api/recommendations/trending",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 5.49,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Learning stats",
+      "method": "GET",
+      "path": "/api/learning/stats",
+      "expected_status": [
+        200,
+        404
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 3.7,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Visualize structure",
+      "method": "GET",
+      "path": "/api/visualize/structure",
+      "expected_status": [
+        200,
+        422
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 40.43,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Visualize imports",
+      "method": "GET",
+      "path": "/api/visualize/imports",
+      "expected_status": [
+        200,
+        422
+      ],
+      "actual_status": 200,
+      "elapsed_ms": 2760.77,
+      "passed": true
+    },
+    {
+      "category": "Functional",
+      "name": "Visualize calls",
+      "method": "GET",
+      "path": "/api/visualize/calls",
+      "expected_status": [
+        200,
+        422
+      ],
+      "actual_status": 405,
+      "elapsed_ms": 3.25,
+      "passed": false
+    }
+  ]
+}

@@ -1,0 +1,247 @@
+{
+  "summary": {
+    "timestamp": "2026-07-22 23:03:36",
+    "category": "Compatibility",
+    "total": 28,
+    "passed": 22,
+    "failed": 6,
+    "pass_rate": 78.57
+  },
+  "issues": [
+    {
+      "id": "COMPAT-001",
+      "severity": "LOW",
+      "category": "Compatibility",
+      "name": "OPTIONS /api/health (CORS preflight)",
+      "detail": "status=405, allow=GET, ms=4.4",
+      "status": 405
+    },
+    {
+      "id": "COMPAT-002",
+      "severity": "LOW",
+      "category": "Compatibility",
+      "name": "401/403 with no API key",
+      "detail": "status=422, ct=application/json, is_json=True",
+      "status": 422
+    },
+    {
+      "id": "COMPAT-003",
+      "severity": "LOW",
+      "category": "Compatibility",
+      "name": "Access-Control-Allow-Origin present",
+      "detail": "acao="
+    },
+    {
+      "id": "COMPAT-004",
+      "severity": "LOW",
+      "category": "Compatibility",
+      "name": "Preflight CORS headers",
+      "detail": "status=400, acam=GET, POST, PUT, DELETE, OPTIONS, acah=Accept, Accept-Language, Authorization, Content-Language, Content-Type, X-API-Key, X-Request-ID",
+      "status": 400
+    },
+    {
+      "id": "COMPAT-005",
+      "severity": "LOW",
+      "category": "Compatibility",
+      "name": "UTF-8 Chinese + Emoji in request",
+      "detail": "status=500, ct=application/json",
+      "status": 500
+    },
+    {
+      "id": "COMPAT-006",
+      "severity": "LOW",
+      "category": "Compatibility",
+      "name": "Response has cache directives",
+      "detail": "etag='', last-mod='', cache-ctrl=''"
+    }
+  ],
+  "results": [
+    {
+      "category": "HTTP Method",
+      "name": "OPTIONS /api/health (CORS preflight)",
+      "passed": false,
+      "detail": "status=405, allow=GET, ms=4.4",
+      "status": 405
+    },
+    {
+      "category": "HTTP Method",
+      "name": "HEAD /api/health",
+      "passed": true,
+      "detail": "status=405, ms=12.0",
+      "status": 405
+    },
+    {
+      "category": "HTTP Method",
+      "name": "POST /api/health (should reject)",
+      "passed": true,
+      "detail": "status=405, ms=1.5",
+      "status": 405
+    },
+    {
+      "category": "HTTP Method",
+      "name": "DELETE /api/health",
+      "passed": true,
+      "detail": "status=405, ms=1.3",
+      "status": 405
+    },
+    {
+      "category": "HTTP Method",
+      "name": "PUT /api/health",
+      "passed": true,
+      "detail": "status=405, ms=1.3",
+      "status": 405
+    },
+    {
+      "category": "Error Format",
+      "name": "404 Not Found returns JSON",
+      "passed": true,
+      "detail": "status=404, is_json=True, has_detail=True",
+      "status": 404
+    },
+    {
+      "category": "Error Format",
+      "name": "401/403 with no API key",
+      "passed": false,
+      "detail": "status=422, ct=application/json, is_json=True",
+      "status": 422
+    },
+    {
+      "category": "Error Format",
+      "name": "405 Method Not Allowed returns JSON",
+      "passed": true,
+      "detail": "status=405, is_json=True",
+      "status": 405
+    },
+    {
+      "category": "Error Format",
+      "name": "422 Validation Error returns JSON",
+      "passed": true,
+      "detail": "status=422, is_json=True",
+      "status": 422
+    },
+    {
+      "category": "Content-Type",
+      "name": "GET /api/health returns JSON",
+      "passed": true,
+      "detail": "content-type=application/json, ms=1144.4"
+    },
+    {
+      "category": "Content-Type",
+      "name": "Accept: application/json honored",
+      "passed": true,
+      "detail": "content-type=application/json"
+    },
+    {
+      "category": "Content-Type",
+      "name": "Invalid Content-Type handled",
+      "passed": true,
+      "detail": "status=422",
+      "status": 422
+    },
+    {
+      "category": "CORS",
+      "name": "Access-Control-Allow-Origin present",
+      "passed": false,
+      "detail": "acao="
+    },
+    {
+      "category": "CORS",
+      "name": "Preflight CORS headers",
+      "passed": false,
+      "detail": "status=400, acam=GET, POST, PUT, DELETE, OPTIONS, acah=Accept, Accept-Language, Authorization, Content-Language, Content-Type, X-API-Key, X-Request-ID",
+      "status": 400
+    },
+    {
+      "category": "Encoding",
+      "name": "UTF-8 Chinese + Emoji in request",
+      "passed": false,
+      "detail": "status=500, ct=application/json",
+      "status": 500
+    },
+    {
+      "category": "Encoding",
+      "name": "Response body decodes as UTF-8",
+      "passed": true,
+      "detail": "bytes=91, decode_ok=True"
+    },
+    {
+      "category": "Cache",
+      "name": "Response has cache directives",
+      "passed": false,
+      "detail": "etag='', last-mod='', cache-ctrl=''"
+    },
+    {
+      "category": "Cache",
+      "name": "ETag conditional GET (If-None-Match)",
+      "passed": true,
+      "detail": "skipped — no ETag from server (acceptable)"
+    },
+    {
+      "category": "Compression",
+      "name": "gzip compression support",
+      "passed": true,
+      "detail": "content-encoding='' (acceptable for small responses)"
+    },
+    {
+      "category": "User-Agent",
+      "name": "Chrome/120 compatible",
+      "passed": true,
+      "detail": "status=200, body_keys=['status', 'version', 'python']",
+      "status": 200
+    },
+    {
+      "category": "User-Agent",
+      "name": "Firefox/121 compatible",
+      "passed": true,
+      "detail": "status=200, body_keys=['status', 'version', 'python']",
+      "status": 200
+    },
+    {
+      "category": "User-Agent",
+      "name": "Safari/17 compatible",
+      "passed": true,
+      "detail": "status=200, body_keys=['status', 'version', 'python']",
+      "status": 200
+    },
+    {
+      "category": "User-Agent",
+      "name": "Electron compatible",
+      "passed": true,
+      "detail": "status=200, body_keys=['status', 'version', 'python']",
+      "status": 200
+    },
+    {
+      "category": "User-Agent",
+      "name": "curl/8.4 compatible",
+      "passed": true,
+      "detail": "status=200, body_keys=['status', 'version', 'python']",
+      "status": 200
+    },
+    {
+      "category": "User-Agent",
+      "name": "Python-urllib compatible",
+      "passed": true,
+      "detail": "status=200, body_keys=['status', 'version', 'python']",
+      "status": 200
+    },
+    {
+      "category": "Protocol",
+      "name": "Large list endpoint streams",
+      "passed": true,
+      "detail": "status=200, bytes=9954",
+      "status": 200
+    },
+    {
+      "category": "Protocol",
+      "name": "HTTP/1.1 server",
+      "passed": true,
+      "detail": "connection=close"
+    },
+    {
+      "category": "Protocol",
+      "name": "Server header present",
+      "passed": true,
+      "detail": "server='uvicorn'"
+    }
+  ]
+}

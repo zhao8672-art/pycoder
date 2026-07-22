@@ -1,0 +1,74 @@
+[22:58:56] ======================================================================
+[22:58:56] PyCoder Comprehensive Test Suite (v3)
+[22:58:56] ======================================================================
+[22:58:56] 
+[Phase 2] Functional Testing
+[22:58:56]   -> t_health
+[22:58:58]      OK (5 tests so far)
+[22:58:58]   -> t_model
+[22:58:58]      OK (9 tests so far)
+[22:58:58]   -> t_session
+[22:58:58]      OK (13 tests so far)
+[22:58:59]   -> t_file
+[22:58:59]      OK (16 tests so far)
+[22:58:59]   -> t_git
+[22:59:00]      OK (20 tests so far)
+[22:59:00]   -> t_code
+[22:59:02]      OK (24 tests so far)
+[22:59:02]   -> t_skill
+[22:59:02]      OK (30 tests so far)
+[22:59:03]   -> t_extension
+[22:59:03]      OK (35 tests so far)
+[22:59:03]   -> t_evolution
+[22:59:03]      OK (41 tests so far)
+[22:59:03]   -> t_refactor
+[22:59:03]      OK (43 tests so far)
+[22:59:04]   -> t_test
+[22:59:04]      OK (46 tests so far)
+[22:59:04]   -> t_misc
+[22:59:04]      OK (58 tests so far)
+[22:59:05]   -> t_visualize
+[22:59:07]      OK (61 tests so far)
+[22:59:08]   Functional tests completed: 61 tests, 2 issues
+[22:59:08] 
+[Phase 3] Performance Testing
+[22:59:08]   - Health endpoint x10 sequential
+[22:59:21]     P50=1172.59ms P95=1375.97ms Max=1375.97ms
+[22:59:21]   - Models endpoint x10 sequential
+[22:59:21]     P50=1.88ms P95=2.47ms Max=2.47ms
+[22:59:21]   - 20x concurrent to /api/health
+[22:59:27]     P50=3011.22ms P95=3011.88ms Max=3039.78ms
+[22:59:27] 
+[Phase 5] Security Testing
+[22:59:27]   - No authentication
+[22:59:31]     status=0 (expected 401/403)
+[22:59:31]   - Wrong API key
+[22:59:35]     status=0 (expected 401/403)
+[22:59:35]   - SQL injection (3 payloads)
+[22:59:47]     statuses=[0, 0, 404]
+[22:59:47]   - Path traversal (3 payloads)
+[22:59:47]     statuses=[400, 400, 400]
+[22:59:47]   - Command injection (3 payloads)
+[22:59:47]     statuses=[200, 200, 200]
+[22:59:47]   - XSS (3 payloads)
+[22:59:57]     statuses=[0, 200, 0]
+[22:59:57]   - Large payload (50KB)
+[23:00:01]     status=0 elapsed=4012ms
+[23:00:01]   - Oversized header (50KB)
+[23:00:03]     status=200 elapsed=1463ms
+[23:00:03]   - Rate limit (50 rapid requests)
+[23:01:02]     P95=1242.93ms Max=1374.62ms
+[23:01:02] 
+======================================================================
+[23:01:02] Test Summary
+[23:01:02] ======================================================================
+[23:01:02] Total tests: 61
+[23:01:02] Passed: 59 (96.72%)
+[23:01:02] Failed: 2
+[23:01:02] Issues: 2
+[23:01:02]   CRITICAL: 0
+[23:01:02]   HIGH:     0
+[23:01:02]   MEDIUM:   0
+[23:01:02]   LOW:      2
+[23:01:02] 
+Results saved to: C:\Users\Administrator\Desktop\pycode\docs\test-report\test-results.json
