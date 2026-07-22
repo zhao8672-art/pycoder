@@ -35,28 +35,12 @@ async def health_check():
 
 @router.get("/api/models")
 async def list_models():
-    try:
-        from pycoder.providers.auth import get_model_manager
+    """列出可用模型（兼容旧版前端）"""
+    from pycoder.providers.auth import get_model_manager
 
-        mgr = get_model_manager()
-        models = mgr.get_available_models()
-        if not models:
-            raise ValueError("no models")
-        recommended_model, _ = mgr.recommend(task_type="coding")
-        return {"models": models, "total": len(models), "recommended_model": recommended_model}
-    except Exception:
-        models = []
-        for mod in [
-            "deepseek-chat",
-            "deepseek-v4-pro",
-            "deepseek-v4-flash",
-            "qwen3.6-plus",
-            "qwen3.6-flash",
-            "glm-5",
-            "glm-4.7-flash",
-        ]:
-            models.append({"id": mod, "name": mod, "provider": mod.split("-")[0]})
-        return {"models": models, "total": len(models), "recommended_model": "deepseek-chat"}
+    mgr = get_model_manager()
+    models = mgr.get_available_models()
+    return {"models": models, "total": len(models), "recommended_model": mgr.recommend()[0]}
 
 
 @router.get("/api/env/capabilities")

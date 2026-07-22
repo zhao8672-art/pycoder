@@ -103,25 +103,23 @@ ignore = [
 "pycoder/server/services/team/agent_tool_loop.py" = ["F821"]
 "pycoder/server/services/team/review_orchestrator.py" = ["F821"]
 
-# ── 类型检查 ────────────────────────────────────
+# ── 类型检查 ──────────────────────────────────────
 
 [tool.mypy]
 python_version = "3.12"
-strict = false
-warn_unused_configs = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-ignore_missing_imports = true
+strict = true
 show_error_codes = true
+warn_unused_configs = true
+ignore_missing_imports = true
 exclude = [
-    "pycoder/electron/",
     "build/",
     "dist/",
-    ".venv/",
+    ".eggs/",
     "tests/",
+    "electron/",
 ]
 
-# ── 安全扫描 ────────────────────────────────────
+# ── 安全扫描 ──────────────────────────────────────
 
 [tool.bandit]
 exclude_dirs = [
@@ -132,6 +130,6 @@ exclude_dirs = [
 ]
 skips = [
     "B101",  # assert 语句在测试中允许
-    "B311",  # 非密码学随机数在非安全场景中允许
+    "B311",  # 非密码学随机数在非安全场景允许
 ]
 targets = ["pycoder"]
