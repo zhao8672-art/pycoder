@@ -120,12 +120,14 @@ class EnhancedSkillsMarketManager:
         if tags:
             results = [s for s in results if any(t in s.get("tags", []) for t in tags)]
 
-        # 质量过滤（默认 ≥30 或 verified）
+        # 质量过滤（仅对有 quality_score 的生效）
         quality_min_val = 30
         results = [
             s
             for s in results
-            if s.get("quality_score", 0) >= quality_min_val or s.get("verified", False)
+            if "quality_score" not in s
+            or s.get("quality_score", 0) >= quality_min_val
+            or s.get("verified", False)
         ]
 
         # 新增 quality_tier 字段 + 可用性检测
