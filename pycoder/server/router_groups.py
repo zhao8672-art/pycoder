@@ -113,8 +113,10 @@ def _register_advanced(app: "FastAPI") -> None:
         rules_router,
         scheduler_router,
     )
+    from pycoder.server.routers.tasks import router as tasks_router  # P0-3 后台任务 API
 
     app.include_router(scheduler_router)
+    app.include_router(tasks_router)  # P0-3
     app.include_router(rules_router)
     app.include_router(debug_router)
 

@@ -403,10 +403,26 @@ async def _run_chat_stream(
     if system_prompt:
         bridge.config.system_prompt = system_prompt
     else:
-            bridge.config.system_prompt = _DEFAULT_SYSTEM_PROMPT + _WINDOWS_GUIDANCE
+        bridge.config.system_prompt = _DEFAULT_SYSTEM_PROMPT + _WINDOWS_GUIDANCE
     bridge.config.reasoning_effort = reasoning_effort
     bridge.config.enable_thinking = True
     bridge.config.enable_cache = enable_cache
+
+    # ── P0-2: 持久化记忆注入（用户/项目级长期记忆）──
+    try:
+        from pathlib import Path as _PPath
+        from pycoder.memory.persistent_memory import get_persistent_memory
+
+        _workspace_root = _PPath(files[0]).parent if files and files[0] else _PPath.cwd()
+        _mem_engine = get_persistent_memory(project_root=_workspace_root)
+        _mem_context = _mem_engine.build_context_prompt()
+        if _mem_context:
+            if bridge.config.system_prompt:
+                bridge.config.system_prompt += "\n\n" + _mem_context
+            else:
+                bridge.config.system_prompt = _mem_context
+    except (ImportError, RuntimeError, ValueError, TypeError, OSError) as _e:
+        logger.debug("persistent_memory_inject_skipped: %s", _e)
 
     # ── P2-2: 自进化经验注入（加载历史成功模式）──
     try:
