@@ -5,9 +5,8 @@ taskkill /f /im electron.exe >nul 2>&1
 timeout /t 3 /nobreak >nul
 
 set PYCODER_CLOUD_JWT_SECRET=local-dev-jwt-2026
-set PYCODER_API_KEY=REDACTED-PYCODER-API-KEY
-set DEEPSEEK_API_KEY=sk-REDACTED-DEEPSEEK
-set AGNES_API_KEY=sk-REDACTED-AGNES
+REM API keys are loaded from .env file or system environment variables for security
+REM See .env.example for required keys (PYCODER_API_KEY, DEEPSEEK_API_KEY, AGNES_API_KEY)
 
 start /B .venv\Scripts\python.exe -m uvicorn pycoder.server.app:app --host 127.0.0.1 --port 8423 --log-level warning > backend.log 2>&1
 timeout /t 12 /nobreak >nul
