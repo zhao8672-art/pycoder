@@ -74,3 +74,10 @@ BACKUP_NOTE.md
 _tmp_*
 _cleanup.*
 _disk_*
+_startup.log
+backend.log
+backend_stderr.log
+backend_stdout.log
+_test_run.log
+_compat_run.log
+*.tmp.log

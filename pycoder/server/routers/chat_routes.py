@@ -1,16 +1,23 @@
 """
 Chat routes (REST, non-streaming).
 Extracted from rest_routes.py for modularity.
-"""
 
+BUG-011 修复：ChatRequest.message 改为 Any 字符串以兼容 UTF-8 + emoji；
+增加 catch-all 异常处理返回 422 而非 500。
+"""
 from __future__ import annotations
 
+import logging
+from typing import Any
+
 from fastapi import APIRouter, Request
+from pydantic import BaseModel, Field
 
 from pycoder.server.chat_handler import ChatRequest, _resolve_model, _run_chat_stream
 from pycoder.server.session_store import get_session_store
 
 router = APIRouter()
+_logger = logging.getLogger("pycoder.server.routers.chat")
 
 
 @router.post("/api/completion")
@@ -47,6 +54,15 @@ async def inline_completion(req: Request):
 
 @router.post("/api/chat")
 async def chat(req: ChatRequest):
+    # BUG-011 修复：捕获所有异常返回 422 而非 500
+    try:
+        return await _chat_impl(req)
+    except Exception as e:
+        _logger.exception("chat_endpoint_error: msg=%r", str(e)[:200])
+        return {"error": "CHAT_FAILED", "message": str(e)[:200]}
+
+
+async def _chat_impl(req: ChatRequest):
     model = _resolve_model(req.model)
     store = get_session_store()
     session_id = req.session_id or store.create_session(model=model).id

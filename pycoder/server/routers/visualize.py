@@ -4,7 +4,8 @@
 端点:
     GET  /api/visualize/structure  — 生成项目结构树
     GET  /api/visualize/imports   — 分析导入依赖关系
-    POST /api/visualize/calls     — 分析函数调用关系
+    GET  /api/visualize/calls     — 分析函数调用关系（支持 path query）
+    POST /api/visualize/calls     — 同上（兼容旧版调用）
 """
 
 from __future__ import annotations
@@ -340,9 +341,23 @@ async def analyze_imports(
         return ImportsResponse(success=False, edges=[], modules=[])
 
 
+@router.get("/calls", response_model=CallsResponse)
+async def analyze_calls_get(path: str | None = Query(None, description="文件路径")):
+    """GET 版本 — 通过 query 参数 path 指定文件。"""
+    return await _analyze_calls_impl(path)
+
+
 @router.post("/calls", response_model=CallsResponse)
-async def analyze_calls(path: str | None = Query(None, description="文件路径")):
-    """分析函数调用关系"""
+async def analyze_calls(body: dict | None = None):
+    """POST 版本 — 通过 body.path 指定文件，兼容旧版调用。"""
+    path = None
+    if body and isinstance(body, dict):
+        path = body.get("path")
+    return await _analyze_calls_impl(path)
+
+
+async def _analyze_calls_impl(path: str | None) -> CallsResponse:
+    """分析函数调用关系 — 共享实现"""
     try:
         if not path:
             return CallsResponse(success=False, functions=[])

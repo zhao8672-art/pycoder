@@ -1,54 +1,54 @@
 {
   "summary": {
-    "timestamp": "2026-07-22 23:01:02",
+    "timestamp": "2026-07-22 23:23:42",
     "total_tests": 61,
-    "passed": 59,
-    "failed": 2,
-    "pass_rate": 96.72,
-    "issues_count": 2,
+    "passed": 61,
+    "failed": 0,
+    "pass_rate": 100.0,
+    "issues_count": 0,
     "issues_by_severity": {
       "CRITICAL": 0,
       "HIGH": 0,
       "MEDIUM": 0,
-      "LOW": 2
+      "LOW": 0
     },
     "performance": {
       "health_seq_10": {
         "samples": 10,
-        "p50_ms": 1172.59,
-        "p95_ms": 1375.97,
-        "max_ms": 1375.97,
-        "min_ms": 1113.82,
-        "mean_ms": 1195.44
+        "p50_ms": 1.47,
+        "p95_ms": 1118.89,
+        "max_ms": 1118.89,
+        "min_ms": 1.13,
+        "mean_ms": 116.92
       },
       "models_seq_10": {
         "samples": 10,
-        "p50_ms": 1.88,
-        "p95_ms": 2.47,
-        "max_ms": 2.47,
-        "min_ms": 1.69,
+        "p50_ms": 1.93,
+        "p95_ms": 2.31,
+        "max_ms": 2.31,
+        "min_ms": 1.82,
         "mean_ms": 1.96
       },
       "health_concurrent_20": {
         "samples": 20,
-        "p50_ms": 3011.22,
-        "p95_ms": 3011.88,
-        "max_ms": 3039.78,
-        "min_ms": 3007.69,
-        "mean_ms": 3011.75
+        "p50_ms": 9.35,
+        "p95_ms": 10.74,
+        "max_ms": 10.8,
+        "min_ms": 6.67,
+        "mean_ms": 9.11
       }
     },
     "security": {
-      "no_auth": 0,
-      "wrong_auth": 0,
+      "no_auth": 401,
+      "wrong_auth": 401,
       "sql_injection": [
         [
           "'; DROP TABLE x; --",
-          0
+          404
         ],
         [
           "1' OR '1'='1",
-          0
+          404
         ],
         [
           "admin'--",
@@ -99,52 +99,21 @@
       ],
       "large_payload": [
         0,
-        4011.681000003591
+        4007.0371000037994
       ],
       "oversized_header": [
         200,
-        1462.9543000046397
+        2388.34499999939
       ],
       "rate_limit": {
         "samples": 50,
-        "p50_ms": 1162.99,
-        "p95_ms": 1242.93,
-        "max_ms": 1374.62
+        "p50_ms": 1.29,
+        "p95_ms": 13.35,
+        "max_ms": 25.4
       }
     }
   },
-  "issues": [
-    {
-      "id": "BUG-001",
-      "severity": "LOW",
-      "category": "Functional",
-      "name": "Test mock",
-      "endpoint": "GET /api/test/mock",
-      "expected": [
-        200,
-        422
-      ],
-      "actual": 405,
-      "elapsed_ms": 2.38,
-      "response_sample": "{'detail': 'Method Not Allowed'}",
-      "description": ""
-    },
-    {
-      "id": "BUG-002",
-      "severity": "LOW",
-      "category": "Functional",
-      "name": "Visualize calls",
-      "endpoint": "GET /api/visualize/calls",
-      "expected": [
-        200,
-        422
-      ],
-      "actual": 405,
-      "elapsed_ms": 3.25,
-      "response_sample": "{'detail': 'Method Not Allowed'}",
-      "description": ""
-    }
-  ],
+  "issues": [],
   "results": [
     {
       "category": "Functional",
@@ -155,7 +124,7 @@
         200
       ],
       "actual_status": 200,
-      "elapsed_ms": 1447.83,
+      "elapsed_ms": 1147.64,
       "passed": true
     },
     {
@@ -167,7 +136,7 @@
         200
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.63,
+      "elapsed_ms": 2.36,
       "passed": true
     },
     {
@@ -179,7 +148,7 @@
         200
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.95,
+      "elapsed_ms": 13.61,
       "passed": true
     },
     {
@@ -191,7 +160,7 @@
         200
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.65,
+      "elapsed_ms": 15.08,
       "passed": true
     },
     {
@@ -203,7 +172,7 @@
         200
       ],
       "actual_status": 200,
-      "elapsed_ms": 3.37,
+      "elapsed_ms": 3.33,
       "passed": true
     },
     {
@@ -215,7 +184,7 @@
         200
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.69,
+      "elapsed_ms": 2.91,
       "passed": true
     },
     {
@@ -228,7 +197,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 12.82,
+      "elapsed_ms": 20.71,
       "passed": true
     },
     {
@@ -241,7 +210,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 3.29,
+      "elapsed_ms": 3.03,
       "passed": true
     },
     {
@@ -253,7 +222,7 @@
         200
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.43,
+      "elapsed_ms": 2.37,
       "passed": true
     },
     {
@@ -266,7 +235,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.74,
+      "elapsed_ms": 2.6,
       "passed": true
     },
     {
@@ -279,7 +248,7 @@
         404
       ],
       "actual_status": 404,
-      "elapsed_ms": 1.94,
+      "elapsed_ms": 14.94,
       "passed": true
     },
     {
@@ -292,7 +261,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.23,
+      "elapsed_ms": 2.37,
       "passed": true
     },
     {
@@ -305,7 +274,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 14.38,
+      "elapsed_ms": 13.28,
       "passed": true
     },
     {
@@ -318,7 +287,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.77,
+      "elapsed_ms": 2.75,
       "passed": true
     },
     {
@@ -331,7 +300,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.94,
+      "elapsed_ms": 24.85,
       "passed": true
     },
     {
@@ -344,7 +313,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.94,
+      "elapsed_ms": 15.54,
       "passed": true
     },
     {
@@ -357,7 +326,7 @@
         500
       ],
       "actual_status": 200,
-      "elapsed_ms": 303.17,
+      "elapsed_ms": 585.56,
       "passed": true
     },
     {
@@ -370,7 +339,7 @@
         500
       ],
       "actual_status": 200,
-      "elapsed_ms": 163.8,
+      "elapsed_ms": 142.44,
       "passed": true
     },
     {
@@ -383,7 +352,7 @@
         500
       ],
       "actual_status": 200,
-      "elapsed_ms": 3.2,
+      "elapsed_ms": 2.96,
       "passed": true
     },
     {
@@ -396,7 +365,7 @@
         500
       ],
       "actual_status": 200,
-      "elapsed_ms": 114.33,
+      "elapsed_ms": 100.4,
       "passed": true
     },
     {
@@ -409,7 +378,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 2003.08,
+      "elapsed_ms": 2140.02,
       "passed": true
     },
     {
@@ -422,7 +391,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.79,
+      "elapsed_ms": 1.93,
       "passed": true
     },
     {
@@ -435,7 +404,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.1,
+      "elapsed_ms": 2.19,
       "passed": true
     },
     {
@@ -448,7 +417,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.04,
+      "elapsed_ms": 1.51,
       "passed": true
     },
     {
@@ -461,7 +430,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 69.44,
+      "elapsed_ms": 72.91,
       "passed": true
     },
     {
@@ -474,7 +443,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 47.79,
+      "elapsed_ms": 43.56,
       "passed": true
     },
     {
@@ -487,7 +456,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 81.7,
+      "elapsed_ms": 62.5,
       "passed": true
     },
     {
@@ -500,7 +469,7 @@
         422
       ],
       "actual_status": 200,
-      "elapsed_ms": 43.22,
+      "elapsed_ms": 36.49,
       "passed": true
     },
     {
@@ -513,7 +482,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 6.94,
+      "elapsed_ms": 9.78,
       "passed": true
     },
     {
@@ -526,7 +495,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.42,
+      "elapsed_ms": 2.33,
       "passed": true
     },
     {
@@ -539,7 +508,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 4.2,
+      "elapsed_ms": 4.29,
       "passed": true
     },
     {
@@ -552,7 +521,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 20.26,
+      "elapsed_ms": 3.1,
       "passed": true
     },
     {
@@ -565,7 +534,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 12.94,
+      "elapsed_ms": 1.93,
       "passed": true
     },
     {
@@ -578,7 +547,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.1,
+      "elapsed_ms": 2.05,
       "passed": true
     },
     {
@@ -591,7 +560,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.17,
+      "elapsed_ms": 2.52,
       "passed": true
     },
     {
@@ -604,7 +573,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.75,
+      "elapsed_ms": 2.19,
       "passed": true
     },
     {
@@ -617,7 +586,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.25,
+      "elapsed_ms": 2.05,
       "passed": true
     },
     {
@@ -630,7 +599,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.96,
+      "elapsed_ms": 1.62,
       "passed": true
     },
     {
@@ -643,7 +612,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 25.28,
+      "elapsed_ms": 1.57,
       "passed": true
     },
     {
@@ -656,7 +625,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.92,
+      "elapsed_ms": 1.52,
       "passed": true
     },
     {
@@ -669,7 +638,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.73,
+      "elapsed_ms": 1.51,
       "passed": true
     },
     {
@@ -682,7 +651,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.43,
+      "elapsed_ms": 2.16,
       "passed": true
     },
     {
@@ -695,7 +664,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.97,
+      "elapsed_ms": 1.68,
       "passed": true
     },
     {
@@ -707,9 +676,9 @@
         200,
         422
       ],
-      "actual_status": 405,
-      "elapsed_ms": 2.38,
-      "passed": false
+      "actual_status": 200,
+      "elapsed_ms": 2.23,
+      "passed": true
     },
     {
       "category": "Functional",
@@ -721,7 +690,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.8,
+      "elapsed_ms": 1.97,
       "passed": true
     },
     {
@@ -734,7 +703,7 @@
         422
       ],
       "actual_status": 200,
-      "elapsed_ms": 25.22,
+      "elapsed_ms": 20.67,
       "passed": true
     },
     {
@@ -747,7 +716,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 3.27,
+      "elapsed_ms": 3.18,
       "passed": true
     },
     {
@@ -760,7 +729,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 2.2,
+      "elapsed_ms": 2.41,
       "passed": true
     },
     {
@@ -773,7 +742,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.36,
+      "elapsed_ms": 1.39,
       "passed": true
     },
     {
@@ -786,7 +755,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.41,
+      "elapsed_ms": 1.4,
       "passed": true
     },
     {
@@ -799,7 +768,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.33,
+      "elapsed_ms": 1.44,
       "passed": true
     },
     {
@@ -812,7 +781,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 1.36,
+      "elapsed_ms": 1.71,
       "passed": true
     },
     {
@@ -825,7 +794,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 4.91,
+      "elapsed_ms": 4.35,
       "passed": true
     },
     {
@@ -838,7 +807,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 3.23,
+      "elapsed_ms": 3.15,
       "passed": true
     },
     {
@@ -851,7 +820,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 3.11,
+      "elapsed_ms": 2.62,
       "passed": true
     },
     {
@@ -864,7 +833,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 60.21,
+      "elapsed_ms": 30.42,
       "passed": true
     },
     {
@@ -877,7 +846,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 5.49,
+      "elapsed_ms": 4.95,
       "passed": true
     },
     {
@@ -890,7 +859,7 @@
         404
       ],
       "actual_status": 200,
-      "elapsed_ms": 3.7,
+      "elapsed_ms": 3.28,
       "passed": true
     },
     {
@@ -903,7 +872,7 @@
         422
       ],
       "actual_status": 200,
-      "elapsed_ms": 40.43,
+      "elapsed_ms": 38.03,
       "passed": true
     },
     {
@@ -916,7 +885,7 @@
         422
       ],
       "actual_status": 200,
-      "elapsed_ms": 2760.77,
+      "elapsed_ms": 2384.92,
       "passed": true
     },
     {
@@ -928,9 +897,9 @@
         200,
         422
       ],
-      "actual_status": 405,
-      "elapsed_ms": 3.25,
-      "passed": false
+      "actual_status": 200,
+      "elapsed_ms": 1.69,
+      "passed": true
     }
   ]
 }

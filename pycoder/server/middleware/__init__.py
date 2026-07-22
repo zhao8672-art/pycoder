@@ -89,10 +89,23 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
         return response
 
 
-__all__ = ["ErrorHandlingMiddleware", "PerformanceMonitoringMiddleware"]
+__all__ = [
+    "ErrorHandlingMiddleware",
+    "PerformanceMonitoringMiddleware",
+    "SecurityHeadersMiddleware",
+    "ETagCacheMiddleware",
+    "RateLimitMiddleware",
+    "RequestBodyScannerMiddleware",
+]
 
 
 # 子模块导入（避免循环依赖）
 from pycoder.server.middleware.perf import (  # noqa: E402
     PerformanceMonitoringMiddleware,
+)
+from pycoder.server.middleware.security import (  # noqa: E402
+    ETagCacheMiddleware,
+    RateLimitMiddleware,
+    RequestBodyScannerMiddleware,
+    SecurityHeadersMiddleware,
 )

@@ -72,13 +72,15 @@ def call_raw(
     body: bytes | None = None,
     headers: dict | None = None,
     timeout: float = 5.0,
+    with_auth: bool = True,
 ) -> tuple[int, dict, bytes, float, dict]:
     """原始 HTTP 调用 — 返回 (status, headers_dict, raw_bytes, elapsed_ms, response_headers)"""
     base_headers = {
         "Host": f"{HOST}:{PORT}",
-        "X-API-Key": API_KEY,
         "Connection": "close",
     }
+    if with_auth:
+        base_headers["X-API-Key"] = API_KEY
     if headers:
         base_headers.update(headers)
 
@@ -228,8 +230,8 @@ record(
     status=status,
 )
 
-# 测试 401 (无 API Key)
-status, hdrs, raw, ms, _ = call_raw("POST", "/api/chat", body=b"{}")
+# 测试 401 (无 API Key) — 使用 GET 端点避免 Pydantic body 验证触发 422
+status, hdrs, raw, ms, _ = call_raw("GET", "/api/test/mock", with_auth=False)
 ct = hdrs.get("content-type", "")
 try:
     payload = json.loads(raw.decode("utf-8"))

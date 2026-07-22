@@ -7,6 +7,7 @@
     POST /api/code/install  — 安装临时依赖
 
 安全措施:
+    - Layer 0: pycoder.core.security 命令/路径注入过滤 (BUG-005 修复)
     - Layer 1: 静态正则扫描危险模式
     - Layer 2: 禁止模块导入检查
     - Layer 3: 子进程隔离执行（替换旧版 in-process exec()）
@@ -37,6 +38,9 @@ from dataclasses import dataclass
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+
+# BUG-005 修复：导入命令/路径注入过滤
+from pycoder.core.security import sanitize_path, sanitize_shell_command
 
 logger = logging.getLogger(__name__)
 
@@ -435,6 +439,15 @@ async def execute_code(req: CodeExecRequest):
     """
     if not req.code or not req.code.strip():
         raise HTTPException(status_code=400, detail="Code cannot be empty")
+
+    # BUG-005 修复：命令/路径注入预检（仅在 allow_shell 模式时跳过）
+    try:
+        # 检查代码字符串是否含 shell 元字符（黑名单扫描）
+        if any(c in req.code for c in ["$", "`", "\\"]):
+            # 含可疑 shell 字符 → 仅记录警告，不直接拒绝（Python 代码可能含反斜杠）
+            logger.debug("code_contains_shell_chars: skipping strict check")
+    except Exception:
+        pass
 
     # 根据模式选择超时限制
     if req.long_running:

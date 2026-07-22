@@ -136,21 +136,37 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 
         path = request.url.path
         # 跳过 health、文档和 WebSocket 升级请求
-        if path in ("/api/health", "/docs", "/openapi.json") or path.startswith("/ws/"):
+        if (
+            path == "/api/health"
+            or path.startswith("/api/health/")
+            or path in ("/docs", "/openapi.json")
+            or path.startswith("/ws/")
+        ):
             return await call_next(request)
 
         # 允许 file:// 来源的请求免认证（VSCode 内置浏览器 / Electron 开发模式）
         origin = request.headers.get("Origin", "")
-        if not origin or origin == "null" or origin.startswith("file://"):
+        if origin.startswith("file://"):
             return await call_next(request)
 
+        # BUG-003/004 修复：缺少 Origin 头时（如 curl/server-to-server 调用）
+        # 必须强制验证 API Key，不能再以"无 Origin"为由放行
         api_key = request.headers.get("X-API-Key", "")
+        if not api_key:
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Missing API key"},
+                headers={"WWW-Authenticate": "X-API-Key"},
+            )
+
         if not _secrets.compare_digest(api_key, _API_KEY):
             from fastapi.responses import JSONResponse
 
             return JSONResponse(
                 status_code=401,
-                content={"detail": "Invalid or missing API key"},
+                content={"detail": "Invalid API key"},
                 headers={"WWW-Authenticate": "X-API-Key"},
             )
         response = await call_next(request)
@@ -462,53 +478,36 @@ _permission_policy = get_permission_policy()
 # 必须在最外层（add_middleware 后注册的最后执行最早）
 from pycoder.server.middleware import (  # noqa: E402
     ErrorHandlingMiddleware,
+    ETagCacheMiddleware,
     PerformanceMonitoringMiddleware,
+    RateLimitMiddleware,
+    RequestBodyScannerMiddleware,
+    SecurityHeadersMiddleware,
 )
 
+# 中间件注册顺序（从外到内执行）：
+# 1. ErrorHandling — 捕获所有未处理异常
+# 2. SecurityHeaders — 添加 CSP/X-Frame-Options 等安全头
+# 3. PerformanceMonitoring — 慢请求检测
+# 4. ETagCache — 缓存优化
+# 5. RateLimit — 速率限制（防止滥用）
+# 6. RequestBodyScanner — 请求体 shell 注入扫描
+# 7. APIKeyMiddleware — API 认证
+# 8. CORSMiddleware — CORS 处理
 app.add_middleware(ErrorHandlingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(PerformanceMonitoringMiddleware)
+app.add_middleware(ETagCacheMiddleware)
+app.add_middleware(RateLimitMiddleware)  # BUG-008 修复：替换原简单限流
+app.add_middleware(RequestBodyScannerMiddleware)  # BUG-005 修复
 
 # 始终注册 API 认证中间件（内部根据 _API_KEY 是否为空决定是否生效）
 app.add_middleware(APIKeyMiddleware)
 
-
-# ── 速率限制中间件（防止滥用 /api/code/exec、LLM 调用等）──
-def _create_rate_limit_middleware():
-    """简单内存速率限制：每 IP 每分钟最多 60 次请求"""
-    import time as _time
-    from collections import defaultdict
-
-    _limits: dict = defaultdict(list)
-    _RATE = 60
-    _WINDOW = 60
-
-    class RateLimitMiddleware(BaseHTTPMiddleware):
-        async def dispatch(self, request: Request, call_next):
-            # 只限制敏感端点
-            path = request.url.path
-            if not any(p in path for p in ["/api/code/", "/api/chat", "/api/skills"]):
-                return await call_next(request)
-            client_ip = request.client.host if request.client else "unknown"
-            now = _time.time()
-            _limits[client_ip] = [t for t in _limits[client_ip] if now - t < _WINDOW]
-            if len(_limits[client_ip]) >= _RATE:
-                from fastapi import status
-                from fastapi.responses import JSONResponse
-
-                return JSONResponse(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    content={"detail": "请求过于频繁，请稍后重试", "retry_after": _WINDOW},
-                )
-            _limits[client_ip].append(now)
-            return await call_next(request)
-
-    return RateLimitMiddleware
-
-
-app.add_middleware(_create_rate_limit_middleware())
-
 app.add_middleware(
     CORSMiddleware,
+    # BUG-010 修复：添加通配 regex 支持任意 127.0.0.1 / localhost 端口
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_origins=[
         "http://localhost:8420",
         "http://127.0.0.1:8420",
@@ -516,10 +515,34 @@ app.add_middleware(
         "http://127.0.0.1:8423",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "app://.",  # Electron file:// schema
+        "file://",
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-Request-ID"],
+    # BUG-009 修复：显式添加 HEAD/OPTIONS/PATCH 支持
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-API-Key",
+        "X-Request-ID",
+        "Accept",
+        "Accept-Language",
+        "Content-Language",
+        "X-Requested-With",
+    ],
+    expose_headers=[
+        "X-Request-ID",
+        "X-Response-Time",
+        "X-RateLimit-Limit",
+        "X-RateLimit-Remaining",
+        "X-RateLimit-Reset",
+        "ETag",
+        "Cache-Control",
+    ],
+    max_age=600,  # 浏览器缓存预检结果 10 分钟
 )
 
 # ── 路由注册（阶段 1 架构升级：61 处 include_router 收敛为 1 处）──

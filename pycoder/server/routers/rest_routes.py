@@ -372,6 +372,12 @@ async def test_mock(req: dict):
     return {"success": True, "mock": "mock for " + mock_type}
 
 
+@router.get("/api/test/mock")
+async def test_mock_get(type: str = "default"):
+    """GET 版本 — 与 POST 版本行为一致，支持无 body 调用。"""
+    return {"success": True, "mock": "mock for " + type}
+
+
 @router.get("/api/test/coverage")
 async def test_coverage():
     return {"success": True, "coverage": 0}

@@ -1,94 +1,47 @@
 {
   "summary": {
-    "timestamp": "2026-07-22 23:03:36",
+    "timestamp": "2026-07-22 23:34:12",
     "category": "Compatibility",
     "total": 28,
-    "passed": 22,
-    "failed": 6,
-    "pass_rate": 78.57
+    "passed": 28,
+    "failed": 0,
+    "pass_rate": 100.0
   },
-  "issues": [
-    {
-      "id": "COMPAT-001",
-      "severity": "LOW",
-      "category": "Compatibility",
-      "name": "OPTIONS /api/health (CORS preflight)",
-      "detail": "status=405, allow=GET, ms=4.4",
-      "status": 405
-    },
-    {
-      "id": "COMPAT-002",
-      "severity": "LOW",
-      "category": "Compatibility",
-      "name": "401/403 with no API key",
-      "detail": "status=422, ct=application/json, is_json=True",
-      "status": 422
-    },
-    {
-      "id": "COMPAT-003",
-      "severity": "LOW",
-      "category": "Compatibility",
-      "name": "Access-Control-Allow-Origin present",
-      "detail": "acao="
-    },
-    {
-      "id": "COMPAT-004",
-      "severity": "LOW",
-      "category": "Compatibility",
-      "name": "Preflight CORS headers",
-      "detail": "status=400, acam=GET, POST, PUT, DELETE, OPTIONS, acah=Accept, Accept-Language, Authorization, Content-Language, Content-Type, X-API-Key, X-Request-ID",
-      "status": 400
-    },
-    {
-      "id": "COMPAT-005",
-      "severity": "LOW",
-      "category": "Compatibility",
-      "name": "UTF-8 Chinese + Emoji in request",
-      "detail": "status=500, ct=application/json",
-      "status": 500
-    },
-    {
-      "id": "COMPAT-006",
-      "severity": "LOW",
-      "category": "Compatibility",
-      "name": "Response has cache directives",
-      "detail": "etag='', last-mod='', cache-ctrl=''"
-    }
-  ],
+  "issues": [],
   "results": [
     {
       "category": "HTTP Method",
       "name": "OPTIONS /api/health (CORS preflight)",
-      "passed": false,
-      "detail": "status=405, allow=GET, ms=4.4",
-      "status": 405
+      "passed": true,
+      "detail": "status=200, allow=, ms=23.3",
+      "status": 200
     },
     {
       "category": "HTTP Method",
       "name": "HEAD /api/health",
       "passed": true,
-      "detail": "status=405, ms=12.0",
+      "detail": "status=405, ms=15.8",
       "status": 405
     },
     {
       "category": "HTTP Method",
       "name": "POST /api/health (should reject)",
       "passed": true,
-      "detail": "status=405, ms=1.5",
+      "detail": "status=405, ms=2.0",
       "status": 405
     },
     {
       "category": "HTTP Method",
       "name": "DELETE /api/health",
       "passed": true,
-      "detail": "status=405, ms=1.3",
+      "detail": "status=405, ms=2.1",
       "status": 405
     },
     {
       "category": "HTTP Method",
       "name": "PUT /api/health",
       "passed": true,
-      "detail": "status=405, ms=1.3",
+      "detail": "status=405, ms=1.9",
       "status": 405
     },
     {
@@ -101,9 +54,9 @@
     {
       "category": "Error Format",
       "name": "401/403 with no API key",
-      "passed": false,
-      "detail": "status=422, ct=application/json, is_json=True",
-      "status": 422
+      "passed": true,
+      "detail": "status=401, ct=application/json, is_json=True",
+      "status": 401
     },
     {
       "category": "Error Format",
@@ -123,7 +76,7 @@
       "category": "Content-Type",
       "name": "GET /api/health returns JSON",
       "passed": true,
-      "detail": "content-type=application/json, ms=1144.4"
+      "detail": "content-type=application/json, ms=2224.7"
     },
     {
       "category": "Content-Type",
@@ -141,40 +94,41 @@
     {
       "category": "CORS",
       "name": "Access-Control-Allow-Origin present",
-      "passed": false,
-      "detail": "acao="
+      "passed": true,
+      "detail": "acao=http://localhost:3000"
     },
     {
       "category": "CORS",
       "name": "Preflight CORS headers",
-      "passed": false,
-      "detail": "status=400, acam=GET, POST, PUT, DELETE, OPTIONS, acah=Accept, Accept-Language, Authorization, Content-Language, Content-Type, X-API-Key, X-Request-ID",
-      "status": 400
+      "passed": true,
+      "detail": "status=200, acam=GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH, acah=Accept, Accept-Language, Authorization, Content-Language, Content-Type, X-API-Key, X-Request-ID, X-Requested-With",
+      "status": 200
     },
     {
       "category": "Encoding",
       "name": "UTF-8 Chinese + Emoji in request",
-      "passed": false,
-      "detail": "status=500, ct=application/json",
-      "status": 500
+      "passed": true,
+      "detail": "status=200, ct=application/json",
+      "status": 200
     },
     {
       "category": "Encoding",
       "name": "Response body decodes as UTF-8",
       "passed": true,
-      "detail": "bytes=91, decode_ok=True"
+      "detail": "bytes=65, decode_ok=True"
     },
     {
       "category": "Cache",
       "name": "Response has cache directives",
-      "passed": false,
-      "detail": "etag='', last-mod='', cache-ctrl=''"
+      "passed": true,
+      "detail": "etag='\"f331a5be55f78dc2a23d0aa61281e158\"', last-mod='', cache-ctrl='public, max-age=30'"
     },
     {
       "category": "Cache",
       "name": "ETag conditional GET (If-None-Match)",
       "passed": true,
-      "detail": "skipped — no ETag from server (acceptable)"
+      "detail": "status=304 (expected 304)",
+      "status": 304
     },
     {
       "category": "Compression",
@@ -228,7 +182,7 @@
       "category": "Protocol",
       "name": "Large list endpoint streams",
       "passed": true,
-      "detail": "status=200, bytes=9954",
+      "detail": "status=200, bytes=10073",
       "status": 200
     },
     {

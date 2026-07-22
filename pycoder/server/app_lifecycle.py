@@ -33,12 +33,19 @@ def run_server(host: str = "127.0.0.1", port: int = 8423, reload: bool = False):
 
     import uvicorn
 
+    # BUG-007 修复：限制 Header 大小，防止大 header 攻击
+    # 单个 header 最大 8KB，总 header 限制 64KB
     uvicorn.run(
         "pycoder.server.app:app",
         host=host,
         port=port,
         reload=reload,
         log_level="info",
+        # h11 协议层限制（uvicorn 基于 h11）
+        h11_max_incomplete_event_size=64 * 1024,  # 64KB
+        # 限制请求体大小（防止大 payload DoS）
+        limit_max_requests=10000,  # 单进程最大请求数（触发优雅重启）
+        timeout_keep_alive=30,
     )
 
 
