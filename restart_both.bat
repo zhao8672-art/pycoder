@@ -8,9 +8,8 @@ for /d /r . %%d in (__pycache__) do @if exist "%%d" rd /s /q "%%d" 2>nul
 del /s /q *.pyc >nul 2>&1
 
 set PYCODER_CLOUD_JWT_SECRET=local-dev-jwt-2026
-set PYCODER_API_KEY=REDACTED-PYCODER-API-KEY
-set DEEPSEEK_API_KEY=sk-REDACTED-DEEPSEEK
-set AGNES_API_KEY=sk-REDACTED-AGNES
+REM API keys are loaded from %USERPROFILE%\.pycoder\.env and config.json automatically
+REM Do NOT hardcode API keys here - see .env.example for required variables
 
 start "PyCoderBackend" /B .venv\Scripts\python.exe -m uvicorn pycoder.server.app:app --host 127.0.0.1 --port 8423 --log-level error > backend.log 2>&1
 

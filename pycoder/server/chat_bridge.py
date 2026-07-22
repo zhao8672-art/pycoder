@@ -137,6 +137,9 @@ class ChatBridge:
         self._messages: list[dict] = []
         self._rumination_count = 0  # P1-1: 反思轮次计数
         self._nlu_cache: dict[str, object] | None = None  # P0-1: NLU 结果缓存
+        self._read_file_cache: dict[str, str] = {}  # 文件读取缓存（避免重复读取）
+        self._guard_cache: dict[str, float] = {}  # 幻觉验证缓存
+        self._repeating_round_count: int = 0  # 连续重复轮次计数
 
     async def chat(self, prompt: str, *, max_tokens: int = 1000) -> str:
         """简单同步聊天 — 供自进化引擎等内部组件使用，内置 Provider 降级"""
@@ -415,7 +418,7 @@ class ChatBridge:
         try:
             from pycoder.ai.nlu.composite_nlu import CompositeNLUEngine
             _nlu = CompositeNLUEngine()
-            _result = _nlu.understand(message)
+            _result = await _nlu.understand(message)
             self._nlu_cache = dict(intent=_result, category=_result.task_category)
 
             # 根据 NLU 分类动态调整
@@ -937,7 +940,36 @@ class ChatBridge:
                 except json.JSONDecodeError:
                     tool_args = {}
 
-                yield ChatEvent(event_type="token", content=f"\n\n🔧 执行 {tool_name}...\n")
+                # ── 文件读取缓存（避免重复读取相同文件）──
+                _skip_tool = False
+                if tool_name == "file_read":
+                    _fp = tool_args.get("path", "")
+                    if _fp in self._read_file_cache:
+                        result_str = json.dumps({
+                            "content": self._read_file_cache[_fp][:2000],
+                            "(已缓存)": True,
+                            "path": _fp,
+                        }, ensure_ascii=False, indent=2)
+                        yield ChatEvent(
+                            event_type="token",
+                            content=f"📋 {tool_name} (缓存): 📁 {_fp} 已缓存\n",
+                        )
+                        self._repeating_round_count += 1
+                        _skip_tool = True
+                    else:
+                        # 标记为待缓存
+                        pass
+
+                if not _skip_tool:
+                    yield ChatEvent(event_type="token", content=f"\n\n🔧 执行 {tool_name}...\n")
+                else:
+                    # 跳过重复工具的执行，直接注入结果
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc["id"],
+                        "content": result_str,
+                    })
+                    continue  # 跳过完整执行路径
                 logger.info(
                     "mcp_tool_call_from_ai round=%d tool=%s args=%s",
                     round_num + 1,
@@ -1011,6 +1043,17 @@ class ChatBridge:
                 except Exception as e:
                     result_str = json.dumps({"error": str(e)[:500]}, ensure_ascii=False)
 
+                # ── 文件读取缓存（成功读取后缓存内容）──
+                if tool_name == "file_read" and not result_str.startswith("{") or ("\"success\": true" in result_str):
+                    try:
+                        _parsed = json.loads(result_str)
+                        _content = _parsed.get("content", "") or _parsed.get("data", {}).get("content", "")
+                        _fp2 = _parsed.get("path", "") or tool_args.get("path", "")
+                        if _content and _fp2:
+                            self._read_file_cache[_fp2] = _content[:3000]
+                    except (json.JSONDecodeError, AttributeError, TypeError, ValueError):
+                        pass
+
                 yield ChatEvent(
                     event_type="token",
                     content=f"📋 {tool_name} 结果:\n```json\n{result_str}\n```\n\n",
@@ -1026,7 +1069,16 @@ class ChatBridge:
 
             logger.info("tool_round_complete round=%d tools=%d", round_num + 1, len(tool_calls))
 
-            # ── P0-2: 幻觉抑制 — 工具结果验证 ──
+            # ── 检测重复循环（连续重复读取3次以上）──
+            if self._repeating_round_count >= 3 and round_num > 2:
+                logger.warning("early_termination repeating=%d round=%d",
+                    self._repeating_round_count, round_num + 1)
+                messages.append({"role": "system", "content": (
+                    "⚠️ 检测到重复操作，请直接输出当前结果报告，不要再调用工具。"
+                )})
+                self._repeating_round_count = 0
+
+            # ── P0-2: 幻觉抑制 — 工具结果验证（含缓存）──
             if force_tools and result_str and len(result_str) > 100:
                 try:
                     from pycoder.server.services.hallucination_guard import get_hallucination_guard

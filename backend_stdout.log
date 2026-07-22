@@ -1,0 +1,249 @@
+API 认证已启用（来自 PYCODER_API_KEY 环境变量）
+llm_api_keys_detected: deepseek
+chromadb 未安装，向量搜索将回退到 SQLite 模式
+封闭学习循环数据库已初始化: C:\Users\Administrator\.pycoder\learning\closed_loop.db
+PyCoder v0.5.0 — V2 AI-Centric Engine
+recommendation_db_tables_created at C:\Users\Administrator/.pycoder/pycoder.db
+sandbox_docker_selected
+memory_bank_initialized empty=true
+di_container_initialized: ['CodeSandbox', 'FileSystem', 'LLMProvider']
+env_tool_version_low: name=npm, version=unknown
+env_tool_optional_missing: name=clangd
+env_tool_optional_missing: name=jdtls
+env_tool_optional_missing: name=gopls
+env_tool_optional_missing: name=typescript-language-server
+初始化 Pycoder V2 引擎...
+注册编辑器能力...
+注册系统能力...
+注册自进化能力...
+加载进化历史: 5 条记录
+自我进化引擎已初始化 (LLM=ready)
+注册跨工作区能力...
+注册浏览器增强能力...
+注册知识更新能力...
+注册多语言 LSP 能力...
+注册环境工具能力...
+注册智能 IO 能力...
+注册会话记忆能力...
+注册通知与任务调度能力...
+注册多平台消息网关能力...
+网关能力已注册到 V2 总线: 4 个能力
+注册 Docker 沙箱执行能力...
+沙箱执行器能力已注册到 V2 总线
+注册深度记忆系统能力...
+deep_memory_capabilities_registered chroma_available=False
+注册幻觉抑制能力...
+幻觉守卫能力已注册: 4 个能力
+注册闭环验证引擎能力...
+闭环验证引擎能力已注册到 V2 总线: 5 个能力
+注册 DAG 并行任务调度能力...
+DAG 调度器能力已注册: 5 个能力
+注册任务难度分级能力...
+任务难度评估能力已注册: 2 个能力
+注册任务持久化能力...
+任务持久化能力已注册到 V2 总线: 7 个能力
+注册进化报告生成能力...
+进化报告能力已注册: 2 个能力
+注册技能市场能力...
+技能市场能力已注册
+注册 MCP 协议适配能力...
+MCP 协议适配器能力已注册（7 个能力）
+注册专业 Agent 团队能力...
+Agent 团队能力已注册（4 个能力）
+注册闭环学习循环能力...
+封闭学习循环能力已注册: 5 个能力
+注册多模态感知能力...
+pytesseract 未安装，OCR 文字提取不可用。请执行: pip install pytesseract
+多模态感知能力注册失败: type object 'SideEffect' has no attribute 'LLM_CALL'
+意识引擎模式: idle → aware
+意识引擎已启动: mode=aware memories=1
+V1 工具迁移完成: 48 tools
+V2 引擎初始化完成 — 179 个能力已注册, 信任级别: FULL_AUTONOMY
+v2_engine_initialized: capabilities=179 trust=FULL_AUTONOMY
+plugin_registry_initialized: plugins=1
+scheduler_started: 4 tasks registered (skills×2, extensions×2)
+INFO:     127.0.0.1:1417 - "GET /api/health HTTP/1.1" 200 OK
+bootstrap_key provider=deepseek prefix=sk-15fb33719...90db
+bootstrap_key provider=agnes prefix=sk-scS4V3pNV...PAZ4
+bootstrap_complete providers=['deepseek', 'agnes']
+request: GET /api/models status=200 duration=2.5ms request_id=d757e416
+INFO:     127.0.0.1:1417 - "GET /api/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1829 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1847 - "GET /api/health HTTP/1.1" 200 OK
+request: GET /api/env status=200 duration=1656.2ms request_id=1e0ba75d
+request: GET /api/git/status status=200 duration=529.3ms request_id=2c8ad7df
+request: GET /api/sessions status=200 duration=529.5ms request_id=379ea7c7
+SLOW_REQUEST: GET /api/env duration=1658.1ms status=200
+request: GET /api/models status=200 duration=1.5ms request_id=c6112683
+SLOW_REQUEST: GET /api/git/status duration=1658.2ms status=200
+SLOW_REQUEST: GET /api/sessions duration=1658.3ms status=200
+INFO:     127.0.0.1:1847 - "GET /api/env HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1862 - "GET /api/git/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1863 - "GET /api/sessions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1864 - "GET /api/models HTTP/1.1" 200 OK
+request: GET /api/files/workspace/restore status=200 duration=1.6ms request_id=feb1a588
+INFO:     127.0.0.1:1864 - "GET /api/files/workspace/restore HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8409 - "GET /api/health HTTP/1.1" 200 OK
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+token_usage_recorded input=990 output=284 session_total=1274 hourly_total=1274
+INFO:     127.0.0.1:8601 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2261 - "GET /api/health HTTP/1.1" 200 OK
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:5115 - "GET /api/health HTTP/1.1" 200 OK
+token_usage_recorded input=1282 output=312 session_total=2868 hourly_total=2868
+INFO:     127.0.0.1:9604 - "GET /api/health HTTP/1.1" 200 OK
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+token_usage_recorded input=1598 output=432 session_total=4898 hourly_total=4898
+INFO:     127.0.0.1:10051 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10204 - "GET /api/health HTTP/1.1" 200 OK
+任务难度评估: level=LIGHT score=19.5 max_iter=7 task=彻底解决这个问题，我要看你执行任务的过程
+skills_loaded_from_registry count=22 path=C:\Users\Administrator\Desktop\pycode\.skills-registry-enhanced.json
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=1 tool=file_read args={'path': '.gitignore'}
+tool_round_complete round=1 tools=1
+幻觉验证完成: 评分=40.0/100 | 耗时=2030.9ms | 声明=4
+INFO:     127.0.0.1:10343 - "GET /api/health HTTP/1.1" 200 OK
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=2 tool=file_read args={'path': 'pyproject.toml'}
+tool_round_complete round=2 tools=1
+幻觉验证完成: 评分=85.0/100 | 耗时=543.4ms | 声明=14
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:10343 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=3 tool=file_read args={'path': 'README.md'}
+tool_round_complete round=3 tools=1
+幻觉验证完成: 评分=70.0/100 | 耗时=2.1ms | 声明=2
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=4 tool=file_read args={'path': 'requirements.txt'}
+tool_round_complete round=4 tools=1
+幻觉验证完成: 评分=65.0/100 | 耗时=571.8ms | 声明=3
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:10343 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10539 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10610 - "GET /api/health HTTP/1.1" 200 OK
+token_usage_recorded input=26086 output=1985 session_total=32969 hourly_total=32969
+幻觉验证完成: 评分=80.0/100 | 耗时=608.6ms | 声明=6
+INFO:     127.0.0.1:10672 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10672 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10784 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10862 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10862 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10862 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11041 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11097 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11097 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11097 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11299 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11383 - "GET /api/health HTTP/1.1" 200 OK
+任务难度评估: level=LIGHT score=18.5 max_iter=7 task=修复发现的问题
+skills_loaded_from_registry count=22 path=C:\Users\Administrator\Desktop\pycode\.skills-registry-enhanced.json
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:11383 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=1 tool=file_read args={'path': '.gitignore'}
+mcp_tool_call_from_ai round=1 tool=file_read args={'path': 'pyproject.toml'}
+mcp_tool_call_from_ai round=1 tool=file_read args={'path': 'README.md'}
+mcp_tool_call_from_ai round=1 tool=file_read args={'path': 'requirements.txt'}
+tool_round_complete round=1 tools=4
+幻觉验证完成: 评分=65.0/100 | 耗时=618.0ms | 声明=3
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:11499 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=2 tool=file_list args={'path': '.'}
+mcp_tool_call_from_ai round=2 tool=file_read args={'path': 'pyproject.toml'}
+mcp_tool_call_from_ai round=2 tool=file_read args={'path': 'requirements.txt'}
+tool_round_complete round=2 tools=3
+幻觉验证完成: 评分=65.0/100 | 耗时=670.6ms | 声明=3
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:11574 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=3 tool=file_list args={'path': '.github'}
+mcp_tool_call_from_ai round=3 tool=search_quick_open args={'query': 'LICENSE'}
+mcp_tool_call_from_ai round=3 tool=file_list args={'path': 'requirements'}
+tool_round_complete round=3 tools=3
+幻觉验证完成: 评分=100.0/100 | 耗时=3033.6ms | 声明=6
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:1561 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1561 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8425 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11783 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=4 tool=file_write args={'path': 'LICENSE', 'content': '\n                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   T
+tool_round_complete round=4 tools=1
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:11868 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=5 tool=file_read args={'path': 'pyproject.toml'}
+tool_round_complete round=5 tools=1
+幻觉验证完成: 评分=85.0/100 | 耗时=601.5ms | 声明=14
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:11941 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=6 tool=file_write args={'path': 'pyproject.toml', 'content': '[project]\nname = "pycoder"\ndescription = "PyCoder - Native AI Coding Agent for Python Developers"\nauthors = [\n    { name = "PyCoder Team", email = "team@pyco
+tool_round_complete round=6 tools=1
+INFO:     127.0.0.1:12020 - "GET /api/health HTTP/1.1" 200 OK
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=7 tool=testing_generate_pipeline args={'project_type': 'python-app', 'platform': 'github-actions'}
+tool_round_complete round=7 tools=1
+幻觉验证完成: 评分=55.0/100 | 耗时=618.9ms | 声明=7
+INFO:     127.0.0.1:12099 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12199 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12284 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12360 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12464 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12545 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12650 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5745 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5813 - "GET /api/health HTTP/1.1" 200 OK
+任务难度评估: level=LIGHT score=18.5 max_iter=7 task=修复发现的问题
+skills_loaded_from_registry count=22 path=C:\Users\Administrator\Desktop\pycode\.skills-registry-enhanced.json
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:5889 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=1 tool=file_read args={'path': '.gitignore'}
+mcp_tool_call_from_ai round=1 tool=file_read args={'path': 'pyproject.toml'}
+mcp_tool_call_from_ai round=1 tool=file_read args={'path': 'README.md'}
+mcp_tool_call_from_ai round=1 tool=file_read args={'path': 'requirements.txt'}
+tool_round_complete round=1 tools=4
+幻觉验证完成: 评分=65.0/100 | 耗时=664.9ms | 声明=3
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:5962 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6050 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=2 tool=shell_run_terminal args={'command': 'wc -l pyproject.toml && tail -5 pyproject.toml'}
+mcp_tool_call_from_ai round=2 tool=shell_run_terminal args={'command': 'ls -la LICENSE 2>/dev/null || echo "LICENSE 文件不存在"'}
+mcp_tool_call_from_ai round=2 tool=shell_run_terminal args={'command': 'ls -la .github/workflows/ 2>/dev/null || echo ".github/workflows/ 目录不存在"'}
+mcp_tool_call_from_ai round=2 tool=git_status args={}
+tool_round_complete round=2 tools=4
+幻觉验证完成: 评分=100.0/100 | 耗时=0.5ms | 声明=1
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=3 tool=shell_run_terminal args={'command': 'Get-Content pyproject.toml -Tail 10'}
+INFO:     127.0.0.1:6107 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=3 tool=shell_run_terminal args={'command': 'if (Test-Path LICENSE) { "LICENSE 存在: " + (Get-Item LICENSE).Length + " 字节" } else { "LICENSE 不存在" }'}
+mcp_tool_call_from_ai round=3 tool=shell_run_terminal args={'command': 'if (Test-Path .github/workflows) { Get-ChildItem .github/workflows | Select-Object Name } else { ".github/workflows 不存在" }'}
+tool_round_complete round=3 tools=3
+幻觉验证完成: 评分=70.0/100 | 耗时=1154.1ms | 声明=2
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:6114 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=4 tool=shell_run_terminal args={'command': 'Select-String -Path pyproject.toml -Pattern "\\[tool\\.mypy\\]" -SimpleMatch'}
+mcp_tool_call_from_ai round=4 tool=shell_run_terminal args={'command': 'Get-Content .github/workflows/ci.yml -Head 30'}
+mcp_tool_call_from_ai round=4 tool=shell_run_terminal args={'command': 'Get-Content .github/workflows/security-scan.yml -Head 30'}
+tool_round_complete round=4 tools=3
+幻觉验证完成: 评分=70.0/100 | 耗时=1257.4ms | 声明=2
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:6137 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=5 tool=file_read args={'path': 'pyproject.toml'}
+tool_round_complete round=5 tools=1
+幻觉验证完成: 评分=85.0/100 | 耗时=560.8ms | 声明=14
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:6137 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6137 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6181 - "GET /api/health HTTP/1.1" 200 OK
+mcp_tool_call_from_ai round=6 tool=file_write args={'path': 'pyproject.toml', 'content': '[project]\nname = "pycoder"\ndescription = "PyCoder - Native AI Coding Agent for Python Developers"\nauthors = [\n    { name = "PyCoder Team", email = "team@pyco
+tool_round_complete round=6 tools=1
+HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+mcp_tool_call_from_ai round=7 tool=shell_run_terminal args={'command': 'Get-Content pyproject.toml -Tail 25'}
+tool_round_complete round=7 tools=1
+幻觉验证完成: 评分=100.0/100 | 耗时=0.5ms | 声明=0
+INFO:     127.0.0.1:6189 - "GET /api/health HTTP/1.1" 200 OK
+幻觉验证完成: 评分=70.0/100 | 耗时=1185.1ms | 声明=6
+INFO:     127.0.0.1:6189 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6224 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6234 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6234 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6234 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6234 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6234 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14197 - "GET /api/health HTTP/1.1" 200 OK
+[2m2026-07-22T14:23:59.875761Z[0m [[32m[1minfo     [0m] [1mws_v2_disconnect              [0m [[0m[1m[34mpycoder[0m][0m [36mextra[0m=[35m{'session_id': 'ed618a1d-56cf-4fa6-bd5c-b7092c4d5f88'}[0m
