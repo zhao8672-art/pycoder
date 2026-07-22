@@ -31,6 +31,9 @@ import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+
+_logger = logging.getLogger('pycoder.server.services.unified_entry')
+
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -336,6 +339,7 @@ class UnifiedEntryAgent:
         if mentioned_files:
             try:
                 from pathlib import Path as _P2
+
                 from pycoder.server.routers.files import get_workspace_root
                 work_dir = _P2(get_workspace_root())
                 for mf in mentioned_files[:5]:
@@ -346,7 +350,8 @@ class UnifiedEntryAgent:
                             f"\n## 文件 {mf}\n"
                             f"```\n{content[:1000]}\n```\n"
                         )
-            except Exception:
+            except Exception as e:
+                _logger.warning("silently_swallowed: {err}", exc_info=False)
                 pass
 
         # ── 上下文管理：任务追踪 + 偏离检测 ──
@@ -480,11 +485,11 @@ class UnifiedEntryAgent:
         success = False
 
         try:
+            from pycoder.server.chat_bridge import ChatBridge
             from pycoder.server.services.execution_pipeline import (
                 ExecutionPipeline,
                 get_execution_config,
             )
-            from pycoder.server.chat_bridge import ChatBridge
 
             config = get_execution_config(mode_name)
             bridge = ChatBridge()

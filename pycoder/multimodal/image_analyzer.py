@@ -7,6 +7,9 @@
 from __future__ import annotations
 
 import logging
+
+_logger = logging.getLogger('pycoder.multimodal.image_analyzer')
+
 from io import BytesIO
 
 logger = logging.getLogger(__name__)
@@ -45,14 +48,16 @@ class ImageAnalyzer:
             r, g, b = stat.mean[:3]
             result["has_red_tint"] = r > 200 and g < 100
             result["has_yellow_tint"] = r > 200 and g > 180 and b < 100
-        except Exception:
+        except Exception as e:
+            _logger.warning("silently_swallowed: {err}", exc_info=False)
             pass
 
         # 估算 DPI
         try:
             dpi = img.info.get("dpi", (72, 72))
             result["dpi"] = dpi
-        except Exception:
+        except Exception as e:
+            _logger.warning("silently_swallowed: {err}", exc_info=False)
             pass
 
         return result
@@ -67,5 +72,6 @@ class ImageAnalyzer:
             if img.width > 800 and img.height > 400:
                 return True
             return False
-        except Exception:
+        except Exception as e:
+            _logger.warning("silently_swallowed: {err}", exc_info=False)
             return False

@@ -7,6 +7,9 @@
 from __future__ import annotations
 
 import logging
+
+_logger = logging.getLogger('pycoder.multimodal.ocr_engine')
+
 from io import BytesIO
 
 logger = logging.getLogger(__name__)
@@ -39,7 +42,8 @@ class OCREngine:
         try:
             from PIL import Image
             img = Image.open(BytesIO(image_data))
-        except Exception:
+        except Exception as e:
+            _logger.warning("silently_swallowed: {err}", exc_info=False)
             return ""
 
         # Layer 1: Tesseract (0.5-2s)

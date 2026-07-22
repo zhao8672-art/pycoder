@@ -7,10 +7,12 @@ MCP Tool 注册表 — 向后兼容 Shim
 
 from __future__ import annotations
 
+import logging
 import warnings
 from dataclasses import dataclass
 from typing import Any
 
+_logger = logging.getLogger('pycoder.server.mcp_tools')
 from pycoder.server.log import log
 
 warnings.warn(
@@ -90,7 +92,8 @@ async def call_builtin_tool(name: str, args: dict) -> MCPCallResult:
                     output=getattr(result, "data", result),
                     tool=name,
                 )
-        except Exception:
+        except Exception as e:
+            _logger.warning("silently_swallowed: {err}", exc_info=False)
             continue
     return MCPCallResult(success=False, error=f"工具 {name} 未注册", tool=name)
 
@@ -139,7 +142,8 @@ class MCPClientManager:
         if server:
             try:
                 await server["session"].__aexit__(None, None, None)
-            except Exception:
+            except Exception as e:
+                _logger.warning("silently_swallowed: {err}", exc_info=False)
                 pass
             return True
         return False

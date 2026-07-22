@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from pathlib import Path
@@ -9,6 +10,8 @@ from typing import Any
 
 from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, ExecutionMode, SideEffect
 from pycoder.capabilities.permissions import TOOL_PERMISSIONS
+
+_logger = logging.getLogger('pycoder.capabilities.tools.env')
 from pycoder.capabilities.degradation import wrap_handler
 
 _CT = CapabilityCategory.SYSTEM
@@ -88,7 +91,8 @@ async def _handle_docker_status(params: dict, context: dict) -> dict:
 
         backend = get_docker_backend()
         return await backend.get_status()
-    except Exception:
+    except Exception as e:
+        _logger.warning("silently_swallowed: {err}", exc_info=False)
         return {
             "available": False,
             "reason": "Docker 未安装或不可用",

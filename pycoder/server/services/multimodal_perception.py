@@ -20,6 +20,9 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
+
+_logger = logging.getLogger('pycoder.server.services.multimodal_perception')
+
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -242,7 +245,8 @@ class ImageAnalyzer:
                 if val is not None:
                     result[name] = str(val)
             return result
-        except Exception:
+        except Exception as e:
+            _logger.warning("silently_swallowed: {err}", exc_info=False)
             return {}
 
     def _analyze_colors(self, img: Image.Image) -> dict[str, Any]:
@@ -250,7 +254,8 @@ class ImageAnalyzer:
         if img.mode not in ("RGB", "RGBA"):
             try:
                 img = img.convert("RGB")
-            except Exception:
+            except Exception as e:
+                _logger.warning("silently_swallowed: {err}", exc_info=False)
                 return {"error": "无法转换为 RGB 模式"}
 
         try:
@@ -1217,7 +1222,8 @@ class UIElementDetector:
                 img = Image.open(path)
                 screen_size = {"width": img.width, "height": img.height}
                 img.close()
-            except Exception:
+            except Exception as e:
+                _logger.warning("silently_swallowed: {err}", exc_info=False)
                 pass
 
         if use_vision:

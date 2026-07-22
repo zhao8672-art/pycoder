@@ -25,77 +25,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from pycoder import __version__
 from pycoder.server.app_lifecycle import run_server
 from pycoder.server.permission_policy import get_permission_policy
-from pycoder.server.routers.advanced_api import (
-    collab_ws_router,
-    debug_router,
-    rules_router,
-    scheduler_router,
-)
-from pycoder.server.routers.autonomous_api import router as autonomous_router
-from pycoder.server.routers.autonomous_api import ws_router as autonomous_ws_router
-from pycoder.server.routers.browser_ai import router as browser_ai_router
-from pycoder.server.routers.chat_routes import router as chat_router
-from pycoder.server.routers.cloud_api import router as cloud_api_router
-from pycoder.server.routers.code_exec import router as code_exec_router
-from pycoder.server.routers.config import router as config_router
-from pycoder.server.routers.context import router as context_router
-from pycoder.server.routers.dep_api import router as dep_api_router
-from pycoder.server.routers.diff import router as diff_router
-from pycoder.server.routers.diff_list import router as diff_list_router
-from pycoder.server.routers.env_api import router as env_api_router
-from pycoder.server.routers.extensions import router as extensions_router
-from pycoder.server.routers.file_transfer import router as file_transfer_router
-from pycoder.server.routers.files import router as files_router
-from pycoder.server.routers.format_api import router as format_router
-from pycoder.server.routers.git import router as git_router
-from pycoder.server.routers.github import router as github_router
-from pycoder.server.routers.health import router as health_router
-from pycoder.server.routers.integrations_api import (
-    chart_router,
-    dep_router,
-    openapi_router,
-    runtime_router,
-    undo_router,
-)
-from pycoder.server.routers.knowledge_api import router as knowledge_api_router
-from pycoder.server.routers.memory_api import router as memory_api_router
-from pycoder.server.routers.notify_api import router as notify_api_router
-from pycoder.server.routers.notify_api import ws_router as notify_ws_router
-from pycoder.server.routers.pipeline import router as pipeline_router
-from pycoder.server.routers.recommendation_api import router as recommendation_router
-from pycoder.server.routers.refactor_api import router as refactor_router
-from pycoder.server.routers.rest_routes import router as rest_router
-from pycoder.server.routers.scaffold_api import router as scaffold_router
-from pycoder.server.routers.search import router as search_router
-
-# Phase 2+3: 新 API 路由
-from pycoder.server.routers.session_search import router as session_search_router
-from pycoder.server.routers.skills_api_v2 import router as skills_api_v2_router
-from pycoder.server.routers.team_api import router as team_router
-from pycoder.server.routers.terminal import router as terminal_router
-from pycoder.server.routers.v2 import router as v2_router
-from pycoder.server.routers.v2.evolution import router as v2_evolution_router
-from pycoder.server.routers.v2.evolution import ws_router as v2_evolution_ws_router
-from pycoder.server.routers.visualize import router as visualize_router
-
-# 系统能力升级: 新增模块 API 路由
-from pycoder.server.routers.workspace_api import router as workspace_api_router
-
-# Phase 1 升级: 新增核心能力 API 路由
-from pycoder.server.routers.deep_memory_api import router as deep_memory_router
-from pycoder.server.routers.gateway_api import router as gateway_router
-from pycoder.server.routers.gateway_api import ws_router as gateway_ws_router
-from pycoder.server.routers.guard_api import router as guard_router
-from pycoder.server.routers.sandbox_api import router as sandbox_router
-from pycoder.server.routers.dag_api import router as dag_router
-from pycoder.server.routers.task_api import router as task_api_router
-from pycoder.server.routers.report_api import router as report_router
-from pycoder.server.routers.skills_marketplace_api import router as skills_marketplace_router
-from pycoder.server.routers.agents_api import router as agents_router
-from pycoder.server.routers.learning_api import router as learning_router
-from pycoder.server.routers.web_routes import router as web_router
-from pycoder.server.routers.media_routes import router as media_router
-from pycoder.server.routers.mcp_routes import router as mcp_router
+from pycoder.server.router_groups import register_router_groups
 from pycoder.server.ws_handler import websocket_chat
 from pycoder.server.ws_handler_v2 import websocket_chat_v2
 
@@ -528,6 +458,16 @@ app = FastAPI(
 # 加载权限策略并在启动时缓存
 _permission_policy = get_permission_policy()
 
+# ── 阶段 2 架构升级：统一错误处理中间件 ──
+# 必须在最外层（add_middleware 后注册的最后执行最早）
+from pycoder.server.middleware import (  # noqa: E402
+    ErrorHandlingMiddleware,
+    PerformanceMonitoringMiddleware,
+)
+
+app.add_middleware(ErrorHandlingMiddleware)
+app.add_middleware(PerformanceMonitoringMiddleware)
+
 # 始终注册 API 认证中间件（内部根据 _API_KEY 是否为空决定是否生效）
 app.add_middleware(APIKeyMiddleware)
 
@@ -582,87 +522,9 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-Request-ID"],
 )
 
-# ── 路由注册 ──
-# 健康检查直接挂载（无版本前缀）
-app.include_router(health_router)
-
-# 工具类路由（各 router 已在自身定义 /api/* 路径前缀）
-app.include_router(files_router)
-app.include_router(terminal_router)
-app.include_router(diff_router)
-app.include_router(diff_list_router)
-app.include_router(git_router)
-app.include_router(search_router)
-app.include_router(code_exec_router, prefix="/api/code")
-app.include_router(visualize_router)
-
-# 核心服务
-app.include_router(config_router)
-app.include_router(chat_router)
-app.include_router(rest_router)
-app.include_router(context_router)
-app.include_router(extensions_router)
-
-# AI/进化
-app.include_router(browser_ai_router)
-
-# 业务模块
-app.include_router(skills_api_v2_router)
-app.include_router(cloud_api_router)
-app.include_router(recommendation_router)
-app.include_router(github_router)
-app.include_router(team_router)
-app.include_router(file_transfer_router)
-app.include_router(pipeline_router)
-app.include_router(scaffold_router)
-app.include_router(refactor_router)
-app.include_router(openapi_router)
-app.include_router(chart_router)
-app.include_router(runtime_router)
-app.include_router(dep_router)
-app.include_router(undo_router)
-app.include_router(scheduler_router)
-app.include_router(rules_router)
-app.include_router(debug_router)
-app.include_router(format_router)  # 代码格式化 (Ctrl+S)
-app.include_router(autonomous_router)  # 全自主开发流水线 API
-app.include_router(v2_router)  # V2 API (进化/能力/健康)
-app.include_router(v2_evolution_router)  # V2 进化 API (完整端点)
-app.include_router(v2_evolution_ws_router)  # V2 进化 WebSocket
-
-# Phase 2+3: 新 API 路由
-app.include_router(session_search_router)
-app.include_router(dep_api_router)
-app.include_router(env_api_router)
-
-# 系统能力升级: 新增模块 API 路由
-app.include_router(workspace_api_router)
-app.include_router(knowledge_api_router)
-app.include_router(memory_api_router)
-app.include_router(notify_api_router)
-app.include_router(notify_ws_router)  # WebSocket 通知端点
-
-# ── Phase 1 升级: 新增核心能力 API 路由 ──
-app.include_router(gateway_router)  # 多平台消息网关
-app.include_router(gateway_ws_router)  # 网关 WebSocket
-app.include_router(sandbox_router)  # Docker 沙箱执行
-app.include_router(deep_memory_router)  # 深度记忆系统
-app.include_router(guard_router)  # 幻觉抑制守卫
-
-# ── Phase 2-3 升级: 新增核心能力 API 路由 ──
-app.include_router(dag_router)  # DAG 并行任务调度
-app.include_router(task_api_router)  # 任务评分与持久化
-app.include_router(report_router)  # 进化报告生成
-app.include_router(skills_marketplace_router)  # 技能市场
-app.include_router(agents_router)  # 专业 Agent 团队
-app.include_router(learning_router)  # 闭环学习循环
-app.include_router(web_router)  # 联网搜索
-app.include_router(media_router)  # 多模态图片分析
-app.include_router(mcp_router)  # MCP 工具生态
-
-# WebSocket（独立挂载）
-app.include_router(collab_ws_router)
-app.include_router(autonomous_ws_router)
+# ── 路由注册（阶段 1 架构升级：61 处 include_router 收敛为 1 处）──
+# 详见 pycoder.server.router_groups
+register_router_groups(app)
 
 # ── Skills Market REST API ──
 

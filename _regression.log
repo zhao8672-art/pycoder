@@ -1,0 +1,65 @@
+======================================================================
+阶段 0 改造后回归验证
+改动：
+  - pycoder/__init__.py 移除 subprocess monkey-patch 副作用（移到 pycoder._compat.popen）
+  - pycoder/server/__init__.py 改为 PEP 562 lazy import（消除模块加载时循环触发器）
+  - 创建 pycoder/_compat/ 包承载懒加载补丁
+======================================================================
+tests/test_di.py
+  exit=0 | 30 passed in 0.08s
+tests/test_registry.py
+  exit=0 | 9 passed in 0.05s
+tests/test_chat_routes_coverage.py
+  exit=0 | 11 passed in 0.14s
+tests/test_session_store.py
+  exit=0 | 9 passed in 0.08s
+tests/test_workspace.py
+  exit=0 | 15 passed in 0.13s
+tests/test_browser.py
+  exit=0 | 13 passed in 0.05s
+tests/test_health_api.py
+  exit=0 | 4 passed, 4 warnings in 13.28s
+tests/test_capabilities_permissions.py
+  exit=0 | 36 passed in 0.08s
+tests/test_capabilities_degradation.py
+  exit=0 | 16 passed in 0.08s
+tests/test_ai_modules.py
+  exit=0 | 30 passed in 0.11s
+tests/test_bus_capabilities_modules.py
+  exit=0 | 138 passed in 0.56s
+tests/test_safety_audit.py
+  exit=0 | 38 passed in 0.11s
+tests/test_safety_rollback.py
+  exit=0 | 21 passed in 0.19s
+tests/test_safety_permission.py
+  exit=0 | 33 passed in 0.56s
+tests/architecture/test_clean_architecture.py
+  exit=0 | 26 passed in 2.21s
+tests/architecture/test_no_bare_except.py
+  exit=0 | 8 passed in 0.06s
+tests/architecture/test_path_validation_m8.py
+  exit=0 | 417 passed in 1.00s
+tests/architecture/test_team_orchestrator_split.py
+  exit=0 | 23 passed in 0.17s
+tests/architecture/test_chat_bridge_m5.py
+  exit=0 | 12 passed in 0.12s
+tests/architecture/test_git_router_h7.py
+  exit=0 | 23 passed in 0.12s
+tests/architecture/test_tool_calls_json_schema.py
+  exit=0 | 20 passed in 0.18s
+tests/security/test_api_auth_strong.py
+  exit=0 | 10 passed, 4 warnings in 6.76s
+tests/security/test_p3_security_fixes.py
+  exit=0 | 14 passed, 1 warning in 1.39s
+tests/security/test_install_packages_async.py
+  exit=0 | RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+tests/security/test_evolution_rollback.py
+  exit=1 | 8 failed, 1 passed in 0.17s
+tests/security/test_self_evolution_async.py
+  exit=0 | 7 skipped in 0.04s
+tests/security/test_code_run_security.py
+  exit=0 | 18 passed, 1 warning in 3.61s
+
+======================================================================
+汇总：passed=975, failed=8
+======================================================================

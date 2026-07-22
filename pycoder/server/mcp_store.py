@@ -14,6 +14,9 @@ import logging
 import os
 import sqlite3
 import time
+
+_logger = logging.getLogger('pycoder.server.mcp_store')
+
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -131,7 +134,8 @@ class MCPStore:
             self._db.execute("DELETE FROM mcp_servers WHERE name=?", (name,))
             self._db.commit()
             return True
-        except Exception:
+        except Exception as e:
+            _logger.warning("silently_swallowed: {err}", exc_info=False)
             return False
 
     def list_servers(self) -> list[dict]:

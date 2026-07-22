@@ -14,11 +14,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import uuid
 
 from fastapi import WebSocket, WebSocketDisconnect
 
 from pycoder import __version__
+
+_logger = logging.getLogger('pycoder.server.ws_handler_v2')
 from pycoder.server.chat_handler import (
     _get_api_key_for_model,
     _get_effective_model,
@@ -179,7 +182,8 @@ async def websocket_chat_v2(ws: WebSocket):
                                 alt = await v2.call(f"v1.{cap_id}", cap_params)
                                 if getattr(alt, "success", False):
                                     result = alt
-                            except Exception:
+                            except Exception as e:
+                                _logger.warning("silently_swallowed: {err}", exc_info=False)
                                 pass
                         await ws.send_json(
                             {

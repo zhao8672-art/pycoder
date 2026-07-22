@@ -11,6 +11,9 @@ import logging
 import os
 import sqlite3
 import time
+
+_logger = logging.getLogger('pycoder.ai.cache.kv_cache')
+
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -213,7 +216,8 @@ class PromptCache:
             if total == 0:
                 return 0.0
             return hits / (total * 10)  # 估算
-        except Exception:
+        except Exception as e:
+            _logger.warning("silently_swallowed: {err}", exc_info=False)
             return 0.0
 
     def clear_expired(self) -> int:
@@ -227,7 +231,8 @@ class PromptCache:
             conn.commit()
             conn.close()
             return count
-        except Exception:
+        except Exception as e:
+            _logger.warning("silently_swallowed: {err}", exc_info=False)
             return 0
 
     def clear_all(self) -> None:
@@ -238,7 +243,8 @@ class PromptCache:
             conn.execute("DELETE FROM prompt_cache")
             conn.commit()
             conn.close()
-        except Exception:
+        except Exception as e:
+            _logger.warning("silently_swallowed: {err}", exc_info=False)
             pass
 
     def stats(self) -> dict:

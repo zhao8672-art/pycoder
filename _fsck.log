@@ -1,0 +1,2 @@
+﻿21:38:21.416513 git.c:502               trace: built-in: git multi-pack-index v
+erify --object-dir .git/objects --no-progress

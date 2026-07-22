@@ -20,12 +20,15 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
+
+_logger = logging.getLogger('pycoder.safety.sandbox_executor')
+
 from typing import Any
 
 # Docker SDK 可选导入
 try:
     import docker
-    from docker.errors import DockerException, NotFound, APIError
+    from docker.errors import APIError, DockerException, NotFound
     from docker.models.containers import Container
 
     _HAS_DOCKER = True
@@ -405,7 +408,8 @@ class DockerSandboxExecutor:
                         cmd=["sh", "-c", "kill -9 1"],
                     ),
                 )
-            except Exception:
+            except Exception as e:
+                _logger.warning("silently_swallowed: {err}", exc_info=False)
                 pass  # 容器可能已停止
 
             duration_ms = (time.monotonic() - start_time) * 1000

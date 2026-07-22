@@ -12,6 +12,8 @@ import logging
 import sys
 from typing import Any
 
+_logger = logging.getLogger('pycoder.gateway.adapters.cli')
+
 from pycoder.gateway import GatewayMessage, PlatformAdapter
 
 logger = logging.getLogger(__name__)
@@ -235,7 +237,8 @@ class CLIAdapter(PlatformAdapter):
             try:
                 self._console.print(f"[dim]{message}[/]")
                 return
-            except Exception:
+            except Exception as e:
+                _logger.warning("silently_swallowed: {err}", exc_info=False)
                 pass
         print(message)
 
