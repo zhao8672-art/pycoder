@@ -27,6 +27,27 @@
 
 ## 🚀 快速开始
 
+### Windows 一键启动 (推荐)
+
+`start.bat` / `start.ps1` 在仓库根目录, 自动检测 venv + 强制 UTF-8:
+
+```cmd
+:: CMD
+start.bat              :: 启动后端 + Electron
+start.bat server        :: 仅启动后端
+start.bat electron     :: 仅启动 Electron
+start.bat install      :: 安装全量依赖
+start.bat clean        :: 清理缓存
+start.bat help         :: 帮助
+```
+
+```powershell
+# PowerShell (5.x / 7+ 都支持)
+.\start.ps1
+.\start.ps1 server
+.\start.ps1 install
+```
+
 ### pip 安装
 
 ```bash

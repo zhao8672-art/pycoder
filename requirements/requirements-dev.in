@@ -13,6 +13,8 @@ imgcat
 pre-commit
 cogapp
 semver
+# 错误监控 (sentry-sdk with FastAPI + httpx integrations)
+sentry-sdk[fastapi,httpx]~=2.10.0
 codespell
 uv
 google-cloud-bigquery

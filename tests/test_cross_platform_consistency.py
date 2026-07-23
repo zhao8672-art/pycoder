@@ -354,6 +354,42 @@ class TestCriticalDependencyPinning:
             f"{dep} 应锁定兼容版本, 当前为裸依赖"
 
 
+class TestRootScripts:
+    """P3 扩展: 仓库根目录必须有跨平台启动脚本"""
+
+    @pytest.mark.parametrize("name", ["start.bat", "start.ps1"])
+    def test_root_start_script_exists(self, name):
+        path = ROOT / name
+        assert path.exists(), f"仓库根目录缺少 {name} (用户审计会扫描根目录)"
+        content = path.read_text(encoding="utf-8", errors="ignore")
+        # 应包含 help / server / electron 至少一个子命令
+        assert "server" in content or "help" in content, f"{name} 应至少支持 server / help 子命令"
+
+    def test_start_bat_forces_utf8(self):
+        """start.bat 应强制 UTF-8 (避免 Windows GBK 编码问题)."""
+        content = (ROOT / "start.bat").read_text(encoding="utf-8", errors="ignore")
+        assert "PYTHONUTF8" in content, "start.bat 应设置 PYTHONUTF8=1"
+        assert "PYTHONIOENCODING" in content, "start.bat 应设置 PYTHONIOENCODING=utf-8"
+
+    def test_start_ps1_forces_utf8(self):
+        content = (ROOT / "start.ps1").read_text(encoding="utf-8", errors="ignore")
+        assert "PYTHONUTF8" in content, "start.ps1 应设置 $env:PYTHONUTF8"
+        assert "PYTHONIOENCODING" in content, "start.ps1 应设置 $env:PYTHONIOENCODING"
+
+
+class TestCriticalDepsInRequirements:
+    """P3 扩展: requirements.txt 必须包含关键依赖"""
+
+    @pytest.fixture
+    def requirements(self) -> str:
+        return (ROOT / "requirements.txt").read_text(encoding="utf-8", errors="ignore")
+
+    @pytest.mark.parametrize("dep", ["litellm", "sentry-sdk", "Pillow", "pytesseract"])
+    def test_dep_in_requirements(self, requirements, dep):
+        assert re.search(rf"^{re.escape(dep)}[><=~!\[]", requirements, re.MULTILINE), \
+            f"requirements.txt 缺失 {dep}"
+
+
 class TestSentryIntegration:
     """P3 扩展: Sentry 集成 (可选, 条件加载)"""
 

@@ -150,6 +150,16 @@ idna==3.11
     #   anyio
     #   httpx
     #   requests
+sentry-sdk[fastapi,httpx]==2.10.0
+    # via
+    #   -c requirements/common-constraints.txt
+    #   -r requirements/requirements.in
+Pillow==10.4.0
+    # via -r requirements/requirements.in
+pytesseract==0.3.13
+    # via -r requirements/requirements.in
+pdfplumber==0.11.0
+    # via -r requirements/requirements.in
     #   yarl
 importlib-metadata==7.2.1
     # via
@@ -181,7 +191,7 @@ jsonschema-specifications==2025.9.1
     # via
     #   -c requirements/common-constraints.txt
     #   jsonschema
-litellm==1.82.3
+litellm==1.51.0
     # via
     #   -c requirements/common-constraints.txt
     #   -r requirements/requirements.in
