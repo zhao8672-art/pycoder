@@ -226,6 +226,40 @@ def check_pyproject_config_blocks(report: Report) -> None:
             report.warn(f"关键依赖未锁定: {dep}", desc)
 
 
+def check_root_scripts(report: Report) -> None:
+    """检查仓库根目录的跨平台启动脚本 (用户审计常检查根目录)."""
+    expected = {
+        "start.bat": "Windows CMD 启动脚本 (一键启动后端+Electron)",
+        "start.ps1": "Windows PowerShell 启动脚本 (PS 5/7 兼容)",
+    }
+    for name, desc in expected.items():
+        path = ROOT / name
+        if path.exists():
+            report.ok(f"根目录脚本: {name}", desc)
+        else:
+            report.err(f"根目录脚本缺失: {name}", desc)
+
+
+def check_critical_deps_in_requirements(report: Report) -> None:
+    """检查 requirements.txt 包含关键依赖 (sentry-sdk / Pillow 等)."""
+    req_path = ROOT / "requirements.txt"
+    if not req_path.exists():
+        report.err("requirements.txt 缺失", "主依赖文件必须存在")
+        return
+    req = req_path.read_text(encoding="utf-8", errors="ignore")
+    required_deps = {
+        "sentry-sdk": "Sentry 错误监控 (sentry-sdk[fastapi,httpx])",
+        "Pillow": "Pillow 图像处理 (multimodal)",
+        "pytesseract": "pytesseract OCR 引擎",
+        "litellm": "litellm LLM 路由",
+    }
+    for dep, desc in required_deps.items():
+        if re.search(rf"^{re.escape(dep)}[><=~!\[]", req, re.MULTILINE):
+            report.ok(f"requirements.txt 包含: {dep}", desc)
+        else:
+            report.err(f"requirements.txt 缺失: {dep}", desc)
+
+
 def check_gitignore(report: Report) -> None:
     """检查 .gitignore 覆盖关键文件."""
     gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8", errors="ignore")
@@ -308,6 +342,12 @@ def main() -> int:
     print()
     print(">>> pyproject.toml 配置块")
     check_pyproject_config_blocks(report)
+    print()
+    print(">>> 仓库根目录脚本")
+    check_root_scripts(report)
+    print()
+    print(">>> requirements.txt 关键依赖")
+    check_critical_deps_in_requirements(report)
     print()
     print(">>> .gitignore 覆盖")
     check_gitignore(report)
