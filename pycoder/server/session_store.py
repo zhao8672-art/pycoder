@@ -181,6 +181,25 @@ class SessionStore:
             except queue.Empty:
                 break
 
+    def cleanup_empty_sessions(self, max_age_hours: float = 24.0) -> int:
+        """清理空会话（无消息或长时间未更新）"""
+        cutoff = time.time() - max_age_hours * 3600
+        with self._connect() as conn:
+            # 删除无消息的空会话（超过指定时间）
+            result = conn.execute(
+                "DELETE FROM sessions WHERE "
+                "(message_count = 0 OR message_count IS NULL) "
+                "AND created_at < ?",
+                (cutoff,),
+            )
+            deleted = result.rowcount
+            if deleted:
+                log(
+                    "cleanup_empty_sessions",
+                    extra={"deleted": deleted, "max_age_hours": max_age_hours},
+                )
+            return deleted
+
     # ── 会话操作 ──────────────────────────────────────────
 
     def create_session(

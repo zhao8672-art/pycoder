@@ -85,6 +85,14 @@ function setupCSP(): void {
 }
 
 app.whenReady().then(async () => {
+  // Step6: 设置自定义 Electron 缓存路径，避免权限不足导致的 GPU 缓存创建失败
+  const path = require('path');
+  const fs = require('fs');
+  const customDataDir = path.join(app.getPath('appData'), 'pycoder-electron');
+  fs.mkdirSync(customDataDir, { recursive: true });
+  app.setPath('userData', customDataDir);
+  app.setPath('cache', path.join(customDataDir, 'Cache'));
+
   // P2-5: 启动前清理可能锁定的 Electron 缓存目录
   const path = require('path');
   const fs = require('fs');
