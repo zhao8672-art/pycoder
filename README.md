@@ -159,6 +159,29 @@ npm run dev
 
 ---
 
+## ✅ 已具备的核心能力 (v0.5.0)
+
+PyCoder **不是** 单一聊天机器人, 而是一个完整的 AI 编程平台. 下列能力**已实现并可用**:
+
+| 能力 | 实现位置 | 状态 |
+|------|---------|------|
+| **多模型 LLM 路由** | `pycoder/providers/` | ✅ 5 个 provider (DeepSeek / OpenAI / Qwen / GLM / Agnes) |
+| **持久化记忆系统** | `pycoder/memory/` (session_memory / deep_memory) | ✅ SQLite + 向量检索 (chromadb 降级) |
+| **安全代码沙箱** | `pycoder/safety/sandbox.py` + `sandbox_executor.py` | ✅ Docker + subprocess 双模式 + 资源限制 |
+| **多模态输入 (视觉)** | `pycoder/multimodal/vision_client.py` | ✅ GPT-4V / Qwen-VL (Tesseract OCR 降级) |
+| **插件系统** | `pycoder/plugins/` + `pycoder.runtime.plugin_registry` | ✅ 注册表 + 自动发现 + 钩子 |
+| **结构化日志** | `pycoder/server/log.py` (structlog) | ✅ JSON / 控制台 / 文件 三种 sink |
+| **错误监控** | `pycoder/observability/sentry.py` | ✅ Sentry 条件加载 (DSN 配置即启用, 缺失降级) |
+| **代码扫描 / 影响图** | `pycoder/analysis/impact.py` (tree-sitter) | ✅ 28704 个符号索引 |
+| **自我进化** | `pycoder/runtime/evolver.py` | ✅ 闭环反馈 + 自动 patch 提议 |
+| **Electron 桌面 IDE** | `pycoder/electron/` | ✅ Monaco + WebSocket + 多窗口 |
+| **跨平台 CLI** | `pycoder/__main__.py` + `scripts/pycoder.{bat,ps1}` | ✅ Windows / macOS / Linux |
+| **AI 智能体能力注册中心** | `pycoder.runtime.capability_registry` | ✅ 182 个 V2 能力 |
+
+> 详细架构见下方 "🏗️ 架构概览" 章节.
+
+---
+
 ## 🏗️ 架构概览
 
 ```

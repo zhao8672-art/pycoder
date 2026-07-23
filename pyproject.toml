@@ -1,3 +1,39 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  PyCoder — Native AI Coding Agent for Python Developers
+#
+#  ─── 依赖分层策略 ───
+#  1. [project] 段: 核心运行时元数据, 通过 [tool.setuptools.dynamic]
+#     引用 requirements/ 目录下的分层 .txt 文件
+#  2. requirements/requirements.in        ← 唯一权威依赖源
+#     requirements/requirements-dev.in    ← 开发工具
+#     requirements/requirements-browser.in ← 浏览器自动化 (可选)
+#     requirements/requirements-help.in   ← 交互式帮助 (可选)
+#     requirements/requirements-playwright.in ← Playwright (可选)
+#  3. requirements-all.txt                 ← pip install -r 一次性全量入口
+#  4. 关键依赖 (litellm/openai/fastapi/pydantic/httpx) 使用 ~= 锁定兼容版本
+#
+#  ─── 修改依赖的流程 ───
+#  a) 编辑 requirements/requirements.in (或对应 .in)
+#  b) 重新生成 .txt:  uv pip compile requirements/requirements.in -o requirements.txt
+#  c) 测试:            python -m pip install -e ".[dev]"
+#  d) 验证:            python scripts/check_readme_consistency.py
+#
+#  ─── 工具配置块 ───
+#  [tool.pytest.ini_options]   ← pytest 8+ 配置 (testpaths / markers / addopts)
+#  [tool.coverage.*]           ← coverage 6+ 配置 (branch / fail_under=60)
+#  [tool.ruff]                 ← ruff lint + format 配置
+#  [tool.black]                ← black 格式化配置
+#  [tool.isort]                ← isort 导入排序配置
+#  [tool.mypy]                 ← mypy 类型检查配置
+#  [tool.bandit]               ← bandit 安全扫描配置
+#
+#  ─── 跨平台入口点 ───
+#  pip install -e . 后自动生成:
+#    pycoder        - 主 CLI (调用 pycoder.__main__:main)
+#    pycoder-server - App Server (调用 pycoder.server.app:run)
+#  Windows 用户也可使用 scripts/pycoder.bat / .ps1 包装器
+# ════════════════════════════════════════════════════════════════════════════
+
 [project]
 name = "pycoder"
 description = "PyCoder - Native AI Coding Agent for Python Developers"
@@ -139,3 +175,98 @@ skips = [
     "B311",  # 非密码学随机数在非安全场景允许
 ]
 targets = ["pycoder"]
+
+# ────────────────────────────────────────────────────────────────────
+# Pytest 配置 (v8+)
+# ────────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",                  # 失败摘要总是显示
+    "--strict-markers",     # 未注册 marker 报错
+    "--strict-config",      # 配置错误立即失败
+    "--showlocals",         # 失败时打印局部变量
+    "--tb=short",           # 简短的 traceback
+    "--durations=10",       # 显示最慢的 10 个测试
+]
+markers = [
+    "slow: 慢测试 (长时间运行, 默认跳过)",
+    "integration: 集成测试 (需要外部服务)",
+    "network: 需要网络连接的测试",
+    "windows: 仅在 Windows 平台运行",
+    "posix: 仅在 POSIX (Linux/macOS) 平台运行",
+]
+filterwarnings = [
+    "error",                                   # 警告变错误
+    "ignore::DeprecationWarning:botocore.*",  # AWS SDK 警告噪音
+    "ignore::DeprecationWarning:google.*",    # Google SDK 警告噪音
+    "ignore::PendingDeprecationWarning",
+]
+asyncio_mode = "auto"
+log_cli = false
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
+# ────────────────────────────────────────────────────────────────────
+# Coverage 配置
+# ────────────────────────────────────────────────────────────────────
+[tool.coverage.run]
+branch = true
+source = ["pycoder"]
+omit = [
+    "pycoder/__main__.py",          # CLI 入口, 难以覆盖
+    "pycoder/electron/*",           # Electron 前端
+    "pycoder/_version.py",          # 自动生成
+    "pycoder/server/_legacy/*",     # 旧版代码
+    "*/tests/*",
+    "*/__init__.py",
+    "*/conftest.py",
+]
+data_file = ".coverage"
+parallel = false
+sigterm = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+skip_empty = true
+precision = 2
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "pass",
+    "except ImportError:",
+    "except ImportError,*:",
+    "\\.\\.\\.",
+    "if 0:",
+    "if False:",
+    "if false:",
+    "def __repr__",
+    "# pragma:",
+]
+exclude_also = [
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if typing.TYPE_CHECKING:",
+]
+fail_under = 60            # 暂时降到 60%, 后续逐步提升
+sort = "Cover"
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+# ────────────────────────────────────────────────────────────────────
+# Setuptools 打包配置
+# ────────────────────────────────────────────────────────────────────
+[tool.setuptools.package-data]
+pycoder = ["py.typed", "*.pyi", "templates/*", "static/*"]

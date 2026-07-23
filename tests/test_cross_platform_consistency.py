@@ -82,11 +82,11 @@ class TestRequirementsConsistency:
     def test_pyproject_references_valid_files(self):
         """pyproject.toml 引用的 requirements 文件必须存在."""
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-        # 仅检查 [tool.setuptools.dynamic] 块
+        # 仅检查行首的 [tool.setuptools.dynamic] 块 (避免匹配注释中的字符串)
         block_match = re.search(
-            r"\[tool\.setuptools\.dynamic\](.*?)(?:\[tool\.|\Z)",
+            r"^\[tool\.setuptools\.dynamic\]\s*\n(.*?)(?=^\[|\Z)",
             pyproject,
-            re.DOTALL,
+            re.DOTALL | re.MULTILINE,
         )
         assert block_match, "pyproject.toml 缺少 [tool.setuptools.dynamic] 块"
         refs = re.findall(r'file\s*=\s*"([^"]+)"', block_match.group(1))
@@ -286,3 +286,126 @@ class TestConsistencyScript:
         # 颜色码可能干扰, 检查 [OK] 或 [ERROR] 标记
         stdout = result.stdout or ""
         assert "[OK]" in stdout or "[ERROR]" in stdout, "输出格式异常"
+
+
+class TestPyprojectToolBlocks:
+    """P3 扩展: pyproject.toml 关键工具配置块 + 关键依赖版本锁定"""
+
+    @pytest.fixture
+    def pyproject(self) -> str:
+        return (ROOT / "pyproject.toml").read_text(encoding="utf-8", errors="ignore")
+
+    @pytest.mark.parametrize("block", [
+        "tool.pytest.ini_options",
+        "tool.coverage.run",
+        "tool.coverage.report",
+        "tool.ruff",
+        "tool.black",
+        "tool.mypy",
+    ])
+    def test_required_tool_block_exists(self, pyproject, block):
+        """每个必须的工具块都应存在."""
+        assert f"[{block}]" in pyproject, f"pyproject.toml 缺少 [{block}] 配置块"
+
+    def test_pytest_minimum_version(self, pyproject):
+        """pytest 配置应声明最低版本 8.0+."""
+        assert 'minversion = "8.0"' in pyproject, "应声明 minversion = 8.0+"
+
+    def test_pytest_has_markers(self, pyproject):
+        """pytest 配置应包含 slow/integration 等 markers."""
+        # 行首匹配 (避免被头部文档注释中的 [tool.pytest.ini_options] 字符串误匹配)
+        block = re.search(
+            r"^\[tool\.pytest\.ini_options\]\s*\n(.*?)(?=^\[|\Z)",
+            pyproject, re.DOTALL | re.MULTILINE,
+        )
+        assert block is not None
+        assert "markers" in block.group(1), "应定义 markers"
+        assert "slow" in block.group(1), "应定义 slow marker"
+
+    def test_coverage_branch_enabled(self, pyproject):
+        """coverage 应启用 branch 模式."""
+        assert re.search(
+            r"\[tool\.coverage\.run\].*?branch\s*=\s*true",
+            pyproject, re.DOTALL,
+        ), "coverage 应启用 branch 模式"
+
+    def test_coverage_has_fail_under(self, pyproject):
+        """coverage 应设置 fail_under 阈值."""
+        assert re.search(
+            r"\[tool\.coverage\.report\].*?fail_under\s*=\s*\d+",
+            pyproject, re.DOTALL,
+        ), "coverage 应设置 fail_under 阈值"
+
+
+class TestCriticalDependencyPinning:
+    """P3 扩展: 关键运行时依赖应在 requirements.in 中锁定兼容版本"""
+
+    @pytest.fixture
+    def requirements_in(self) -> str:
+        return (ROOT / "requirements" / "requirements.in").read_text(
+            encoding="utf-8", errors="ignore"
+        )
+
+    @pytest.mark.parametrize("dep", ["litellm", "openai", "fastapi", "pydantic"])
+    def test_critical_dep_pinned(self, requirements_in, dep):
+        """关键依赖应使用 ~=/>=/<= 等版本约束, 避免裸依赖."""
+        pattern = rf"^{re.escape(dep)}\s*[><=~!]+"
+        assert re.search(pattern, requirements_in, re.MULTILINE), \
+            f"{dep} 应锁定兼容版本, 当前为裸依赖"
+
+
+class TestSentryIntegration:
+    """P3 扩展: Sentry 集成 (可选, 条件加载)"""
+
+    def test_sentry_module_exists(self):
+        """pycoder/observability/sentry.py 应存在."""
+        assert (ROOT / "pycoder" / "observability" / "sentry.py").exists()
+
+    def test_sentry_init_py(self):
+        """pycoder/observability/__init__.py 应存在并导出主要符号."""
+        init = (ROOT / "pycoder" / "observability" / "__init__.py").read_text(
+            encoding="utf-8", errors="ignore"
+        )
+        for name in ["init_sentry", "capture_exception", "is_available", "is_enabled"]:
+            assert name in init, f"observability 应导出 {name}"
+
+    def test_sentry_conditional_import(self):
+        """sentry.py 应在 ImportError 时优雅降级 (不应抛错)."""
+        sentry_path = ROOT / "pycoder" / "observability" / "sentry.py"
+        content = sentry_path.read_text(encoding="utf-8", errors="ignore")
+        assert "except ImportError" in content, "sentry.py 应有 ImportError 降级"
+        assert "_SENTRY_AVAILABLE" in content, "应有 _SENTRY_AVAILABLE 标志"
+
+    def test_sentry_status_does_not_crash(self):
+        """sentry.status() 不应抛错 (未配置 DSN 时返回安全字典)."""
+        from pycoder.observability import sentry as sentry_mod
+        result = sentry_mod.status()
+        assert isinstance(result, dict)
+        assert "available" in result
+        assert "initialized" in result
+
+
+class TestReadmeCapabilities:
+    """P3 扩展: README 应声明已具备的核心能力 (澄清误解)"""
+
+    def test_readme_has_capabilities_section(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8", errors="ignore")
+        # 应有"已具备的核心能力"或"核心能力"章节
+        assert "已具备的核心能力" in readme or "核心能力" in readme, \
+            "README 应有'已具备的核心能力'章节"
+
+    def test_readme_documents_sentry(self):
+        """README 应提到 Sentry 集成能力."""
+        readme = (ROOT / "README.md").read_text(encoding="utf-8", errors="ignore")
+        assert "Sentry" in readme or "sentry" in readme.lower(), \
+            "README 应提到 Sentry 集成"
+
+    def test_readme_documents_memory(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8", errors="ignore")
+        assert "持久化记忆" in readme or "memory" in readme.lower(), \
+            "README 应提到持久化记忆能力"
+
+    def test_readme_documents_sandbox(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8", errors="ignore")
+        assert "沙箱" in readme or "Sandbox" in readme or "sandbox" in readme.lower(), \
+            "README 应提到代码沙箱能力"

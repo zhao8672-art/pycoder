@@ -176,6 +176,56 @@ def check_pyproject_references(report: Report) -> None:
             report.err(f"pyproject 引用: {ref}", "文件不存在")
 
 
+def check_pyproject_config_blocks(report: Report) -> None:
+    """检查 pyproject.toml 关键工具配置块完整性 (pytest / coverage / lint 等)."""
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8", errors="ignore")
+    # 必须存在的工具配置块
+    required_blocks = {
+        "tool.pytest.ini_options": "[tool.pytest.ini_options] 测试运行配置 (addopts / markers / testpaths)",
+        "tool.coverage.run": "[tool.coverage.run] 覆盖率运行配置 (source / omit / branch)",
+        "tool.coverage.report": "[tool.coverage.report] 覆盖率报告配置 (fail_under / show_missing)",
+        "tool.ruff": "[tool.ruff] Lint 配置",
+        "tool.black": "[tool.black] 格式化配置",
+        "tool.mypy": "[tool.mypy] 类型检查配置",
+    }
+    # 可选但建议存在的块 (warn 而非 err)
+    optional_blocks = {
+        "tool.bandit": "[tool.bandit] 安全扫描配置",
+        "tool.isort": "[tool.isort] 导入排序配置",
+    }
+    for block, desc in required_blocks.items():
+        marker = f"[{block}]"
+        if marker in pyproject:
+            report.ok(f"pyproject {marker}", desc)
+        else:
+            report.err(f"pyproject {marker} 缺失", desc)
+    for block, desc in optional_blocks.items():
+        marker = f"[{block}]"
+        if marker in pyproject:
+            report.ok(f"pyproject {marker}", desc)
+        else:
+            report.warn(f"pyproject {marker} 缺失", desc)
+
+    # 关键依赖版本约束 (避免 '在我机器上能跑' 问题)
+    in_block = re.search(
+        r"\[tool\.setuptools\.dynamic\](.*?)(?:\[tool\.|\Z)", pyproject, re.DOTALL
+    )
+    deps_block = in_block.group(1) if in_block else pyproject
+    critical_deps = {
+        "litellm": "litellm (核心 LLM 客户端, 应锁定兼容版本)",
+        "openai": "openai (OpenAI 协议, 应锁定)",
+        "fastapi": "fastapi (Web 框架, 应锁定)",
+        "pydantic": "pydantic (数据模型, 应锁定)",
+        "httpx": "httpx (HTTP 客户端, 应锁定)",
+    }
+    for dep, desc in critical_deps.items():
+        # 匹配 dep[><=~!] 或 dep 单独行
+        if re.search(rf"^{re.escape(dep)}\s*[><=~!]", deps_block, re.MULTILINE):
+            report.ok(f"关键依赖锁定: {dep}", desc)
+        else:
+            report.warn(f"关键依赖未锁定: {dep}", desc)
+
+
 def check_gitignore(report: Report) -> None:
     """检查 .gitignore 覆盖关键文件."""
     gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8", errors="ignore")
@@ -255,6 +305,9 @@ def main() -> int:
     print()
     print(">>> pyproject.toml 引用")
     check_pyproject_references(report)
+    print()
+    print(">>> pyproject.toml 配置块")
+    check_pyproject_config_blocks(report)
     print()
     print(">>> .gitignore 覆盖")
     check_gitignore(report)

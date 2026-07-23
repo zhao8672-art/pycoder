@@ -15,7 +15,9 @@ beautifulsoup4
 PyYAML
 diff-match-patch
 pypandoc
-litellm
+# Core LLM (锁定兼容版本避免破坏性 API 变更)
+litellm~=1.51.0
+openai~=1.55.0
 flake8
 importlib_resources
 pyperclip
@@ -56,7 +58,8 @@ importlib-metadata<8.0.0
 
 # The proper dependency is litellm[proxy], but it installs
 # mcp which is a pywin32 dependency that fails on linux CI.
-fastapi
+fastapi~=0.115.0
+pydantic~=2.9.0
 orjson
 
 structlog
