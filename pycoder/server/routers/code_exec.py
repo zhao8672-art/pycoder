@@ -35,6 +35,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -45,6 +46,34 @@ from pycoder.core.security import sanitize_path, sanitize_shell_command
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# ── 项目根目录解析 (用于子进程 sandbox 加载项目模块) ──
+def _resolve_project_root() -> Path:
+    """解析项目根目录: 优先 PYCODER_PROJECT_ROOT, 否则找最近的 pyproject.toml 父目录."""
+    env_root = os.environ.get("PYCODER_PROJECT_ROOT")
+    if env_root:
+        p = Path(env_root).resolve()
+        if p.exists():
+            return p
+
+    # 从本文件向上找 pyproject.toml
+    cur = Path(__file__).resolve().parent
+    for _ in range(8):  # 最多向上 8 层
+        if (cur / "pyproject.toml").exists():
+            return cur
+        cur = cur.parent
+    # 退化到 cwd
+    return Path.cwd()
+
+
+_PROJECT_ROOT: Path = _resolve_project_root()
+"""项目根目录: 沙箱子进程的 cwd 和 PYTHONPATH 来源.
+
+修复: 之前 sandbox 子进程在 tempfile.gettempdir() 中执行, PYTHONPATH 为空,
+导致 import pycoder 失败. 现在注入项目根到 PYTHONPATH, 让用户代码可访问项目模块.
+"""
+logger.info("sandbox_project_root: %s", _PROJECT_ROOT)
 
 
 # ── 可配置沙箱参数（可通过 API 动态调整） ──────────────────
@@ -248,13 +277,20 @@ def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
 
     start = time.time()
     try:
+        # 修复: 子进程需要访问 pycoder 等项目模块 — 注入 PYTHONPATH 和项目 cwd
+        # 用户代码 `import pycoder` 或 `import pycoder.xxx` 才能解析
+        sandbox_env = {
+            **os.environ,
+            "PYTHONIOENCODING": "utf-8",
+            "PYTHONPATH": str(_PROJECT_ROOT) + os.pathsep + os.environ.get("PYTHONPATH", ""),
+        }
         proc = _subprocess.run(
             [sys.executable, "-c", _SANDBOX_RUNNER],
             input=code.encode("utf-8"),
             capture_output=True,
             timeout=timeout,
-            cwd=tempfile.gettempdir(),
-            env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+            cwd=str(_PROJECT_ROOT),  # 之前用 tempfile.gettempdir() — 改为项目根
+            env=sandbox_env,
             # FIX: 禁用危险环境变量
             creationflags=0x08000000 if sys.platform == "win32" else 0,  # CREATE_NO_WINDOW
         )
