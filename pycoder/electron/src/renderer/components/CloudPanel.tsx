@@ -50,7 +50,7 @@ export const CloudPanel: React.FC<Props> = ({ wsClient }) => {
                     setStatusMsg(`✅ 已升级到 ${msg.plan}`);
                     send('user_info', { token });
                 } else if (!msg.success) {
-                    setStatusMsg(`❌ ${msg.error || 'Error'}`);
+                    setStatusMsg(`❌ ${msg.error || '错误'}`);
                 }
                 setTimeout(() => setStatusMsg(''), 4000);
             }

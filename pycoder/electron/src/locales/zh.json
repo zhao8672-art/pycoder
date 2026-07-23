@@ -22,6 +22,23 @@
     "window": "窗口",
     "help": "帮助"
   },
+  "activity": {
+    "sidebar": "侧边栏导航",
+    "fileManager": "文件管理器",
+    "searchInFiles": "在文件中搜索",
+    "versionControl": "版本控制",
+    "aiAssistant": "AI 助手",
+    "aiAgentTeam": "AI 团队协作",
+    "evolutionEngine": "进化引擎",
+    "skillsMarket": "技能市场",
+    "extensionsManager": "扩展管理",
+    "snippetsManager": "代码片段管理",
+    "builtinBrowser": "内置浏览器",
+    "terminalRunner": "终端运行器",
+    "commandPalette": "命令面板",
+    "pycoderCloud": "PyCoder 云",
+    "settings": "设置"
+  },
   "chat": {
     "title": "对话",
     "inputPlaceholder": "输入消息或 /command...",

@@ -609,6 +609,177 @@ class ReportGenerator:
             "workspace": str(self._workspace),
         }
 
+    # ── 持久化工厂 ──────────────────────────────
+
+    def _reports_dir(self) -> Path:
+        """获取报告存储目录"""
+        d = self._workspace / ".pycoder" / "reports"
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    async def save_report(self, report: EvolutionReport) -> Path:
+        """保存报告到磁盘
+
+        Args:
+            report: 进化报告
+
+        Returns:
+            保存的文件路径
+        """
+        path = self._reports_dir() / f"{report.report_id}.json"
+        path.write_text(report.to_json(), encoding="utf-8")
+        logger.info("报告已保存: %s", path)
+        return path
+
+    async def list_reports(self, limit: int = 20) -> list[dict[str, Any]]:
+        """列出最近的报告
+
+        Args:
+            limit: 最大返回数量
+
+        Returns:
+            报告元数据列表，按修改时间降序
+        """
+        reports_dir = self._reports_dir()
+        files = sorted(
+            reports_dir.glob("*.json"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        result: list[dict[str, Any]] = []
+        for f in files[:limit]:
+            try:
+                data = json.loads(f.read_text(encoding="utf-8"))
+                result.append({
+                    "report_id": data.get("report_id", f.stem),
+                    "task": data.get("task", ""),
+                    "timestamp": data.get("timestamp", ""),
+                    "success": data.get("success", False),
+                    "file_count": len(data.get("file_changes", [])),
+                    "lines_added": data.get("total_lines_added", 0),
+                    "lines_removed": data.get("total_lines_removed", 0),
+                    "file_name": f.name,
+                    "size_bytes": f.stat().st_size,
+                })
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("report_parse_error", file=str(f), error=str(e))
+        return result
+
+    async def get_report(self, task_id: str) -> EvolutionReport | None:
+        """获取指定报告
+
+        Args:
+            task_id: 报告 ID
+
+        Returns:
+            EvolutionReport 或 None
+        """
+        path = self._reports_dir() / f"{task_id}.json"
+        if not path.exists():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return self._from_dict(data)
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("report_read_error", task_id=task_id, error=str(e))
+            return None
+
+    async def generate_from_closed_loop(self, result: Any) -> EvolutionReport:
+        """从闭环验证结果生成报告
+
+        Args:
+            result: 闭环验证结果对象
+
+        Returns:
+            EvolutionReport
+        """
+        return self.generate(
+            task=getattr(result, "task_id", "EVO-UNKNOWN"),
+            changes=[
+                {"file": c.get("file", c.get("path", "")), "action": c.get("action", "modified"),
+                 "lines_added": c.get("lines_added", 0), "lines_removed": c.get("lines_removed", 0),
+                 "description": c.get("description", "")}
+                for c in (getattr(result, "changes", []) or [])
+            ],
+            test_results={
+                "passed": sum(1 for t in (getattr(result, "test_results", []) or [])
+                            if isinstance(t, dict) and t.get("passed", False)),
+                "failed": sum(1 for t in (getattr(result, "test_results", []) or [])
+                            if isinstance(t, dict) and not t.get("passed", False)),
+            },
+            risks=[
+                {"risk": r.get("risk", r.get("description", "")), "severity": r.get("severity", "medium")}
+                for r in (getattr(result, "risk_analysis", []) or [])
+            ],
+            rollback_plan=getattr(result, "rollback_plan", {}) or {},
+            lessons=getattr(result, "lessons_learned", []) or [],
+            success=getattr(result, "success", getattr(result, "final_status", "unknown") == "success"),
+            steps_completed=getattr(result, "steps_completed", 0),
+            total_steps=getattr(result, "steps_completed", 0),
+            duration_seconds=getattr(result, "duration", 0.0),
+        )
+
+    async def generate_from_git_diff(self, base_branch: str = "master") -> EvolutionReport:
+        """从 Git diff 生成报告
+
+        Args:
+            base_branch: 基准分支
+
+        Returns:
+            EvolutionReport
+        """
+        import subprocess
+
+        changes: list[dict[str, Any]] = []
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--stat", base_branch],
+                capture_output=True, text=True, cwd=str(self._workspace),
+                timeout=30,
+            )
+            if result.returncode == 0 and result.stdout:
+                for line in result.stdout.strip().split("\n"):
+                    if "|" in line:
+                        parts = line.split("|")
+                        file_path = parts[0].strip()
+                        changes.append({
+                            "file": file_path,
+                            "action": "modified",
+                            "lines_added": 0,
+                            "lines_removed": 0,
+                        })
+        except Exception as e:
+            logger.warning("git_diff_failed", error=str(e))
+
+        return self.generate(
+            task=f"Git diff: {base_branch} → HEAD",
+            changes=changes,
+            success=len(changes) > 0,
+        )
+
+    def _from_dict(self, data: dict[str, Any]) -> EvolutionReport:
+        """从字典反序列化报告"""
+        return EvolutionReport(
+            report_id=data.get("report_id", ""),
+            task=data.get("task", ""),
+            timestamp=data.get("timestamp", ""),
+            duration_seconds=data.get("duration_seconds", 0.0),
+            executive_summary=data.get("executive_summary", ""),
+            success=data.get("success", False),
+            steps_completed=data.get("steps_completed", 0),
+            total_steps=data.get("total_steps", 0),
+            file_changes=[FileChange(**fc) for fc in data.get("file_changes", [])],
+            total_lines_added=data.get("total_lines_added", 0),
+            total_lines_removed=data.get("total_lines_removed", 0),
+            test_results=TestSummary(**data.get("test_results", {})),
+            risk_analysis=[RiskItem(**r) for r in data.get("risk_analysis", [])],
+            rollback_plan=data.get("rollback_plan", {}),
+            lessons_learned=data.get("lessons_learned", []),
+            performance_impact=data.get("performance_impact", {}),
+            dependency_changes=data.get("dependency_changes", []),
+            metadata=data.get("metadata", {}),
+        )
+
 
 # ═══════════════════════════════════════════════════════════════════
 # 便捷函数

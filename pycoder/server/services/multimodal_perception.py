@@ -553,7 +553,7 @@ class MultimodalPerception:
         """获取感知统计信息。
 
         Returns:
-            包含各方法调用次数、成功率、平均耗时等统计
+            包含各方法调用次数、成功率、平均耗时等统计（时间已归一化为 ms）
         """
         total_calls = sum(self._stats.values())
         total_success = sum(
@@ -568,18 +568,25 @@ class MultimodalPerception:
             else 0.0
         )
 
+        # 各方法独立统计
+        by_method = {}
+        for method_name in ("perceive_image", "perceive_screenshot", "perceive_diagram", "perceive_error_screenshot"):
+            calls = self._stats.get(method_name, 0)
+            successes = self._stats.get(f"success_{method_name}", 0)
+            method_rate = round(successes / calls, 3) if calls > 0 else 0.0
+            by_method[method_name] = {
+                "calls": calls,
+                "successes": successes,
+                "success_rate": method_rate,
+            }
+
         return {
             "total_calls": total_calls,
             "total_success": total_success,
             "success_rate": success_rate,
             "avg_processing_time_ms": avg_time,
             "total_processing_time_ms": round(self._total_processing_time_ms, 2),
-            "by_method": {
-                "perceive_image": self._stats.get("perceive_image", 0),
-                "perceive_screenshot": self._stats.get("perceive_screenshot", 0),
-                "perceive_diagram": self._stats.get("perceive_diagram", 0),
-                "perceive_error_screenshot": self._stats.get("perceive_error_screenshot", 0),
-            },
+            "by_method": by_method,
             "ocr_available": HAS_TESSERACT,
             "pil_available": HAS_PIL,
         }
@@ -1754,3 +1761,39 @@ def register_capabilities(registry: Any) -> None:
         "perception.analyze_image, perception.analyze_screenshot, perception.stats, "
         "perception.vision_analyze, perception.ui_detect, perception.compare_screenshots"
     )
+
+
+def should_auto_analyze(user_message: str) -> bool:
+    """检测用户消息是否包含图片/截图，应自动触发多模态分析
+
+    Args:
+        user_message: 用户输入的消息
+
+    Returns:
+        True 如果消息包含图片引用
+    """
+    import re
+
+    msg_lower = user_message.lower()
+
+    # 检测 Markdown 图片语法 <img> 标签
+    if re.search(r"!\[.*?\]\(.*?\)", user_message):
+        return True
+    if re.search(r"<img\s", user_message, re.IGNORECASE):
+        return True
+
+    # 检测图片 URL（http/https）
+    if re.search(r"https?://\S+\.(?:png|jpg|jpeg|gif|bmp|webp|svg)(?:\?\S*)?", user_message, re.IGNORECASE):
+        return True
+
+    # 检测本地图片路径（以图片扩展名结尾的独立词）
+    if re.search(r"\b\S+\.(?:png|jpg|jpeg|gif|bmp|webp|svg)\b", user_message, re.IGNORECASE):
+        return True
+
+    # 检测截图/屏幕关键词（词边界匹配，避免 "screenshot" 子串误匹配）
+    image_keywords = ["截图", "screenshot", "screenshots", "画面", "屏幕", "photo", "照片", "图片", "图像"]
+    for kw in image_keywords:
+        if re.search(rf"\b{re.escape(kw)}\b", msg_lower):
+            return True
+
+    return False

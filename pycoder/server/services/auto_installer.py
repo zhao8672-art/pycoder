@@ -327,6 +327,59 @@ class AutoInstaller:
             "action": "failed",
         }
 
+    async def search_skill(self, query: str) -> dict:
+        """搜索技能（Agent 工具接口）
+
+        Args:
+            query: 搜索关键词
+
+        Returns:
+            {"results": [...]}
+        """
+        from pycoder.skills import get_marketplace
+
+        try:
+            marketplace = get_marketplace()
+            results = marketplace.search(query, limit=10)
+            return {
+                "results": [
+                    {
+                        "name": getattr(s, "name", s.get("name", "")),
+                        "description": getattr(s, "description", s.get("description", "")),
+                        "installed": getattr(s, "installed", s.get("installed", False)),
+                    }
+                    for s in results
+                ],
+                "total": len(results),
+                "query": query,
+            }
+        except Exception as e:
+            return {"results": [], "total": 0, "query": query, "error": str(e)}
+
+    async def install_skill(self, skill_name: str) -> dict:
+        """安装技能（Agent 工具接口）
+
+        Args:
+            skill_name: 技能名称
+
+        Returns:
+            {"success": bool, "message": "..."}
+        """
+        from pycoder.skills import get_marketplace
+
+        try:
+            marketplace = get_marketplace()
+            installed = marketplace.get_installed_skills()
+            if any(s.name.lower() == skill_name.lower() for s in installed):
+                return {"success": True, "message": f"技能 '{skill_name}' 已安装"}
+
+            success = marketplace.install(skill_name)
+            if success:
+                return {"success": True, "message": f"技能 '{skill_name}' 安装成功"}
+            return {"success": False, "message": f"技能 '{skill_name}' 安装失败"}
+        except Exception as e:
+            return {"success": False, "message": f"安装失败: {e}"}
+
     # ── 自动检测 ────────────────────────────────────────
 
     def detect_missing_imports(self, code: str) -> list[str]:

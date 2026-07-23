@@ -29,11 +29,12 @@ TOOL_EXEC = {"run_command", "run_terminal", "execute_python"}
 TOOL_GIT = {"git_add", "git_commit", "git_push", "git_status", "git_branch"}
 TOOL_PACKAGE = {"install_package", "search_package", "ensure_tool", "install_deps"}
 TOOL_AGENT = {"list_agent_configs"}
+TOOL_SKILL = {"search_skill", "install_skill", "invoke_skill", "list_skills"}
 
-ALL_TOOLS = TOOL_WRITE | TOOL_READ | TOOL_EXEC | TOOL_GIT | TOOL_PACKAGE | TOOL_AGENT
+ALL_TOOLS = TOOL_WRITE | TOOL_READ | TOOL_EXEC | TOOL_GIT | TOOL_PACKAGE | TOOL_AGENT | TOOL_SKILL
 
 WRITE_TOOLS = TOOL_WRITE
-READ_TOOLS = TOOL_READ | TOOL_GIT | TOOL_AGENT
+READ_TOOLS = TOOL_READ | TOOL_GIT | TOOL_AGENT | TOOL_SKILL
 
 
 @dataclass

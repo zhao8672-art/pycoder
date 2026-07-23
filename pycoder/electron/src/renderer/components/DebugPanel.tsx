@@ -116,7 +116,7 @@ export const DebugPanel: React.FC<Props> = ({ wsClient }) => {
     return (
         <div className="debug-panel">
             <div className="debug-header">
-                <span>🐛 Debug Panel</span>
+                <span>🐛 调试面板</span>
                 <div className="debug-actions">
                     <button onClick={quickDebug} disabled={running} className="debug-btn debug-btn-run">
                         {running ? '⏳' : '▶'} 执行
@@ -142,7 +142,7 @@ export const DebugPanel: React.FC<Props> = ({ wsClient }) => {
 
             {/* Breakpoints */}
             <div className="debug-section">
-                <div className="debug-section-title">断点 (Breakpoints)</div>
+                <div className="debug-section-title">断点</div>
                 <div className="debug-bp-row">
                     <input
                         type="number"
@@ -162,7 +162,7 @@ export const DebugPanel: React.FC<Props> = ({ wsClient }) => {
                         breakpoints.map((bp) => (
                             <div key={bp.id} className={`debug-bp-item${bp.enabled ? '' : ' bp-disabled'}`}>
                                 <span className="debug-bp-line" onClick={() => toggleBreakpoint(bp.id)}>
-                                    ● L{bp.line} {bp.enabled ? 'active' : 'disabled'}
+                                    ● L{bp.line} {bp.enabled ? '启用' : '禁用'}
                                 </span>
                                 <button className="debug-btn-rm" onClick={() => removeBreakpoint(bp.id)}>✕</button>
                             </div>
@@ -173,7 +173,7 @@ export const DebugPanel: React.FC<Props> = ({ wsClient }) => {
 
             {/* Variables */}
             <div className="debug-section">
-                <div className="debug-section-title">变量 (Variables)</div>
+                <div className="debug-section-title">变量</div>
                 <div className="debug-var-list">
                     {variables.length === 0 ? (
                         <span className="debug-hint">运行后显示变量状态</span>
@@ -191,7 +191,7 @@ export const DebugPanel: React.FC<Props> = ({ wsClient }) => {
 
             {/* Call Stack */}
             <div className="debug-section">
-                <div className="debug-section-title">调用栈 (Call Stack)</div>
+                <div className="debug-section-title">调用栈</div>
                 <div className="debug-stack-list">
                     {callStack.length === 0 ? (
                         <span className="debug-hint">异常时显示调用栈</span>

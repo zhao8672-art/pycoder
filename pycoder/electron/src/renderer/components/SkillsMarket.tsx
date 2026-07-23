@@ -32,10 +32,10 @@ interface Props {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-    'code-quality': 'Code Quality', 'database': 'Database',
-    'devops': 'DevOps', 'getting-started': 'Getting Started',
-    'architecture': 'Architecture', 'security': 'Security',
-    'other': 'Other',
+    'code-quality': '代码质量', 'database': '数据库',
+    'devops': 'DevOps', 'getting-started': '入门指南',
+    'architecture': '架构', 'security': '安全',
+    'other': '其他',
 };
 
 export const SkillsMarket: React.FC<Props> = ({ wsClient }) => {
@@ -75,15 +75,15 @@ export const SkillsMarket: React.FC<Props> = ({ wsClient }) => {
                 const o = msg.output || {};
                 if (msg.success && o.skills) {
                     setSkills(o.skills);
-                    setStatusMsg(`Loaded ${o.total} skills`);
+                    setStatusMsg(`已加载 ${o.total} 个技能`);
                 } else if (msg.success && o.skill_id) {
-                    setStatusMsg(`✅ ${o.action === 'uninstalled' ? 'Uninstalled' : o.name || o.skill_id}`);
+                    setStatusMsg(`✅ ${o.action === 'uninstalled' ? '已卸载' : o.name || o.skill_id}`);
                     setTimeout(() => fetchSkills(), 500);
                 } else if (msg.success && o.updated) {
-                    setStatusMsg(`✅ Updated ${o.updated.length} skills`);
+                    setStatusMsg(`✅ 已更新 ${o.updated.length} 个技能`);
                     setTimeout(() => fetchSkills(), 500);
                 } else if (msg.success && o.new_rating) {
-                    setStatusMsg(`⭐ Rated: ${o.new_rating}`);
+                    setStatusMsg(`⭐ 评分: ${o.new_rating}`);
                     setDetailSkill(null);
                 } else if (msg.success && o.skill) {
                     setDetailSkill(o.skill);
@@ -99,17 +99,17 @@ export const SkillsMarket: React.FC<Props> = ({ wsClient }) => {
                             .catch(() => { setReadmeLoading(false); });
                     }
                 } else if (!msg.success) {
-                    setStatusMsg(`❌ ${o.error || msg.error || 'Error'}`);
+                    setStatusMsg(`❌ ${o.error || msg.error || '错误'}`);
                     setTimeout(() => setStatusMsg(''), 5000);
                 }
             }
             if (msg.type === 'mcp_connect_result' || (msg.type === 'mcp_result' && msg.tool === 'skills_update')) {
                 setSyncing(false);
                 if (msg.success) {
-                    setStatusMsg(`✅ Synced!`);
+                    setStatusMsg(`✅ 同步成功！`);
                     setTimeout(() => fetchSkills(), 500);
                 } else {
-                    setStatusMsg(`❌ Sync failed`);
+                    setStatusMsg(`❌ 同步失败`);
                 }
             }
         });
@@ -123,18 +123,18 @@ export const SkillsMarket: React.FC<Props> = ({ wsClient }) => {
     }, [wsClient, sortBy, search, sendMCP]);
 
     const handleInstall = useCallback((id: string) => {
-        setStatusMsg(`⏳ Installing...`);
+        setStatusMsg(`⏳ 安装中...`);
         sendMCP('install', { skill_id: id });
     }, [sendMCP]);
 
     const handleUninstall = useCallback((id: string) => {
-        setStatusMsg(`⏳ Uninstalling...`);
+        setStatusMsg(`⏳ 卸载中...`);
         sendMCP('uninstall', { skill_id: id });
     }, [sendMCP]);
 
     const handleUpdateAll = useCallback(() => {
         setUpdatingAll(true);
-        setStatusMsg('⏳ Updating all...');
+        setStatusMsg('⏳ 全部更新中...');
         sendMCP('update_all');
     }, [sendMCP]);
 
@@ -152,16 +152,16 @@ export const SkillsMarket: React.FC<Props> = ({ wsClient }) => {
             skill_data: { ...publishForm, tags, downloads: 0, stars: 0 },
         });
         setShowPublish(false);
-        setStatusMsg('📦 Publishing...');
+        setStatusMsg('📦 发布中...');
         setTimeout(() => fetchSkills(), 1000);
     }, [publishForm, sendMCP, fetchSkills]);
 
     const handleSync = useCallback(() => {
         if (!wsClient) return;
         setSyncing(true);
-        setStatusMsg('Syncing...');
+        setStatusMsg('同步中...');
         wsClient.sendJson({ type: 'mcp_call', tool: 'skills_update', args: {} });
-        setTimeout(() => { setSyncing(false); setStatusMsg('Sync timeout'); fetchSkills(); }, 25000);
+        setTimeout(() => { setSyncing(false); setStatusMsg('同步超时'); fetchSkills(); }, 25000);
     }, [wsClient, fetchSkills]);
 
     useEffect(() => { fetchSkills(); }, [fetchSkills]);
@@ -193,11 +193,11 @@ export const SkillsMarket: React.FC<Props> = ({ wsClient }) => {
                         </details>
                     )}
                     <div className="skills-detail-meta">
-                        <span>👤 {detailSkill.author || detailSkill.publisher || 'Unknown'}</span>
+                        <span>👤 {detailSkill.author || detailSkill.publisher || '未知'}</span>
                         <span>⭐ {detailSkill.rating || detailSkill.stars} ({detailSkill.ratings_count || 0})</span>
                         <span>⬇ {detailSkill.downloads}</span>
                         <span>v{detailSkill.version}</span>
-                        {detailSkill.verified && <span className="skills-verified">✓ Verified</span>}
+                        {detailSkill.verified && <span className="skills-verified">✓ 已验证</span>}
                     </div>
                     {(detailSkill.tags || []).length > 0 && (
                         <div className="skills-detail-tags">
@@ -207,7 +207,7 @@ export const SkillsMarket: React.FC<Props> = ({ wsClient }) => {
                     {/* Reviews */}
                     {detailSkill.reviews && detailSkill.reviews.length > 0 && (
                         <details className="skills-detail-reviews">
-                            <summary>💬 Reviews ({detailSkill.reviews.length})</summary>
+                            <summary>💬 评论 ({detailSkill.reviews.length})</summary>
                             {detailSkill.reviews.slice(-5).map((r, i) => (
                                 <div key={i} className="skills-review">
                                     <div className="skills-review-header">
@@ -248,16 +248,16 @@ export const SkillsMarket: React.FC<Props> = ({ wsClient }) => {
                     ))}
                     <select className="skills-publish-input" value={publishForm.category} aria-label="Skill category"
                         onChange={(e) => setPublishForm({ ...publishForm, category: e.target.value })}>
-                        <option value="other">Other</option>
-                        <option value="code-quality">Code Quality</option>
-                        <option value="database">Database</option>
+                        <option value="other">其他</option>
+                        <option value="code-quality">代码质量</option>
+                        <option value="database">数据库</option>
                         <option value="devops">DevOps</option>
-                        <option value="security">Security</option>
-                        <option value="architecture">Architecture</option>
+                        <option value="security">安全</option>
+                        <option value="architecture">架构</option>
                     </select>
-                    <input className="skills-publish-input" placeholder="tags (comma separated)" value={publishForm.tags}
+                    <input className="skills-publish-input" placeholder="标签（逗号分隔）" value={publishForm.tags}
                         onChange={(e) => setPublishForm({ ...publishForm, tags: e.target.value })} />
-                    <input className="skills-publish-input" placeholder="version (default 1.0.0)" value={publishForm.version}
+                    <input className="skills-publish-input" placeholder="版本（默认 1.0.0）" value={publishForm.version}
                         onChange={(e) => setPublishForm({ ...publishForm, version: e.target.value })} />
                     <div className="skills-publish-actions">
                         <button className="skills-btn" onClick={() => setShowPublish(false)}>取消</button>
@@ -272,11 +272,11 @@ export const SkillsMarket: React.FC<Props> = ({ wsClient }) => {
     return (
         <div className="skills-market">
             <div className="skills-market-header">
-                <h3>🧩 Skills Market</h3>
+                <h3>🧩 技能市场</h3>
                 <div className="skills-market-actions">
                     <button className="skills-btn skills-btn-publish" onClick={() => setShowPublish(true)} title="发布新技能">📦 发布</button>
                     <button className="skills-btn skills-btn-sync" onClick={handleSync} disabled={syncing}>
-                        {syncing ? '⏳...' : '🔄 Sync'}
+                        {syncing ? '⏳...' : '🔄 同步'}
                     </button>
                 </div>
             </div>
@@ -291,16 +291,16 @@ export const SkillsMarket: React.FC<Props> = ({ wsClient }) => {
             </div>
 
             <div className="skills-market-toolbar">
-                <input className="skills-search" placeholder="Search..." value={search}
+                <input className="skills-search" placeholder="搜索..." value={search}
                     onChange={(e) => setSearch(e.target.value)} />
-                <select className="skills-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="Sort">
-                    <option value="stars">Stars</option>
-                    <option value="downloads">Downloads</option>
-                    <option value="name">Name</option>
+                <select className="skills-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value)} aria-label="排序">
+                    <option value="stars">最多星</option>
+                    <option value="downloads">最多下载</option>
+                    <option value="name">按名称</option>
                 </select>
                 {tab === 'installed' && hasUpdates && (
                     <button className="skills-btn skills-btn-update-all" onClick={handleUpdateAll} disabled={updatingAll}>
-                        {updatingAll ? '⏳...' : '🔄 Update All'}
+                        {updatingAll ? '⏳...' : '🔄 全部更新'}
                     </button>
                 )}
             </div>
@@ -320,7 +320,7 @@ export const SkillsMarket: React.FC<Props> = ({ wsClient }) => {
                         <div className="skills-card-header skills-card-clickable" onClick={() => handleDetail(skill.id)}>
                             <span className="skills-card-name">
                                 {skill.installed ? '✅ ' : ''}{skill.name}
-                                {skill.has_update && <span className="skills-update-badge">UPDATE</span>}
+                                {skill.has_update && <span className="skills-update-badge">更新</span>}
                                 {skill.verified && <span className="skills-verified-badge">✓</span>}
                             </span>
                             <div className="skills-card-meta">
@@ -341,7 +341,7 @@ export const SkillsMarket: React.FC<Props> = ({ wsClient }) => {
                                 </button>
                             ) : (
                                 <button className="skills-btn skills-btn-install" onClick={() => handleInstall(skill.id)}>
-                                    + Install
+                                    + 安装
                                 </button>
                             )}
                         </div>

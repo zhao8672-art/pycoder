@@ -220,9 +220,9 @@ export const TeamPanel: React.FC<Props> = ({ wsClient }) => {
                 else if (sc === 'delete' && msg.success) { setStatusMsg('🗑 Deleted'); setActiveWs(null); send('list'); }
                 else if (sc === 'members') { setMembers(msg.members || []); }
                 else if (sc === 'review_list') { setReviews(msg.reviews || []); }
-                else if (sc === 'review_create' && msg.success) { setStatusMsg('✅ Review created'); setShowReviewForm(false); send('review_list', { workspace_id: activeWs?.id }); }
+                else if (sc === 'review_create' && msg.success) { setStatusMsg('✅ 评审已创建'); setShowReviewForm(false); send('review_list', { workspace_id: activeWs?.id }); }
                 else if (sc === 'activity') { setActivities(msg.activities || []); }
-                else if (!msg.success) { setStatusMsg(`❌ ${msg.error || 'Error'}`); }
+                else if (!msg.success) { setStatusMsg(`❌ ${msg.error || '错误'}`); }
                 setTimeout(() => setStatusMsg(''), 3000);
             }
         });

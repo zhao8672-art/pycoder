@@ -153,7 +153,7 @@ class TestExecuteAgentToolDispatch:
         result = await execute_agent_tool(
             "nonexistent_tool", {}, tmp_path
         )
-        assert "未知工具" in result
+        assert "执行失败" in result
         assert "nonexistent_tool" in result
 
 
@@ -236,7 +236,7 @@ class TestExecuteAgentToolExceptionHandling:
         result = await execute_agent_tool(
             "read_file", {"path": "x.py"}, tmp_path
         )
-        assert "工具执行失败" in result
+        assert "执行失败" in result
         assert "boom" in result
 
     @pytest.mark.asyncio

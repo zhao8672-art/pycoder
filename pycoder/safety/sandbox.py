@@ -375,3 +375,52 @@ class SandboxManager:
     def list_sandboxes(self) -> dict[str, str]:
         """列出所有沙箱"""
         return {name: type(sb).__name__ for name, sb in self._sandboxes.items()}
+
+
+def detect_sandbox_mode() -> dict:
+    """自动检测最佳沙箱隔离模式
+
+    检测顺序: Docker → Podman → WSL → subprocess
+
+    Returns:
+        {"mode": "docker"|"podman"|"wsl"|"subprocess", "details": str}
+    """
+    import shutil
+
+    # 1. Docker
+    docker_path = shutil.which("docker")
+    if docker_path:
+        return {
+            "mode": "docker",
+            "docker_available": True,
+            "details": f"Docker 可用 ({docker_path})，推荐使用 Docker 隔离（更高安全性）",
+        }
+
+    # 2. Podman
+    podman_path = shutil.which("podman")
+    if podman_path:
+        return {
+            "mode": "podman",
+            "docker_available": False,
+            "podman_available": True,
+            "details": f"Podman 可用 ({podman_path})，作为 Docker 替代方案",
+        }
+
+    # 3. WSL
+    wsl_path = shutil.which("wsl")
+    if wsl_path:
+        return {
+            "mode": "wsl",
+            "docker_available": False,
+            "wsl_available": True,
+            "details": "WSL 可用，可通过 WSL 启用 Docker 以获得更高安全性",
+        }
+
+    # 4. 回退到 subprocess
+    return {
+        "mode": "subprocess",
+        "docker_available": False,
+        "podman_available": False,
+        "wsl_available": False,
+        "details": "Docker/Podman/WSL 均未安装，回退到 subprocess 隔离模式（安全性较低）",
+    }

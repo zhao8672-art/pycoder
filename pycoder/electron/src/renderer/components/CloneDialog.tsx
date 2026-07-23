@@ -19,10 +19,10 @@ export const CloneDialog: React.FC<Props> = ({ onClose, onCloned }) => {
         const res = await BackendAPI.github.clone(url.trim(), targetDir || undefined);
         setCloning(false);
         if (res?.success) {
-            setResult({ ok: true, msg: 'Cloned to ' + res.path });
+            setResult({ ok: true, msg: '已克隆到 ' + res.path });
             setTimeout(() => { onCloned(res.path); onClose(); }, 1000);
         } else {
-            setResult({ ok: false, msg: res?.error || 'Clone failed' });
+            setResult({ ok: false, msg: res?.error || '克隆失败' });
         }
     };
 
@@ -30,20 +30,20 @@ export const CloneDialog: React.FC<Props> = ({ onClose, onCloned }) => {
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-dialog" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <span>📋 Clone Repository</span>
+                    <span>📋 克隆仓库</span>
                     <button className="modal-close" onClick={onClose}>×</button>
                 </div>
                 <div className="modal-body">
-                    <label className="modal-label">Repository URL</label>
+                    <label className="modal-label">仓库地址</label>
                     <input className="settings-input" value={url}
                         onChange={e => setUrl(e.target.value)}
                         placeholder="https://github.com/user/repo.git" />
-                    <div className="modal-hint">Supports HTTPS, SSH, and short formats like "user/repo"</div>
+                    <div className="modal-hint">支持 HTTPS、SSH 及简写格式如 "user/repo"</div>
 
-                    <label className="modal-label">Target Directory (optional)</label>
+                    <label className="modal-label">目标目录（可选）</label>
                     <input className="settings-input" value={targetDir}
                         onChange={e => setTargetDir(e.target.value)}
-                        placeholder="Leave empty for repo name" />
+                        placeholder="留空则使用仓库名" />
 
                     {result && (
                         <div className={result.ok ? 'git-status-msg' : 'modal-error'}>
@@ -52,10 +52,10 @@ export const CloneDialog: React.FC<Props> = ({ onClose, onCloned }) => {
                     )}
 
                     <div className="modal-actions">
-                        <button className="settings-btn" onClick={onClose}>Cancel</button>
+                        <button className="settings-btn" onClick={onClose}>取消</button>
                         <button className="settings-btn settings-btn-primary"
                             onClick={handleClone} disabled={cloning || !url.trim()}>
-                            {cloning ? 'Cloning...' : 'Clone'}
+                            {cloning ? '克隆中...' : '克隆'}
                         </button>
                     </div>
                 </div>

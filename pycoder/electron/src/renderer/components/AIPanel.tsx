@@ -283,7 +283,7 @@ export const AIPanel: React.FC<Props> = ({ wsClient }) => {
           const builtin = msg.builtin || [];
           const remote = msg.remote || [];
           const servers = msg.connected_servers || [];
-          let mcpText = `**🧰 MCP Tools (共 ${msg.total} 个)**\n\n`;
+          let mcpText = `**🧰 MCP 工具 (共 ${msg.total} 个)**\n\n`;
           mcpText += `**内置 (${builtin.length})**\n`;
           builtin.forEach((t: any) => {
             mcpText += `- \`${t.name}\`: ${t.description}\n`;

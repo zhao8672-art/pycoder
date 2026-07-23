@@ -50,7 +50,7 @@
 }
 
 .browser-close-btn:hover {
-    background: rgba(239, 107, 124, 0.15);
+    background: rgba(244, 71, 71, 0.15);
     color: var(--accent-red);
 }
 
