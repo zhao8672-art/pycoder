@@ -5,8 +5,8 @@
 [![PyPI version](https://img.shields.io/badge/pypi-v0.5.0-blue)](https://pypi.org/project/pycoder/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12+-blue)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-5191+-brightgreen)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-≥80%25-brightgreen)](.coveragerc)
+[![Tests](https://img.shields.io/badge/tests-8000%2B-brightgreen)](tests/)
+[![Coverage](https://img.shields.io/badge/code-130K%2B%20lines-blue)](pycoder/)
 
 **PyCoder** 是一个受 Aider 启发、独立实现的开源 AI 编程助手，专为中国 Python 开发者优化。它提供 Web API 和 Electron 桌面 IDE 两种使用方式，原生支持 DeepSeek、通义千问 (Qwen)、智谱 GLM 等国产大模型。
 
@@ -41,6 +41,11 @@ cd pycoder
 pip install -e ".[dev]"
 ```
 
+> **💡 Windows 用户**: 上述命令在 PowerShell / CMD 中同样可用。但请注意:
+> - PowerShell 5.x **不支持** `&&` 操作符（PowerShell 7+ 已支持），PyCoder 的 `shell_translator` 已自动将 `&&` 翻译为兼容写法。
+> - 推荐使用 [`_launch.py`](docs/LAUNCH.md) 一键启动（自动处理进程清理、Key 加载、缓存清理）。
+> - 详细 Windows 专属说明见 [docs/LAUNCH.md](docs/LAUNCH.md)。
+
 ### 配置 API Key
 
 支持 **DeepSeek**、**通义千问 (Qwen)**、**智谱 GLM** 等多种国产模型：
@@ -63,10 +68,12 @@ python -m pycoder --setup
 # App Server（FastAPI + WebSocket）
 python -m pycoder --server
 
-# 指定模型
+# 指定模型 (注意: 第一个 -m 是 python 的 module flag, 第二个 -m 是 pycoder 的 --model 短选项)
+python -m pycoder --model deepseek-chat
+python -m pycoder --model qwen-coder-plus
+python -m pycoder --model glm-4
+# 或使用短选项 (与上面等价, 短选项可减少与 python -m 的混淆)
 python -m pycoder -m deepseek-chat
-python -m pycoder -m qwen-coder-plus
-python -m pycoder -m glm-4
 
 # Electron 桌面 IDE
 cd pycoder/electron

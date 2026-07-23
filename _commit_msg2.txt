@@ -1,0 +1,47 @@
+fix: 修复 pycoder 三个 Windows 兼容性问题
+
+问题列表:
+1. Windows PowerShell 5.x 不支持 && 操作符, AI 输出的 Linux 命令无法直接执行
+2. 沙箱子进程在 tempfile.gettempdir() 中执行且 PYTHONPATH 为空, 用户代码无法 import pycoder
+3. site-packages 下有 7 个 pip 升级/卸载残留 (~ertifi/~ip/~penai 等), pip list 持续警告
+
+修复内容:
+
+A. pycoder/core/shell_translator.py
+   - 新增 OPERATOR_MAP: 7 个跨平台操作符 (&&, ||, |, >, <, >>, ;)
+   - 新增 _translate_operators(): 处理 &&/|| 配对展开
+     * Linux → Windows: "ls && echo ok" → "ls ; if ($LASTEXITCODE -eq 0) { echo ok }"
+     * Windows → Linux: 反向还原 (从 if 块还原为 &&)
+   - 新增 _collapse_windows_ifs(): 处理反向还原
+   - 新增 _translate_simple_operators(): 处理 |/> 等简单操作符
+
+B. pycoder/server/routers/code_exec.py
+   - 新增 _resolve_project_root(): 自动检测项目根目录
+     * 优先 PYCODER_PROJECT_ROOT 环境变量
+     * 退化为向上找 pyproject.toml 父目录
+   - 新增 _PROJECT_ROOT 全局变量
+   - _run_in_subprocess() 修改:
+     * cwd: tempfile.gettempdir() → _PROJECT_ROOT
+     * env: 新增 PYTHONPATH = _PROJECT_ROOT + os.pathsep + 旧 PYTHONPATH
+   - 用户代码现在可 import 项目模块
+
+C. 清理 site-packages 残留
+   - 7 个 ~ 开头的目录被移除: ~ertifi, ~ip, ~penai, ~rjson, ~ydantic_core 等
+   - pip list 警告消失
+
+D. 测试 (21 个新增测试, 全部通过)
+   - tests/test_shell_translator_operators.py: 14 个翻译测试
+     * && 展开为 if 块
+     * || 展开为 if-else 块
+     * Windows → Linux 反向还原
+     * 简单操作符 (| > < ;) 保留
+   - tests/test_sandbox_pythonpath.py: 5 个沙箱项目根测试
+     * _resolve_project_root 三种场景
+     * _run_in_subprocess 源码注入校验
+   - tests/test_sitepkgs_clean.py: 2 个清理验证测试
+     * 无 ~ 残留目录
+     * 核心包未受影响
+
+E. .gitignore: 排除测试临时文件 (_smoke*, _verify*, _cleanup*, _dbg* 等)
+
+Co-Authored-By: Claude <noreply@anthropic.com>

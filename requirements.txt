@@ -494,18 +494,10 @@ aiofiles>=24.0.0
 nbformat>=5.0.0
 
 # ============================================================================
-# PyCoder 运行时必需但此前缺失的依赖（补充于 2026-07-10 综合检测后）
-# 说明：以下包为 Server / CLI 启动所必需，原 requirements.txt 未声明，
-# 导致全新 `pip install -e .` 后 Server 与 CLI 入口无法运行。
-# 版本已锁定为本次检测环境中验证可用的版本。
-# 规范做法：应将下列包加入 requirements/requirements.in 后重新 `uv pip compile`。
+# PyCoder 启动必需依赖 (Server / CLI 入口)
+# 此前曾以"补充段"形式硬编码于文件末尾, 现已统一迁移到 requirements.in
+# 本段为安全网: 即使遗漏重新 compile, 直接 `pip install -r requirements.txt`
+# 也能获得完整运行时依赖. 规范流程: 修改 requirements/requirements.in 后
+# 运行 `uv pip compile ...` 重新生成此文件.
 # ============================================================================
-PyJWT==2.13.0
-python-multipart==0.0.32
-websockets==16.0
-email-validator==2.3.0
-SQLAlchemy==2.0.51
-uvicorn==0.51.0
-structlog==26.1.0
-bcrypt==5.0.0
-mcp==1.28.1
+-r requirements/requirements.in

@@ -1,0 +1,23 @@
+#!/bin/bash
+# ============================================================================
+# PyCoder post-commit 钩子 — 提交后自动推送到 origin
+# 跨平台: Linux/macOS 原生 bash; Windows 通过 Git for Windows 自带 Git Bash
+# 安装: cp .git-hooks/post-commit .git/hooks/post-commit && chmod +x ...
+# ============================================================================
+set -e
+
+# 检测是否在 git 仓库根目录
+GIT_DIR="$(git rev-parse --git-dir 2>/dev/null || echo "")"
+if [ -z "$GIT_DIR" ]; then
+    exit 0
+fi
+
+# 自动推送 (远程默认 origin, 分支为 HEAD 当前分支)
+BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "master")
+REMOTE=${PYCODER_GIT_REMOTE:-origin}
+
+# 推送 (使用 --quiet 避免在 commit 输出中混入推送日志)
+git push "$REMOTE" "$BRANCH" --quiet 2>&1 | head -5 || true
+
+# 静默退出, 不阻塞 commit
+exit 0

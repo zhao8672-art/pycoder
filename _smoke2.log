@@ -1,1 +1,20 @@
-﻿done C:\Users\Administrator\Desktop\pycode\_smoke.log
+﻿=== GET 端点 ===
+[OK]  200  /api/health/live                         4ms  {"status":"alive","version":"0.5.0","uptime_seconds":11.4}
+[OK]  200  /api/health/ready                     1246ms  {"status":"ok","version":"0.5.0","python":"3.14.3","server_uptime":12.7,"db_stats":{"session_count":
+[OK]  200  /api/dashboard/health                 2668ms  {"overall":82,"grade":"B","factors":[{"name":"Git 工作区","status":"ok","detail":"干净"},{"name":"依赖完整","
+[OK]  200  /api/dashboard/full                   7756ms  {"generated_at":1784765090.9029844,"generated_at_human":"2026-07-23 08:04:50","project":{"name":"pyc
+[OK]  200  /api/models                           1355ms  {"models":[{"id":"deepseek-chat","name":"DeepSeek V4 Flash","provider":"deepseek","available":true,"
+[OK]  200  /api/installer/list                      3ms  {"modules":[],"count":0,"loaded":[]}
+[OK]  200  /api/sandbox/status                    534ms  {"backend":"subprocess","docker_available":false,"reason":"docker daemon 不可用: failed to connect to t
+[OK]  200  /api/multimodal/capabilities             3ms  {"image_analyze":true,"ocr":{"tesseract":false,"paddleocr":false,"vision_fallback":true},"vision_mod
+[OK]  200  /api/memory/sessions                     3ms  {"sessions":[]}
+[OK]  200  /api/scheduler/tasks                  5196ms  {"success":true,"tasks":[{"id":"skills-refresh-09","name":"Skills Market 自动刷新 (09:00)","trigger":"cr
+[OK]  200  /api/security/types                      3ms  {"success":true,"types":["sql_injection","xss","csrf","path_traversal"]}
+[WARN]  404  /api/files/workspace                     3ms  {"detail":"Not Found"}
+[OK]  200  /api/impact/stats                        6ms  {"workspace":"C:\\Users\\Administrator\\Desktop\\pycode","stats":{"total_symbols":28706,"total_refer
+[OK]  200  /api/patch/list                          2ms  {"patches":[{"id":"patch_1784764073_ed162286","file":"C:\\Users\\Administrator\\.pycoder\\patches\\p
+
+=== POST 端点 ===
+[OK]  200  /api/impact/build                        6ms  {"success":true,"workspace":"C:\\Users\\Administrator\\Desktop\\pycode","stats":{"total_symbols":287
+[WARN]  422  /api/impact/callees                      2ms  {"detail":[{"type":"missing","loc":["body","name"],"msg":"Field required","input":{"qualname":"main"
+[OK]  200  /api/dashboard/cache/clear               2ms  {"success":true,"message":"缓存已清空"}
