@@ -404,21 +404,36 @@ class ChatBridge:
     async def _route_with_nlu(self, message: str) -> tuple[str, bool, int]:
         """P0-1: 三层 NLU 路由 — 关键词快速预检 + NLU 深度分析
 
+        P1-4 优化: 短消息跳过 NLU + 缓存 + 超时降级
+
         Returns:
             (mode: "chat"|"tool", needs_tools: bool, max_rounds: int)
         """
         # Layer 1: 快速关键词预检（0 token, <1ms）
         mode, needs_tools, rounds = self._classify_intent(message)
 
-        # 短消息/明确 chat → 直接返回，不浪费 NLU 开销
-        if mode == "chat" and len(message) < 30:
+        # P1-4: 短消息/明确 chat → 直接返回，不浪费 NLU 开销
+        # 阈值从 30 提高到 50，覆盖更多简单问候和短问题
+        if mode == "chat" and len(message) < 50:
             return (mode, needs_tools, rounds)
+
+        # P1-4: NLU 结果缓存（5 分钟内相同消息不重复分析）
+        cache_key = hash(message)
+        if hasattr(self, "_nlu_result_cache"):
+            cached = self._nlu_result_cache.get(cache_key)
+            if cached and (time.time() - cached[0]) < 300:  # 5 分钟 TTL
+                return cached[1]
 
         # Layer 2 & 3: 中等/复杂消息 → CompositeNLUEngine
         try:
+            import asyncio
+
             from pycoder.ai.nlu.composite_nlu import CompositeNLUEngine
             _nlu = CompositeNLUEngine()
-            _result = await _nlu.understand(message)
+            # P1-4: 2 秒超时，超时降级到关键词匹配
+            _result = await asyncio.wait_for(
+                _nlu.understand(message), timeout=2.0
+            )
             self._nlu_cache = dict(intent=_result, category=_result.task_category)
 
             # 根据 NLU 分类动态调整
@@ -426,10 +441,20 @@ class ChatBridge:
                 "code_generation", "refactoring", "debugging",
             ):
                 _complexity = getattr(_result, "complexity", 0.5)
-                return ("tool", True, 8 if _complexity > 0.6 else 5)
-            if _result.ambiguity > 0.5:
-                return ("tool", True, 5)
-            return ("chat", False, 0)
+                result = ("tool", True, 8 if _complexity > 0.6 else 5)
+            elif _result.ambiguity > 0.5:
+                result = ("tool", True, 5)
+            else:
+                result = ("chat", False, 0)
+
+            # P1-4: 缓存结果
+            if not hasattr(self, "_nlu_result_cache"):
+                self._nlu_result_cache = {}
+            self._nlu_result_cache[cache_key] = (time.time(), result)
+            return result
+        except asyncio.TimeoutError:
+            logger.debug("nlu_route_timeout, falling back to keyword match")
+            return (mode, needs_tools, rounds)
         except (ImportError, RuntimeError, ValueError, TypeError, AttributeError) as e:
             logger.debug("nlu_route_fallback error=%s", e)
             return (mode, needs_tools, rounds)

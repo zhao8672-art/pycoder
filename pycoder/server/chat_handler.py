@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import time
 import uuid
 from pathlib import Path
@@ -343,6 +344,69 @@ def _write_file_safe(work_dir: Path, rel_path: str, code: str):
         log.info("auto_write_file", path=rel_path, size=len(code))
 
 
+# P1-1: 内部元数据剥离 — 移除 Hermes 模式输出的调试信息
+_METADATA_PATTERNS = [
+    re.compile(r"【原始用户输入】.*?(?=\n【|$)", re.DOTALL),
+    re.compile(r"【分层意图解析】.*?(?=\n【|$)", re.DOTALL),
+    re.compile(r"【美化后标准化任务指令】.*?(?=\n【|$)", re.DOTALL),
+    re.compile(r"【本次自动调度的PyCoder工作模式列表.*?】.*?(?=\n【|$)", re.DOTALL),
+    re.compile(r"【多模式执行整合输出结果】\n?", re.DOTALL),
+]
+
+
+def _strip_internal_metadata(content: str) -> str:
+    """P1-1: 剥离 Hermes 模式内部处理元数据，只保留实际回复内容"""
+    if not content:
+        return content
+    for pattern in _METADATA_PATTERNS:
+        content = pattern.sub("", content)
+    # 清理多余空行
+    content = re.sub(r"\n{3,}", "\n\n", content).strip()
+    return content
+
+
+# P1-2: 空回复防御
+_EMPTY_RESPONSE_FALLBACK = (
+    "抱歉，AI 模型未能生成有效回复。请尝试：\n"
+    "1. 重新措辞您的问题\n"
+    "2. 检查 API Key 是否有效\n"
+    "3. 尝试切换模型（如 deepseek-chat）"
+)
+
+
+def _validate_response(content: str) -> str:
+    """P1-2: 检测空回复并返回降级消息"""
+    if not content or len(content.strip()) < 10:
+        logger.warning("empty_ai_response_detected")
+        return _EMPTY_RESPONSE_FALLBACK
+    return content
+
+
+async def _save_conversation_memory(
+    session_id: str,
+    user_message: str,
+    ai_response: str,
+    model: str,
+):
+    """P1-3: 对话结束后保存到持久化记忆系统"""
+    try:
+        from pycoder.server.services.memory_augmentor import MemoryAugmentor
+
+        augmentor = MemoryAugmentor()
+        # 提取关键信息并保存到 long_term_memory 表
+        key = f"session_{session_id}_{int(time.time())}"
+        content = f"用户: {user_message[:500]}\nAI: {ai_response[:2000]}"
+        augmentor.store(
+            project="pycoder",
+            key=key,
+            content=content,
+            tags=[model, "conversation"],
+            importance=0.6,
+        )
+    except (ImportError, RuntimeError, ValueError, TypeError, AttributeError) as e:
+        logger.debug("persistent_memory_save_skipped: %s", e)
+
+
 async def _run_chat_stream(
     session_id: str | None,
     message: str,
@@ -489,12 +553,24 @@ async def _run_chat_stream(
         )
 
     # 保存用户消息（所有模式通用）
+    # P0-1 修复: 增加 FOREIGN KEY 约束失败的防御性恢复
     try:
         store.add_message(session_id, "user", message)
-    except (OSError, ValueError, RuntimeError) as e:
+    except (OSError, ValueError, RuntimeError, sqlite3.IntegrityError) as e:
         logger.warning(
             "save_user_message_failed", extra={"session_id": session_id, "error": str(e)}
         )
+        # 防御性恢复: 会话不存在时自动创建后重试
+        if "FOREIGN KEY" in str(e) or "IntegrityError" in type(e).__name__:
+            try:
+                store.create_session(session_id=session_id, model=model)
+                store.add_message(session_id, "user", message)
+                logger.info("session_auto_created_on_fk_error", extra={"session_id": session_id})
+            except (OSError, ValueError, RuntimeError) as retry_err:
+                logger.error(
+                    "session_auto_create_failed",
+                    extra={"session_id": session_id, "error": str(retry_err)},
+                )
 
     # FIX #3: 为 agent/hermes 模式注入代码写入指令
     if hermes or agent_mode:
@@ -522,6 +598,10 @@ async def _run_chat_stream(
             if event.get("type") == "agent_result" or event.get("type") == "done":
                 agent_has_result = True
                 content = event.get("content") or event.get("summary", "")
+                # P1-1: 剥离内部元数据
+                content = _strip_internal_metadata(content)
+                # P1-2: 空回复防御
+                content = _validate_response(content)
                 if content:
                     _try_write_code_files(content)
                 # 保存 AI 回复
@@ -532,6 +612,8 @@ async def _run_chat_stream(
                         "save_assistant_message_failed",
                         extra={"session_id": session_id, "error": str(e)},
                     )
+                # P1-3: 保存到持久化记忆
+                await _save_conversation_memory(session_id, message, content, model)
                 yield {"type": "done", "content": content}
                 return
             elif event.get("type") == "error":
@@ -543,7 +625,9 @@ async def _run_chat_stream(
 
         # Agent 结束但没有结果事件（超时/中断）
         if not agent_has_result:
-            yield {"type": "done", "content": ""}
+            # P1-2: 空回复防御
+            fallback = _validate_response("")
+            yield {"type": "done", "content": fallback}
         return
 
     # Normal chat mode (with smart intent routing)
@@ -565,6 +649,8 @@ async def _run_chat_stream(
             elif event.event_type == "done":
                 # FIX #3: 对话结束时尝试解析并写入代码文件
                 final = event.content or final_content
+                # P1-1: 剥离内部元数据
+                final = _strip_internal_metadata(final)
                 _try_write_code_files(final)
                 # XML 工具调用回退（对于不支持 function calling 的模型）
                 final, tool_results = await _execute_xml_tool_calls(final)
@@ -573,6 +659,8 @@ async def _run_chat_stream(
                         status = "✅" if tr["success"] else "❌"
                         result_str = json.dumps(tr["output"], ensure_ascii=False, indent=2)[:2000]
                         final += f"\n\n---\n{status} **{tr['tool']}** 执行结果:\n```json\n{result_str}\n```"
+                # P1-2: 空回复防御
+                final = _validate_response(final)
                 # 保存 AI 回复
                 try:
                     store.add_message(session_id, "assistant", final)
@@ -581,6 +669,8 @@ async def _run_chat_stream(
                         "save_assistant_message_failed",
                         extra={"session_id": session_id, "error": str(e)},
                     )
+                # P1-3: 保存到持久化记忆
+                await _save_conversation_memory(session_id, message, final, model)
                 yield {"type": "done", "content": final, "usage": event.usage}
             elif event.event_type == "error":
                 yield {"type": "error", "message": event.content}

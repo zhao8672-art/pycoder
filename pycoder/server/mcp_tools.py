@@ -70,32 +70,106 @@ def list_builtin_tools() -> list[dict]:
 
 
 async def call_builtin_tool(name: str, args: dict) -> MCPCallResult:
-    """通过 V2 引擎调用内置工具"""
+    """通过 V2 引擎调用内置工具
+
+    P0-3 修复: 增加全面的工具名归一化，覆盖 dot/underscore/前缀 变体
+    """
     from pycoder.bus.protocol import CapabilityCall
     from pycoder.server.app import get_v2_engine
 
     v2 = get_v2_engine()
     if not v2:
         return MCPCallResult(success=False, error="V2 引擎未初始化", tool=name)
-    candidate_ids = [f"tools.{name}", f"v1.{name}", name]
+
+    # P0-3: 构建全面的候选 ID 列表
+    # 处理 LLM 输出的多种命名变体: dot.notation, underscore_notation, 混合
+    candidate_ids = _build_tool_name_candidates(name)
+
+    # 从 V2 注册表获取所有已注册能力 ID，用于反向匹配
+    try:
+        all_caps = {cap.id for cap in v2.registry.list_all()}
+    except Exception:
+        all_caps = set()
+
+    # 优先尝试精确匹配候选 ID
     for cid in candidate_ids:
-        try:
-            call_req = CapabilityCall(
-                capability_id=cid, params=args, caller="shim"
-            )
-            result = await v2.registry.call(
-                call_req, {"caller": "shim", "permission_level": 4}
-            )
-            if result and getattr(result, "success", False):
-                return MCPCallResult(
-                    success=True,
-                    output=getattr(result, "data", result),
-                    tool=name,
+        if cid in all_caps or not all_caps:
+            try:
+                call_req = CapabilityCall(
+                    capability_id=cid, params=args, caller="shim"
                 )
-        except Exception as e:
-            _logger.warning("silently_swallowed: {err}", exc_info=False)
-            continue
+                result = await v2.registry.call(
+                    call_req, {"caller": "shim", "permission_level": 4}
+                )
+                if result and getattr(result, "success", False):
+                    return MCPCallResult(
+                        success=True,
+                        output=getattr(result, "data", result),
+                        tool=name,
+                    )
+            except Exception:
+                continue
+
+    # 反向模糊匹配: 在注册表中查找包含 name 核心部分的 capability
+    if all_caps:
+        name_core = name.replace(".", "_").replace("-", "_").lower()
+        for cap_id in all_caps:
+            cap_core = cap_id.replace(".", "_").replace("-", "_").lower()
+            # 去掉前缀后比较
+            cap_stripped = cap_core
+            for prefix in ("tools_", "v1_", "editor_", "io_", "system_"):
+                if cap_stripped.startswith(prefix):
+                    cap_stripped = cap_stripped[len(prefix):]
+                    break
+            if name_core == cap_stripped or name_core == cap_core:
+                try:
+                    call_req = CapabilityCall(
+                        capability_id=cap_id, params=args, caller="shim"
+                    )
+                    result = await v2.registry.call(
+                        call_req, {"caller": "shim", "permission_level": 4}
+                    )
+                    if result and getattr(result, "success", False):
+                        return MCPCallResult(
+                            success=True,
+                            output=getattr(result, "data", result),
+                            tool=name,
+                        )
+                except Exception:
+                    continue
+
     return MCPCallResult(success=False, error=f"工具 {name} 未注册", tool=name)
+
+
+def _build_tool_name_candidates(name: str) -> list[str]:
+    """P0-3: 构建全面的工具名候选列表
+
+    处理 LLM 输出的多种格式:
+    - dot.notation → underscore_notation 和原始
+    - underscore_notation → dot.notation 和原始
+    - 带前缀/不带前缀
+    """
+    candidates: list[str] = []
+    # 原始名称
+    candidates.append(name)
+    # dot → underscore
+    underscore_name = name.replace(".", "_")
+    candidates.append(underscore_name)
+    # underscore → dot
+    dot_name = name.replace("_", ".")
+    candidates.append(dot_name)
+
+    # 带前缀的变体
+    result: list[str] = []
+    seen: set[str] = set()
+    for base in [name, underscore_name, dot_name]:
+        for prefix in ["", "tools.", "v1.", "editor.", "io.", "system."]:
+            full = f"{prefix}{base}" if prefix else base
+            if full not in seen:
+                seen.add(full)
+                result.append(full)
+
+    return result
 
 
 class MCPClientManager:

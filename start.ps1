@@ -22,6 +22,12 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSCommandPath
 Set-Location $root
 
+# P2-2: 强制 UTF-8 编码，解决中文输出乱码
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+$env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
+
 # 1. 寻找 Python
 $python = $null
 foreach ($p in @(".venv\Scripts\python.exe", "venv\Scripts\python.exe")) {

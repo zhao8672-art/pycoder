@@ -85,6 +85,22 @@ function setupCSP(): void {
 }
 
 app.whenReady().then(async () => {
+  // P2-5: 启动前清理可能锁定的 Electron 缓存目录
+  const path = require('path');
+  const fs = require('fs');
+  const userDataPath = app.getPath('userData');
+  const cacheDirs = ['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'VideoDecodeStats'];
+  for (const dir of cacheDirs) {
+    const cachePath = path.join(userDataPath, dir);
+    if (fs.existsSync(cachePath)) {
+      try {
+        fs.rmSync(cachePath, { recursive: true, force: true });
+      } catch {
+        // 缓存清理失败不阻止启动
+      }
+    }
+  }
+
   registerIpcHandlers();
   createAppMenu();
   createTray();
