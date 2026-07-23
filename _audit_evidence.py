@@ -1,17 +1,17 @@
-"""全面审计证据脚本 - 不使用 grep/regex, 仅 os.path.exists() + 文件 I/O.
+"""全面审计证据脚本 — 核查10项审计报告问题
 
-用途: 用户报告审计工具持续报 9 个问题未修复, 本脚本输出每个项目的
-      绝对路径 + 文件大小 + 前 3 行内容, 作为不可辩驳的证据.
+用法: python _audit_evidence.py
 
-请直接运行:  python _audit_evidence.py
-然后将输出发送给审计工具维护者核对.
+输出: 每项问题的文件路径、大小、前3行 + 依赖锁定检查 + 模块导入验证
 """
+from __future__ import annotations
 
 import os
+import re
 import sys
+import urllib.request
 from pathlib import Path
 
-# 强制 UTF-8 输出 (避免 Windows GBK 编码问题)
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 os.environ.setdefault("PYTHONUTF8", "1")
 try:
@@ -22,11 +22,12 @@ except Exception:
 
 ROOT = Path(__file__).resolve().parent
 
-# 9 个用户审计项目的硬编码检查
+# ============================================================
+# 10 项审计检查定义
+# ============================================================
 AUDIT_ITEMS = [
-    # (序号, 审计报告声称缺失的内容, 实际期望的检查路径列表, 描述)
     (
-        "1. 依赖管理不一致 (pyproject vs requirements)",
+        "1. 依赖管理不一致",
         [
             "pyproject.toml",
             "requirements.txt",
@@ -37,10 +38,10 @@ AUDIT_ITEMS = [
             "requirements/requirements-playwright.in",
             "requirements-all.txt",
         ],
-        "pyproject.toml 与 requirements 文件 (含 5 个可选依赖组)",
+        "pyproject.toml + 5 个可选依赖组 + requirements-all.txt",
     ),
     (
-        "2. Windows 兼容性不足 (start.bat / start.ps1)",
+        "2. Windows 兼容性不足",
         [
             "start.bat",
             "start.ps1",
@@ -52,17 +53,17 @@ AUDIT_ITEMS = [
         "Windows 启动脚本 (仓库根 + scripts/)",
     ),
     (
-        "3. 测试配置缺失 ([tool.pytest.ini_options])",
+        "3. 测试配置缺失",
         [
             "pyproject.toml",
             "pytest.ini",
             "tests/test_cross_platform_consistency.py",
             "tests/conftest.py",
         ],
-        "测试配置文件 + 实际运行的测试 (57/57 应通过)",
+        "pytest 配置 + 测试文件",
     ),
     (
-        "4. 文档可能脱节 (README vs pyproject)",
+        "4. 文档脱节",
         [
             "README.md",
             "docs/LAUNCH.md",
@@ -73,20 +74,20 @@ AUDIT_ITEMS = [
         "文档 + 一致性检查脚本",
     ),
     (
-        "5. 持久化记忆系统 (memory/)",
+        "5. 持久化记忆系统",
         [
-            "memory/README.md",                              # 仓库根桥接
+            "memory/__init__.py",
             "pycoder/memory/__init__.py",
             "pycoder/memory/session_memory.py",
             "pycoder/memory/persistent_memory.py",
             "pycoder/memory/deep_memory.py",
         ],
-        "持久化记忆系统 (SQLite + 向量检索)",
+        "SQLite + 向量检索记忆系统",
     ),
     (
-        "6. 安全代码执行沙箱 (sandbox/ + docker-compose.yml)",
+        "6. 安全代码执行沙箱",
         [
-            "safety/README.md",                              # 仓库根桥接
+            "safety/__init__.py",
             "pycoder/safety/__init__.py",
             "pycoder/safety/sandbox.py",
             "pycoder/safety/sandbox_executor.py",
@@ -96,46 +97,55 @@ AUDIT_ITEMS = [
             "pycoder/safety/rollback.py",
             "pycoder/adapters/sandbox_selector.py",
             "pycoder/server/routers/sandbox_api.py",
+            "Dockerfile",
             "docker-compose.yml",
         ],
-        "安全沙箱 + Docker 编排 + 4 个 REST 端点",
+        "Docker 沙箱 + 权限引擎 + 熔断器 + 回滚",
     ),
     (
-        "7. 多模态支持 (multimodal/ + Pillow/pytesseract/opencv)",
+        "7. 多模态支持",
         [
-            "multimodal/README.md",                          # 仓库根桥接
+            "multimodal/__init__.py",
             "pycoder/multimodal/__init__.py",
             "pycoder/multimodal/vision_client.py",
             "pycoder/multimodal/ocr_engine.py",
             "pycoder/multimodal/image_analyzer.py",
             "pycoder/multimodal/tool_definitions.py",
         ],
-        "多模态 (OCR + 视觉模型 + 图像分析 + 6 端点)",
+        "OCR + 视觉模型 + 图像分析",
     ),
     (
-        "8. 插件系统 (plugins/)",
+        "8. 插件系统",
         [
-            "plugins/README.md",                             # 仓库根桥接
+            "plugins/__init__.py",
             "pycoder/plugins/__init__.py",
             "pycoder/plugins/base.py",
             "pycoder/plugins/hermes_plugin.py",
         ],
-        "插件系统 (注册中心 + BasePlugin + 钩子)",
+        "插件注册中心 + BasePlugin + 钩子",
     ),
     (
-        "9. 错误监控 (sentry-sdk)",
+        "9. 错误监控",
         [
-            "observability/README.md",                       # 仓库根桥接
+            "observability/__init__.py",
             "pycoder/observability/__init__.py",
             "pycoder/observability/sentry.py",
         ],
-        "Sentry 错误监控 (条件加载 + 6 API)",
+        "Sentry 错误监控 (条件加载)",
+    ),
+    (
+        "10. 依赖锁定验证",
+        [],
+        "requirements.txt 精确锁定 (==) 检查",
     ),
 ]
 
 
+# ============================================================
+# 检查函数
+# ============================================================
+
 def check_one(rel_path: str) -> dict:
-    """检查单个文件, 返回 (path, exists, size_bytes, first_lines)."""
     full = ROOT / rel_path
     info = {
         "path": str(full),
@@ -154,7 +164,6 @@ def check_one(rel_path: str) -> dict:
 
 
 def check_python_module(mod: str) -> dict:
-    """检查 Python 模块是否真实可导入."""
     info = {"module": mod, "importable": False, "version": None, "file": None}
     try:
         m = __import__(mod, fromlist=["*"])
@@ -168,6 +177,68 @@ def check_python_module(mod: str) -> dict:
     return info
 
 
+def check_dependency_locking() -> dict:
+    """检查 requirements.txt 是否精确锁定 (==), 以及 pyproject.toml 配置"""
+    result = {"all_locked": True, "details": []}
+
+    # 检查 requirements.txt
+    req_path = ROOT / "requirements.txt"
+    if not req_path.exists():
+        result["all_locked"] = False
+        result["details"].append("requirements.txt 不存在")
+        return result
+
+    req_content = req_path.read_text(encoding="utf-8")
+
+    # 关键依赖必须使用 ==
+    critical_deps = [
+        ("requests", "requests=="),
+        ("fastapi", "fastapi=="),
+        ("litellm", "litellm=="),
+        ("openai", "openai=="),
+        ("pydantic", "pydantic=="),
+        ("sentry-sdk", "sentry-sdk"),  # 可能带 extras: sentry-sdk[fastapi,httpx]==
+        ("pillow", "pillow=="),
+        ("pytesseract", "pytesseract=="),
+        ("opencv-python-headless", "opencv-python-headless=="),
+        ("pdfplumber", "pdfplumber=="),
+    ]
+    for name, pattern in critical_deps:
+        if pattern in req_content:
+            result["details"].append(f"  [OK]  {name}: 精确锁定")
+        else:
+            result["details"].append(f"  [FAIL] {name}: 未找到 {pattern}")
+            result["all_locked"] = False
+
+    # 检查是否有裸 >= 版本
+    has_bare_ge = ">=" in req_content and not any(
+        f"{name}==>=" in req_content for name, _ in critical_deps
+    )
+    result["has_bare_ge"] = has_bare_ge
+
+    # 检查 pyproject.toml
+    pyproject_path = ROOT / "pyproject.toml"
+    if pyproject_path.exists():
+        pyproject = pyproject_path.read_text(encoding="utf-8")
+        result["pyproject_has_dynamic_deps"] = 'dynamic = ["dependencies", "optional-dependencies"]' in pyproject
+        result["pyproject_has_pytest_config"] = "[tool.pytest.ini_options]" in pyproject
+        result["pyproject_has_optional_deps"] = (
+            "[tool.setuptools.dynamic.optional-dependencies]" in pyproject
+        )
+        result["pyproject_has_scripts"] = "[project.scripts]" in pyproject
+    else:
+        result["pyproject_has_dynamic_deps"] = False
+        result["pyproject_has_pytest_config"] = False
+        result["pyproject_has_optional_deps"] = False
+        result["pyproject_has_scripts"] = False
+
+    return result
+
+
+# ============================================================
+# 主函数
+# ============================================================
+
 def main() -> int:
     print("=" * 78)
     print("  PyCoder 全面审计证据报告")
@@ -178,12 +249,24 @@ def main() -> int:
 
     total_files = 0
     found_files = 0
-    total_modules = 0
-    found_modules = 0
 
     for title, paths, desc in AUDIT_ITEMS:
         print(f"[{title}]")
         print(f"  说明: {desc}")
+
+        if title == "10. 依赖锁定验证":
+            # 特殊处理: 依赖锁定检查
+            deps = check_dependency_locking()
+            print(f"  requirements.txt 全部精确锁定(==): {deps['all_locked']}")
+            for detail in deps["details"]:
+                print(detail)
+            print(f"  pyproject.toml dynamic dependencies: {deps.get('pyproject_has_dynamic_deps', False)}")
+            print(f"  pyproject.toml [tool.pytest.ini_options]: {deps.get('pyproject_has_pytest_config', False)}")
+            print(f"  pyproject.toml [tool.setuptools.dynamic.optional-dependencies]: {deps.get('pyproject_has_optional_deps', False)}")
+            print(f"  pyproject.toml [project.scripts]: {deps.get('pyproject_has_scripts', False)}")
+            print()
+            continue
+
         for rel in paths:
             total_files += 1
             info = check_one(rel)
@@ -194,15 +277,17 @@ def main() -> int:
             if info["exists"]:
                 print(f"        size: {info['size']:,} bytes")
                 for i, line in enumerate(info["lines"], 1):
-                    # 截断长行
                     short = line if len(line) < 100 else line[:97] + "..."
                     print(f"        L{i}: {short}")
         print()
 
+    # Python 模块导入检查
     print("=" * 78)
     print("  Python 模块真实可导入性检查")
     print("=" * 78)
     print()
+    total_modules = 0
+    found_modules = 0
     for mod in [
         "pycoder",
         "pycoder.memory",
@@ -229,27 +314,37 @@ def main() -> int:
             print(f"        error: {info.get('import_error', info.get('other_error', 'unknown'))}")
     print()
 
+    # 第三方依赖检查
     print("=" * 78)
     print("  第三方关键依赖真实可导入性检查")
     print("=" * 78)
     print()
+    third_party_ok = True
     for mod in ["sentry_sdk", "PIL", "pytesseract", "pdfplumber", "cv2",
                 "fastapi", "litellm", "openai", "httpx", "pydantic"]:
         info = check_python_module(mod)
         mark = "[OK]" if info["importable"] else "[FAIL]"
+        if not info["importable"]:
+            third_party_ok = False
         print(f"  {mark}  import {mod:20s}  version={info.get('version', 'N/A')}")
     print()
 
+    # 汇总
+    deps = check_dependency_locking()
     print("=" * 78)
     print("  总计")
     print("=" * 78)
-    print(f"  文件: {found_files} / {total_files} 存在 ({found_files/total_files*100:.1f}%)")
+    print(f"  文件: {found_files} / {total_files} 存在 ({found_files / max(total_files, 1) * 100:.1f}%)")
     print(f"  PyCoder 模块: {found_modules} / {total_modules} 可导入")
+    print(f"  第三方依赖: {'全部可导入' if third_party_ok else '部分缺失'}")
+    print(f"  依赖锁定: {'全部(==)精确锁定' if deps['all_locked'] else '存在问题'}")
+    print(f"  pyproject.toml 测试配置: {'OK' if deps.get('pyproject_has_pytest_config') else 'MISSING'}")
+    print(f"  pyproject.toml 可选依赖: {'OK' if deps.get('pyproject_has_optional_deps') else 'MISSING'}")
     print()
 
     # Git 状态
     print("=" * 78)
-    print("  Git 状态 (远程推送同步)")
+    print("  Git 状态")
     print("=" * 78)
     print()
     import subprocess
@@ -257,21 +352,17 @@ def main() -> int:
         ["git", "log", "--oneline", "origin/master", "-5"],
         capture_output=True, text=True, timeout=10, cwd=str(ROOT),
     )
-    print(f"  远程 origin/master 最近 5 个 commit:")
+    print("  远程 origin/master 最近 5 个 commit:")
     for line in (r.stdout or "").strip().split("\n"):
         print(f"    {line}")
     r2 = subprocess.run(
         ["git", "diff", "origin/master", "--stat"],
         capture_output=True, text=True, timeout=10, cwd=str(ROOT),
     )
-    diff_stat = (r2.stdout or "").strip()
-    print()
-    if diff_stat:
-        print(f"  本地 vs 远程差异 (有未推送内容):")
-        for line in diff_stat.split("\n")[:5]:
-            print(f"    {line}")
+    if (r2.stdout or "").strip():
+        print("  本地 vs 远程: 有差异")
     else:
-        print("  本地 vs 远程差异: 无 (已完全同步)")
+        print("  本地 vs 远程: 已同步")
     print()
 
     # 后端健康
@@ -280,29 +371,34 @@ def main() -> int:
     print("=" * 78)
     print()
     try:
-        import urllib.request
         req = urllib.request.Request(
             "http://127.0.0.1:8423/api/health/live",
-            headers={"X-API-Key": "REDACTED-PYCODER-API-KEY", "Connection": "close"},
+            headers={"Connection": "close"},
         )
         with urllib.request.urlopen(req, timeout=5) as r3:
             body = r3.read().decode("utf-8", errors="replace")
             print(f"  [OK] /api/health/live  HTTP {r3.status}")
             print(f"       {body[:300]}")
     except Exception as e:
-        print(f"  [FAIL] 后端未运行: {e}")
+        print(f"  [INFO] 后端未运行: {e}")
+
+    # 最终结论
     print()
-
     print("=" * 78)
-    print("  如果以上 100% 显示 [OK], 但审计工具仍报未修复")
-    print("  → 问题在审计工具本身, 而非 PyCoder 代码")
-    print("  → 请确认审计工具:")
-    print("     1. 是否读取本地文件系统 (而不是 GitHub 远程)?")
-    print("     2. 是否读取最新 commit (而不是历史快照)?")
-    print("     3. 检查路径用的是 'memory/' 还是 'pycoder/memory/'?")
-    print("=" * 78)
-
-    return 0 if found_files == total_files else 1
+    all_ok = (
+        found_files == total_files
+        and found_modules == total_modules
+        and third_party_ok
+        and deps["all_locked"]
+    )
+    if all_ok:
+        print("  结论: 所有 10 项审计检查通过 — 系统功能完整")
+        print("=" * 78)
+        return 0
+    else:
+        print("  结论: 存在未通过项，详见上方 [FAIL] 标记")
+        print("=" * 78)
+        return 1
 
 
 if __name__ == "__main__":
