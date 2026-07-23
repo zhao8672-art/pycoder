@@ -89,6 +89,20 @@ async def health_ready_options():
     return {}
 
 
+# P2-3: 增加 HEAD 方法支持，消除 405 错误
+@router.head("/api/health", include_in_schema=False)
+async def health_head():
+    """HEAD 方法 — 返回空 body，状态码 200"""
+    from fastapi import Response
+    return Response(status_code=200)
+
+
+@router.head("/api/health/live", include_in_schema=False)
+async def health_live_head():
+    from fastapi import Response
+    return Response(status_code=200)
+
+
 @router.get("/api/health")
 async def health_check():
     """兼容旧路径 — 等价 /api/health/ready。"""

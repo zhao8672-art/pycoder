@@ -687,6 +687,7 @@ class ClosedLearningLoop:
         """运行完整闭环 — observe → reflect → generate → apply
 
         一键运行 Hermes 风格封闭学习循环的四个阶段。
+        P1-5 优化: 每阶段最多重试 2 次，失败后降级继续。
 
         Args:
             task_id: 任务唯一标识
@@ -697,20 +698,64 @@ class ClosedLearningLoop:
         """
         cycle_start = time.time()
 
+        # P1-5: 带重试的阶段执行器
+        async def _run_stage_with_retry(stage_name: str, coro_factory, max_retries: int = 2):
+            """执行单个阶段，失败时重试"""
+            last_error = None
+            for attempt in range(max_retries + 1):
+                try:
+                    return await coro_factory(), None
+                except (RuntimeError, ValueError, TypeError, OSError) as e:
+                    last_error = e
+                    logger.warning(
+                        "closed_loop_stage_retry: stage=%s attempt=%d/%d error=%s",
+                        stage_name, attempt + 1, max_retries + 1, str(e)[:200],
+                    )
+            return None, last_error
+
         # 阶段 1: 观察
-        observation = await self.observe(task_id, execution_result)
+        observation, err = await _run_stage_with_retry(
+            "observe", lambda: self.observe(task_id, execution_result)
+        )
+        if err:
+            logger.error("closed_loop_observe_failed task=%s: %s", task_id, err)
+            return {
+                "task_id": task_id,
+                "error": f"observe_failed: {err}",
+                "success": False,
+                "timestamp": cycle_start,
+            }
 
         # 阶段 2: 反思
-        reflection = await self.reflect(observation)
+        reflection, err = await _run_stage_with_retry(
+            "reflect", lambda: self.reflect(observation)
+        )
+        if err or not reflection:
+            reflection = {"patterns_found": [], "patterns_avoid": [], "confidence": 0, "recommendations": []}
+            logger.warning("closed_loop_reflect_degraded task=%s", task_id)
 
         # 阶段 3: 生成技能
-        new_skills = await self.generate_skill(reflection)
+        new_skills, err = await _run_stage_with_retry(
+            "generate_skill", lambda: self.generate_skill(reflection)
+        )
+        if err:
+            new_skills = []
+            logger.warning("closed_loop_generate_skill_degraded task=%s", task_id)
 
-        # 阶段 4: 应用反馈（为后续任务准备上下文）
-        feedback = await self.apply_feedback(observation.task_description)
+        # 阶段 4: 应用反馈
+        feedback, err = await _run_stage_with_retry(
+            "apply_feedback", lambda: self.apply_feedback(observation.task_description)
+        )
+        if err or not feedback:
+            feedback = {"matched_skills": [], "context_hints": []}
+            logger.warning("closed_loop_apply_feedback_degraded task=%s", task_id)
 
         # 定期精炼（非阻塞，仅在需要时触发）
-        refine_result = await self.refine_skills()
+        try:
+            refine_result = await self.refine_skills()
+        except (RuntimeError, ValueError, TypeError) as e:
+            refine_result = {"status": "skipped", "error": str(e)[:200]}
+            logger.warning("closed_loop_refine_skipped task=%s: %s", task_id, e)
 
         cycle_duration = time.time() - cycle_start
 

@@ -113,8 +113,13 @@ export class PythonBackendManager extends EventEmitter {
           this.status = 'crashed';
           this.emit('status-change', 'crashed');
 
-          // 如果端口被占⽤, 不重启进程, 改为等待健康检查
-          if (code === 1 && this._lastStderr?.includes('bind')) {
+          // P0-2 修复: 端口绑定失败时退出码可能为 1 或 3，匹配多种错误模式
+          const stderrLower = (this._lastStderr || '').toLowerCase();
+          const isPortConflict = stderrLower.includes('bind') ||
+            stderrLower.includes('10048') ||
+            stderrLower.includes('eaddrinuse') ||
+            stderrLower.includes('address already in use');
+          if (isPortConflict) {
             console.log('[PyCoder Backend] Port occupied, checking existing backend...');
             this._tryConnectExisting(resolve);
             return;
@@ -125,6 +130,12 @@ export class PythonBackendManager extends EventEmitter {
             this.isRestarting = true;
             console.log(`[PyCoder Backend] Auto-restarting (attempt ${this.restartCount}/${this.maxRestarts})...`);
             setTimeout(() => this.startProcess(), 2000);
+          } else if (this.restartCount >= this.maxRestarts) {
+            console.error('[PyCoder Backend] Max restart attempts reached, giving up');
+            this.isRestarting = false;
+            this.status = 'error';
+            this.emit('status-change', 'error');
+            resolve(false);
           }
         }
       });
