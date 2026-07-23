@@ -1,87 +1,109 @@
-# PyCoder Makefile — 开发常用命令入口
-# 用法: make <target>  或  nmake /F Makefile <target> (Windows)
-# 不依赖 make 时也可直接运行对应命令
+# ============================================================================
+# PyCoder Makefile — 跨平台任务入口
+# Linux/macOS 原生 make; Windows 通过 Git Bash / WSL / make (chocolatey) 使用
+# Windows 原生命令行请使用 scripts/pycoder.ps1 或 scripts/run.ps1
+# ============================================================================
 
-.PHONY: help install dev-install test lint format typecheck clean build build-electron check
+.PHONY: help install install-all install-dev install-browser install-help install-playwright \
+        dev test test-fast lint format type-check security clean clean-pyc clean-cache \
+        run server setup status scan evolve docs electron pre-commit all
 
-# 默认帮助
-help:
-	@echo "PyCoder 开发命令:"
-	@echo "  make install       安装运行依赖"
-	@echo "  make dev-install   安装开发依赖 (含测试/格式化)"
-	@echo "  make test          运行所有测试"
-	@echo "  make lint          代码风格检查"
-	@echo "  make format        自动格式化代码"
-	@echo "  make typecheck     类型检查"
-	@echo "  make clean         清理缓存"
-	@echo "  make check         完整检查 (lint + test + typecheck)"
-	@echo "  make build         构建 Electron 桌面版"
-	@echo "  make run-server    启动开发服务器 (端口 8423)"
-	@echo "  make run-tui       启动终端 TUI"
+PYTHON ?= python
+PIP    ?= $(PYTHON) -m pip
 
-# ── 安装 ──────────────────────────────────────────
+# ── 帮助 ─────────────────────────────────────────────────
+help:  ## 显示所有可用命令
+	@$(PYTHON) scripts/print_commands.py
 
-install:
-	pip install -e .
+# ── 安装 ─────────────────────────────────────────────────
+install:  ## 安装主依赖 (与 pip install -e . 等价)
+	$(PIP) install -e .
 
-dev-install:
-	pip install -e ".[dev]"
+install-all:  ## 安装所有依赖 (main + dev + help + browser + playwright)
+	$(PIP) install -r requirements-all.txt
+	$(PIP) install -e .
 
-# ── 测试 ──────────────────────────────────────────
+install-dev:  ## 安装开发依赖 (main + dev)
+	$(PIP) install -e ".[dev]"
 
-test:
-	python -m pytest tests/ -q --tb=short
+install-browser:  ## 安装浏览器自动化依赖
+	$(PIP) install -e ".[browser]"
 
-test-cov:
-	python -m pytest tests/ -q --tb=short --cov=pycoder --cov-report=term-missing
+install-help:  ## 安装交互式帮助依赖
+	$(PIP) install -e ".[help]"
 
-test-learning:
-	python -m pytest tests/test_learning_system.py -q --tb=short
+install-playwright:  ## 安装 Playwright + 浏览器二进制
+	$(PIP) install -e ".[playwright]"
+	$(PYTHON) -m playwright install
 
-# ── 代码质量 ──────────────────────────────────────
+# ── 开发 ─────────────────────────────────────────────────
+dev:  ## 启动 App Server (开发模式)
+	$(PYTHON) -m pycoder --server
 
-lint:
-	python -m ruff check pycoder/
-	python -m black --check pycoder/
+server: dev  ## dev 别名
 
-format:
-	python -m black pycoder/
-	python -m isort pycoder/
+setup:  ## 运行 API Key 配置向导
+	$(PYTHON) -m pycoder --setup
 
-typecheck:
-	python -m pyright pycoder/
+status:  ## 显示 API Key 和模型配置状态
+	$(PYTHON) -m pycoder --status
 
-# ── 完整检查 ──────────────────────────────────────
+scan:  ## 扫描代码库 (默认 pycoder/)
+	$(PYTHON) -m pycoder --scan pycoder/
 
-check: lint test typecheck
-	@echo "✅ 全部检查通过"
+evolve:  ## 启动自我进化
+	$(PYTHON) -m pycoder --evolve
 
-# ── 清理 ──────────────────────────────────────────
+# ── 测试 ─────────────────────────────────────────────────
+test:  ## 运行全部测试
+	$(PYTHON) -m pytest
 
-clean:
-	python -c "import shutil, pathlib; [shutil.rmtree(d, True) for d in pathlib.Path('.').rglob('__pycache__')]"
-	python -c "import shutil, pathlib; [shutil.rmtree(d, True) for d in pathlib.Path('.').rglob('.pytest_cache')]"
-	python -c "import shutil, pathlib; [shutil.rmtree(d, True) for d in pathlib.Path('.').rglob('.mypy_cache')]"
-	python -c "import shutil, pathlib; [shutil.rmtree(d, True) for d in pathlib.Path('.').rglob('.ruff_cache')]"
-	@echo "✅ 缓存已清理"
+test-fast:  ## 仅运行快速测试 (跳过慢测试)
+	$(PYTHON) -m pytest -m "not slow" -x
 
-# ── 运行 ──────────────────────────────────────────
+# ── 质量 ─────────────────────────────────────────────────
+lint:  ## 运行 ruff + bandit
+	$(PYTHON) -m ruff check pycoder/
+	$(PYTHON) -m bandit -r pycoder/ -q
 
-run-server:
-	python -m pycoder --server --server-port 8423
+format:  ## 格式化代码 (black + isort)
+	$(PYTHON) -m black pycoder/ tests/
+	$(PYTHON) -m isort pycoder/ tests/
 
-run-tui:
-	python -m pycoder --tui
+type-check:  ## mypy 类型检查
+	$(PYTHON) -m mypy pycoder/
 
-# ── 构建 ──────────────────────────────────────────
+security:  ## 安全扫描 (bandit + safety)
+	$(PYTHON) -m bandit -r pycoder/
+	$(PYTHON) -m safety check
 
-build-electron:
-	cd pycoder/electron && npm install && npm run build
+# ── 文档 ─────────────────────────────────────────────────
+docs:  ## 检查 README 文档一致性
+	$(PYTHON) scripts/check_readme_consistency.py
 
-# ── 升级 ──────────────────────────────────────────
+# ── 前端 ─────────────────────────────────────────────────
+electron:  ## 启动 Electron 桌面 IDE
+	cd pycoder/electron && npm install && npx electron .
 
-upgrade-check:
-	python -c "from pycoder.server.auto_upgrade import check_version; v=check_version(); print(f'当前: {v.current}, 最新: {v.latest}, 有更新: {v.has_update}')"
+# ── 一致性检查 ───────────────────────────────────────────
+pre-commit:  ## 运行所有 pre-commit 检查 (lint + test-fast + docs)
+	$(MAKE) lint
+	$(MAKE) test-fast
+	$(MAKE) docs
 
-upgrade-health:
-	python -c "from pycoder.server.auto_upgrade import health_check; h=health_check(); print(f'通过: {h.passed}'); [print(f'  {k}: {v}') for k,v in h.checks.items()]"
+# ── 清理 ─────────────────────────────────────────────────
+clean: clean-pyc clean-cache  ## 清理所有临时文件
+
+clean-pyc:  ## 清理 .pyc / __pycache__
+	find . -type d -name __pycache__ -not -path "*/.venv/*" -not -path "*/node_modules/*" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -not -path "*/.venv/*" -not -path "*/node_modules/*" -delete
+
+clean-cache:  ## 清理 Electron / pytest / mypy 缓存
+	rm -rf .pytest_cache .mypy_cache .ruff_cache
+	rm -rf pycoder/electron/node_modules/.cache
+	rm -rf "$APPDATA/pycoder/Cache" "$APPDATA/pycoder/GPUCache" 2>/dev/null || true
+
+# ── 一键 ─────────────────────────────────────────────────
+all: install-all lint test  ## 全量: 安装所有 + lint + 测试
+
+.DEFAULT_GOAL := help

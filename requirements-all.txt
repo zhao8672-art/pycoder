@@ -1,0 +1,14 @@
+# PyCoder 全量依赖清单 — 一次性安装 main + dev + help + browser + playwright
+# 推荐用法 (所有平台):
+#   pip install -r requirements-all.txt
+# 或等价的 pyproject 写法:
+#   pip install -e ".[dev,help,browser,playwright]"
+#
+# 注意: 此文件仅作为 pip install 的便捷入口, 真正的依赖源是 requirements.in
+# 修改依赖请编辑 requirements/requirements.in (主依赖) 或对应的 requirements-*.in
+# 然后运行 `uv pip compile ...` 重新生成对应的 .txt 文件
+-r requirements.txt
+-r requirements/requirements-dev.txt
+-r requirements/requirements-help.txt
+-r requirements/requirements-browser.txt
+-r requirements/requirements-playwright.txt

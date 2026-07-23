@@ -136,6 +136,130 @@ class TestReadmeConsistency:
                 pytest.fail(f"README 存在 -m -m 重复: {line.strip()}")
 
 
+class TestDependencyGroups:
+    """P3-11 扩展: 依赖组一致性 (requirements-all / pyproject optional-dependencies)"""
+
+    def test_requirements_all_exists(self):
+        assert (ROOT / "requirements-all.txt").exists(), "requirements-all.txt 缺失"
+
+    def test_requirements_all_references_all_groups(self):
+        """requirements-all.txt 必须引用所有 5 个组."""
+        content = (ROOT / "requirements-all.txt").read_text(encoding="utf-8")
+        required = [
+            "requirements.txt",
+            "requirements/requirements-dev.txt",
+            "requirements/requirements-help.txt",
+            "requirements/requirements-browser.txt",
+            "requirements/requirements-playwright.txt",
+        ]
+        for ref in required:
+            assert ref in content, f"requirements-all.txt 应引用 {ref}"
+
+    def test_pyproject_optional_dependencies_declared(self):
+        """pyproject.toml 必须定义所有 4 个可选组."""
+        content = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        for group in ["dev", "help", "browser", "playwright"]:
+            assert f"{group} =" in content or f"{group}=[" in content, \
+                f"pyproject.toml 应定义可选组: {group}"
+
+    def test_all_referenced_requirements_files_exist(self):
+        """requirements-all.txt 引用的文件必须全部存在."""
+        content = (ROOT / "requirements-all.txt").read_text(encoding="utf-8")
+        refs = re.findall(r"^-\s*r\s+(.+)$", content, re.MULTILINE)
+        for ref in refs:
+            path = ROOT / ref
+            assert path.exists(), f"引用的 {ref} 不存在"
+
+
+class TestEntryPoints:
+    """P3 扩展: pyproject.toml 入口点一致性"""
+
+    def test_project_scripts_declares_pycoder(self):
+        content = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        assert "[project.scripts]" in content, "[project.scripts] 块缺失"
+        assert "pycoder = " in content, "pycoder 入口点缺失"
+        assert "pycoder-server = " in content, "pycoder-server 入口点缺失"
+
+    def test_entry_point_targets_exist(self):
+        """入口点引用的模块:函数必须存在."""
+        content = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        # 匹配 entry = "module:function" 形式
+        entries = re.findall(r'(\w+(?:-\w+)?)\s*=\s*"([\w.]+):(\w+)"', content)
+        for name, module, func in entries:
+            # 跳过非 pycoder 模块
+            if not module.startswith("pycoder"):
+                continue
+            # module 形如 "pycoder.__main__" / "pycoder.server.app" / "pycoder.cli.x"
+            # 实际文件位于 ROOT/pycoder/<rel_path>.py 或 ROOT/pycoder/<rel_path>/__init__.py
+            rel = module[len("pycoder."):] if module.startswith("pycoder.") else module
+            rel_path = rel.replace(".", "/")
+            candidates = [
+                ROOT / "pycoder" / (rel_path + ".py"),       # 单文件模块
+                ROOT / "pycoder" / rel_path / "__init__.py", # 包
+            ]
+            if not any(c.exists() for c in candidates):
+                pytest.fail(f"入口 {name}: 模块 {module} 不存在")
+
+
+class TestWindowsWrappers:
+    """P3 扩展: Windows 启动包装器"""
+
+    def test_bat_wrapper_exists(self):
+        assert (ROOT / "scripts" / "pycoder.bat").exists()
+
+    def test_bat_wrapper_syntax(self):
+        """检查 .bat 语法 (无 PowerShell 特有语法)."""
+        content = (ROOT / "scripts" / "pycoder.bat").read_text(encoding="utf-8", errors="ignore")
+        assert content.startswith("@echo off"), ".bat 必须以 @echo off 开头"
+        assert "powershell" not in content.lower(), ".bat 不应调用 powershell"
+
+    def test_ps1_wrapper_exists(self):
+        assert (ROOT / "scripts" / "pycoder.ps1").exists()
+
+    def test_ps1_wrapper_syntax(self):
+        """检查 .ps1 语法."""
+        content = (ROOT / "scripts" / "pycoder.ps1").read_text(encoding="utf-8")
+        # 应有 [CmdletBinding()] 或 param(...)
+        assert "[CmdletBinding()]" in content or "param(" in content, \
+            ".ps1 缺少 CmdletBinding 或 param 声明"
+        # 应设置 UTF-8
+        assert "PYTHONUTF8" in content, ".ps1 未设置 PYTHONUTF8"
+
+
+class TestTaskRunner:
+    """P3 扩展: scripts/run.py 任务运行器"""
+
+    def test_run_py_exists(self):
+        assert (ROOT / "scripts" / "run.py").exists()
+
+    def test_run_py_list_runs(self):
+        """run.py --list 应能正常输出."""
+        import os
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["PYTHONUTF8"] = "1"
+        result = subprocess.run(
+            [sys.executable, "scripts/run.py", "--list"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "PyCoder 任务运行器" in (result.stdout or "")
+
+    def test_makefile_exists(self):
+        assert (ROOT / "Makefile").exists()
+
+    def test_makefile_has_install_all(self):
+        content = (ROOT / "Makefile").read_text(encoding="utf-8")
+        assert "install-all:" in content, "Makefile 缺少 install-all 目标"
+        assert "requirements-all.txt" in content, "Makefile 应引用 requirements-all.txt"
+
+
 class TestConsistencyScript:
     """scripts/check_readme_consistency.py 自身可运行"""
 

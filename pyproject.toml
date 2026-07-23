@@ -27,6 +27,12 @@ Homepage = "https://github.com/PyCoder-ai/pycoder"
 
 [project.scripts]
 pycoder = "pycoder.__main__:main"
+pycoder-server = "pycoder.server.app:run"
+
+# 跨平台桌面启动器 (Windows / macOS / Linux 通用入口)
+[project.entry-points."pycoder.launchers"]
+desktop = "pycoder.__main__:main"
+server = "pycoder.server.app:run"
 
 [tool.setuptools.dynamic]
 dependencies = { file = "requirements.txt" }

@@ -30,21 +30,56 @@
 ### pip 安装
 
 ```bash
+# 仅运行时 (核心功能, 不含开发工具 / 浏览器 / Playwright)
 pip install pycoder
 ```
 
-### 源码安装
+### 源码安装 — 选择你的依赖组
+
+`pyproject.toml` 定义了 **5 个依赖组**, 按需选择:
+
+| 命令 | 用途 | 包含 |
+|------|------|------|
+| `pip install -e .` | 仅运行时 | `main` (核心) |
+| `pip install -e ".[dev]"` | **开发推荐** | `main + dev` (pytest / ruff / mypy 等) |
+| `pip install -e ".[browser]"` | 浏览器自动化 | `main + browser` (selenium 等) |
+| `pip install -e ".[help]"` | 交互式帮助 | `main + help` (rich / textual) |
+| `pip install -e ".[playwright]"` | Playwright | `main + playwright` |
+| `pip install -e ".[dev,browser,help,playwright]"` | **全量开发** | 全部 5 个组 |
+
+或使用 requirements 文件:
 
 ```bash
-git clone https://github.com/PyCoder-ai/pycoder.git
-cd pycoder
-pip install -e ".[dev]"
+# 一次性安装全部 (推荐给新贡献者)
+pip install -r requirements-all.txt
+pip install -e .
+
+# 单个组
+pip install -r requirements.txt           # main
+pip install -r requirements/requirements-dev.txt  # dev
 ```
 
-> **💡 Windows 用户**: 上述命令在 PowerShell / CMD 中同样可用。但请注意:
-> - PowerShell 5.x **不支持** `&&` 操作符（PowerShell 7+ 已支持），PyCoder 的 `shell_translator` 已自动将 `&&` 翻译为兼容写法。
-> - 推荐使用 [`_launch.py`](docs/LAUNCH.md) 一键启动（自动处理进程清理、Key 加载、缓存清理）。
-> - 详细 Windows 专属说明见 [docs/LAUNCH.md](docs/LAUNCH.md)。
+#### Windows 用户安装步骤
+
+```powershell
+# 1. 克隆
+git clone https://github.com/PyCoder-ai/pycoder.git
+cd pycoder
+
+# 2. 创建虚拟环境 (避免污染全局 Python)
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+
+# 3. 全量安装
+pip install -r requirements-all.txt
+pip install -e .
+
+# 4. 验证
+pycoder --version          # 优先使用 pip 安装的 .exe
+python -m pycoder --version  # 回退方案
+```
+
+> **💡 PowerShell 5.x 用户**: 不支持 `&&` 操作符, 项目内 `shell_translator` 已自动翻译。详见 [docs/LAUNCH.md](docs/LAUNCH.md)。
 
 ### 配置 API Key
 
