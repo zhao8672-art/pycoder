@@ -1588,6 +1588,126 @@ class SelfEvolutionEngine:
         except Exception as e:
             logger.debug("evo_record_learning_failed: %s", e)
 
+    # ══════════════════════════════════════════════════════
+    # run_cycle — 一键自进化：SCAN→PRIORITIZE→FIX→TEST→LEARN
+    # ══════════════════════════════════════════════════════
+
+    async def run_cycle(
+        self,
+        task_type: str = "auto",
+        target: str = "",
+        auto_apply: bool = False,
+        dry_run: bool = False,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """运行完整的自进化周期。
+
+        五步管线:
+          1. SCAN     — 扫描代码库（AST + ruff + LLM 深度分析）
+          2. PRIORITIZE — 按严重程度/影响范围排序问题
+          3. FIX      — AI 逐个生成修复方案 → 语法检查 → 沙箱测试
+          4. TEST     — 运行 pytest 全量测试 → 通过则 COMMIT，失败则 ROLLBACK
+          5. LEARN    — 记录修复模式到 LearningEngine，下次自动复用
+
+        Args:
+            task_type: "auto"(自动) / "fix" / "optimize" / "security" / "quality"
+            target: 目标文件或目录（为空则扫描整个 pycoder/）
+            auto_apply: 是否跳过审批直接应用修复
+            dry_run: 仅扫描不修改
+
+        Yields:
+            {"type": "phase", "phase": "scanning", ...}
+            {"type": "issues_found", "count": N, ...}
+            {"type": "fix_progress", "current": i, "total": N, ...}
+            {"type": "test_result", "passed": bool, ...}
+            {"type": "done", "evolution_report": {...}, ...}
+        """
+        # ── 步骤 1: SCAN ──
+        yield {"type": "phase", "phase": "scanning", "message": "🔍 SCAN — 扫描代码库..."}
+        report = await self.scan(target or "pycoder", use_llm=True)
+        yield {
+            "type": "phase",
+            "phase": "scanning",
+            "status": "done",
+            "files_scanned": report.files_scanned,
+            "total_issues": report.total_issues,
+            "summary": report.summary[:500] if report.summary else "",
+        }
+
+        if report.total_issues == 0:
+            yield {"type": "done", "message": "✅ 未发现任何问题", "evolution_report": {}}
+            return
+
+        # ── 步骤 2: PRIORITIZE ──
+        yield {"type": "phase", "phase": "prioritizing", "message": "📊 PRIORITIZE — 排序问题..."}
+        # 按严重程度排序: critical > high > medium > low
+        severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        sorted_issues = sorted(
+            report.issues,
+            key=lambda i: (severity_order.get(i.severity, 9), i.issue_type),
+        )
+        # 限制: 每次最多处理 10 个问题
+        top_issues = sorted_issues[:10]
+        yield {
+            "type": "phase",
+            "phase": "prioritizing",
+            "status": "done",
+            "top_issues": len(top_issues),
+            "breakdown": {
+                s: sum(1 for i in top_issues if i.severity == s)
+                for s in ["critical", "high", "medium", "low"]
+            },
+        }
+
+        if dry_run:
+            yield {
+                "type": "done",
+                "message": f"Dry-run 完成: 发现 {report.total_issues} 个问题",
+                "issues": [
+                    {"file": i.file, "line": i.line, "title": i.title, "severity": i.severity}
+                    for i in top_issues[:20]
+                ],
+                "evolution_report": _build_evolution_report(
+                    EvolutionTask(type=task_type, description="dry-run scan"),
+                ),
+            }
+            return
+
+        # ── 步骤 3-5: FIX → TEST → LEARN（复用 evolve 管线）──
+        _n = len(top_issues)
+        yield {"type": "phase", "phase": "fixing", "message": f"🔧 FIX — 处理 {_n} 个问题..."}
+
+        # 将 top_issues 转换为自定义 prompt 传给 evolve
+        custom_prompt = self._issues_to_prompt(top_issues, task_type)
+        async for event in self.evolve(
+            task_type="fix",
+            target=target,
+            custom_prompt=custom_prompt,
+            auto_apply=auto_apply,
+            dry_run=False,
+        ):
+            yield event
+
+    def _issues_to_prompt(self, issues: list[CodeIssue], task_type: str) -> str:
+        """将扫描结果转换为进化提示词"""
+        lines = [
+            f"## 自动扫描结果 — {len(issues)} 个问题待修复",
+            "",
+            "请逐个修复以下问题。每个修复使用 [FILE:路径]...[END:FILE] 格式。",
+            "",
+        ]
+        for i, issue in enumerate(issues, 1):
+            lines.append(f"### {i}. [{issue.severity.upper()}] {issue.file}:{issue.line}")
+            lines.append(f"类型: {issue.issue_type}")
+            lines.append(f"问题: {issue.title}")
+            if issue.description:
+                lines.append(f"详情: {issue.description}")
+            if issue.suggestion:
+                lines.append(f"建议: {issue.suggestion}")
+            if issue.code_snippet:
+                lines.append(f"代码: `{issue.code_snippet[:200]}`")
+            lines.append("")
+        return "\n".join(lines)
+
     # ── 任务管理 (V1 兼容) ─────────────────────────────
 
     def list_tasks(self, limit: int = 20) -> list[dict[str, Any]]:

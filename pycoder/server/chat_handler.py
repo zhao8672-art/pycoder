@@ -616,6 +616,29 @@ async def _run_chat_stream(
                     extra={"session_id": session_id, "error": str(retry_err)},
                 )
 
+    # ── 断裂点4修复: Agent 自动路由 — 任务难度≥MEDIUM 时自动启用 Agent 团队 ──
+    if not hermes and not agent_mode:
+        try:
+            from pycoder.server.services.task_grader import get_task_grader
+            _grader = get_task_grader()
+            # 快速预评估：基于任务描述关键词 + 长度
+            _quick_ctx: dict[str, str] = {"domain": ""}
+            _msg_lower = message.lower()
+            for _kw, _dom in _grader.KEYWORD_DOMAIN_MAP.items():
+                if _kw in _msg_lower:
+                    _quick_ctx["domain"] = _dom
+                    break
+            _pre_grade = _grader.grade(message)
+            # grade() 返回 .level 为字符串 "low"/"medium"/"high"
+            if _pre_grade.level in ("medium", "high") and int(_pre_grade.score) >= 40:
+                agent_mode = True
+                logger.info(
+                    "agent_auto_routed level=%s score=%.0f msg=%.60s",
+                    _pre_grade.level, _pre_grade.score, message,
+                )
+        except (ImportError, RuntimeError, ValueError, TypeError, AttributeError) as e:
+            logger.debug("agent_auto_route_skipped error=%s", e)
+
     # FIX #3: 为 agent/hermes 模式注入代码写入指令
     if hermes or agent_mode:
         yield {"type": "agent_status", "message": "🤖 Agent 模式已激活"}
