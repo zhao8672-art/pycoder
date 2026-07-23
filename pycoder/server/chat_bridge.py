@@ -497,15 +497,34 @@ class ChatBridge:
                     len(message), message[:50],
                 )
 
-        # ── P0-3: 任务难度分级（仅在 tool 模式）──
+        # ── P0-3: 任务难度分级（注入项目真实上下文）──
         _task_grade = None
         if force_tools:
             try:
                 from pycoder.server.services.task_grader import get_task_grader
                 grader = get_task_grader()
-                _task_grade = grader.assess(
-                    message, context={"mode": effective_mode},
-                )
+                # 构建真实的项目上下文（不再传空壳 context）
+                _ctx = {"mode": effective_mode}
+                try:
+                    _cwd = os.getcwd()
+                    import glob as _glob
+                    _py_files = _glob.glob(
+                        f"{_cwd}/**/*.py", recursive=True,
+                    ) if _cwd else []
+                    _ctx["files"] = len(_py_files)
+                    _ctx["domain"] = (
+                        self._nlu_cache.get("category", "")
+                        if self._nlu_cache else ""
+                    )
+                    _req = os.path.join(_cwd, "requirements.txt")
+                    if os.path.exists(_req):
+                        with open(_req, encoding="utf-8") as _f:
+                            _ctx["dependencies"] = len(
+                                [l for l in _f if l.strip()],
+                            )
+                except (OSError, ValueError, RuntimeError):
+                    pass
+                _task_grade = grader.assess(message, context=_ctx)
                 max_tool_rounds = _task_grade.max_iterations
                 self.config.temperature = _task_grade.temperature
                 logger.debug(
@@ -1153,12 +1172,13 @@ class ChatBridge:
                     )
                     messages.append({"role": "system", "content": _reflect_msg})
 
-            # ── P2-3: 代码自愈回滚（.py写入后自动语法验证）──
+            # ── P2-3: 代码自愈回滚（写入后自动Build-Test-Fix循环）──
             if force_tools and tool_name in (
                 "write_file", "create_file", "patch_file",
             ):
                 _path = tool_args.get("path", "")
                 if _path and _path.endswith(".py"):
+                    # Step 1: 语法检查
                     try:
                         from pycoder.server.mcp_tools import call_builtin_tool
                         _exec_r = await call_builtin_tool(
@@ -1173,17 +1193,66 @@ class ChatBridge:
                         if _exec_r.success:
                             yield ChatEvent(
                                 event_type="token",
-                                content=f"✅ {_path} 语法验证通过\n",
+                                content=f"✅ {_path} 语法 OK\n",
                             )
                         else:
                             _err = str(_exec_r.output)[:300]
+                            logger.warning(
+                                "syntax_error path=%s err=%s", _path, _err[:100],
+                            )
                             messages.append({
                                 "role": "system",
                                 "content": (
-                                    f"⚠️ {_path} 语法错误: {_err}\n"
-                                    "请立即修复并重新写入。"
+                                    f"❌ {_path} 语法错误:\n{_err}\n"
+                                    "🔧 请立即修复并重新写入（第1次尝试）"
                                 ),
                             })
+                            # 记录 ProjectState
+                            try:
+                                from pycoder.server.services.project_state import get_project_state
+                                get_project_state().record_error(
+                                    f"语法错误 {_path}: {_err[:80]}",
+                                )
+                                get_project_state().record_fix_attempt(_path)
+                            except (ImportError, RuntimeError, ValueError, TypeError):
+                                pass
+                    except (ImportError, RuntimeError, ValueError, TypeError):
+                        pass
+
+                    # Step 2: 运行 pytest（如有对应测试文件）
+                    _test_path = _path.replace(".py", "_test.py")
+                    _alt_test = "tests/"
+                    try:
+                        import os as _os
+                        if _os.path.exists(_os.path.join(_os.getcwd(), _test_path)):
+                            _test_cmd = f"pytest {_test_path} -x -q"
+                        elif _os.path.exists(_os.path.join(_os.getcwd(), "tests")):
+                            _test_cmd = "pytest tests/ -x -q"
+                        else:
+                            _test_cmd = ""
+                        if _test_cmd:
+                            from pycoder.server.mcp_tools import call_builtin_tool
+                            _test_r = await call_builtin_tool(
+                                "shell_run_terminal",
+                                {"command": _test_cmd, "timeout": 30},
+                            )
+                            if _test_r.success:
+                                yield ChatEvent(
+                                    event_type="token",
+                                    content=f"✅ 测试通过: {_test_cmd}\n",
+                                )
+                            else:
+                                _test_err = str(_test_r.output)[:300]
+                                yield ChatEvent(
+                                    event_type="token",
+                                    content=f"⚠️ 测试失败:\n{_test_err[:200]}\n",
+                                )
+                        # Step 3: 更新 ProjectState
+                        try:
+                            from pycoder.server.services.project_state import get_project_state
+                            get_project_state().record_file_modified(_path)
+                        except (ImportError, RuntimeError, ValueError, TypeError):
+                            pass
                     except (ImportError, RuntimeError, ValueError, TypeError):
                         pass
 

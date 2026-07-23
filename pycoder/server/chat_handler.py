@@ -526,6 +526,16 @@ async def _run_chat_stream(
     except (ImportError, RuntimeError, ValueError, TypeError):
         pass
 
+    # ── ProjectState 注入: AI 知道当前创建了什么文件 ──
+    try:
+        from pycoder.server.services.project_state import get_project_state
+        _ps = get_project_state(session_id or "default")
+        _ps_prompt = _ps.inject_to_prompt()
+        if bridge.config.system_prompt:
+            bridge.config.system_prompt += "\n\n" + _ps_prompt
+    except (ImportError, RuntimeError, ValueError, TypeError):
+        pass
+
     store = get_session_store()
 
     # FIX #2: 加载最近几十条消息作为跨会话上下文
