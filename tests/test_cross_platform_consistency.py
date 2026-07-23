@@ -386,7 +386,10 @@ class TestCriticalDepsInRequirements:
 
     @pytest.mark.parametrize("dep", ["litellm", "sentry-sdk", "Pillow", "pytesseract"])
     def test_dep_in_requirements(self, requirements, dep):
-        assert re.search(rf"^{re.escape(dep)}[><=~!\[]", requirements, re.MULTILINE), \
+        # pip-compile 规范化包名为小写, 所以 Pillow → pillow 也要匹配
+        dep_lower = dep.lower()
+        assert (re.search(rf"^{re.escape(dep)}[><=~!\[]", requirements, re.MULTILINE)
+                or re.search(rf"^{re.escape(dep_lower)}==", requirements, re.MULTILINE)), \
             f"requirements.txt 缺失 {dep}"
 
 
