@@ -1247,6 +1247,29 @@ class ChatBridge:
                                     event_type="token",
                                     content=f"⚠️ 测试失败:\n{_test_err[:200]}\n",
                                 )
+                                # P0: 尝试 AutoFixer LLM 自动修复（异步触发）
+                                try:
+                                    from pycoder.ai.auto_fixer import AutoFixer
+                                    _fixer = AutoFixer(max_retries=1)
+                                    _fix_result = await _fixer.validate_and_fix(
+                                        _path,
+                                        auto_fix=False,  # 仅验证，不自动LLM修复
+                                    )
+                                    if _fix_result.status == "verified":
+                                        yield ChatEvent(
+                                            event_type="token",
+                                            content="🔧 AutoFixer 验证通过\n",
+                                        )
+                                    else:
+                                        yield ChatEvent(
+                                            event_type="token",
+                                            content=(
+                                                f"⚠️ AutoFixer: {_fix_result.status}"
+                                                f" ({_fix_result.error_type})\n"
+                                            ),
+                                        )
+                                except (ImportError, RuntimeError, ValueError, TypeError) as _afe:
+                                    logger.debug("autofixer_skip error=%s", _afe)
                         # Step 3: 更新 ProjectState
                         try:
                             from pycoder.server.services.project_state import get_project_state

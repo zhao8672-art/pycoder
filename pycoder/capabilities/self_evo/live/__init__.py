@@ -116,42 +116,79 @@ class LiveLearner:
             self._observations = self._observations[-MAX_OBSERVATIONS_PER_SESSION:]
 
     async def _reflect(self) -> None:
-        """分析最近观察的成功/失败模式"""
+        """分析最近观察的成功/失败模式（精细化分类）"""
         if not self._observations:
             return
         recent = self._observations[-MIN_OBSERVATIONS_FOR_REFLECT:]
         success_count = sum(1 for o in recent if o.success)
         success_rate = success_count / len(recent) if recent else 0
 
-        # 检测模式
-        tool_obs = [o for o in recent if o.mode == "tool"]
-        chat_obs = [o for o in recent if o.mode == "chat"]
-        tool_rounds = sum(o.rounds for o in tool_obs) / max(len(tool_obs), 1)
+        # 按关键词聚类
+        clusters: dict[str, list[LiveObservation]] = {}
+        for obs in recent:
+            tag = self._classify_observation(obs)
+            clusters.setdefault(tag, []).append(obs)
 
-        if self._db_ready and success_rate > 0.7:
+        if self._db_ready:
             try:
                 conn = sqlite3.connect(str(LIVE_DB), timeout=10.0)
-                conn.execute(
-                    "INSERT OR REPLACE INTO patterns"
-                    " (pattern_name, success_count, total_count, avg_rounds, last_seen)"
-                    " VALUES (?, ?, ?, ?, ?)",
-                    (
-                        f"high_success_mode_{recent[0].mode}" if recent else "unknown",
-                        success_count,
-                        len(recent),
-                        tool_rounds,
-                        time.time(),
-                    ),
-                )
+                for tag, tagged in clusters.items():
+                    if len(tagged) < 2:
+                        continue
+                    sc = sum(1 for o in tagged if o.success)
+                    tc = len(tagged)
+                    # 仅记录成功率 > 50% 的模式
+                    if sc / max(tc, 1) > 0.5:
+                        ar = sum(o.rounds for o in tagged) / max(tc, 1)
+                        conn.execute(
+                            "INSERT OR REPLACE INTO patterns"
+                            " (pattern_name, success_count, total_count, avg_rounds, last_seen)"
+                            " VALUES (?, ?, ?, ?, ?)",
+                            (tag, sc, tc, ar, time.time()),
+                        )
                 conn.commit()
                 conn.close()
             except (OSError, sqlite3.Error):
                 pass
 
         logger.debug(
-            "live_learner_reflect success_rate=%.2f tool_rounds=%.1f obs=%d",
-            success_rate, tool_rounds, len(recent),
+            "live_learner_reflect success_rate=%.2f clusters=%d obs=%d",
+            success_rate, len(clusters), len(recent),
         )
+
+    @staticmethod
+    def _classify_observation(obs: LiveObservation) -> str:
+        """按任务关键词分类观察为具体模式名"""
+        task = obs.task_preview.lower()
+        mode = obs.mode
+        # 写文件类
+        if any(kw in task for kw in ["写", "创建", "建 ", "write", "create", "生成代码"]):
+            return f"{mode}_write_code"
+        # 修复类
+        if any(kw in task for kw in ["修复", "fix", "错误", "报错", "bug", "exception"]):
+            return f"{mode}_fix_error"
+        # 测试类
+        if any(kw in task for kw in ["测试", "test", "pytest", "验证", "validate"]):
+            return f"{mode}_run_test"
+        # 安装依赖类
+        if any(kw in task for kw in ["安装", "install", "pip", "依赖", "dependency"]):
+            return f"{mode}_install_deps"
+        # 搜索/分析类
+        if any(kw in task for kw in ["搜索", "分析", "查看", "explore", "search", "read"]):
+            return f"{mode}_search_info"
+        # 优化类
+        if any(kw in task for kw in ["优化", "重构", "refactor", "optimize", "升级"]):
+            return f"{mode}_refactor_code"
+        # 启动/重启类
+        if any(kw in task for kw in ["启动", "重启", "start", "restart", "run"]):
+            return f"{mode}_start_service"
+        # 配置类
+        if any(kw in task for kw in ["配置", "config", "设置", "环境"]):
+            return f"{mode}_configure"
+        # 失败模式（成功率 < 50%）
+        if not obs.success:
+            return f"{mode}_failed"
+        return f"{mode}_generic"
 
     def get_stats(self) -> dict:
         """获取学习统计"""

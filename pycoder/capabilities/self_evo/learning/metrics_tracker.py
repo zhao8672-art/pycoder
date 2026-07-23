@@ -17,11 +17,15 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import sqlite3
 import time
 from dataclasses import dataclass, field
 
 from pycoder.server.unified_db import get_db_path
+
+logger = logging.getLogger(__name__)
 
 DB_DIR = get_db_path().parent
 METRICS_DB = get_db_path()
@@ -325,6 +329,106 @@ class MetricsTracker:
             breakdown[op]["rate"] = breakdown[op]["success"] / t if t > 0 else 0
 
         return breakdown
+
+    def run_real_quality_snapshot(self, project_root: str = "") -> None:
+        """Step5: 运行真实的质量检查（ruff + py_compile），记录真实评分
+
+        替代之前的硬编码虚假评分（lint_score=100, files=0 等）。
+        """
+        import subprocess as _sp
+        _root = project_root or os.getcwd()
+        _result = {"lint_score": 100.0, "file_count": 0, "issue_count": 0,
+                   "test_coverage": 0.0, "total_score": 100.0}
+        _py_files = 0
+
+        # 统计 Python 文件数
+        try:
+            for _dirpath, _dirs, _files in os.walk(
+                os.path.join(_root, "pycoder"),
+            ):
+                _dirs[:] = [d for d in _dirs if d not in
+                            ("__pycache__", ".venv", "node_modules", ".git")]
+                _py_files += sum(1 for f in _files if f.endswith(".py"))
+            _result["file_count"] = _py_files
+        except (OSError, ValueError):
+            pass
+
+        # ruff 扫描
+        try:
+            _proc = _sp.run(
+                ["ruff", "check", os.path.join(_root, "pycoder"),
+                 "--output-format=json", "--no-cache"],
+                capture_output=True, text=True, timeout=60,
+                cwd=_root,
+            )
+            if _proc.stdout:
+                _issues = json.loads(_proc.stdout)
+                _result["issue_count"] = len(_issues)
+                # lint_score: 100 - min(issue_count * 2, 50)
+                _result["lint_score"] = max(50.0, 100.0 - len(_issues) * 2.0)
+            elif _proc.returncode == 0:
+                _result["lint_score"] = 100.0
+        except (FileNotFoundError, _sp.TimeoutExpired, OSError, ValueError):
+            # ruff 不可用时，使用 py_compile 作为降级检测
+            try:
+                _err_count = 0
+                for _dirpath, _dirs, _files in os.walk(
+                    os.path.join(_root, "pycoder"),
+                ):
+                    _dirs[:] = [d for d in _dirs if d not in
+                                ("__pycache__", ".venv", "node_modules", ".git")]
+                    for _f in _files:
+                        if _f.endswith(".py"):
+                            _fp = os.path.join(_dirpath, _f)
+                            try:
+                                import py_compile as _pcomp
+                                _pcomp.compile(_fp, doraise=False)
+                            except (_pcomp.PyCompileError, Exception):
+                                _err_count += 1
+                _result["issue_count"] = _err_count
+                _result["lint_score"] = max(50.0, 100.0 - _err_count * 2.0)
+            except OSError:
+                pass
+
+        # 测试覆盖率（如果 pytest-cov 可用）
+        try:
+            _proc = _sp.run(
+                ["pytest", "--cov=pycoder", "--cov-report=term", "-q"],
+                capture_output=True, text=True, timeout=120,
+                cwd=_root,
+            )
+            _out = _proc.stdout + _proc.stderr
+            # 解析 coverage 百分比
+            import re
+            _m = re.search(r"TOTAL\s+\d+\s+\d+\s+(\d+)%", _out)
+            if _m:
+                _result["test_coverage"] = float(_m.group(1))
+        except (FileNotFoundError, _sp.TimeoutExpired, OSError, ValueError):
+            pass
+
+        # 综合评分: 0.5*lint + 0.3*coverage + 0.2*(100 - 2*issues)
+        _security_score = max(60.0, 100.0 - _result["issue_count"] * 2.0)
+        _result["total_score"] = round(
+            0.5 * _result["lint_score"]
+            + 0.3 * _result["test_coverage"]
+            + 0.2 * _security_score,
+            1,
+        )
+
+        self.record_quality_snapshot(
+            lint_score=_result["lint_score"],
+            security_score=_security_score,
+            complexity_score=80.0,  # ruff 不直接提供复杂度
+            test_coverage=_result["test_coverage"],
+            total_score=_result["total_score"],
+            file_count=_result["file_count"],
+            issue_count=_result["issue_count"],
+        )
+        logger.info(
+            "quality_snapshot_real lint=%.1f files=%d issues=%d total=%.1f",
+            _result["lint_score"], _result["file_count"],
+            _result["issue_count"], _result["total_score"],
+        )
 
     def get_daily_summary(self, days: int = 7) -> list[dict]:
         """每日汇总"""

@@ -413,12 +413,32 @@ async def _save_conversation_memory(
     ai_response: str,
     model: str,
 ):
-    """P1-3: 对话结束后保存到持久化记忆系统"""
+    """P1-3: 对话结束后保存到持久化记忆系统（带动态重要性评分）"""
     try:
         from pycoder.server.services.memory_augmentor import MemoryAugmentor
 
+        # Step4: 动态重要性评分
+        _importance = 0.6
+        _msg_lower = user_message.lower()
+        # 核心文件修改 +0.2
+        _core_files = ["chat_bridge", "chat_handler", "agent_orchestrator", "task_grader"]
+        if any(cf in user_message for cf in _core_files):
+            _importance += 0.2
+        # 涉及修复/bug +0.1
+        if any(kw in _msg_lower for kw in ["修复", "fix", "错误", "bug", "报错"]):
+            _importance += 0.1
+        # 含测试结果 +0.1
+        if any(kw in ai_response.lower() for kw in ["✅", "passed", "测试通过", "成功"]):
+            _importance += 0.1
+        # 长对话 +0.15
+        if len(user_message) > 200 or len(ai_response) > 1000:
+            _importance += 0.15
+        # 纯问候/短消息 -0.1
+        if len(user_message.strip()) < 10:
+            _importance -= 0.1
+        _importance = max(0.3, min(1.0, _importance))
+
         augmentor = MemoryAugmentor()
-        # 提取关键信息并保存到 long_term_memory 表
         key = f"session_{session_id}_{int(time.time())}"
         content = f"用户: {user_message[:500]}\nAI: {ai_response[:2000]}"
         augmentor.store(
@@ -426,10 +446,70 @@ async def _save_conversation_memory(
             key=key,
             content=content,
             tags=[model, "conversation"],
-            importance=0.6,
+            importance=_importance,
         )
     except (ImportError, RuntimeError, ValueError, TypeError, AttributeError) as e:
         logger.debug("persistent_memory_save_skipped: %s", e)
+
+
+async def _extract_error_patterns(ai_response: str, user_message: str) -> None:
+    """Step3: 从对话中自动提取错误-修复模式，写入 error_patterns 表"""
+    import hashlib
+    import sqlite3 as _sql
+    _home = os.path.expanduser("~")
+    _udb = os.path.join(_home, ".pycoder", "unified.db")
+    if not os.path.exists(_udb):
+        return
+
+    # 检测 AI 回复中的错误修复模式
+    _errors_found: list[dict] = []
+    # 模式1: "NameError: X is not defined"
+    import re as _re
+    for _match in _re.finditer(r"(NameError|TypeError|ValueError|AttributeError|ImportError|"
+                                r"ModuleNotFoundError|SyntaxError|KeyError|IndexError)"
+                                r"\s*:\s*(.{10,200})", ai_response):
+        _err_type = _match.group(1)
+        _err_msg = _match.group(2)[:200]
+        _sig = hashlib.md5((_err_type + _err_msg[:60]).encode()).hexdigest()[:16]
+        _errors_found.append({
+            "signature": _sig, "type": _err_type,
+            "pattern": user_message[:80] if user_message else "",
+            "fix": ai_response[_match.end():_match.end()+300],
+        })
+
+    # 模式2: 包含 "Traceback" 
+    if "Traceback" in ai_response or "报错" in user_message or "error" in user_message.lower():
+        # 通用错误签名
+        _sig = hashlib.md5((user_message[:100] + "error").encode()).hexdigest()[:16]
+        if not any(e["signature"] == _sig for e in _errors_found):
+            _errors_found.append({
+                "signature": _sig, "type": "General",
+                "pattern": user_message[:80] if user_message else "",
+                "fix": ai_response[:500],
+            })
+
+    if not _errors_found:
+        return
+
+    try:
+        _conn = _sql.connect(_udb, timeout=5.0)
+        for _ef in _errors_found:
+            _conn.execute(
+                "INSERT OR REPLACE INTO error_patterns "
+                "(error_signature, error_type, fix_template, file_pattern, "
+                "success_count, fail_count, last_seen, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    _ef["signature"], _ef["type"],
+                    _ef["fix"], _ef["pattern"],
+                    1, 0, time.time(), time.time(),
+                ),
+            )
+        _conn.commit()
+        _conn.close()
+        logger.debug("error_patterns_extracted count=%d", len(_errors_found))
+    except (_sql.Error, OSError, ValueError) as e:
+        logger.debug("error_patterns_insert_failed: %s", e)
 
 
 async def _run_chat_stream(
@@ -526,6 +606,14 @@ async def _run_chat_stream(
     except (ImportError, RuntimeError, ValueError, TypeError):
         pass
 
+    # ── Step1: 会话生命周期 — 跳过健康检查/快速探测消息 ──
+    _msg_lower = message.strip().lower()
+    _is_trivial_probe = (
+        len(message.strip()) < 6
+        or _msg_lower in ("ok", "ping", "test", "hello", "hi", "hey", "1", "?", "你好", "测试")
+    )
+    _should_skip_session = _is_trivial_probe and not session_id
+
     # ── ProjectState 注入: AI 知道当前创建了什么文件 ──
     try:
         from pycoder.server.services.project_state import get_project_state
@@ -535,6 +623,26 @@ async def _run_chat_stream(
             bridge.config.system_prompt += "\n\n" + _ps_prompt
     except (ImportError, RuntimeError, ValueError, TypeError):
         pass
+
+    # ── Step8: 跨会话上下文复用（从 long_term_memory 检索）──
+    try:
+        import sqlite3 as _sql
+        _udb = os.path.join(os.path.expanduser("~"), ".pycoder", "unified.db")
+        if os.path.exists(_udb):
+            _conn = _sql.connect(_udb, timeout=5.0)
+            _rows = _conn.execute(
+                "SELECT key, content, importance, tags FROM long_term_memory "
+                "WHERE importance >= 0.7 ORDER BY importance DESC LIMIT 5"
+            ).fetchall()
+            if _rows:
+                _ctx_lines = ["\n📋 **跨会话历史参考**（高价值记忆）:"]
+                for _rk, _rc, _ri, _rt in _rows:
+                    _preview = str(_rc)[:120].replace("\n", " ")
+                    _ctx_lines.append(f"  - [重要度{_ri:.1f}] {_preview}")
+                bridge.config.system_prompt += "\n" + "\n".join(_ctx_lines)
+            _conn.close()
+    except (OSError, sqlite3.Error, ValueError, RuntimeError, TypeError) as _e:
+        logger.debug("cross_session_context_load_failed: %s", _e)
 
     store = get_session_store()
 
@@ -598,23 +706,26 @@ async def _run_chat_stream(
 
     # 保存用户消息（所有模式通用）
     # P0-1 修复: 增加 FOREIGN KEY 约束失败的防御性恢复
-    try:
-        store.add_message(session_id, "user", message)
-    except (OSError, ValueError, RuntimeError, sqlite3.IntegrityError) as e:
-        logger.warning(
-            "save_user_message_failed", extra={"session_id": session_id, "error": str(e)}
-        )
-        # 防御性恢复: 会话不存在时自动创建后重试
-        if "FOREIGN KEY" in str(e) or "IntegrityError" in type(e).__name__:
-            try:
-                store.create_session(session_id=session_id, model=model)
-                store.add_message(session_id, "user", message)
-                logger.info("session_auto_created_on_fk_error", extra={"session_id": session_id})
-            except (OSError, ValueError, RuntimeError) as retry_err:
-                logger.error(
-                    "session_auto_create_failed",
-                    extra={"session_id": session_id, "error": str(retry_err)},
-                )
+    if not _should_skip_session:
+        try:
+            store.add_message(session_id, "user", message)
+        except (OSError, ValueError, RuntimeError, sqlite3.IntegrityError) as e:
+            logger.warning(
+                "save_user_message_failed", extra={"session_id": session_id, "error": str(e)}
+            )
+            # 防御性恢复: 会话不存在时自动创建后重试
+            if "FOREIGN KEY" in str(e) or "IntegrityError" in type(e).__name__:
+                try:
+                    store.create_session(session_id=session_id, model=model)
+                    store.add_message(session_id, "user", message)
+                    logger.info("session_auto_created_on_fk_error", extra={"session_id": session_id})
+                except (OSError, ValueError, RuntimeError) as retry_err:
+                    logger.error(
+                        "session_auto_create_failed",
+                        extra={"session_id": session_id, "error": str(retry_err)},
+                    )
+    else:
+        logger.debug("skipped_trivial_probe msg=%.20s", message)
 
     # ── 断裂点4修复: Agent 自动路由 — 任务难度≥MEDIUM 时自动启用 Agent 团队 ──
     if not hermes and not agent_mode:
@@ -738,6 +849,8 @@ async def _run_chat_stream(
                     )
                 # P1-3: 保存到持久化记忆
                 await _save_conversation_memory(session_id, message, final, model)
+                # Step3: error_patterns 自动填充
+                await _extract_error_patterns(final, message)
                 yield {"type": "done", "content": final, "usage": event.usage}
             elif event.event_type == "error":
                 yield {"type": "error", "message": event.content}
