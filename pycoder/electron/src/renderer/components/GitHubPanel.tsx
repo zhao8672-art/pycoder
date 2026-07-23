@@ -59,10 +59,10 @@ export const GitHubPanel: React.FC = () => {
         if (res?.success) {
             setUser(res.user);
             setView('list');
-            showMsg('Connected as ' + res.user);
+            showMsg('已连接为 ' + res.user);
             fetchRepos();
         } else {
-            showMsg('Auth failed: ' + (res?.error || 'error'));
+            showMsg('认证失败: ' + (res?.error || '错误'));
         }
     };
 
@@ -71,7 +71,7 @@ export const GitHubPanel: React.FC = () => {
         setUser(null);
         setView('auth');
         setRepos([]);
-        showMsg('Disconnected');
+        showMsg('已断开连接');
     };
 
     const fetchRepos = useCallback(async () => {
@@ -120,21 +120,21 @@ export const GitHubPanel: React.FC = () => {
                     <span style={{ fontSize: 24 }}>🐙</span>
                 </div>
                 <div style={{ padding: '0 10px' }}>
-                    <label className="modal-label">GitHub Personal Access Token</label>
+                    <label className="modal-label">GitHub 个人访问令牌</label>
                     <input className="settings-input" type="password" value={token}
                         onChange={e => setToken(e.target.value)}
                         placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
                     <div className="modal-hint">
-                        Create a token at{' '}
+                        在以下地址创建令牌：{' '}
                         <a href="#" onClick={() => window.open('https://github.com/settings/tokens', '_blank')}>
                             github.com/settings/tokens
                         </a>
-                        {' '}with repo scope.
+                        {' '}，需勾选 repo 权限。
                     </div>
                     <div className="modal-actions" style={{ marginTop: 12 }}>
                         <button className="settings-btn settings-btn-primary"
                             onClick={handleAuth} disabled={loading || !token.trim()}>
-                            {loading ? 'Connecting...' : 'Connect to GitHub'}
+                            {loading ? '连接中...' : '连接 GitHub'}
                         </button>
                     </div>
                 </div>
@@ -157,7 +157,7 @@ export const GitHubPanel: React.FC = () => {
                 </div>
                 <div className="git-header-actions">
                     <button className="git-header-btn" onClick={fetchRepos} disabled={loading}>⟳</button>
-                    <button className="git-header-btn" onClick={handleLogout} title="Disconnect">⏻</button>
+                    <button className="git-header-btn" onClick={handleLogout} title="断开连接">⏻</button>
                 </div>
             </div>
 
@@ -171,7 +171,7 @@ export const GitHubPanel: React.FC = () => {
                             color: tab === t ? 'var(--text-primary)' : 'var(--text-muted)', cursor: 'pointer'
                         }}
                         onClick={() => { setTab(t); if (activeRepo) { t === 'pulls' ? fetchPulls(activeRepo) : fetchIssues(activeRepo); } }}>
-                        {t === 'repos' ? '📦 Repos' : t === 'pulls' ? '🔀 PRs' : '🐛 Issues'}
+                        {t === 'repos' ? '📦 仓库' : t === 'pulls' ? '🔀 PR' : '🐛 议题'}
                     </button>
                 ))}
             </div>
@@ -180,10 +180,10 @@ export const GitHubPanel: React.FC = () => {
                 <>
                     <div style={{ padding: '4px 8px' }}>
                         <input className="extensions-search" value={search}
-                            onChange={e => setSearch(e.target.value)} placeholder="Search repos..." />
+                            onChange={e => setSearch(e.target.value)} placeholder="搜索仓库..." />
                     </div>
                     <div className="git-changes">
-                        {filteredRepos.length === 0 && <div className="git-placeholder">No repositories</div>}
+                        {filteredRepos.length === 0 && <div className="git-placeholder">暂无仓库</div>}
                         {filteredRepos.map(r => (
                             <div key={r.full_name}
                                 className={'git-change-item' + (activeRepo === r.full_name ? ' selected' : '')}
@@ -196,8 +196,8 @@ export const GitHubPanel: React.FC = () => {
                                         ⭐{r.stargazers_count} · 🍴{r.forks_count}
                                     </div>
                                 </span>
-                                <button className="git-stage-btn" onClick={e => { e.stopPropagation(); handleOpenGitHub(r.html_url); }} title="Open on GitHub">🌐</button>
-                                <button className="git-stage-btn" onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(r.clone_url); showMsg('URL copied'); }} title="Copy clone URL">📋</button>
+                                <button className="git-stage-btn" onClick={e => { e.stopPropagation(); handleOpenGitHub(r.html_url); }} title="在 GitHub 中打开">🌐</button>
+                                <button className="git-stage-btn" onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(r.clone_url); showMsg('地址已复制'); }} title="复制克隆地址">📋</button>
                             </div>
                         ))}
                     </div>
@@ -206,8 +206,8 @@ export const GitHubPanel: React.FC = () => {
 
             {tab === 'pulls' && (
                 <div className="git-changes">
-                    {!activeRepo && <div className="git-placeholder">Select a repo first</div>}
-                    {activeRepo && pulls.length === 0 && <div className="git-placeholder">No open PRs</div>}
+                    {!activeRepo && <div className="git-placeholder">请先选择仓库</div>}
+                    {activeRepo && pulls.length === 0 && <div className="git-placeholder">暂无打开的 PR</div>}
                     {pulls.map(pr => (
                         <div key={pr.number} className="git-change-item" onClick={() => handleOpenGitHub(pr.html_url)}>
                             <span className="git-change-status">{pr.draft ? '📝' : '🔀'}</span>
@@ -222,8 +222,8 @@ export const GitHubPanel: React.FC = () => {
 
             {tab === 'issues' && (
                 <div className="git-changes">
-                    {!activeRepo && <div className="git-placeholder">Select a repo first</div>}
-                    {activeRepo && issues.length === 0 && <div className="git-placeholder">No open issues</div>}
+                    {!activeRepo && <div className="git-placeholder">请先选择仓库</div>}
+                    {activeRepo && issues.length === 0 && <div className="git-placeholder">暂无打开的议题</div>}
                     {issues.map(iss => (
                         <div key={iss.number} className="git-change-item" onClick={() => handleOpenGitHub(iss.html_url)}>
                             <span className="git-change-status">🐛</span>

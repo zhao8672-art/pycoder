@@ -293,6 +293,14 @@ class V2Engine:
         except Exception as e:
             logger.warning("进化报告生成能力注册失败: %s", e)
 
+        logger.info("注册进化引擎核心能力...")
+        try:
+            from pycoder.evolution import register_capabilities as register_evolution
+
+            register_evolution(self.registry)
+        except Exception as e:
+            logger.warning("进化引擎核心能力注册失败: %s", e)
+
         # ── Phase 3 升级: 生态与扩展 ──
         logger.info("注册技能市场能力...")
         try:

@@ -20,10 +20,10 @@ export const PublishDialog: React.FC<Props> = ({ onClose, onPublished }) => {
         const res = await BackendAPI.github.publish(repoName.trim(), description, isPrivate);
         setPublishing(false);
         if (res?.success) {
-            setResult({ ok: true, msg: 'Published! Open on GitHub: ' + res.repo_url });
+            setResult({ ok: true, msg: '发布成功！在 GitHub 中打开: ' + res.repo_url });
             setTimeout(() => { onPublished(res.repo_url); onClose(); }, 1500);
         } else {
-            setResult({ ok: false, msg: res?.error || 'Publish failed' });
+            setResult({ ok: false, msg: res?.error || '发布失败' });
         }
     };
 
@@ -31,30 +31,30 @@ export const PublishDialog: React.FC<Props> = ({ onClose, onPublished }) => {
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-dialog" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <span>☁️ Publish to GitHub</span>
+                    <span>☁️ 发布到 GitHub</span>
                     <button className="modal-close" onClick={onClose}>×</button>
                 </div>
                 <div className="modal-body">
-                    <label className="modal-label">Repository Name</label>
+                    <label className="modal-label">仓库名称</label>
                     <input className="settings-input" value={repoName}
                         onChange={e => setRepoName(e.target.value)}
                         placeholder="my-awesome-project" />
 
-                    <label className="modal-label">Description (optional)</label>
+                    <label className="modal-label">描述（可选）</label>
                     <input className="settings-input" value={description}
                         onChange={e => setDescription(e.target.value)}
-                        placeholder="Brief description" />
+                        placeholder="简要描述" />
 
                     <div className="modal-checkbox">
                         <label>
                             <input type="checkbox" checked={isPrivate}
                                 onChange={e => setIsPrivate(e.target.checked)} />
-                            {' '}Private repository
+                            {' '}私有仓库
                         </label>
                     </div>
 
                     <div className="modal-hint">
-                        This will create a new repository and push your code to GitHub.
+                        将创建一个新仓库并将代码推送到 GitHub。
                     </div>
 
                     {result && (
@@ -64,10 +64,10 @@ export const PublishDialog: React.FC<Props> = ({ onClose, onPublished }) => {
                     )}
 
                     <div className="modal-actions">
-                        <button className="settings-btn" onClick={onClose}>Cancel</button>
+                        <button className="settings-btn" onClick={onClose}>取消</button>
                         <button className="settings-btn settings-btn-primary"
                             onClick={handlePublish} disabled={publishing || !repoName.trim()}>
-                            {publishing ? 'Publishing...' : 'Publish'}
+                            {publishing ? '发布中...' : '发布'}
                         </button>
                     </div>
                 </div>

@@ -1,0 +1,52 @@
+{
+  "task": {
+    "start": "任务 [{name}] 开始执行",
+    "complete": "任务 [{name}] 已完成",
+    "fail": "任务 [{name}] 执行失败: {error}"
+  },
+  "pipeline": {
+    "phase": {
+      "intake": "阶段 1: 任务接入与需求解析",
+      "design": "阶段 2: 架构设计与技术选型",
+      "decompose": "阶段 3: 任务 DAG 拆解与调度规划",
+      "env_setup": "阶段 4: 环境初始化与前置准备",
+      "develop": "阶段 5: 迭代开发 + 自测提交",
+      "test": "阶段 6: 全量测试 + 问题闭环",
+      "deploy": "阶段 7: 部署验证与交付验收",
+      "review": "阶段 8: 文档沉淀 + 自动复盘"
+    },
+    "done": "流水线执行完成",
+    "failed": "流水线执行失败"
+  },
+  "quality": {
+    "gate": {
+      "passed": "质量门禁 L{level} 通过",
+      "failed": "质量门禁 L{level} 未通过: {reason}"
+    }
+  },
+  "auth": {
+    "login_success": "登录成功",
+    "login_failed": "登录失败: {reason}",
+    "token_expired": "Token 已过期，请重新登录"
+  },
+  "search": {
+    "no_results": "未找到相关结果",
+    "results_found": "找到 {count} 条结果"
+  },
+  "error": {
+    "unknown": "未知错误",
+    "network": "网络连接失败",
+    "timeout": "操作超时",
+    "permission": "权限不足"
+  },
+  "success": "操作成功",
+  "cancel": "取消",
+  "confirm": "确认",
+  "save": "保存",
+  "delete": "删除",
+  "edit": "编辑",
+  "create": "创建",
+  "refresh": "刷新",
+  "loading": "加载中...",
+  "no_data": "暂无数据"
+}

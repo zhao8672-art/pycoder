@@ -25,12 +25,14 @@ logger = logging.getLogger(__name__)
 
 # JWT 配置 — 密钥必须从环境变量获取，不提供默认值
 _SECRET = os.environ.get("PYCODER_CLOUD_JWT_SECRET", "")
-_SHOULD_LOG = True  # 模块级标志：只打印一次警告
+# 使用环境变量作为进程级去重标志，避免子进程/subprocess 重复输出警告
+_WARNED_FLAG = "_PYCODER_JWT_WARNED"
 
 
 if not _SECRET:
-    if _SHOULD_LOG:
-        _SHOULD_LOG = False
+    if not os.environ.get(_WARNED_FLAG):
+        # 在父进程中设置环境变量，子进程会继承，从而避免重复警告
+        os.environ[_WARNED_FLAG] = "1"
         # 检查是否在非开发模式下运行
         _is_dev = os.environ.get("PYCODER_ENV", "").lower() in ("dev", "development")
         if not _is_dev:

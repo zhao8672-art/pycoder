@@ -10,6 +10,14 @@ AI 大脑核心 — Pycoder V2 的中央控制层
 - 任务规划器: 动态分解和重规划
 - Agent 编排器: 多角色并行协作
 - 记忆引擎: 四级记忆体系
+- 八阶段流水线引擎: 完整开发闭环
+- 四级质量门禁: 自动化质量把关
+- 模型路由器: 动态模型选择
+- 成本控制器: Token 预算管理
+- 共享状态系统: Agent 间通信
+- 标准化执行报告: 统一输出格式
+- Hermes 调度中枢: 任务解析与调度
+- 14 角色 Agent 团队: 专业化分工协作
 """
 
 from pycoder.brain.adaptive_executor import (
@@ -54,6 +62,80 @@ from pycoder.brain.tool_planner import (
     ToolPlan,
     ToolPlanner,
     get_tool_planner,
+)
+
+# 八阶段流水线引擎
+from pycoder.brain.pipeline_engine import (
+    PipelineEngine,
+    PipelinePhase,
+    PipelinePhaseResult,
+    PipelinePhaseStatus,
+    PipelineResult,
+    get_pipeline_engine,
+)
+
+# 四级质量门禁
+from pycoder.brain.quality_gate import (
+    GateLevel,
+    GateResult,
+    QualityGate,
+    get_quality_gate,
+)
+
+# 模型路由器
+from pycoder.brain.model_router import (
+    ModelRouter,
+    ModelRoute,
+    ModelTier,
+    get_model_router,
+)
+
+# 成本控制器
+from pycoder.brain.cost_controller import (
+    BudgetStatus,
+    CostBudget,
+    CostController,
+    CostEntry,
+    get_cost_controller,
+)
+
+# 共享状态系统
+from pycoder.brain.shared_state import (
+    SharedState,
+    SharedTaskState,
+    TaskPhase,
+    TaskStatus,
+    ValidationContract,
+    get_shared_state,
+)
+
+# 标准化执行报告
+from pycoder.brain.execution_report import (
+    ExecutionReport,
+    FileChange,
+    OperationSummary,
+    ReportBuilder,
+    ReportStatus,
+    get_report_builder,
+)
+
+# Hermes 调度中枢
+from pycoder.brain.hermes_agent import (
+    DispatchResult,
+    HermesAgent,
+    TaskAnalysis,
+    TaskComplexity,
+    get_hermes_agent,
+)
+
+# 14 角色 Agent 团队
+from pycoder.brain.specialized_agents import (
+    AgentProfile,
+    AgentRole as SpecializedAgentRole,
+    SpecializedAgentTeam,
+    Team,
+    TeamTask,
+    get_agent_team,
 )
 
 __all__ = [
@@ -102,4 +184,54 @@ __all__ = [
     "MemoryEngine",
     "WorkingMemory",
     "ProjectKnowledge",
+    # 流水线引擎
+    "PipelineEngine",
+    "PipelinePhase",
+    "PipelinePhaseResult",
+    "PipelinePhaseStatus",
+    "PipelineResult",
+    "get_pipeline_engine",
+    # 质量门禁
+    "QualityGate",
+    "GateLevel",
+    "GateResult",
+    "get_quality_gate",
+    # 模型路由
+    "ModelRouter",
+    "ModelRoute",
+    "ModelTier",
+    "get_model_router",
+    # 成本控制
+    "CostController",
+    "CostBudget",
+    "CostEntry",
+    "BudgetStatus",
+    "get_cost_controller",
+    # 共享状态
+    "SharedState",
+    "SharedTaskState",
+    "TaskPhase",
+    "TaskStatus",
+    "ValidationContract",
+    "get_shared_state",
+    # 执行报告
+    "ExecutionReport",
+    "FileChange",
+    "OperationSummary",
+    "ReportBuilder",
+    "ReportStatus",
+    "get_report_builder",
+    # Hermes 调度
+    "HermesAgent",
+    "DispatchResult",
+    "TaskAnalysis",
+    "TaskComplexity",
+    "get_hermes_agent",
+    # Agent 团队
+    "SpecializedAgentTeam",
+    "SpecializedAgentRole",
+    "AgentProfile",
+    "Team",
+    "TeamTask",
+    "get_agent_team",
 ]

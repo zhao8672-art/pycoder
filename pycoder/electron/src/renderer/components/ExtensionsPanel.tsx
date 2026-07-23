@@ -59,7 +59,7 @@ export const ExtensionsPanel: React.FC = () => {
                 // Only seed data returned - GitHub API likely rate limited
             }
         } catch (err) {
-            setError('Cannot connect to extension marketplace');
+            setError('无法连接扩展市场');
             setNetworkFailed(true);
             setExtensions([]);
         }
@@ -85,19 +85,19 @@ export const ExtensionsPanel: React.FC = () => {
 
     const handleInstall = async (ext: Extension) => {
         setActionLoading(ext.id);
-        setStatusMsg('Installing ' + ext.name + '...');
+        setStatusMsg('正在安装 ' + ext.name + '...');
         try {
             const res = await BackendAPI.extensions.install(ext.id);
             if (res?.success) {
-                showMsg(ext.name + ' installed');
+                showMsg(ext.name + ' 已安装');
                 setExtensions(prev => prev.map(e =>
                     e.id === ext.id ? { ...e, installed: true } : e
                 ));
             } else {
-                showMsg('Install failed: ' + (res?.error || 'unknown'));
+                showMsg('安装失败: ' + (res?.error || '未知'));
             }
         } catch {
-            showMsg('Install failed: network error');
+            showMsg('安装失败: 网络错误');
         }
         setActionLoading(null);
         fetchInstalled();
@@ -105,19 +105,19 @@ export const ExtensionsPanel: React.FC = () => {
 
     const handleUninstall = async (id: string, name: string) => {
         setActionLoading(id);
-        setStatusMsg('Uninstalling ' + name + '...');
+        setStatusMsg('正在卸载 ' + name + '...');
         try {
             const res = await BackendAPI.extensions.uninstall(id);
             if (res?.success) {
-                showMsg(name + ' uninstalled');
+                showMsg(name + ' 已卸载');
                 setExtensions(prev => prev.map(e =>
                     e.id === id ? { ...e, installed: false } : e
                 ));
             } else {
-                showMsg('Uninstall failed: ' + (res?.error || 'unknown'));
+                showMsg('卸载失败: ' + (res?.error || '未知'));
             }
         } catch {
-            showMsg('Uninstall failed: network error');
+            showMsg('卸载失败: 网络错误');
         }
         setActionLoading(null);
         fetchInstalled();
@@ -129,13 +129,13 @@ export const ExtensionsPanel: React.FC = () => {
         try {
             const res = enable ? await BackendAPI.extensions.enable(ext.id) : await BackendAPI.extensions.disable(ext.id);
             if (res?.success) {
-                showMsg(ext.name + (enable ? ' enabled' : ' disabled'));
+                showMsg(ext.name + (enable ? ' 已启用' : ' 已禁用'));
                 setExtensions(prev => prev.map(e =>
                     e.id === ext.id ? { ...e, enabled: enable } : e
                 ));
             }
         } catch {
-            showMsg('Toggle failed: network error');
+            showMsg('切换失败: 网络错误');
         }
         setActionLoading(null);
         fetchInstalled();
@@ -143,16 +143,16 @@ export const ExtensionsPanel: React.FC = () => {
 
     const handleUpdate = async (ext: Extension) => {
         setActionLoading(ext.id);
-        setStatusMsg('Updating ' + ext.name + '...');
+        setStatusMsg('正在更新 ' + ext.name + '...');
         try {
             const res = await BackendAPI.extensions.update(ext.id);
             if (res?.success) {
-                showMsg(ext.name + ' updated');
+                showMsg(ext.name + ' 已更新');
             } else {
-                showMsg('Update failed: ' + (res?.error || 'unknown'));
+                showMsg('更新失败: ' + (res?.error || '未知'));
             }
         } catch {
-            showMsg('Update failed: network error');
+            showMsg('更新失败: 网络错误');
         }
         setActionLoading(null);
         fetchInstalled();
@@ -187,7 +187,7 @@ export const ExtensionsPanel: React.FC = () => {
                         <div className="extensions-detail-meta">
                             <span>👤 {detailExt.author}</span>
                             <span>v{detailExt.version}</span>
-                            <span>{detailExt.category || 'uncategorized'}</span>
+                            <span>{detailExt.category || '未分类'}</span>
                             {detailExt.is_seed && <span className="extension-tag extension-tag-seed">内置</span>}
                         </div>
                         {detailExt.tags?.length > 0 && (
@@ -196,7 +196,7 @@ export const ExtensionsPanel: React.FC = () => {
                             </div>
                         )}
                         {detailExt.url && (
-                            <a className="extensions-detail-link" href={detailExt.url} target="_blank" rel="noreferrer">View Source</a>
+                            <a className="extensions-detail-link" href={detailExt.url} target="_blank" rel="noreferrer">查看源码</a>
                         )}
                         {inst && (
                             <div className="extensions-detail-status">

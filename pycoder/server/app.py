@@ -672,11 +672,59 @@ async def _start_scheduler():
         )
     )
 
+    # ── V2: 注册自进化自动修复（每 6 小时）──
+    scheduler.add_task(
+        ScheduledTask(
+            id="self-evo-auto-fix",
+            name="V2 自进化自动修复 (每6小时)",
+            trigger="cron",
+            config={"cron": "0 */6 * * *"},
+            action="python:pycoder.server.app._scheduled_evolution_run",
+            action_args={},
+        )
+    )
+
+    # ── Memory 自动清理（每日 03:30）──
+    scheduler.add_task(
+        ScheduledTask(
+            id="memory-auto-cleanup",
+            name="Memory 自动清理 (03:30)",
+            trigger="cron",
+            config={"cron": "30 3 * * *"},
+            action="python:pycoder.server.app._scheduled_memory_cleanup",
+            action_args={},
+        )
+    )
+
+    # ── Security 自动扫描（每日 02:00）──
+    scheduler.add_task(
+        ScheduledTask(
+            id="security-auto-scan",
+            name="Security 自动扫描 (02:00)",
+            trigger="cron",
+            config={"cron": "0 2 * * *"},
+            action="python:pycoder.server.app._scheduled_security_scan",
+            action_args={},
+        )
+    )
+
+    # ── Skills 健康检查（每 12 小时）──
+    scheduler.add_task(
+        ScheduledTask(
+            id="skills-health-check",
+            name="Skills 健康检查 (每12小时)",
+            trigger="cron",
+            config={"cron": "0 */12 * * *"},
+            action="python:pycoder.server.app._scheduled_skills_health_check",
+            action_args={},
+        )
+    )
+
     await scheduler.start()
     import logging
 
     logging.getLogger("pycoder.server.app").info(
-        "scheduler_started: 4 tasks registered (skills×2, extensions×2)"
+        "scheduler_started: 9 tasks registered (skills×2, extensions×2, evo-scan, evo-fix, memory-cleanup, security-scan, skills-health)"
     )
 
 
@@ -697,6 +745,64 @@ async def _scheduled_self_scan():
             _logger.info("self_scan_daily: clean (0 issues)")
     except Exception as e:
         _logger.debug("self_scan_skip: %s", e)
+
+
+async def _scheduled_evolution_run():
+    """定时自进化修复 — 每 6 小时自动运行进化闭环"""
+    try:
+        engine = get_v2_engine()
+        if engine is None or engine.evolution is None:
+            _logger.warning("evolution_run_skip: engine not available")
+            return
+        result = await engine.evolution.run(dry_run=False)
+        _logger.info(
+            "evolution_auto_fix: fixed=%d skipped=%d errors=%d",
+            result.get("fixed", 0),
+            result.get("skipped", 0),
+            result.get("errors", 0),
+        )
+    except Exception as e:
+        _logger.debug("evolution_auto_fix_skip: %s", e)
+
+
+async def _scheduled_memory_cleanup():
+    """定时 Memory 清理 — 每天清理过期会话"""
+    try:
+        from pycoder.memory.persistent_memory import PersistentMemoryStore
+
+        store = PersistentMemoryStore()
+        cleaned = await store.cleanup_expired(max_age_days=30)
+        _logger.info("memory_cleanup: cleaned=%d sessions", cleaned)
+    except Exception as e:
+        _logger.debug("memory_cleanup_skip: %s", e)
+
+
+async def _scheduled_security_scan():
+    """定时 Security 扫描 — 每天自动安全扫描"""
+    try:
+        from pycoder.python.security_scanner import SecurityScanner
+
+        scanner = SecurityScanner()
+        report = await scanner.scan_project(".")
+        issues = report.get("issues", [])
+        if issues:
+            _logger.warning("security_scan: found=%d issues", len(issues))
+        else:
+            _logger.info("security_scan: clean")
+    except Exception as e:
+        _logger.debug("security_scan_skip: %s", e)
+
+
+async def _scheduled_skills_health_check():
+    """定时 Skills 健康检查 — 检查已安装技能状态"""
+    try:
+        from pycoder.skills import get_marketplace
+
+        marketplace = get_marketplace()
+        installed = marketplace.get_installed_skills()
+        _logger.info("skills_health: installed=%d skills", len(installed))
+    except Exception as e:
+        _logger.debug("skills_health_skip: %s", e)
 
 
 async def _init_recommendation_db():

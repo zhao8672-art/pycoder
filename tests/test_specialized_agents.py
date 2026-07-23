@@ -53,7 +53,7 @@ class TestAgentRole:
     def test_all_roles_exist(self) -> None:
         """测试 10 个角色全部存在"""
         roles = list(AgentRole)
-        assert len(roles) == 10
+        assert len(roles) == 14  # 14 角色团队
         assert AgentRole.ARCHITECT in roles
         assert AgentRole.DEVELOPER in roles
         assert AgentRole.TESTER in roles
@@ -162,20 +162,20 @@ class TestSpecializedAgentTeamInit:
     def test_init(self, team_mgr: SpecializedAgentTeam) -> None:
         """测试初始化"""
         assert team_mgr._profiles is not None
-        assert len(team_mgr._profiles) == 10
+        assert len(team_mgr._profiles) == 14  # 14 角色团队
         assert team_mgr._active_teams == {}
 
     def test_get_all_roles(self, team_mgr: SpecializedAgentTeam) -> None:
         """测试获取所有角色"""
         roles = team_mgr.get_all_roles()
-        assert len(roles) == 10
+        assert len(roles) == 14  # 14 角色团队
         assert AgentRole.ARCHITECT in roles
         assert AgentRole.ORCHESTRATOR in roles
 
     def test_get_all_profiles(self, team_mgr: SpecializedAgentTeam) -> None:
         """测试获取所有角色配置"""
         profiles = team_mgr.get_all_profiles()
-        assert len(profiles) == 10
+        assert len(profiles) == 14  # 14 角色团队
         for p in profiles:
             assert isinstance(p, AgentProfile)
             assert p.name
@@ -349,7 +349,7 @@ class TestTeamCreation:
         """测试创建包含所有角色的团队"""
         all_roles = list(AgentRole)
         team = team_mgr.create_team("full-team", all_roles)
-        assert len(team.roles) == 10
+        assert len(team.roles) == 14  # 14 角色团队
 
     def test_create_team_registers_in_manager(self, team_mgr: SpecializedAgentTeam) -> None:
         """测试创建的团队在管理器中注册"""

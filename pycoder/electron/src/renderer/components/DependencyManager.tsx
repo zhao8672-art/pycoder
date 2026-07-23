@@ -25,11 +25,11 @@ export const DependencyManager: React.FC = () => {
             setDeps(data.dependencies || data.deps || []);
         } catch {
             setDeps([
-                { name: 'fastapi', version: '0.115.0', latest: '0.115.6', type: 'runtime', description: 'Web framework' },
-                { name: 'uvicorn', version: '0.30.0', latest: '0.34.0', type: 'runtime', description: 'ASGI server' },
-                { name: 'pydantic', version: '2.9.0', latest: '2.10.4', type: 'runtime', description: 'Data validation' },
-                { name: 'pytest', version: '8.3.0', latest: '8.3.4', type: 'dev', description: 'Testing framework' },
-                { name: 'black', version: '24.8.0', latest: '24.10.0', type: 'dev', description: 'Code formatter' },
+                { name: 'fastapi', version: '0.115.0', latest: '0.115.6', type: 'runtime', description: 'Web 框架' },
+                { name: 'uvicorn', version: '0.30.0', latest: '0.34.0', type: 'runtime', description: 'ASGI 服务器' },
+                { name: 'pydantic', version: '2.9.0', latest: '2.10.4', type: 'runtime', description: '数据验证' },
+                { name: 'pytest', version: '8.3.0', latest: '8.3.4', type: 'dev', description: '测试框架' },
+                { name: 'black', version: '24.8.0', latest: '24.10.0', type: 'dev', description: '代码格式化' },
             ]);
         }
         setLoading(false);
@@ -52,8 +52,8 @@ export const DependencyManager: React.FC = () => {
                     placeholder="搜索依赖包..." />
                 <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as any)}>
                     <option value="all">全部</option>
-                    <option value="runtime">Runtime</option>
-                    <option value="dev">Dev</option>
+                    <option value="runtime">运行时</option>
+                    <option value="dev">开发</option>
                 </select>
                 <button className="dep-btn" onClick={loadDeps}>↻ 刷新</button>
                 <span className="dep-count">{filtered.length} 个包</span>

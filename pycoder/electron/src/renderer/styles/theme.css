@@ -1,57 +1,57 @@
 /* ============================================================
  * PyCoder IDE — Theme System
  * 暗色主题（默认） + 明亮主题（data-theme="light"）
- * 紫色主调设计系统 v2.0
+ * VS Code Dark+ 风格设计系统 v4.0
  * ============================================================ */
 
-/* ── 暗色主题（默认）— PyCoder Design System v3.0 ── */
+/* ── 暗色主题（默认）— VS Code Dark+ 风格 ── */
 :root {
-  /* 背景层级 — 极端深紫黑 Raycast 风格 */
-  --bg-primary: #050010;
-  --bg-secondary: #08102A;
-  --bg-tertiary: #0d1535;
-  --bg-hover: #101840;
-  --bg-active: #151d50;
-  --bg-elevated: #0a1232;
+  /* 背景层级 — VS Code Dark+ 标准色阶 */
+  --bg-primary: #1E1E1E;
+  --bg-secondary: #252526;
+  --bg-tertiary: #333333;
+  --bg-hover: #2A2D2E;
+  --bg-active: #37373D;
+  --bg-elevated: #2D2D2D;
 
   /* 文字 */
-  --text-primary: #E6EDF3;
-  --text-secondary: #A8A8C2;
-  --text-muted: #6E7681;
-  --text-accent: #9333EA;
+  --text-primary: #CCCCCC;
+  --text-secondary: #9D9D9D;
+  --text-muted: #6E6E6E;
+  --text-accent: #007ACC;
 
   /* 边框 */
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-focus: #9333EA;
-  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-color: #3C3C3C;
+  --border-focus: #007ACC;
+  --border-subtle: #2D2D2D;
 
-  /* 主色调 — 冷色系 AI 工具 */
-  --accent-primary: #9333EA;
-  --accent-blue: #06B6D4;
-  --accent-green: #22C55E;
-  --accent-yellow: #FFB454;
-  --accent-red: #FF4D6D;
-  --accent-purple: #D2A8FF;
-  --accent-cyan: #06B6D4;
-  --accent-orange: #FFB454;
+  /* 主色调 — VS Code 蓝色系 */
+  --accent-primary: #007ACC;
+  --accent-blue: #007ACC;
+  --accent-green: #4EC9B0;
+  --accent-yellow: #DCDCAA;
+  --accent-red: #F44747;
+  --accent-purple: #C586C0;
+  --accent-cyan: #4EC9B0;
+  --accent-orange: #CE9178;
 
   /* 渐变 */
-  --gradient-primary: linear-gradient(135deg, #9333EA 0%, #06B6D4 100%);
-  --gradient-accent: linear-gradient(135deg, #D2A8FF 0%, #9333EA 100%);
-  --gradient-success: linear-gradient(135deg, #22C55E 0%, #06B6D4 100%);
-  --gradient-warm: linear-gradient(135deg, #FFB454 0%, #FF4D6D 100%);
+  --gradient-primary: linear-gradient(135deg, #007ACC 0%, #1A85C7 100%);
+  --gradient-accent: linear-gradient(135deg, #3399BB 0%, #007ACC 100%);
+  --gradient-success: linear-gradient(135deg, #4EC9B0 0%, #007ACC 100%);
+  --gradient-warm: linear-gradient(135deg, #CE9178 0%, #F44747 100%);
 
   /* 发光效果 */
-  --glow-primary: 0 0 12px rgba(147, 51, 234, 0.4);
-  --glow-green: 0 0 10px rgba(34, 197, 94, 0.5);
-  --glow-red: 0 0 10px rgba(255, 77, 109, 0.5);
-  --glow-yellow: 0 0 10px rgba(255, 180, 84, 0.4);
-  --glow-cyan: 0 0 12px rgba(6, 182, 212, 0.3);
+  --glow-primary: 0 0 12px rgba(0, 122, 204, 0.4);
+  --glow-green: 0 0 10px rgba(78, 201, 176, 0.5);
+  --glow-red: 0 0 10px rgba(244, 71, 71, 0.5);
+  --glow-yellow: 0 0 10px rgba(220, 220, 170, 0.3);
+  --glow-cyan: 0 0 12px rgba(78, 201, 176, 0.3);
 
   /* 滚动条 */
-  --scrollbar-bg: #050010;
-  --scrollbar-thumb: rgba(255, 255, 255, 0.06);
-  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.12);
+  --scrollbar-bg: #1E1E1E;
+  --scrollbar-thumb: rgba(121, 121, 121, 0.4);
+  --scrollbar-thumb-hover: rgba(100, 100, 100, 0.7);
 
   /* 字体 */
   --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
@@ -62,8 +62,8 @@
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
   --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.7);
-  --shadow-glow: 0 0 24px rgba(147, 51, 234, 0.15);
-  --shadow-purple: 0 4px 16px rgba(147, 51, 234, 0.2);
+  --shadow-glow: 0 0 24px rgba(0, 122, 204, 0.15);
+  --shadow-purple: 0 4px 16px rgba(0, 122, 204, 0.2);
 
   /* 圆角 */
   --radius-sm: 4px;
@@ -87,81 +87,81 @@
   --ai-card-bg: rgba(255, 255, 255, 0.04);
   --ai-card-hover: rgba(255, 255, 255, 0.06);
   --ai-card-border: rgba(255, 255, 255, 0.06);
-  --ai-tool-bg: rgba(6, 182, 212, 0.04);
-  --ai-tool-border: rgba(6, 182, 212, 0.12);
-  --ai-thinking-bg: rgba(147, 51, 234, 0.06);
-  --ai-diff-add-bg: rgba(34, 197, 94, 0.06);
-  --ai-diff-del-bg: rgba(255, 77, 109, 0.06);
-  --ai-user-bubble-bg: rgba(147, 51, 234, 0.15);
+  --ai-tool-bg: rgba(0, 122, 204, 0.06);
+  --ai-tool-border: rgba(0, 122, 204, 0.15);
+  --ai-thinking-bg: rgba(0, 122, 204, 0.06);
+  --ai-diff-add-bg: rgba(78, 201, 176, 0.08);
+  --ai-diff-del-bg: rgba(244, 71, 71, 0.06);
+  --ai-user-bubble-bg: rgba(0, 122, 204, 0.12);
 }
 
-/* ── 明亮主题 ── */
+/* ── 明亮主题 — VS Code Light+ 风格 ── */
 [data-theme="light"] {
   /* 背景层级 */
-  --bg-primary: #F7F4FA;
-  --bg-secondary: #F0ECF8;
-  --bg-tertiary: #E8E2F4;
-  --bg-hover: #E0D8F0;
-  --bg-active: #D8CEEA;
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F3F3F3;
+  --bg-tertiary: #ECECEC;
+  --bg-hover: #E8E8E8;
+  --bg-active: #DDDDDD;
   --bg-elevated: #FFFFFF;
 
   /* 文字 */
-  --text-primary: #1a1028;
-  --text-secondary: #4a3a60;
-  --text-muted: #8a7aa0;
-  --text-accent: #7C3AED;
+  --text-primary: #333333;
+  --text-secondary: #6E6E6E;
+  --text-muted: #A0A0A0;
+  --text-accent: #0066B8;
 
   /* 边框 */
-  --border-color: #d8d0e8;
-  --border-focus: #7C3AED;
-  --border-subtle: #e8e0f4;
+  --border-color: #D4D4D4;
+  --border-focus: #0066B8;
+  --border-subtle: #ECECEC;
 
   /* 主色调 */
-  --accent-primary: #7C3AED;
-  --accent-blue: #0891B2;
-  --accent-green: #16A34A;
-  --accent-yellow: #D97706;
-  --accent-red: #DC2626;
-  --accent-purple: #A855F7;
-  --accent-cyan: #0891B2;
-  --accent-orange: #D97706;
+  --accent-primary: #0066B8;
+  --accent-blue: #0066B8;
+  --accent-green: #098658;
+  --accent-yellow: #795E26;
+  --accent-red: #D12626;
+  --accent-purple: #AF00DB;
+  --accent-cyan: #098658;
+  --accent-orange: #A31515;
 
   /* 渐变 */
-  --gradient-primary: linear-gradient(135deg, #7C3AED 0%, #0891B2 100%);
-  --gradient-accent: linear-gradient(135deg, #A855F7 0%, #7C3AED 100%);
-  --gradient-success: linear-gradient(135deg, #16A34A 0%, #0891B2 100%);
-  --gradient-warm: linear-gradient(135deg, #D97706 0%, #DC2626 100%);
+  --gradient-primary: linear-gradient(135deg, #0066B8 0%, #1A85C7 100%);
+  --gradient-accent: linear-gradient(135deg, #3399BB 0%, #0066B8 100%);
+  --gradient-success: linear-gradient(135deg, #098658 0%, #0066B8 100%);
+  --gradient-warm: linear-gradient(135deg, #A31515 0%, #D12626 100%);
 
   /* 发光效果 */
-  --glow-primary: 0 0 12px rgba(124, 58, 237, 0.2);
-  --glow-green: 0 0 10px rgba(22, 163, 74, 0.25);
-  --glow-red: 0 0 10px rgba(220, 38, 38, 0.25);
-  --glow-yellow: 0 0 10px rgba(217, 119, 6, 0.2);
-  --glow-cyan: 0 0 12px rgba(8, 145, 178, 0.2);
+  --glow-primary: 0 0 12px rgba(0, 102, 184, 0.2);
+  --glow-green: 0 0 10px rgba(9, 134, 88, 0.25);
+  --glow-red: 0 0 10px rgba(209, 38, 38, 0.25);
+  --glow-yellow: 0 0 10px rgba(121, 94, 38, 0.2);
+  --glow-cyan: 0 0 12px rgba(9, 134, 88, 0.2);
 
   /* 滚动条 */
-  --scrollbar-bg: #F7F4FA;
-  --scrollbar-thumb: #c8c0d8;
-  --scrollbar-thumb-hover: #b0a8c4;
+  --scrollbar-bg: #FFFFFF;
+  --scrollbar-thumb: #C0C0C0;
+  --scrollbar-thumb-hover: #A0A0A0;
 
   /* 阴影 */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.10);
   --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.12);
-  --shadow-glow: 0 0 24px rgba(124, 58, 237, 0.06);
-  --shadow-purple: 0 4px 16px rgba(124, 58, 237, 0.12);
+  --shadow-glow: 0 0 24px rgba(0, 102, 184, 0.06);
+  --shadow-purple: 0 4px 16px rgba(0, 102, 184, 0.12);
 
   /* ── AI Agent 专用变量 ── */
-  --ai-card-bg: rgba(124, 58, 237, 0.04);
-  --ai-card-hover: rgba(124, 58, 237, 0.08);
-  --ai-card-border: rgba(124, 58, 237, 0.08);
-  --ai-tool-bg: rgba(8, 145, 178, 0.04);
-  --ai-tool-border: rgba(8, 145, 178, 0.12);
-  --ai-thinking-bg: rgba(124, 58, 237, 0.06);
-  --ai-diff-add-bg: rgba(22, 163, 74, 0.06);
-  --ai-diff-del-bg: rgba(220, 38, 38, 0.06);
-  --ai-user-bubble-bg: rgba(124, 58, 237, 0.12);
+  --ai-card-bg: rgba(0, 0, 0, 0.03);
+  --ai-card-hover: rgba(0, 0, 0, 0.05);
+  --ai-card-border: rgba(0, 0, 0, 0.06);
+  --ai-tool-bg: rgba(0, 102, 184, 0.04);
+  --ai-tool-border: rgba(0, 102, 184, 0.12);
+  --ai-thinking-bg: rgba(0, 102, 184, 0.06);
+  --ai-diff-add-bg: rgba(9, 134, 88, 0.06);
+  --ai-diff-del-bg: rgba(209, 38, 38, 0.06);
+  --ai-user-bubble-bg: rgba(0, 102, 184, 0.10);
 }
 
 /* ── 全局基础 ── */
@@ -231,6 +231,6 @@ html, body {
 }
 
 @keyframes glow {
-  0%, 100% { box-shadow: 0 0 8px rgba(124, 110, 240, 0.3); }
-  50% { box-shadow: 0 0 16px rgba(124, 110, 240, 0.5); }
+  0%, 100% { box-shadow: 0 0 8px rgba(0, 122, 204, 0.3); }
+  50% { box-shadow: 0 0 16px rgba(0, 122, 204, 0.5); }
 }

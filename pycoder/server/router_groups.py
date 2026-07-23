@@ -45,19 +45,21 @@ def _register_tools(app: "FastAPI") -> None:
     app.include_router(visualize_router)
 
 
-# ── 3. 核心服务（Config / Chat / REST / Context / Extensions） ─────
+# ── 3. 核心服务（Config / Chat / REST / Context / Extensions / Auth） ──
 def _register_core(app: "FastAPI") -> None:
     from pycoder.server.routers.chat_routes import router as chat_router
     from pycoder.server.routers.config import router as config_router
     from pycoder.server.routers.context import router as context_router
     from pycoder.server.routers.extensions import router as extensions_router
     from pycoder.server.routers.rest_routes import router as rest_router
+    from pycoder.server.routers.oauth2_api import router as oauth2_router  # OAuth2 第三方登录
 
     app.include_router(config_router)
     app.include_router(chat_router)
     app.include_router(rest_router)
     app.include_router(context_router)
     app.include_router(extensions_router)
+    app.include_router(oauth2_router)  # OAuth2
 
 
 # ── 4. AI / 浏览器自进化 ──────────────────────────────────────────
@@ -126,13 +128,17 @@ def _register_v2(app: "FastAPI") -> None:
     from pycoder.server.routers.v2 import router as v2_router
     from pycoder.server.routers.v2.evolution import router as v2_evolution_router
     from pycoder.server.routers.v2.evolution import ws_router as v2_evolution_ws_router
+    from pycoder.server.routers.v2.evolution_v2 import router as v2_evolution_v2_router
+    from pycoder.server.routers.v2.pipeline_v2 import router as v2_pipeline_router
 
     app.include_router(v2_router)
     app.include_router(v2_evolution_router)
     app.include_router(v2_evolution_ws_router)
+    app.include_router(v2_evolution_v2_router)
+    app.include_router(v2_pipeline_router)
 
 
-# ── 8. 系统能力（Workspace / Knowledge / Memory / Notify） ───────
+# ── 8. 系统能力（Workspace / Knowledge / Memory / Notify / Metrics） ──
 def _register_system(app: "FastAPI") -> None:
     from pycoder.server.routers.knowledge_api import router as knowledge_api_router
     from pycoder.server.routers.memory_api import router as memory_api_router
@@ -146,6 +152,8 @@ def _register_system(app: "FastAPI") -> None:
     from pycoder.server.routers.impact_api import router as impact_router  # P1-2 影响分析 API
     from pycoder.server.routers.dashboard_api import router as dashboard_router  # P1-3 仪表盘 API
 
+    from pycoder.server.metrics import router as metrics_router  # Prometheus 指标
+
     app.include_router(session_search_router)
     app.include_router(dep_api_router)
     app.include_router(env_api_router)
@@ -156,6 +164,7 @@ def _register_system(app: "FastAPI") -> None:
     app.include_router(memory_api_router)
     app.include_router(notify_api_router)
     app.include_router(notify_ws_router)
+    app.include_router(metrics_router)  # Prometheus /metrics
 
 
 # ── 9. Phase 1 升级（Gateway / Sandbox / DeepMemory / Guard） ─────
@@ -173,7 +182,7 @@ def _register_phase1(app: "FastAPI") -> None:
     app.include_router(guard_router)
 
 
-# ── 10. Phase 2-3 升级（DAG / Task / Report / Marketplace / ...） ──
+# ── 10. Phase 2-3 升级（DAG / Task / Report / Marketplace / Search / ...） ──
 def _register_phase23(app: "FastAPI") -> None:
     from pycoder.server.routers.agents_api import router as agents_router
     from pycoder.server.routers.dag_api import router as dag_router
@@ -184,6 +193,7 @@ def _register_phase23(app: "FastAPI") -> None:
     from pycoder.server.routers.multimodal_api import router as multimodal_router  # P2-2 多模态增强 API
     from pycoder.server.routers.patch_api import router as patch_router  # P2-1 自动补丁 API
     from pycoder.server.routers.report_api import router as report_router
+    from pycoder.server.routers.search_api import router as search_router  # Web 搜索 API
     from pycoder.server.routers.skills_marketplace_api import router as skills_marketplace_router
     from pycoder.server.routers.task_api import router as task_api_router
     from pycoder.server.routers.web_routes import router as web_router
@@ -200,6 +210,7 @@ def _register_phase23(app: "FastAPI") -> None:
     app.include_router(patch_router)  # P2-1
     app.include_router(installer_router)  # P2-3
     app.include_router(mcp_router)
+    app.include_router(search_router)  # Web 搜索
 
 
 # ── 11. WebSocket（独立挂载） ─────────────────────────────────────

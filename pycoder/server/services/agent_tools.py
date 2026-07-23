@@ -187,6 +187,20 @@ def _map_tool_to_action(tool_name: str, params: dict) -> str:
     return "code_read"
 
 
+def _safe_params_summary(params: dict) -> str:
+    """安全地生成参数摘要（过滤敏感信息）"""
+    sensitive_keys = {"api_key", "password", "token", "secret", "key", "auth"}
+    safe = {}
+    for k, v in params.items():
+        if any(s in k.lower() for s in sensitive_keys):
+            safe[k] = "***"
+        elif isinstance(v, str) and len(v) > 200:
+            safe[k] = v[:200] + "..."
+        else:
+            safe[k] = v
+    return str(safe)
+
+
 async def execute_agent_tool(
     tool_name: str,
     params: dict,
@@ -298,6 +312,18 @@ async def execute_agent_tool(
         elif tool_name == "list_agent_configs":
             return _tool_list_agent_configs(params)
 
+        elif tool_name == "search_skill":
+            return await _tool_search_skill(params)
+
+        elif tool_name == "install_skill":
+            return await _tool_install_skill(params)
+
+        elif tool_name == "invoke_skill":
+            return await _tool_invoke_skill(params)
+
+        elif tool_name == "list_skills":
+            return await _tool_list_skills(params)
+
         else:
             # Agent 模式下未注册的工具 → 回退到 mcp_tools 内置工具
             try:
@@ -328,7 +354,12 @@ async def execute_agent_tool(
         FileNotFoundError,
         NotImplementedError,
     ) as e:
-        return f"❌ 工具执行失败: {e}"
+        return (
+            f"❌ 工具 {tool_name} 执行失败\n"
+            f"  错误类型: {type(e).__name__}\n"
+            f"  错误信息: {e}\n"
+            f"  参数: {_safe_params_summary(params)}"
+        )
 
 
 # ══════════════════════════════════════════════════════════
@@ -688,6 +719,130 @@ def _tool_patch_file(params: dict, workspace: Path) -> str:
         f"  原代码: {original_lines} 行 → 替换后: {replace_lines} 行\n"
         f"  文件总字符: {len(new_content)}"
     )
+
+
+# ══════════════════════════════════════════════════════════
+# Skills 工具实现
+# ══════════════════════════════════════════════════════════
+
+
+async def _tool_search_skill(params: dict) -> str:
+    """搜索技能市场中的技能"""
+    query = params.get("query", "")
+    if not query:
+        return "❌ search_skill 需要 query 参数"
+
+    from pycoder.skills import get_marketplace
+
+    try:
+        marketplace = get_marketplace()
+        results = marketplace.search(query, limit=10)
+        if not results:
+            return f"未找到与 '{query}' 匹配的技能。建议尝试更通用的关键词。"
+
+        lines = [f"找到 {len(results)} 个匹配技能："]
+        for s in results[:10]:
+            name = getattr(s, "name", s.get("name", "")) if isinstance(s, dict) else s.name
+            desc = getattr(s, "description", s.get("description", "")) if isinstance(s, dict) else s.description
+            installed = getattr(s, "installed", s.get("installed", False)) if isinstance(s, dict) else s.installed
+            status = "✅ 已安装" if installed else "⬇️ 未安装"
+            lines.append(f"  [{status}] {name}")
+            if desc:
+                lines.append(f"    {desc[:120]}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"❌ 搜索技能失败: {e}"
+
+
+async def _tool_install_skill(params: dict) -> str:
+    """安装技能"""
+    skill_name = params.get("name", "")
+    if not skill_name:
+        return "❌ install_skill 需要 name 参数"
+
+    from pycoder.skills import get_marketplace
+
+    try:
+        marketplace = get_marketplace()
+        # 检查是否已安装（大小写不敏感）
+        installed = marketplace.get_installed_skills()
+        if any(s.name.lower() == skill_name.lower() for s in installed):
+            return f"✅ 技能 '{skill_name}' 已安装，无需重复安装"
+
+        # 搜索并安装
+        results = marketplace.search(skill_name, limit=1)
+        if not results:
+            return f"❌ 未找到技能 '{skill_name}'，请先用 search_skill 搜索"
+
+        skill = results[0]
+        actual_name = skill.name if hasattr(skill, "name") else skill.get("name", "")
+        success = marketplace.install(actual_name)
+        if success:
+            return f"✅ 技能 '{skill_name}' 安装成功！现在可以用 invoke_skill 调用它"
+        return f"❌ 技能 '{skill_name}' 安装失败"
+    except Exception as e:
+        return f"❌ 安装技能失败: {e}"
+
+
+async def _tool_invoke_skill(params: dict) -> str:
+    """调用已安装的技能"""
+    skill_name = params.get("name", "")
+    if not skill_name:
+        return "❌ invoke_skill 需要 name 参数"
+
+    from pathlib import Path
+
+    from pycoder.prompts.skills_loader import discover_skills
+
+    try:
+        # 发现已安装的技能
+        project_root = Path(os.getcwd())
+        skills = discover_skills(project_root)
+        skill = next((s for s in skills if s.name == skill_name), None)
+
+        if not skill:
+            return (
+                f"❌ 技能 '{skill_name}' 未安装。"
+                f"请先用 search_skill 搜索，再用 install_skill 安装"
+            )
+
+        # 加载技能内容
+        content = skill.content if hasattr(skill, "content") else ""
+        description = skill.description if hasattr(skill, "description") else ""
+
+        return (
+            f"📋 技能 '{skill_name}' 已加载\n"
+            f"描述: {description[:200]}\n"
+            f"内容长度: {len(content)} 字符\n"
+            f"请根据此技能的内容执行任务。"
+        )
+    except Exception as e:
+        return f"❌ 调用技能失败: {e}"
+
+
+async def _tool_list_skills(params: dict) -> str:
+    """列出已安装的技能"""
+    from pathlib import Path
+
+    from pycoder.prompts.skills_loader import discover_skills
+
+    try:
+        project_root = Path(os.getcwd())
+        skills = discover_skills(project_root)
+
+        if not skills:
+            return "当前没有已安装的技能。可用 search_skill 搜索技能市场。"
+
+        lines = [f"已安装 {len(skills)} 个技能："]
+        for s in skills[:20]:
+            name = s.name if hasattr(s, "name") else str(s)
+            desc = getattr(s, "description", "") if hasattr(s, "description") else ""
+            lines.append(f"  📋 {name}")
+            if desc:
+                lines.append(f"    {desc[:120]}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"❌ 列出技能失败: {e}"
 
 
 # ══════════════════════════════════════════════════════════

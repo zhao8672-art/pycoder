@@ -164,12 +164,16 @@ async def generate_report(
 
         return {
             "success": True,
-            "task_id": report.task_id,
-            "summary": report.summary,
-            "total_files_changed": report.total_files_changed,
-            "net_lines": report.net_lines,
-            "highest_risk": report.highest_risk,
-            "message": f"✓ 报告已生成并保存: {report.task_id}",
+            "task_id": report.report_id,
+            "summary": report.executive_summary or f"任务「{report.task}」报告",
+            "total_files_changed": len(report.file_changes),
+            "net_lines": report.total_lines_added - report.total_lines_removed,
+            "highest_risk": max(
+                (r.severity for r in report.risk_analysis),
+                key=lambda s: {"critical": 4, "high": 3, "medium": 2, "low": 1}.get(s, 0),
+                default="low",
+            ),
+            "message": f"✓ 报告已生成并保存: {report.report_id}",
         }
 
     except Exception as e:

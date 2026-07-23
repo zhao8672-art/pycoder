@@ -1,0 +1,52 @@
+{
+  "task": {
+    "start": "Task [{name}] started",
+    "complete": "Task [{name}] completed",
+    "fail": "Task [{name}] failed: {error}"
+  },
+  "pipeline": {
+    "phase": {
+      "intake": "Phase 1: Task Intake & Requirement Analysis",
+      "design": "Phase 2: Architecture Design & Tech Selection",
+      "decompose": "Phase 3: Task DAG Decomposition & Scheduling",
+      "env_setup": "Phase 4: Environment Setup & Preparation",
+      "develop": "Phase 5: Iterative Development & Self-Test",
+      "test": "Phase 6: Full Testing & Issue Resolution",
+      "deploy": "Phase 7: Deployment Verification & Delivery",
+      "review": "Phase 8: Documentation & Auto Retrospective"
+    },
+    "done": "Pipeline execution completed",
+    "failed": "Pipeline execution failed"
+  },
+  "quality": {
+    "gate": {
+      "passed": "Quality Gate L{level} passed",
+      "failed": "Quality Gate L{level} failed: {reason}"
+    }
+  },
+  "auth": {
+    "login_success": "Login successful",
+    "login_failed": "Login failed: {reason}",
+    "token_expired": "Token expired, please login again"
+  },
+  "search": {
+    "no_results": "No results found",
+    "results_found": "Found {count} results"
+  },
+  "error": {
+    "unknown": "Unknown error",
+    "network": "Network connection failed",
+    "timeout": "Operation timed out",
+    "permission": "Permission denied"
+  },
+  "success": "Operation successful",
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "save": "Save",
+  "delete": "Delete",
+  "edit": "Edit",
+  "create": "Create",
+  "refresh": "Refresh",
+  "loading": "Loading...",
+  "no_data": "No data available"
+}

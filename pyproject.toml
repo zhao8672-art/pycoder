@@ -287,7 +287,7 @@ exclude_also = [
     "raise NotImplementedError",
     "if typing.TYPE_CHECKING:",
 ]
-fail_under = 60            # 暂时降到 60%, 后续逐步提升
+fail_under = 80            # 目标 80%+ 覆盖率门禁
 sort = "Cover"
 
 [tool.coverage.html]

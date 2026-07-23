@@ -32,11 +32,13 @@ if not JWT_SECRET_KEY:
     import secrets as _secrets
 
     JWT_SECRET_KEY = _secrets.token_hex(32)
-    import logging
+    import logging as _logging_cloud
 
-    _logger = logging.getLogger(__name__)
-    _logger.warning(
-        "PYCODER_CLOUD_SECRET 未设置，使用随机临时密钥。" "请设置环境变量以保证 Token 持久化。"
+    _cloud_logger = _logging_cloud.getLogger(__name__)
+    if not _cloud_logger.handlers:
+        _cloud_logger.addHandler(_logging_cloud.NullHandler())
+    _cloud_logger.warning(
+        "PYCODER_CLOUD_SECRET 未设置，使用随机临时密钥。请设置环境变量以保证 Token 持久化。"
     )
 FREE_DAILY_TOKENS = 100_000  # 免费用户每日 Token 限额
 FREE_MAX_SESSIONS = 5  # 免费用户最大会话数

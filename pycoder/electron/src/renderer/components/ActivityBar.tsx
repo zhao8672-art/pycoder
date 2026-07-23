@@ -14,29 +14,29 @@ interface ActivityItem {
 }
 
 const GROUP_CORE: ActivityItem[] = [
-  { id: 'files', icon: '\u{1F4C1}', label: 'files', tooltip: 'fileManager', action: 'sidebar', sidebarView: 'files' },
-  { id: 'search', icon: '\u{1F50D}', label: 'search', tooltip: 'searchInFiles', action: 'sidebar', sidebarView: 'search' },
+  { id: 'files', icon: '\u{1F4C1}', label: '文件', tooltip: 'fileManager', action: 'sidebar', sidebarView: 'files' },
+  { id: 'search', icon: '\u{1F50D}', label: '搜索', tooltip: 'searchInFiles', action: 'sidebar', sidebarView: 'search' },
   { id: 'git', icon: '\u{1F4E6}', label: 'Git', tooltip: 'versionControl', action: 'sidebar', sidebarView: 'git' },
   { id: 'ai', icon: '\u{1F916}', label: 'AI', tooltip: 'aiAssistant', action: 'toggle-ai' },
 ];
 
 const GROUP_AI_TOOLS: ActivityItem[] = [
-  { id: 'team', icon: '\u{1F465}', label: 'team', tooltip: 'aiAgentTeam', action: 'sidebar', sidebarView: 'team' },
-  { id: 'evolution', icon: '\u{1F9EC}', label: 'evo', tooltip: 'evolutionEngine', action: 'toggle-evo' },
-  { id: 'skills', icon: '\u{1F9E9}', label: 'skills', tooltip: 'skillsMarket', action: 'sidebar', sidebarView: 'skills' },
-  { id: 'extensions', icon: '\u{1F9F0}', label: 'ext', tooltip: 'extensionsManager', action: 'sidebar', sidebarView: 'extensions' },
-  { id: 'snippets', icon: '\u{1F4CB}', label: 'snips', tooltip: 'snippetsManager', action: 'sidebar', sidebarView: 'snippets' },
+  { id: 'team', icon: '\u{1F465}', label: '团队', tooltip: 'aiAgentTeam', action: 'sidebar', sidebarView: 'team' },
+  { id: 'evolution', icon: '\u{1F9EC}', label: '进化', tooltip: 'evolutionEngine', action: 'toggle-evo' },
+  { id: 'skills', icon: '\u{1F9E9}', label: '技能', tooltip: 'skillsMarket', action: 'sidebar', sidebarView: 'skills' },
+  { id: 'extensions', icon: '\u{1F9F0}', label: '扩展', tooltip: 'extensionsManager', action: 'sidebar', sidebarView: 'extensions' },
+  { id: 'snippets', icon: '\u{1F4CB}', label: '片段', tooltip: 'snippetsManager', action: 'sidebar', sidebarView: 'snippets' },
 ];
 
 const GROUP_UTILITIES: ActivityItem[] = [
-  { id: 'browser', icon: '\u{1F310}', label: 'web', tooltip: 'builtinBrowser', action: 'toggle-browser' },
-  { id: 'terminal', icon: '\u25B6', label: 'run', tooltip: 'terminalRunner', action: 'toggle-bottom' },
-  { id: 'command', icon: '\u2318', label: 'cmd', tooltip: 'commandPalette', action: 'command-palette' },
+  { id: 'browser', icon: '\u{1F310}', label: '浏览', tooltip: 'builtinBrowser', action: 'toggle-browser' },
+  { id: 'terminal', icon: '\u25B6', label: '运行', tooltip: 'terminalRunner', action: 'toggle-bottom' },
+  { id: 'command', icon: '\u2318', label: '命令', tooltip: 'commandPalette', action: 'command-palette' },
 ];
 
 const GROUP_SYSTEM: ActivityItem[] = [
-  { id: 'cloud', icon: '\u2601\uFE0F', label: 'cloud', tooltip: 'pycoderCloud', action: 'sidebar', sidebarView: 'cloud' },
-  { id: 'settings', icon: '\u2699', label: 'set', tooltip: 'settings', action: 'sidebar', sidebarView: 'settings' },
+  { id: 'cloud', icon: '\u2601\uFE0F', label: '云', tooltip: 'pycoderCloud', action: 'sidebar', sidebarView: 'cloud' },
+  { id: 'settings', icon: '\u2699', label: '设置', tooltip: 'settings', action: 'sidebar', sidebarView: 'settings' },
 ];
 
 export const ActivityBar: React.FC = () => {
