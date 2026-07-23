@@ -65,6 +65,33 @@ from .metrics_tracker import (
 )
 from .pattern_extractor import FixPattern, PatternExtractor
 
+# 新增模块
+from .refactoring_engine import (
+    CodeMetrics,
+    RefactorResult,
+    RefactorSuggestion,
+    RefactoringEngine,
+    get_refactoring_engine,
+)
+from .policy_manager import (
+    PolicyChange,
+    PolicyManager,
+    SystemPolicy,
+    get_policy_manager,
+)
+from .meta_cognition import (
+    CapabilityMaturity,
+    MetaCognition,
+    SelfAssessment,
+    SystemHealth,
+    get_meta_cognition,
+)
+from .integration import (
+    EvolutionIntegration,
+    IntegrationStatus,
+    get_evolution_integration,
+)
+
 # Bug #8: PatternExtractor 也做单例
 _pattern_extractor_instance: PatternExtractor | None = None
 
@@ -492,12 +519,29 @@ __all__ = [
     "PatternExtractor",
     "FeedbackLoop",
     "FeedbackApplier",
+    "RefactoringEngine",
+    "RefactorSuggestion",
+    "RefactorResult",
+    "CodeMetrics",
+    "PolicyManager",
+    "SystemPolicy",
+    "PolicyChange",
+    "MetaCognition",
+    "SelfAssessment",
+    "SystemHealth",
+    "CapabilityMaturity",
     "get_feedback_applier",
     "get_knowledge_base",
     "get_experience_buffer",
     "get_metrics_tracker",
     "get_feedback_loop",
     "get_pattern_extractor",
+    "get_refactoring_engine",
+    "get_policy_manager",
+    "get_meta_cognition",
+    "get_evolution_integration",
+    "EvolutionIntegration",
+    "IntegrationStatus",
     "TaskExperience",
     "FixPattern",
     "FeedbackSignal",
