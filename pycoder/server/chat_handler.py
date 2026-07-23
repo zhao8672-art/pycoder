@@ -531,9 +531,18 @@ async def _run_chat_stream(
             key_files = [
                 ".gitignore",
                 "pyproject.toml",
-                "package.json",
                 "README.md",
                 "requirements.txt",
+                "start.bat",
+                "start.ps1",
+                "Dockerfile",
+                "docker-compose.yml",
+                "Makefile",
+                "memory/__init__.py",
+                "safety/__init__.py",
+                "multimodal/__init__.py",
+                "plugins/__init__.py",
+                "observability/__init__.py",
             ]
             found = []
             for kf in key_files:
