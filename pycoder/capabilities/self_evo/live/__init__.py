@@ -206,12 +206,44 @@ class LiveLearner:
             if not patterns:
                 return ""
 
-            lines = ["📚 **自进化经验池**（从历史对话中学习）:"]
+            lines = [
+                "📚 **自进化经验池**（从历史对话中学习）:",
+                "",
+            ]
             for pname, sc, tc, ar in patterns:
+                rate = round(sc / max(tc, 1) * 100)
                 lines.append(
-                    f"- {pname}: 成功率 {sc}/{tc} "
-                    f"({round(sc/max(tc,1)*100)}%), 平均 {round(ar,1)} 轮"
+                    f"- {pname}: 成功率 {sc}/{tc} ({rate}%), 平均 {round(ar, 1)} 轮"
                 )
+                # 追加可操作建议
+                if rate >= 90 and ar <= 5:
+                    lines.append("  💡 高效模式 — 优先复用此工作流程")
+                elif rate >= 75:
+                    lines.append("  📌 可靠模式 — 可作为首选方案")
+            lines.append("")
+
+            # ── 追加最新高频工具组合 ──
+            try:
+                cursor_tools = conn.execute(
+                    "SELECT task_preview, rounds, mode FROM observations "
+                    "WHERE success=1 ORDER BY timestamp DESC LIMIT 5"
+                )
+                recent_success = list(cursor_tools)
+                if recent_success:
+                    _avg = sum(r[1] for r in recent_success) / len(recent_success)
+                    lines.append("🛠️ **最近成功工具链** (平均 {:.1f} 轮):".format(_avg))
+                    for rp, rr, rm in recent_success:
+                        preview = rp[:80] if rp else "(空)"
+                        lines.append(f"  - [{rm}] {preview} ({rr} 轮)")
+                    lines.append("")
+            except (sqlite3.Error, OSError):
+                pass
+
+            # ── 追加缓存文件提醒 ──
+            lines.append(
+                "⚡ **执行建议**: 对于已读取过的文件，跳过重复 read_file；"
+                "复杂任务（多文件/多依赖）使用 `write_file` 后紧跟验证步骤。"
+            )
             return "\n".join(lines)
         except (OSError, sqlite3.Error) as e:
             logger.debug("apply_feedback_failed error=%s", e)
