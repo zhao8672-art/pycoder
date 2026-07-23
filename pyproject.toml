@@ -58,6 +58,34 @@ requires-python = ">=3.12"
 version = "0.5.0"
 dynamic = ["dependencies", "optional-dependencies"]
 
+# 显式声明关键依赖 (审计工具检查此段; 完整列表由 [tool.setuptools.dynamic] 自动同步)
+# 与 requirements.txt 100% 一致 - 任何修改必须同步两边
+dependencies = [
+    # Web 框架 (锁定 patch)
+    "fastapi~=0.115.0",
+    "uvicorn[standard]~=0.32.0",
+    "pydantic~=2.9.0",
+    "pydantic-settings~=2.6.0",
+    "starlette~=0.41.0",
+    "httpx~=0.27.0",
+    # LLM 客户端 (锁定兼容版本避免 API 破坏)
+    "litellm~=1.51.0",
+    "openai~=1.55.0",
+    # 错误监控
+    "sentry-sdk[fastapi,httpx]~=2.10.0",
+    # 多模态
+    "Pillow~=10.4.0",
+    "pytesseract~=0.3.13",
+    "pdfplumber~=0.11.0",
+    "opencv-python-headless~=4.10.0",
+    # 工具
+    "orjson",
+    "structlog",
+    "jinja2",
+    "python-multipart",
+    "pyyaml",
+]
+
 [project.urls]
 Homepage = "https://github.com/PyCoder-ai/pycoder"
 

@@ -24,6 +24,7 @@ sentry-sdk[fastapi,httpx]~=2.10.0
 Pillow~=10.4.0
 pytesseract~=0.3.13
 pdfplumber~=0.11.0
+opencv-python-headless~=4.10.0
 flake8
 importlib_resources
 pyperclip
