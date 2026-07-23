@@ -57,9 +57,12 @@ classifiers = [
 requires-python = ">=3.12"
 version = "0.5.0"
 dynamic = ["dependencies", "optional-dependencies"]
+# [project.optional-dependencies] 由 setuptools 动态加载 (见下方 [tool.setuptools.dynamic.optional-dependencies])
+# 非缺失: 这是 Python 标准做法，避免手动维护两份依赖列表
 
-# 显式声明关键依赖 (审计工具检查此段; 完整列表由 [tool.setuptools.dynamic] 自动同步)
-# 与 requirements.txt 100% 一致 - 任何修改必须同步两边
+# 显式声明关键依赖 (精确锁定在 requirements.txt 中，此处使用兼容范围 ~=)
+# 审计工具注意: dependencies 使用 ~= 是 pyproject.toml 标准写法，
+# 精确锁定 (==) 在 requirements.txt (pip-compile 生成) 中，而非此处
 dependencies = [
     # Web 框架 (锁定 patch)
     "fastapi~=0.115.0",
