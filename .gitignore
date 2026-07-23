@@ -81,3 +81,13 @@ backend_stdout.log
 _test_run.log
 _compat_run.log
 *.tmp.log
+_smoke*.log
+_smoke*.err
+_smoke_e2e.py
+_electron.log
+_*.log
+_*.err
+routes.txt
+_t*.log
+_err.log
+_push.log

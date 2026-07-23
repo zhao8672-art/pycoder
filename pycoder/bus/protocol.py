@@ -50,6 +50,7 @@ class SideEffect(enum.StrEnum):
     PROCESS = "process"  # 进程操作
     SYSTEM = "system"  # 系统级操作
     SELF_MODIFY = "self_modify"  # 修改自身代码
+    LLM_CALL = "llm_call"  # 调用大语言模型（消耗 token）
 
 
 class TrustLevel(int, enum.Enum):

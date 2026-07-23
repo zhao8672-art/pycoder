@@ -207,9 +207,10 @@ async def rollback_patch(req: RollbackRequest) -> dict:
 async def list_patches() -> dict:
     """列出已保存的补丁"""
     gen = _get_generator(None)
+    patches = gen.list_patches()
     return {
-        "patches": gen.list_patches(),
-        "count": len(gen._patches_dir.glob("*.patch")),
+        "patches": patches,
+        "count": len(patches),
     }
 
 
