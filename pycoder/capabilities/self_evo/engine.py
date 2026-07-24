@@ -893,6 +893,23 @@ class SelfEvolutionEngine:
     CORE_FILE_PATTERNS = ["self_evolution", "evolution.py", "self_optimizer.py"]
     GITHUB_TOKEN_FILE = Path.home() / ".pycoder" / "github_token"
 
+    async def run(self, dry_run: bool = False) -> dict[str, Any]:
+        """向后兼容的同步 run() — 供调度器 _scheduled_evolution_run 等调用方使用。
+
+        实际调用 run_cycle() 并等待完成，返回汇总 dict。
+        """
+        result = {"fixed": 0, "skipped": 0, "errors": 0, "issues_found": 0}
+        async for event in self.run_cycle(
+            task_type="auto", auto_apply=False, dry_run=dry_run,
+        ):
+            if event.get("type") == "issues_found":
+                result["issues_found"] = event.get("count", 0)
+            elif event.get("type") == "done":
+                result["fixed"] = event.get("changes_count", result["fixed"])
+            elif event.get("type") == "error":
+                result["errors"] += 1
+        return result
+
     async def evolve(
         self,
         task_type: str = "fix",

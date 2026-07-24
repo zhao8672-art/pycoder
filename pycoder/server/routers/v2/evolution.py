@@ -80,6 +80,39 @@ async def run_evolution(request: Request, req: dict | None = None):
 
 
 # ══════════════════════════════════════════════════════════
+# 手动触发自进化闭环 (SCAN→FIX→TEST→LEARN)
+# ══════════════════════════════════════════════════════════
+
+
+@router.post("/test-cycle")
+async def test_evolution_cycle(request: Request, req: dict | None = None):
+    """手动触发完整自进化闭环: 扫描→优先级→修复→测试→学习"""
+    payload = req or {}
+    engine = _get_evolution_engine(request)
+    events = []
+    summary: dict = {}
+    async for event in engine.run_cycle(
+        task_type=payload.get("type", "auto"),
+        target=payload.get("target", ""),
+        auto_apply=payload.get("auto_apply", False),
+        dry_run=payload.get("dry_run", True),
+    ):
+        events.append(event)
+        if event.get("type") == "issues_found":
+            summary["issues_found"] = event.get("count", 0)
+        elif event.get("type") == "done":
+            summary["status"] = "done"
+            summary["message"] = event.get("message", "")
+
+    return {
+        "success": True,
+        "summary": summary,
+        "phase_count": len(events),
+        "phases": [e.get("type") for e in events],
+    }
+
+
+# ══════════════════════════════════════════════════════════
 # 监控
 # ══════════════════════════════════════════════════════════
 

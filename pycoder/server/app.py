@@ -729,7 +729,7 @@ async def _start_scheduler():
 
 
 async def _scheduled_self_scan():
-    """定时自扫描任务 — V2 自进化每日检查"""
+    """定时自扫描任务 — V2 自进化每日检查 + 记录真实质量快照"""
     try:
         engine = get_v2_engine()
         if engine is None or engine.evolution is None:
@@ -743,6 +743,16 @@ async def _scheduled_self_scan():
             )
         else:
             _logger.info("self_scan_daily: clean (0 issues)")
+
+        # ✅ BUGFIX: 记录真实质量快照（替代之前的硬编码假数据）
+        try:
+            from pycoder.capabilities.self_evo.learning.metrics_tracker import (
+                MetricsTracker,
+            )
+            mt = MetricsTracker()
+            mt.run_real_quality_snapshot()
+        except (ImportError, RuntimeError, ValueError, TypeError) as _e:
+            _logger.debug("quality_snapshot_skip: %s", _e)
     except Exception as e:
         _logger.debug("self_scan_skip: %s", e)
 
@@ -754,11 +764,12 @@ async def _scheduled_evolution_run():
         if engine is None or engine.evolution is None:
             _logger.warning("evolution_run_skip: engine not available")
             return
+        # ✅ BUGFIX: evolution.run() 是 run_cycle() 的同步包装器
         result = await engine.evolution.run(dry_run=False)
         _logger.info(
-            "evolution_auto_fix: fixed=%d skipped=%d errors=%d",
+            "evolution_auto_fix: issues=%d fixed=%d errors=%d",
+            result.get("issues_found", 0),
             result.get("fixed", 0),
-            result.get("skipped", 0),
             result.get("errors", 0),
         )
     except Exception as e:
