@@ -96,7 +96,6 @@ app.whenReady().then(async () => {
   app.setPath('cache', path.join(customDataDir, 'Cache'));
 
   // P2-5: 启动前清理可能锁定的 Electron 缓存目录
-  const fs = require('fs');
   const userDataPath = app.getPath('userData');
   const cacheDirs = ['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'VideoDecodeStats'];
   for (const dir of cacheDirs) {

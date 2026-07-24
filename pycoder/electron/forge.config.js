@@ -18,9 +18,12 @@ module.exports = {
       /^\/src/,
       /^\/node_modules\/\.cache/,
       /^\/_archive/,
+      /^\/out(_old)?/,
       /\.ts$/,
       /\.tsx$/,
       /\.map$/,
+      /\.log$/,
+      /^\/__/,
     ],
   },
   makers: [

@@ -301,6 +301,14 @@ class V2Engine:
         except Exception as e:
             logger.warning("进化引擎核心能力注册失败: %s", e)
 
+        logger.info("注册项目管理闭环能力...")
+        try:
+            from pycoder.lifecycle import register_capabilities as register_lifecycle
+
+            register_lifecycle(self.registry)
+        except Exception as e:
+            logger.warning("项目管理闭环能力注册失败: %s", e)
+
         # ── Phase 3 升级: 生态与扩展 ──
         logger.info("注册技能市场能力...")
         try:

@@ -1,6 +1,6 @@
 {
     "name": "pycoder",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "description": "PyCoder - Python 开发者原生的 AI 编程 IDE (Desktop)",
     "main": "dist/main/index.js",
     "author": "PyCoder Team",

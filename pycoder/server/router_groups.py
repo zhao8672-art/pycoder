@@ -198,6 +198,8 @@ def _register_phase23(app: "FastAPI") -> None:
     from pycoder.server.routers.task_api import router as task_api_router
     from pycoder.server.routers.web_routes import router as web_router
 
+    from pycoder.lifecycle.api import router as lifecycle_router  # 项目管理闭环 API
+
     app.include_router(dag_router)
     app.include_router(task_api_router)
     app.include_router(report_router)
@@ -211,6 +213,7 @@ def _register_phase23(app: "FastAPI") -> None:
     app.include_router(installer_router)  # P2-3
     app.include_router(mcp_router)
     app.include_router(search_router)  # Web 搜索
+    app.include_router(lifecycle_router)  # 项目管理闭环
 
 
 # ── 11. WebSocket（独立挂载） ─────────────────────────────────────
