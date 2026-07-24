@@ -176,7 +176,7 @@ class SkillMarketplace:
                 CREATE INDEX IF NOT EXISTS idx_ratings_skill_id ON ratings(skill_id);
             """)
             conn.commit()
-        logger.info("技能市场数据库已初始化", path=str(self._db_path))
+        logger.info("技能市场数据库已初始化: %s", self._db_path)
 
     def _preinstall_builtins(self) -> None:
         """预安装内置技能（如果尚未安装）"""
@@ -819,6 +819,37 @@ def register_capabilities(registry: Any) -> None:
         handler=_handle_list_skills,
     )
 
+    # ── v1.skills_market (向下兼容: V1 旧名 → V2 新名映射) ──
+    registry.register(
+        CapabilityDefinition(
+            id="v1.skills_market",
+            name="技能市场(旧名兼容)",
+            description=("技能市场管理（向下兼容 V1 名称）。"
+                         "支持 list/install/search/info 操作"),
+            category=CapabilityCategory.PLUGIN,
+            permission=TrustLevel.READ_ONLY,
+            execution=ExecutionMode.SYNC,
+            side_effects=[SideEffect.NONE],
+            tags=["skills", "marketplace", "v1", "legacy", "兼容"],
+            schema={
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["list", "install", "search"],
+                        "description": "操作类型",
+                    },
+                    "query": {"type": "string", "description": "搜索关键词"},
+                    "category": {"type": "string", "description": "分类过滤"},
+                    "skill_id": {"type": "string", "description": "技能 ID"},
+                    "limit": {"type": "integer", "description": "最大返回数量"},
+                },
+                "required": [],
+            },
+        ),
+        handler=_handle_v1_skills_market,
+    )
+
     # ── skills.marketplace.info ──
     registry.register(
         CapabilityDefinition(
@@ -912,3 +943,38 @@ async def _handle_get_stats(
     """处理获取市场统计"""
     marketplace = get_marketplace()
     return marketplace.get_stats()
+
+
+async def _handle_v1_skills_market(
+    params: dict[str, Any], context: dict[str, Any]
+) -> dict[str, Any]:
+    """V1 兼容：skills_market 多合一调度
+
+    根据 action 字段分发到具体的 V2 处理器：
+    - action=list   → _handle_list_skills
+    - action=search → _handle_search_skills
+    - action=install → _handle_install_skill
+    - 无 action     → 默认 list
+    """
+    action = params.get("action", "list")
+    marketplace = get_marketplace()
+
+    if action == "install":
+        sid = params.get("skill_id", "")
+        if not sid:
+            return {"error": "install requires 'skill_id'"}
+        return await marketplace.install_skill(sid)
+
+    if action == "search":
+        return await marketplace.search_skills(
+            query=params.get("query", ""),
+            category=params.get("category", ""),
+            limit=params.get("limit", 20),
+        )
+
+    # 默认: list
+    return await marketplace.list_skills(
+        category=params.get("category", ""),
+        sort_by=params.get("sort_by", "rating"),
+        limit=params.get("limit", 50),
+    )

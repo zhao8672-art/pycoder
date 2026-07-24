@@ -5,6 +5,9 @@ import { createTray } from './tray';
 import { PythonBackendManager } from './backend';
 import { registerIpcHandlers } from './ipc-handlers';
 
+// Step6: 设置自定义 app name → 自动改变 userData/cache 路径，避免缓存权限问题
+app.name = 'pycoder-electron';
+
 const SERVER_PORT = parseInt(process.env.PYCODER_BACKEND_PORT || '8423', 10);
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -86,7 +89,6 @@ function setupCSP(): void {
 
 app.whenReady().then(async () => {
   // Step6: 设置自定义 Electron 缓存路径，避免权限不足导致的 GPU 缓存创建失败
-  const path = require('path');
   const fs = require('fs');
   const customDataDir = path.join(app.getPath('appData'), 'pycoder-electron');
   fs.mkdirSync(customDataDir, { recursive: true });
@@ -94,7 +96,6 @@ app.whenReady().then(async () => {
   app.setPath('cache', path.join(customDataDir, 'Cache'));
 
   // P2-5: 启动前清理可能锁定的 Electron 缓存目录
-  const path = require('path');
   const fs = require('fs');
   const userDataPath = app.getPath('userData');
   const cacheDirs = ['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'VideoDecodeStats'];
