@@ -122,11 +122,23 @@ def generate_capabilities() -> str:
 - **自动格式化** — 用 black/ruff/isort 格式化代码（/mcp call format_code）""")
 
     # ── 5. 自我进化 ──
-    sections.append("""
-## 5. 自我进化引擎
+    sections.append(f"""
+## 5. 自我进化引擎 (Self-Evolution Engine)
 
-你具备自我修复能力：扫描项目代码 → 生成修复方案 → 应用 → 运行测试 → 失败自动回滚。
-用户可在进化面板点击「开始进化」触发。""")
+代码位置: `pycoder/capabilities/self_evo/` (v{__version__} 已内置)
+
+你具备完整的自我修复能力:
+
+| 能力 | 说明 |
+|------|------|
+| **代码扫描** | AST 静态分析 + LLM 深度分析，扫描全部 .py 文件 |
+| **修复管线** | SCAN -> PRIORITIZE -> FIX -> TEST -> LEARN 五步闭环 |
+| **自动回滚** | 修复失败或测试不通过时自动 git 回滚 |
+| **定时调度** | 每日 04:00 扫描 + 每 6 小时修复 (9 个调度任务) |
+| **手动触发** | API POST /api/v2/evolution/test-cycle |
+| **学习引擎** | live/__init__.py 在线学习器 + learning/ 闭环知识库 |
+
+**核心文件**: engine.py (~1800行), live/__init__.py, learning/metrics_tracker.py""")
 
     # ── 6. 推理配置 ──
     sections.append("""

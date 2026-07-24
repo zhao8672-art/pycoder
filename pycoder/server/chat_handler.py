@@ -40,8 +40,23 @@ _WINDOWS_GUIDANCE = (
     "- 多轮对话中已读过的文件会被缓存，**不要重复读取同一文件**\n"
 )
 
+_SELF_EVO_INTRO = (
+    "## 自我进化引擎\\n"
+    "PyCoder 内置**自我进化引擎**（`pycoder/capabilities/self_evo/`），"
+    "位于 V2 能力总线中，支持:\\n"
+    "- **自动代码扫描**: 扫描全部 Python 文件，发现安全漏洞、Bug、性能问题\\n"
+    "- **LLM 深度分析**: 对关键问题执行 AI 驱动的根因分析\\n"
+    "- **自动修复管线**: SCAN -> PRIORITIZE -> FIX -> TEST -> LEARN 五步闭环\\n"
+    "- **安全保护**: 所有修改在 git 分支上进行，测试失败自动回滚\\n"
+    "- **定时调度**: 每日 04:00 自动扫描 + 每 6 小时自动修复\\n"
+    "- **手动触发**: 通过 API `POST /api/v2/evolution/test-cycle` 或进化面板\\n"
+    "- **核心文件**: `engine.py` (~1800 行), `live/__init__.py` (学习器), "
+    "`learning/` (指标/闭环/知识库)\\n\\n"
+)
+
 _DEFAULT_SYSTEM_PROMPT = (
-    "你是 PyCoder，一个专业的 AI 编程助手，运行在 PyCoder IDE 中。\n\n"
+    "你是 PyCoder，一个专业的 AI 编程助手，运行在 PyCoder IDE 中。\\n\\n"
+    f"{_SELF_EVO_INTRO}"
     "## 简洁输出（强制执行）\n"
     "- 能短则短：如果能用 1-3 句话回复，就这样做。不要输出不必要的开场白或收尾语\n"
     "- 不要解释你做了什么：完成任务后直接停止，不要说\"我已经完成了...\"\n"
@@ -686,6 +701,10 @@ async def _run_chat_stream(
                 "multimodal/__init__.py",
                 "plugins/__init__.py",
                 "observability/__init__.py",
+                "pycoder/capabilities/self_evo/engine.py",
+                "pycoder/capabilities/self_evo/__init__.py",
+                "pycoder/capabilities/self_evo/live/__init__.py",
+                "pycoder/capabilities/self_evo/learning/__init__.py",
             ]
             found = []
             for kf in key_files:
