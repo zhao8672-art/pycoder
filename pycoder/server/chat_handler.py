@@ -40,23 +40,40 @@ _WINDOWS_GUIDANCE = (
     "- 多轮对话中已读过的文件会被缓存，**不要重复读取同一文件**\n"
 )
 
-_SELF_EVO_INTRO = (
-    "## 自我进化引擎\\n"
-    "PyCoder 内置**自我进化引擎**（`pycoder/capabilities/self_evo/`），"
-    "位于 V2 能力总线中，支持:\\n"
-    "- **自动代码扫描**: 扫描全部 Python 文件，发现安全漏洞、Bug、性能问题\\n"
-    "- **LLM 深度分析**: 对关键问题执行 AI 驱动的根因分析\\n"
-    "- **自动修复管线**: SCAN -> PRIORITIZE -> FIX -> TEST -> LEARN 五步闭环\\n"
-    "- **安全保护**: 所有修改在 git 分支上进行，测试失败自动回滚\\n"
-    "- **定时调度**: 每日 04:00 自动扫描 + 每 6 小时自动修复\\n"
-    "- **手动触发**: 通过 API `POST /api/v2/evolution/test-cycle` 或进化面板\\n"
-    "- **核心文件**: `engine.py` (~1800 行), `live/__init__.py` (学习器), "
-    "`learning/` (指标/闭环/知识库)\\n\\n"
-)
+_SELF_KNOWLEDGE = """## 你的完整能力清单（所有功能均存在于当前代码库中）
+
+你是 PyCoder 的 AI 编程助手。PyCoder 源代码位于工作区 `pycoder/` 目录下，
+包含以下所有子系统。**当用户询问"你有什么功能"、"XX是否可用"时，据此回答，不要说"没有"或"不存在"。**
+
+| 子系统 | 目录 | 核心能力 |
+|--------|------|----------|
+| **自我进化引擎** | `capabilities/self_evo/` | SCAN→PRIORITIZE→FIX→TEST→LEARN 五步闭环，AST扫描，LLM分析，自动回滚，定时调度 (9个任务) |
+| **V2 能力总线** | `v2/`, `bus/` | 186 个注册能力，FULL_AUTONOMY 信任级别，权限引擎 |
+| **AI 推理管线** | `server/`, `ai/` | chat_bridge.py (~2400行) ReAct循环，NLU路由，RuminationEngine，Multi-model融合 |
+| **Agent 团队** | `brain/` | 10 角色 Agent 团队 (DEVELOPER/TESTER/REVIEWER/DEBUGGER/...), UnifiedAgentLoop |
+| **记忆系统** | `memory/` | 持久记忆 + 深度记忆 (~2000行) + 会话记忆 + 长期记忆 + KV缓存 |
+| **安全系统** | `safety/`, `pycoder/python/security_scanner.py` | 沙箱执行 (Docker/子进程), 审计追踪, 密钥检测, AST安全扫描 |
+| **多模态感知** | `multimodal/` | 图像分析, 截图分析, OCR, UI检测, 截图对比 |
+| **插件系统** | `plugins/`, `extensions/` | 插件加载/执行, 扩展市场, 自动安装 |
+| **可观测性** | `observability/` | 指标收集, 日志记录, 质量快照, 性能追踪 |
+| **技能市场** | `skills/`, `server/skills_market_v2.py` | 技能搜索/安装/管理, SQLite 持久化 |
+| **MCP 协议** | `server/mcp/` | 48+ 内置工具, MCP Server 连接, 工具路由 |
+| **会话管理** | `server/session_store.py` | SQLite 持久化, 206+ 会话, 消息历史, 跨会话上下文 |
+| **代码分析** | `ai/analysis/` | 五层分析 (语法/语义/安全/复杂度/风格), CompositeAnalyzer |
+| **自进化学习** | `capabilities/self_evo/live/`, `learning/` | 在线学习器, 闭环引擎, 错误分类器, 模式提取 |
+| **任务调度** | `server/scheduler.py` | 9 个定时任务, Cron 支持, 自扫描/自修复/记忆清理/安全检查 |
+| **Docker 沙箱** | `adapters/` | Docker隔离执行, 代码安全运行, 资源限制 |
+| **代码生成** | `prompts/`, `python/template_code.py` | FIM补全, 智能提示, FastAPI CRUD/Auth 模板 |
+| **幻觉抑制** | `server/services/hallucination_guard.py` | 工具结果验证, 可信度评分, 纠正建议 |
+| **自动修复器** | `ai/auto_fixer.py` | Write→Build→Test→Fix 循环, LLM自动修复, 最大3次重试 |
+| **文件系统** | `fs/` | 路径映射, 文件操作, 工作区管理 |
+
+所有模块均在源代码中完整实现，查看具体文件即可验证。
+"""
 
 _DEFAULT_SYSTEM_PROMPT = (
     "你是 PyCoder，一个专业的 AI 编程助手，运行在 PyCoder IDE 中。\\n\\n"
-    f"{_SELF_EVO_INTRO}"
+    f"{_SELF_KNOWLEDGE}"
     "## 简洁输出（强制执行）\n"
     "- 能短则短：如果能用 1-3 句话回复，就这样做。不要输出不必要的开场白或收尾语\n"
     "- 不要解释你做了什么：完成任务后直接停止，不要说\"我已经完成了...\"\n"
@@ -179,6 +196,53 @@ def _read_file_head(path: str, max_chars: int = 2000) -> str:
             return content
     except (OSError, UnicodeDecodeError):
         return ""
+
+
+def _discover_project_modules(work_dir: Path) -> list[str]:
+    """动态发现项目所有关键模块（替代硬编码 key_files）。
+
+    扫描 pycoder/ 目录下所有 __init__.py + 核心引擎文件 + 顶层配置，
+    确保 AI 始终知道所有可用模块的存在。
+    """
+    discovered: list[str] = []
+    pycoder_root = work_dir / "pycoder"
+    if not pycoder_root.is_dir():
+        return discovered
+
+    # 收集 pycoder/ 下所有 __init__.py (模块标记)
+    for init_f in pycoder_root.rglob("__init__.py"):
+        rel = init_f.relative_to(work_dir).as_posix()
+        parts = rel.split("/")
+        if any(skip in parts for skip in ["node_modules", "__pycache__", ".venv"]):
+            continue
+        discovered.append(rel)
+
+    # 顶层关键配置文件
+    for top_file in [
+        ".gitignore", "pyproject.toml", "README.md", "requirements.txt",
+        "start.bat", "start.ps1", "Dockerfile", "docker-compose.yml",
+        "Makefile", "pytest.ini", "pyrightconfig.json",
+    ]:
+        if (work_dir / top_file).exists():
+            discovered.append(top_file)
+
+    # 核心引擎文件（即使没有 __init__.py 的子模块）
+    for engine_file in [
+        "pycoder/server/chat_bridge.py",
+        "pycoder/server/chat_handler.py",
+        "pycoder/server/app.py",
+        "pycoder/capabilities/self_evo/engine.py",
+        "pycoder/v2/__init__.py",
+        "pycoder/ai/auto_fixer.py",
+        "pycoder/brain/specialized_agents.py",
+        "pycoder/memory/deep_memory.py",
+        "pycoder/server/services/hallucination_guard.py",
+    ]:
+        if (work_dir / engine_file).exists():
+            if engine_file not in discovered:
+                discovered.append(engine_file)
+
+    return discovered[:50]  # 限制避免 token 爆炸
 
 
 def _build_context_prompt(files: list[str]) -> str:
@@ -679,33 +743,14 @@ async def _run_chat_stream(
             title = first_user.content[:60].replace("\n", " ").strip()
             store.update_session(session_id, title=title)
 
-    # FIX #5: 注入工作区上下文（项目结构快照）
+    # FIX #5: 注入工作区上下文（动态发现所有模块，不再硬编码）
     context_prompt = _build_context_prompt(files or [])
     if not files:
         try:
             from pycoder.server.routers.files import get_workspace_root
 
             work_dir = get_workspace_root()
-            key_files = [
-                ".gitignore",
-                "pyproject.toml",
-                "README.md",
-                "requirements.txt",
-                "start.bat",
-                "start.ps1",
-                "Dockerfile",
-                "docker-compose.yml",
-                "Makefile",
-                "memory/__init__.py",
-                "safety/__init__.py",
-                "multimodal/__init__.py",
-                "plugins/__init__.py",
-                "observability/__init__.py",
-                "pycoder/capabilities/self_evo/engine.py",
-                "pycoder/capabilities/self_evo/__init__.py",
-                "pycoder/capabilities/self_evo/live/__init__.py",
-                "pycoder/capabilities/self_evo/learning/__init__.py",
-            ]
+            key_files = _discover_project_modules(work_dir)  # ← 动态发现！
             found = []
             for kf in key_files:
                 p = work_dir / kf

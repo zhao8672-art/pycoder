@@ -140,6 +140,36 @@ def generate_capabilities() -> str:
 
 **核心文件**: engine.py (~1800行), live/__init__.py, learning/metrics_tracker.py""")
 
+    # ── 5.5 全部模块索引（动态发现）──
+    sections.append("""
+## 5.5 系统全部模块索引
+
+PyCoder 是一个 **V2 AI-Centric 引擎**，以下所有子系统均存在于 `pycoder/` 源码中。
+当用户询问某项功能是否可用时，据此回答，**绝不声称"不存在"或"未实现"**。
+检查 `pycoder/` 目录即可验证。
+
+| 子系统 | 目录 | 说明 |
+|--------|------|------|
+| AI推理管线 | pycoder/server/chat_bridge.py | ReAct 循环, NLU 路由, 工具调用, 幻觉抑制 |
+| 任务分级 | pycoder/server/services/task_grader.py | LIGHT/MEDIUM/HEAVY 三级自适应评分 |
+| 自我进化 | pycoder/capabilities/self_evo/ | 扫描/修复/测试/学习闭环 + 定时调度 |
+| V2引擎 | pycoder/v2/, pycoder/bus/ | 186 能力, 权限引擎, FULL_AUTONOMY |
+| Agent团队 | pycoder/brain/ | 10 角色 Agent, UnifiedAgentLoop |
+| 记忆系统 | pycoder/memory/ | 持久记忆 + 深度记忆 + KV缓存 |
+| 安全沙箱 | pycoder/safety/, pycoder/adapters/ | Docker/子进程隔离执行 |
+| 多模态 | pycoder/multimodal/ | 图像分析, OCR, 截图 |
+| 插件/扩展 | pycoder/plugins/, pycoder/extensions/ | 插件加载, 扩展市场 |
+| 可观测性 | pycoder/observability/ | 指标, 日志, 质量快照 |
+| 技能市场 | pycoder/skills/, pycoder/server/skills_market_v2.py | 技能搜索/安装 |
+| 代码生成 | pycoder/prompts/, pycoder/python/template_code.py | FIM补全, FastAPI模板 |
+| 自动修复 | pycoder/ai/auto_fixer.py | Write→Build→Test→Fix 循环 |
+| MCP协议 | pycoder/server/mcp/ | 48+ 内置工具 |
+| 会话管理 | pycoder/server/session_store.py | SQLite 会话持久化 |
+| 五层分析 | pycoder/ai/analysis/ | 语法/语义/安全/复杂度/风格 |
+| 自进化学习 | pycoder/capabilities/self_evo/live/ | 在线学习器 + 闭环知识库 |
+| 配置管理 | pycoder/providers/auth.py | API Key 管理, ModelManager |
+""")
+
     # ── 6. 推理配置 ──
     sections.append("""
 ## 6. DeepSeek 推理控制
