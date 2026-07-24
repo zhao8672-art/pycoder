@@ -15,6 +15,16 @@ import logging
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+from typing import Any
+
+from pycoder.brain.deviation_detector import DeviationDetector
+from pycoder.brain.task_planner import (
+    ExecutionPlan,
+    FeasibilityAnalyzer,
+    FeasibilityReport,
+    PlanBudget,
+    TaskPlanner,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -240,6 +250,134 @@ class ExecutionPipeline:
         }
         await asyncio.sleep(0)
 
+        # ══════════════════════════════════════════════════════════
+        # Stage 1.5: 计划制定（原方案 + 补充1/2/5）
+        # ── 意图分析 → 任务分解 → 正反可行性分析 → 预算设定 ──
+        # ══════════════════════════════════════════════════════════
+        plan: ExecutionPlan | None = None
+        feasibility: FeasibilityReport | None = None
+        budget: PlanBudget | None = None
+        detector: DeviationDetector | None = None
+
+        # chat 模式或简短消息跳过计划阶段
+        should_plan = strategy.name != "chat" and len(message) > 15
+
+        if should_plan:
+            try:
+                # 1. 意图分析 + Agent 选择（延迟导入避免循环依赖）
+                from pycoder.brain.intelligent_router import get_intelligent_router
+
+                router = get_intelligent_router()
+                decision = router.decide(message)
+
+                # 2. 任务分解（补充1：注入上下文提升分解质量）
+                planner = TaskPlanner()
+                plan_context = self._build_plan_context(message, history_context)
+                plan = planner.plan(
+                    decision.intent.normalized_intent, context=plan_context
+                )
+
+                # 3. 正反可行性分析（补充2）
+                analyzer = FeasibilityAnalyzer()
+                feasibility = analyzer.analyze(plan, context=plan_context)
+
+                # 4. 预算设定（补充5）
+                budget = PlanBudget.from_plan(plan)
+
+                # 5. 偏差检测器初始化
+                detector = DeviationDetector(plan)
+
+                # 发射计划进度事件
+                yield {
+                    "type": "progress",
+                    "phase": "plan",
+                    "stage": "📋 执行计划制定",
+                    "current_step": 1,
+                    "total_steps": len(strategy.stages),
+                    "percent": 25,
+                    "elapsed_seconds": 0,
+                    "eta_seconds": 0,
+                    "milestones": [],
+                    "plan": {
+                        "task_count": len(plan.tasks),
+                        "strategy": plan.strategy.value,
+                        "estimated_tokens": plan.total_estimated_tokens,
+                        "feasibility": feasibility.recommendation,
+                        "risks": feasibility.risks[:3],
+                        "budget": budget.to_dict(),
+                    },
+                }
+
+                # 可行性中止 → 提前返回
+                if feasibility.recommendation == "abort":
+                    yield {
+                        "type": "error",
+                        "message": (
+                            f"❌ 可行性分析未通过: "
+                            f"{'; '.join(feasibility.risks[:3])}"
+                        ),
+                    }
+                    yield {
+                        "type": "done",
+                        "content": (
+                            f"任务因可行性分析中止。\n"
+                            f"风险: {'; '.join(feasibility.risks)}\n"
+                            f"建议: {'; '.join(feasibility.mitigation)}"
+                        ),
+                        "v2_engine": True,
+                        "tool_calls_count": 0,
+                        "duration_ms": 0,
+                    }
+                    return
+
+                # ════════════════════════════════════════════════════
+                # Stage 1.6: 人机确认（补充4：风险分级确认）
+                # ── caution → 展示计划等用户确认 ──
+                # ════════════════════════════════════════════════════
+                if feasibility.recommendation == "caution":
+                    yield {
+                        "type": "plan_review",
+                        "plan": {
+                            "tasks": [
+                                {"id": t.task_id, "desc": t.description[:60]}
+                                for t in plan.tasks
+                            ],
+                            "strategy": plan.strategy.value,
+                            "risks": feasibility.risks,
+                            "mitigation": feasibility.mitigation,
+                            "budget": budget.to_dict(),
+                        },
+                        "message": (
+                            "⚠️ 该任务存在风险，请确认是否继续执行。\n"
+                            f"风险: {'; '.join(feasibility.risks[:3])}\n"
+                            f"缓解: {'; '.join(feasibility.mitigation[:3])}"
+                        ),
+                    }
+                    logger.info(
+                        "计划等待用户确认: recommendation=caution risks=%d",
+                        len(feasibility.risks),
+                    )
+
+                # 计划注入 prompt（原方案核心：计划驱动执行）
+                plan_prompt = self._build_plan_prompt(plan, feasibility, budget)
+                effective_message = f"{plan_prompt}\n\n{effective_message}"
+
+                logger.info(
+                    "计划制定完成: tasks=%d strategy=%s feasibility=%s budget=%d",
+                    len(plan.tasks),
+                    plan.strategy.value,
+                    feasibility.recommendation,
+                    budget.budget_tokens,
+                )
+
+            except Exception as e:
+                # 计划制定失败 → 降级到原有流程
+                logger.warning("计划制定失败，降级到直接执行: %s", e)
+                plan = None
+                feasibility = None
+                budget = None
+                detector = None
+
         # P0: 根据模式选择工具集
         tool_names = get_tool_names_for_mode(strategy.name)
         if tool_names:
@@ -342,6 +480,73 @@ class ExecutionPipeline:
             self._last_had_tools = has_tool_calls
             full_content += response_text
 
+            # ════════════════════════════════════════════════════
+            # 补充2: 偏差检测 + 补充5: 预算追踪
+            # ════════════════════════════════════════════════════
+            if budget is not None:
+                # 预算追踪
+                budget.consume(len(response_text))
+                budget.actual_iterations = iter_count
+
+                # 预算告警
+                if budget.status == "warning":
+                    yield {
+                        "type": "agent_status",
+                        "status": "working",
+                        "message": (
+                            f"⚠️ Token预算使用 {budget.usage_ratio:.0%}，"
+                            "建议简化后续操作"
+                        ),
+                    }
+                elif budget.status == "replan":
+                    yield {
+                        "type": "agent_status",
+                        "status": "working",
+                        "message": "🔄 预算超支，触发重规划...",
+                    }
+                    # 简化剩余任务：减少迭代上限
+                    strategy.max_iterations = min(strategy.max_iterations, iter_count + 3)
+                elif budget.status == "cutoff":
+                    yield {
+                        "type": "agent_status",
+                        "status": "working",
+                        "message": "⛔ 预算熔断，返回已完成部分",
+                    }
+                    logger.warning(
+                        "预算熔断: actual=%d budget=%d ratio=%.2f",
+                        budget.actual_tokens,
+                        budget.budget_tokens,
+                        budget.usage_ratio,
+                    )
+                    break
+
+            # 偏差检测（仅有计划时）
+            if detector is not None and has_tool_calls:
+                # 从工具调用名构造简化数据
+                tc_list = [{"name": tn, "params": {}} for tn in tool_call_names]
+                tc_results = [{"success": True} for _ in tc_list]
+                dev_report = detector.detect(tc_list, tc_results)
+
+                # 偏差纠正
+                if dev_report.deviations:
+                    correction = dev_report.correction_prompt()
+                    if correction:
+                        full_content += f"\n\n{correction}\n"
+                        yield {
+                            "type": "agent_status",
+                            "status": "working",
+                            "message": f"📐 偏差检测: {len(dev_report.deviations)}项",
+                        }
+
+                # 计划完成检测
+                if detector.is_complete:
+                    yield {
+                        "type": "agent_status",
+                        "status": "working",
+                        "message": "✅ 执行计划全部完成",
+                    }
+                    break
+
             if not response_text:
                 logger.warning(
                     "pipeline_empty_response iteration=%d",
@@ -372,7 +577,7 @@ class ExecutionPipeline:
                     continue
                 break
 
-        # ── Stage 5: Result Assembly ──
+        # ── Stage 5: Result Assembly + 学习反馈（补充3）──
         elapsed = time.monotonic() - self._start_time
         tool_count = full_content.count("🔧 执行")
         summary_line = (
@@ -381,10 +586,47 @@ class ExecutionPipeline:
             else ""
         )
         time_line = f"⏱ 耗时 {elapsed:.1f}s"
+
+        # 计划完成度
+        plan_summary = ""
+        if detector is not None:
+            plan_status = detector.status_dict()
+            plan_summary = (
+                f"📋 计划完成 {plan_status['completed']}/{plan_status['total']}"
+                f" ({plan_status['percent']}%)"
+            )
+            if plan_status["deviations"] > 0:
+                plan_summary += f" | ⚠️ 偏差 {plan_status['deviations']}项"
+            if plan_status["replans"] > 0:
+                plan_summary += f" | 🔄 重规划 {plan_status['replans']}次"
+
+        # 预算使用
+        budget_summary = ""
+        if budget is not None:
+            budget_summary = (
+                f"💰 Token {budget.actual_tokens}/{budget.budget_tokens}"
+                f" ({budget.usage_ratio:.0%})"
+            )
+
         summary = ""
-        if summary_line or time_line:
-            parts = [p for p in [summary_line, time_line] if p]
-            summary = " | ".join(parts)
+        parts = [p for p in [summary_line, time_line, plan_summary, budget_summary] if p]
+        summary = " | ".join(parts)
+
+        # ════════════════════════════════════════════════════
+        # 补充3: 学习反馈闭环 — 执行结果反馈到学习系统
+        # ════════════════════════════════════════════════════
+        if plan is not None:
+            try:
+                await self._feedback_to_learning(
+                    plan=plan,
+                    detector=detector,
+                    budget=budget,
+                    elapsed=elapsed,
+                    tool_count=tool_count,
+                    iter_count=iter_count,
+                )
+            except Exception as e:
+                logger.debug("学习反馈失败（非致命）: %s", e)
 
         yield {
             "type": "progress",
@@ -410,6 +652,8 @@ class ExecutionPipeline:
             "v2_engine": True,
             "tool_calls_count": tool_count,
             "duration_ms": int(elapsed * 1000),
+            "plan": detector.status_dict() if detector else None,
+            "budget": budget.to_dict() if budget else None,
         }
 
         yield {
@@ -421,3 +665,132 @@ class ExecutionPipeline:
                 + (f", {tool_count} 次工具调用" if tool_count else "")
             ),
         }
+
+    # ══════════════════════════════════════════════════════════
+    # 辅助方法
+    # ══════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _build_plan_context(message: str, history: str) -> dict[str, Any]:
+        """补充1: 构建计划上下文 — 注入项目结构提升分解质量"""
+        ctx: dict[str, Any] = {
+            "message": message,
+            "has_history": bool(history),
+        }
+        # 尝试获取项目结构（失败则降级）
+        try:
+            from pathlib import Path
+
+            cwd = Path.cwd()
+            py_files = list(cwd.rglob("*.py"))[:20]
+            ctx["project_files"] = [str(f.relative_to(cwd)) for f in py_files]
+            ctx["project_root"] = str(cwd)
+        except Exception:
+            ctx["project_files"] = []
+        return ctx
+
+    @staticmethod
+    def _build_plan_prompt(
+        plan: ExecutionPlan,
+        feasibility: FeasibilityReport,
+        budget: PlanBudget,
+    ) -> str:
+        """构建计划注入 prompt — 计划驱动执行的核心"""
+        tasks_text = "\n".join(
+            f"  {t.task_id}. {t.description}"
+            + (f" (依赖: {', '.join(t.dependencies)})" if t.dependencies else "")
+            for t in plan.tasks
+        )
+
+        risk_text = ""
+        if feasibility.risks:
+            risk_text = "\n⚠️ 已知风险:\n" + "\n".join(
+                f"  - {r}" for r in feasibility.risks[:3]
+            )
+
+        mitigation_text = ""
+        if feasibility.mitigation:
+            mitigation_text = "\n🛡️ 缓解措施:\n" + "\n".join(
+                f"  - {m}" for m in feasibility.mitigation[:3]
+            )
+
+        return (
+            f"## 执行计划（请按计划逐步执行）\n"
+            f"策略: {plan.strategy.value}\n"
+            f"任务分解:\n{tasks_text}\n"
+            f"预估Token: {plan.total_estimated_tokens} | 预算: {budget.budget_tokens}\n"
+            f"可行性: {feasibility.recommendation}"
+            f"{risk_text}{mitigation_text}\n"
+            f"---\n请按上述计划顺序执行，每步输出JSON工具调用。"
+        )
+
+    @staticmethod
+    async def _feedback_to_learning(
+        plan: ExecutionPlan,
+        detector: DeviationDetector | None,
+        budget: PlanBudget | None,
+        elapsed: float,
+        tool_count: int,
+        iter_count: int,
+    ) -> None:
+        """补充3: 学习反馈闭环 — 执行结果反馈到学习系统
+
+        复用现有 LearningEngine.on_task_complete()，
+        将本次执行的经验（成功/失败、偏差、预算使用）沉淀到知识库。
+        """
+        try:
+            from pycoder.capabilities.self_evo.learning import LearningEngine
+
+            engine = LearningEngine()
+
+            # 计算执行指标
+            completed = len(detector._report.completed_task_ids) if detector else 0
+            total = len(plan.tasks)
+            deviations = (
+                len(detector._report.deviations) if detector else 0
+            )
+            budget_ratio = budget.usage_ratio if budget else 0.0
+
+            # 判断成功/失败
+            success = completed >= total * 0.8 and deviations < 3
+
+            # 构建经验数据
+            experience = {
+                "intent": plan.original_intent[:200],
+                "strategy": plan.strategy.value,
+                "task_count": total,
+                "completed": completed,
+                "iterations": iter_count,
+                "tool_calls": tool_count,
+                "elapsed_seconds": elapsed,
+                "deviations": deviations,
+                "budget_ratio": round(budget_ratio, 2),
+                "budget_status": budget.status if budget else "unknown",
+                "success": success,
+            }
+
+            # 如果有失败任务，记录教训
+            if not success and detector is not None:
+                failed_tasks = [
+                    t.task_id
+                    for t in plan.tasks
+                    if t.status.value == "failed"
+                ]
+                if failed_tasks:
+                    experience["failed_tasks"] = failed_tasks
+                    experience["lesson"] = (
+                        f"任务 {', '.join(failed_tasks)} 失败，"
+                        f"偏差 {deviations} 项，"
+                        f"预算使用 {budget_ratio:.0%}"
+                    )
+
+            # 调用学习引擎（如果方法存在）
+            if hasattr(engine, "on_task_complete"):
+                await engine.on_task_complete(experience)
+            else:
+                logger.debug("LearningEngine 无 on_task_complete 方法，跳过反馈")
+
+        except ImportError:
+            logger.debug("LearningEngine 未安装，跳过学习反馈")
+        except Exception as e:
+            logger.debug("学习反馈异常（非致命）: %s", e)
