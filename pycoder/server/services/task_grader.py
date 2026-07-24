@@ -73,14 +73,29 @@ class TaskGrade:
 
     @property
     def label(self) -> str:
-        """中文标签（兼容 self_evo/engine.py）"""
+        """中文标签（兼容 self_evo/engine.py，兼容 string/enum level）"""
+        if isinstance(self.level, str):
+            # level 是字符串 "low"/"medium"/"high"
+            level_map = {"low": GradeLevel.LIGHT, "medium": GradeLevel.MEDIUM, "high": GradeLevel.HEAVY}
+            gr = level_map.get(self.level, GradeLevel.MEDIUM)
+            return GRADE_CONFIG[gr]["label"]
         return GRADE_CONFIG[self.level]["label"]
 
     def to_dict(self) -> dict[str, Any]:
-        """序列化为字典"""
+        """序列化为字典（兼容 string 和 enum 两种 level 类型）"""
+        # BUGFIX: grade() 可能将 level 从 enum 转为 string
+        if isinstance(self.level, str):
+            _m = {"low": GradeLevel.LIGHT, "medium": GradeLevel.MEDIUM, "high": GradeLevel.HEAVY}
+            level_enum = _m.get(self.level, GradeLevel.MEDIUM)
+            level_name = self.level
+            level_value = int(level_enum)
+        else:
+            level_enum = self.level
+            level_name = self.level.name
+            level_value = int(self.level)
         return {
-            "level": self.level.name,
-            "level_value": int(self.level),
+            "level": level_name,
+            "level_value": level_value,
             "label": self.label,
             "score": round(self.score, 1),
             "max_iterations": self.max_iterations,
