@@ -195,12 +195,14 @@ export const useAppStore = <T = LegacyAppState>(selector?: (state: LegacyAppStat
 useAppStore.getState = (): LegacyAppState => buildLegacyState();
 
 // 内部辅助 —— 从 hook 返回值构建
+// 注意：使用 any 避免 zustand 6+ ReturnType 推断为 unknown 的连锁问题
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildLegacyStateFromHooks(stores: {
-  ui: ReturnType<typeof useUIStore>;
-  chat: ReturnType<typeof useChatStore>;
-  editor: ReturnType<typeof useEditorStore>;
-  git: ReturnType<typeof useGitStore>;
-  be: ReturnType<typeof useBackendStore>;
+  ui: any;
+  chat: any;
+  editor: any;
+  git: any;
+  be: any;
 }): LegacyAppState {
   const { ui, chat, editor, git, be } = stores;
   return {

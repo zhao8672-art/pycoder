@@ -6,7 +6,7 @@
  *   toast.success('操作成功');
  *   toast.error('保存失败');
  */
-import React, { useState, useCallback, useEffect, useRef, createContext, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
@@ -22,22 +22,20 @@ let toastId = 0;
 let setToastsFn: React.Dispatch<React.SetStateAction<ToastItem[]>> | null = null;
 
 // Toast 渲染器
-const ToastContainer: React.FC = () => {
+function ToastContainer(): JSX.Element {
     const [toasts, setToasts] = useState<ToastItem[]>([]);
     setToastsFn = setToasts;
 
     return (
-        <div className= "toast-container" >
-        {
-            toasts.map((t) => (
-                <ToastItemComponent key= { t.id } item = { t } />
-      ))
-        }
+        <div className="toast-container">
+            {toasts.map((t) => (
+                <ToastItemComponent key={t.id} item={t} />
+            ))}
         </div>
-  );
-};
+    );
+}
 
-const ToastItemComponent: React.FC<{ item: ToastItem }> = ({ item }) => {
+function ToastItemComponent({ item }: { item: ToastItem }): JSX.Element {
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {
@@ -57,15 +55,14 @@ const ToastItemComponent: React.FC<{ item: ToastItem }> = ({ item }) => {
 
     return (
         <div
-      className= {`toast-item toast-${item.type} ${visible ? 'toast-visible' : ''}`
+            className={`toast-item toast-${item.type} ${visible ? 'toast-visible' : ''}`}
+            role="alert"
+        >
+            <span className="toast-icon">{icons[item.type]}</span>
+            <span className="toast-message">{item.message}</span>
+        </div>
+    );
 }
-role = "alert"
-    >
-    <span className="toast-icon" > { icons[item.type]} </span>
-        < span className = "toast-message" > { item.message } </span>
-            </div>
-  );
-};
 
 // Toast API
 export const toast = {

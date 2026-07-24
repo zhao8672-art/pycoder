@@ -88,9 +88,11 @@ def _register_business(app: "FastAPI") -> None:
     from pycoder.server.routers.refactor_api import router as refactor_router
     from pycoder.server.routers.scaffold_api import router as scaffold_router
     from pycoder.server.routers.skills_api_v2 import router as skills_api_v2_router
+    from pycoder.server.routers.skills_v2_market_api import router as skills_v2_market_router
     from pycoder.server.routers.team_api import router as team_router
 
     app.include_router(skills_api_v2_router)
+    app.include_router(skills_v2_market_router)
     app.include_router(cloud_api_router)
     app.include_router(recommendation_router)
     app.include_router(github_router)
