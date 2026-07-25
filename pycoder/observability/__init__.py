@@ -1,8 +1,10 @@
-"""可观测性集成 (Sentry / OpenTelemetry 等).
+"""可观测性集成 (Sentry / OpenTelemetry / 结构化日志).
 
 提供可选的错误监控和链路追踪能力, 所有集成均为条件加载:
 - sentry-sdk 未安装时降级到 structlog, 不抛错
 - 不设置 SENTRY_DSN 时 init_sentry() 直接返回 False, 不发送任何数据
+- opentelemetry-sdk 未安装时降级到 NoOpTracer, 不抛错
+- 通过 OTEL_ENABLED=1 启用链路追踪
 """
 
 from __future__ import annotations
@@ -20,8 +22,24 @@ from .sentry import (
     set_user,
     status,
 )
+from .tracing import (
+    NoOpSpan,
+    NoOpTracer,
+    TracingConfig,
+    TracingManager,
+    get_current_span_id,
+    get_current_trace_id,
+    get_tracer,
+    get_tracing_manager,
+    span,
+    status as tracing_status,
+    traced,
+)
+from .tracing import is_available as tracing_is_available
+from .tracing import is_enabled as tracing_is_enabled
 
 __all__ = [
+    # Sentry
     "init_sentry",
     "capture_exception",
     "capture_message",
@@ -31,4 +49,18 @@ __all__ = [
     "is_available",
     "is_enabled",
     "status",
+    # OpenTelemetry
+    "TracingConfig",
+    "TracingManager",
+    "NoOpSpan",
+    "NoOpTracer",
+    "get_tracer",
+    "get_tracing_manager",
+    "get_current_trace_id",
+    "get_current_span_id",
+    "traced",
+    "span",
+    "tracing_is_available",
+    "tracing_is_enabled",
+    "tracing_status",
 ]

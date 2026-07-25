@@ -416,13 +416,26 @@ class TestChatBridge:
         assert result > 0
 
     def test_check_token_budget_large_warns(self):
-        """超大消息列表触发预警"""
+        """超大消息列表触发预警
+
+        使用多样化英文内容避免 BPE 把长串相同字符合并为单 token，
+        保证估算的 token 数稳定超过 60000。
+        """
         from pycoder.server.chat_bridge import ChatBridge
 
         bridge = ChatBridge()
-        messages = [{"role": "user", "content": "x" * 200000}]
+        # 生成 ~80000 个多样化英文单词（每单词约 1-2 token）
+        # 使用循环单词列表避免 BPE 合并
+        words = [
+            "hello", "world", "python", "code", "token", "model",
+            "context", "message", "history", "budget", "warning",
+            "context", "feature", "module", "server", "client",
+        ]
+        # 16 单词 * 5000 = 80000 单词 ≈ 80000+ tokens
+        content = " ".join(words * 5000)  # ~80k 单词
+        messages = [{"role": "user", "content": content}]
         result = bridge._check_token_budget(messages)
-        assert result > 60000
+        assert result > 60000, f"expected > 60000 tokens, got {result}"
 
     def test_compress_old_messages_empty_returns_empty(self):
         """空消息列表压缩返回空"""

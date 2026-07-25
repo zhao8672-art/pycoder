@@ -24,6 +24,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from pycoder.observability.tracing import traced
 from pycoder.server.log import log
 
 REMOTE_REGISTRY_URL = (
@@ -149,6 +150,7 @@ class SkillsMarketManager:
 
         self._loaded = True
 
+    @traced("skills.sync_from_remote")
     async def sync_from_remote(self) -> dict:
         """从远程拉取最新注册表（不覆盖本地安装的 skill）"""
         try:
@@ -280,6 +282,7 @@ class SkillsMarketManager:
             "has_more": offset + limit < total,
         }
 
+    @traced("skills.install")
     def install_skill(self, skill_id: str) -> dict:
         """安装技能到本地 .skills/ 目录"""
         self._load_local()
@@ -435,6 +438,7 @@ class SkillsMarketManager:
             cat_counts[s.category] = cat_counts.get(s.category, 0) + 1
         return [{"name": cat, "count": count} for cat, count in sorted(cat_counts.items())]
 
+    @traced("skills.uninstall")
     def uninstall_skill(self, skill_id: str) -> dict:
         """卸载已安装的技能"""
         self._load_local()
@@ -459,6 +463,7 @@ class SkillsMarketManager:
                     failed.append({"id": skill_id, "error": result.get("error", "?")})
         return {"success": True, "updated": updated, "failed": failed, "total": len(updated)}
 
+    @traced("skills.rate")
     def rate_skill(self, skill_id: str, rating: int, review: str = "") -> dict:
         """评分技能"""
         self._load_local()

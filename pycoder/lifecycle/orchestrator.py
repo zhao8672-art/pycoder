@@ -27,6 +27,7 @@ from pycoder.lifecycle.phases import (
     should_advance,
 )
 from pycoder.lifecycle.adapters import create_default_phases
+from pycoder.observability.tracing import traced
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,7 @@ class ProjectLifecycleOrchestrator:
 
     # ── 核心执行 ────────────────────────────────────
 
+    @traced("lifecycle.run")
     async def run(
         self,
         project_id: str,

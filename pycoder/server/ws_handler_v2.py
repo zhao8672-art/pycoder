@@ -22,6 +22,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from pycoder import __version__
 
 _logger = logging.getLogger('pycoder.server.ws_handler_v2')
+from pycoder.observability.tracing import traced
 from pycoder.server.chat_handler import (
     _get_api_key_for_model,
     _get_effective_model,
@@ -321,6 +322,7 @@ async def websocket_chat_v2(ws: WebSocket):
         log.error("ws_v2_error", extra={"session_id": session_id, "error": str(e)})
 
 
+@traced("ws_v2.handle_chat")
 async def _handle_chat_v2(msg: dict, ws: WebSocket, session_id: str, current_model: str, store, v2):
     """V2 统一入口聊天处理器 — 通过 UnifiedEntryAgent 自动路由三种模式
 

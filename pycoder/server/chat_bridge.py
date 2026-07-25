@@ -1,17 +1,91 @@
-"""
-ChatBridge — AI 聊天桥接层
+"""ChatBridge — AI 聊天桥接层（主入口）
 
 替代原 pycoder.tui.bridge.TUIBridge，为 Electron 后端提供无 UI 依赖的流式聊天能力。
+
+═══════════════════════════════════════════════════════════════
+模块拆分说明（P2-B）：
+本文件为门面（Facade），保留 ChatBridge 主类。
+辅助功能已拆分到 6 个子模块：
+- chat_bridge_router.py    — Provider 路由 & 模型端点解析
+- chat_bridge_tokens.py    — Token 计数 & 估算
+- chat_bridge_context.py   — 上下文构建 & 历史压缩
+- chat_bridge_history.py   — 对话历史管理（HistoryManager）
+- chat_bridge_stream.py    — 流式响应解析（SSE/delta/payload）
+- chat_bridge_tools.py     — 工具调用分发（V1+V2 沙箱）
+- chat_bridge_plugins.py   — 钩子与中间件（反思/幻觉/自愈等）
+
+为保证向后兼容，所有原导出符号均通过 re-export 暴露。
+═══════════════════════════════════════════════════════════════
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+
+# P2-C: 链路追踪集成（默认 NoOp，零开销；OTEL_ENABLED=1 时启用）
+from pycoder.observability.tracing import traced
+
+# ── 子模块 re-export（保持向后兼容）──────────────────────
+from .chat_bridge_context import (  # noqa: F401
+    _apply_context_anchor,
+    _apply_history_sliding_window,
+    _check_token_budget,
+    _compress_old_messages,
+    _get_context_anchor,
+)
+from .chat_bridge_history import HistoryManager  # noqa: F401
+from .chat_bridge_plugins import (  # noqa: F401
+    GuardResult,
+    RuminationResult,
+    TaskGrade,
+    analyze_after_write,
+    check_cost_budget,
+    format_hallucination_warning,
+    grade_task_difficulty,
+    hallucination_validate,
+    live_learner_observe,
+    mark_provider_key_invalid,
+    maybe_annotate_tool_result,
+    record_cost_usage,
+    record_observability,
+    record_project_error,
+    record_project_file_modified,
+    record_project_fix_attempt,
+    rumination_mid_execute,
+    rumination_post_execute,
+    rumination_pre_execute,
+    self_heal_after_write,
+)
+from .chat_bridge_router import (  # noqa: F401
+    MODEL_ROUTING,
+    PROVIDER_API_BASES,
+    _detect_provider,
+    _resolve_model_endpoint,
+)
+from .chat_bridge_stream import (  # noqa: F401
+    build_request_payload,
+    extract_stream_delta,
+    parse_sse_line,
+    rebuild_payload_for_fallback,
+)
+from .chat_bridge_tokens import TokenCounter, estimate_tokens  # noqa: F401
+from .chat_bridge_tools import (  # noqa: F401
+    CATEGORY_TOOL_MAP,
+    SKIP_TOOLS,
+    build_tools_payload,
+    cache_file_read,
+    execute_tool_call,
+    execute_tool_via_v1,
+    execute_tool_via_v2,
+    execute_tool_with_sandbox,
+    get_cached_file_read,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,78 +129,16 @@ class BridgeConfig:
 
 
 # ══════════════════════════════════════════════════════════
-# API Base 映射
+# ChatBridge — 主类（Facade）
 # ══════════════════════════════════════════════════════════
-
-PROVIDER_API_BASES = {
-    "deepseek": "https://api.deepseek.com",
-    "qwen": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "glm": "https://open.bigmodel.cn/api/paas/v4",
-    "openai": "https://api.openai.com/v1",
-    "nvidia": "https://integrate.api.nvidia.com/v1",
-    "agnes": "https://apihub.agnes-ai.com/v1",
-}
-
-
-def _detect_provider(model: str) -> str:
-    """检测模型所属的提供商 — 支持更多模型前缀"""
-    if not model:
-        return "deepseek"
-    if model.startswith("deepseek"):
-        return "deepseek"
-    if model.startswith("qwen"):
-        return "qwen"
-    if model.startswith("glm"):
-        return "glm"
-    if model.startswith("gpt") or model.startswith("o"):
-        return "openai"
-    if model.startswith("claude"):
-        return "anthropic"
-    if model.startswith("gemini"):
-        return "google"
-    if model.startswith("z-") or model.startswith("nvidia-"):
-        return "nvidia"
-    if model.startswith("agnes"):
-        return "agnes"
-    if model.startswith("openrouter"):
-        return "openrouter"
-    # 包含斜杠的模型 ID（如 google/gemini-2.0-flash）→ openrouter
-    if "/" in model:
-        return "openrouter"
-    return "deepseek"
-
-
-# ══════════════════════════════════════════════════════════
-# ChatBridge
-# ══════════════════════════════════════════════════════════
-
-
-# ══════════════════════════════════════════════════════
-# P6: 上下文锚点辅助函数
-# ══════════════════════════════════════════════════════
-
-
-def _get_context_anchor() -> str:
-    """获取当前会话的上下文锚点（任务目标 + 进度 + 偏离提醒）
-
-    由 ContextOrchestrator 管理，在每次 LLM 调用前注入到 system prompt 前缀。
-    获取失败时静默返回空串，不阻塞主流程。
-    """
-    try:
-        from pycoder.server.services.context_orchestrator import (
-            get_orchestrator,
-        )
-
-        orch = get_orchestrator()
-        if orch and orch.tracker.is_active:
-            return orch.get_anchor()
-    except (ImportError, AttributeError, TypeError, ValueError):
-        pass
-    return ""
 
 
 class ChatBridge:
-    """AI 聊天桥接 — 无 UI 依赖，仅提供流式 API 调用"""
+    """AI 聊天桥接 — 无 UI 依赖，仅提供流式 API 调用
+
+    内部组合 HistoryManager 管理对话历史，工具调用、流式解析、
+    钩子中间件等能力委托给子模块。
+    """
 
     # 类级共享 httpx client（连接池复用）
     _shared_client: object | None = None
@@ -134,15 +146,34 @@ class ChatBridge:
 
     def __init__(self):
         self.config = BridgeConfig()
-        self._messages: list[dict] = []
+        # 委托给 HistoryManager 管理消息（保持 _messages 属性向后兼容）
+        self._history = HistoryManager(
+            max_history_messages=self.config.max_history_messages,
+        )
         self._rumination_count = 0  # P1-1: 反思轮次计数
         self._nlu_cache: dict[str, object] | None = None  # P0-1: NLU 结果缓存
+        self._nlu_result_cache: dict[int, tuple[float, tuple]] = {}
         self._read_file_cache: dict[str, str] = {}  # 文件读取缓存（避免重复读取）
         self._guard_cache: dict[str, float] = {}  # 幻觉验证缓存
         self._repeating_round_count: int = 0  # 连续重复轮次计数
 
+    # ── _messages 属性代理到 HistoryManager（向后兼容）──
+
+    @property
+    def _messages(self) -> list[dict]:
+        return self._history.messages
+
+    @_messages.setter
+    def _messages(self, value: list[dict]) -> None:
+        self._history.messages = value
+
+    # ════════════════════════════════════════════════════
+    # 同步聊天（供自进化引擎等内部组件使用）
+    # ════════════════════════════════════════════════════
+
+    @traced("chat_bridge.chat")
     async def chat(self, prompt: str, *, max_tokens: int = 1000) -> str:
-        """简单同步聊天 — 供自进化引擎等内部组件使用，内置 Provider 降级"""
+        """简单同步聊天 — 内置 Provider 降级"""
         client = await ChatBridge._get_client()
 
         # 构建 Provider 降级链
@@ -237,6 +268,10 @@ class ChatBridge:
             )
         return cls._shared_client
 
+    # ════════════════════════════════════════════════════
+    # 配置
+    # ════════════════════════════════════════════════════
+
     def configure(
         self,
         model: str | None = None,
@@ -272,86 +307,32 @@ class ChatBridge:
         except (ImportError, AttributeError, RuntimeError):
             pass
 
+        # 同步 max_history_messages 到 HistoryManager
+        self._history.max_history = self.config.max_history_messages
+
     def add_message(self, role: str, content: str):
         """添加上下文消息"""
-        self._messages.append({"role": role, "content": content})
+        self._history.add_message(role, content)
 
     def _get_effective_messages(self) -> list[dict]:
-        """M5: 返回发给 LLM 的历史消息（应用滑窗截断 + 记忆压缩 + 上下文锚点）
-
-        当消息数超过 max_history_messages 时:
-        - 旧消息压缩为摘要（agent_memory.AgentMemoryManager）
-        - 摘要作为 system 消息插入到开头
-        - 最近消息保留完整
-
-        保留 _messages 完整历史供审计/序列化；仅截断本次发给 LLM 的副本。
-        max_history_messages=0 表示不截断。
-
-        P6: 上下文锚点 —— 从 ContextOrchestrator 注入任务目标/进度/偏离提醒
-        作为 system message 前缀，确保 LLM 始终知道当前任务上下文。
-        """
-        messages = list(self._messages)
-        max_hist = self.config.max_history_messages
-        if max_hist > 0 and len(messages) > max_hist:
-            dropped_messages = messages[:-max_hist]
-            kept_messages = messages[-max_hist:]
-            # P1: 压缩旧消息为摘要，避免丢失早期关键信息
-            compressed = self._compress_old_messages(dropped_messages)
-            messages = kept_messages
-            if compressed:
-                messages.insert(0, {"role": "system", "content": compressed})
-            logger.debug(
-                "chat_history_compressed dropped=%d kept=%d summary_len=%d",
-                len(dropped_messages),
-                max_hist,
-                len(compressed),
-            )
-
-        # P6: 注入上下文锚点（任务目标 + 进度 + 偏离提醒）
-        anchor = _get_context_anchor()
-        if anchor and messages:
-            # 追加到已存在的 system message 后面，或插入新 system
-            if messages[0].get("role") == "system":
-                messages[0]["content"] = anchor + "\n\n---\n" + str(messages[0]["content"])
-            else:
-                messages.insert(0, {"role": "system", "content": anchor})
-
-        return messages
+        """返回发给 LLM 的历史消息（应用滑窗截断 + 记忆压缩 + 上下文锚点）"""
+        # 每次调用都同步 config.max_history_messages 到 HistoryManager，
+        # 保证外部直接修改 config 后立即生效
+        self._history.max_history = self.config.max_history_messages
+        return self._history.get_effective_messages()
 
     def _check_token_budget(self, messages: list[dict]) -> int:
         """精确计算消息列表的 token 数，超出阈值时预警"""
-        msg_str = json.dumps([{"role": m.get("role", ""), "content": m.get("content", "")} for m in messages])
-        estimated = TokenCounter.count(msg_str)
-        if estimated > 60000:
-            logger.warning(
-                "context_near_limit estimated=%d limit=64000",
-                estimated,
-            )
-        return estimated
+        return _check_token_budget(messages)
 
     def _compress_old_messages(self, old_messages: list[dict]) -> str:
-        """压缩旧消息为摘要文本（零延迟规则提取，不调用 LLM）
+        """压缩旧消息为摘要文本（零延迟规则提取，不调用 LLM）"""
+        return _compress_old_messages(old_messages)
 
-        失败时降级为空串，不影响主流程。
-        """
-        if not old_messages:
-            return ""
-        try:
-            from pycoder.server.services.agent_memory import get_memory_manager
+    # ════════════════════════════════════════════════════
+    # 智能意图分类
+    # ════════════════════════════════════════════════════
 
-            manager = get_memory_manager()
-            return manager.compress_history(old_messages)
-        except (ImportError, RuntimeError, OSError, ValueError) as e:
-            logger.debug("memory_compress_failed error=%s", e)
-            return ""
-
-
-# ══════════════════════════════════════════════════════════
-# TokenCounter — 精确 Token 计数器 (tiktoken)
-# ══════════════════════════════════════════════════════════
-
-
-    # ── 智能意图分类 ──
     _SIMPLE_CHAT_PATTERNS: list[str] = [
         "你好", "hello", "嗨", "hi", "谢谢", "thanks", "再见", "bye",
         "你是谁", "介绍", "能做什么", "帮助", "help", "功能",
@@ -398,7 +379,7 @@ class ChatBridge:
         if msg_len < 50:
             return ("chat", False, 0)
 
-        # 5. 长消息 → 默认为 tool 模式（用户可能在描述复杂需求）
+        # 5. 长消息 → 默认为 tool 模式
         return ("tool", True, 5)
 
     async def _route_with_nlu(self, message: str) -> tuple[str, bool, int]:
@@ -409,34 +390,28 @@ class ChatBridge:
         Returns:
             (mode: "chat"|"tool", needs_tools: bool, max_rounds: int)
         """
-        # Layer 1: 快速关键词预检（0 token, <1ms）
+        # Layer 1: 快速关键词预检
         mode, needs_tools, rounds = self._classify_intent(message)
 
-        # P1-4: 短消息/明确 chat → 直接返回，不浪费 NLU 开销
-        # 阈值从 30 提高到 50，覆盖更多简单问候和短问题
+        # P1-4: 短消息/明确 chat → 直接返回
         if mode == "chat" and len(message) < 50:
             return (mode, needs_tools, rounds)
 
         # P1-4: NLU 结果缓存（5 分钟内相同消息不重复分析）
         cache_key = hash(message)
-        if hasattr(self, "_nlu_result_cache"):
-            cached = self._nlu_result_cache.get(cache_key)
-            if cached and (time.time() - cached[0]) < 300:  # 5 分钟 TTL
-                return cached[1]
+        cached = self._nlu_result_cache.get(cache_key)
+        if cached and (time.time() - cached[0]) < 300:  # 5 分钟 TTL
+            return cached[1]
 
         # Layer 2 & 3: 中等/复杂消息 → CompositeNLUEngine
         try:
-            import asyncio
-
             from pycoder.ai.nlu.composite_nlu import CompositeNLUEngine
             _nlu = CompositeNLUEngine()
-            # P1-4: 2 秒超时，超时降级到关键词匹配
             _result = await asyncio.wait_for(
                 _nlu.understand(message), timeout=2.0
             )
             self._nlu_cache = dict(intent=_result, category=_result.task_category)
 
-            # 根据 NLU 分类动态调整
             if _result.task_category in (
                 "code_generation", "refactoring", "debugging",
             ):
@@ -447,9 +422,6 @@ class ChatBridge:
             else:
                 result = ("chat", False, 0)
 
-            # P1-4: 缓存结果
-            if not hasattr(self, "_nlu_result_cache"):
-                self._nlu_result_cache = {}
             self._nlu_result_cache[cache_key] = (time.time(), result)
             return result
         except asyncio.TimeoutError:
@@ -459,6 +431,11 @@ class ChatBridge:
             logger.debug("nlu_route_fallback error=%s", e)
             return (mode, needs_tools, rounds)
 
+    # ════════════════════════════════════════════════════
+    # 流式聊天主流程
+    # ════════════════════════════════════════════════════
+
+    @traced("chat_bridge.chat_stream")
     async def chat_stream(
         self,
         message: str,
@@ -500,31 +477,28 @@ class ChatBridge:
         # ── P0-3: 任务难度分级（注入项目真实上下文）──
         _task_grade = None
         if force_tools:
+            _ctx: dict = {"mode": effective_mode}
             try:
-                from pycoder.server.services.task_grader import get_task_grader
-                grader = get_task_grader()
-                # 构建真实的项目上下文（不再传空壳 context）
-                _ctx = {"mode": effective_mode}
-                try:
-                    _cwd = os.getcwd()
-                    import glob as _glob
-                    _py_files = _glob.glob(
-                        f"{_cwd}/**/*.py", recursive=True,
-                    ) if _cwd else []
-                    _ctx["files"] = len(_py_files)
-                    _ctx["domain"] = (
-                        self._nlu_cache.get("category", "")
-                        if self._nlu_cache else ""
-                    )
-                    _req = os.path.join(_cwd, "requirements.txt")
-                    if os.path.exists(_req):
-                        with open(_req, encoding="utf-8") as _f:
-                            _ctx["dependencies"] = len(
-                                [l for l in _f if l.strip()],
-                            )
-                except (OSError, ValueError, RuntimeError):
-                    pass
-                _task_grade = grader.assess(message, context=_ctx)
+                _cwd = os.getcwd()
+                import glob as _glob
+                _py_files = _glob.glob(
+                    f"{_cwd}/**/*.py", recursive=True,
+                ) if _cwd else []
+                _ctx["files"] = len(_py_files)
+                _ctx["domain"] = (
+                    self._nlu_cache.get("category", "")
+                    if self._nlu_cache else ""
+                )
+                _req = os.path.join(_cwd, "requirements.txt")
+                if os.path.exists(_req):
+                    with open(_req, encoding="utf-8") as _f:
+                        _ctx["dependencies"] = len(
+                            [l for l in _f if l.strip()],
+                        )
+            except (OSError, ValueError, RuntimeError):
+                pass
+            _task_grade = grade_task_difficulty(message, context=_ctx)
+            if _task_grade:
                 max_tool_rounds = _task_grade.max_iterations
                 self.config.temperature = _task_grade.temperature
                 logger.debug(
@@ -532,18 +506,14 @@ class ChatBridge:
                     _task_grade.level.name, _task_grade.score,
                     max_tool_rounds, _task_grade.temperature,
                 )
-            except (ImportError, RuntimeError, ValueError, TypeError) as e:
-                logger.debug("task_grader_failed error=%s", e)
 
         # ── 构建 Provider 降级链 ──
-        # 按优先级获取所有可用 Provider，当主 Provider 返回 401 时自动降级
         fallback_providers: list[tuple[str, str, str]] = []
         try:
             from pycoder.providers.auth import PROVIDER_DEFS, ModelManager
 
             mm = ModelManager()
             detected = mm.auto_detect()
-            # 按 PROVIDER_DEFS 优先级排序
             for pname, pdefs in sorted(PROVIDER_DEFS.items(), key=lambda x: x[1]["priority"]):
                 if pname in detected:
                     pkey = detected[pname]
@@ -551,7 +521,6 @@ class ChatBridge:
                     pbase = PROVIDER_API_BASES.get(pname, "https://api.deepseek.com")
                     fallback_providers.append((model_id, pkey, pbase))
             if not fallback_providers:
-                # 尝试从环境变量直接读取
                 for env_key, model_id, base in [
                     ("DEEPSEEK_API_KEY", "deepseek-chat", "https://api.deepseek.com"),
                     ("OPENAI_API_KEY", "gpt-4o-mini", "https://api.openai.com/v1"),
@@ -602,7 +571,6 @@ class ChatBridge:
             from pycoder.prompts.cache_rules import inject_cache_rules
 
             effective_system = inject_cache_rules(effective_system, lang="zh")
-        # 仅 tool 模式注入 V2 能力块（chat 模式不需要）
         if force_tools:
             caps = self._build_capabilities_block()
             if caps:
@@ -611,132 +579,31 @@ class ChatBridge:
                 else:
                     effective_system = caps
 
-        # 3) 规范化消息结构（system 在 [0]，差异化在末尾，字段顺序固定）
+        # 规范化消息结构（system 在 [0]，差异化在末尾）
         from pycoder.prompts.cache_rules import canonicalize_messages
 
         messages = canonicalize_messages(messages, effective_system)
-        # system 已经由 canonicalize 自动插入，不再手动 insert
-
         messages.append({"role": "user", "content": message})
 
         # ── 成本熔断预检 ──
-        try:
-            from pycoder.server.services.cost_control import get_cost_controller
+        estimated = estimate_tokens(message) + sum(
+            estimate_tokens(m.get("content", "")) for m in messages
+        )
+        ok, reason = check_cost_budget(estimated_tokens=estimated)
+        if not ok:
+            yield ChatEvent(event_type="error", content=f"成本超限: {reason}")
+            return
 
-            estimated = estimate_tokens(message) + sum(
-                estimate_tokens(m.get("content", "")) for m in messages
-            )
-            ok, reason = get_cost_controller().check_before_call(estimated)
-            if not ok:
-                yield ChatEvent(event_type="error", content=f"成本超限: {reason}")
-                return
-        except (ImportError, RuntimeError, OSError, ValueError, TypeError) as e:
-            logger.warning("cost_check_failed error=%s", e)
-
-        # ── 构建 tools payload（仅 tool 模式构建，chat 模式为空）──
+        # ── 构建 tools payload（仅 tool 模式）──
         tools_payload: list[dict] = []
         if force_tools:
-            try:
-                from pycoder.server.mcp_tools import list_builtin_tools
-
-                all_tools = list_builtin_tools()
-                skip_tools = {"refresh_extensions", "skills_sync_v2", "system_upgrade"}
-
-                if tool_names is not None:
-                    name_set = set(tool_names)
-                    all_tools = [t for t in all_tools if t.get("name", "") in name_set]
-                else:
-                    # ── P0-4: 智能工具裁剪（根据任务类型过滤）──
-                    _cat_map = {
-                        "code_generation": {"read_file", "write_file", "create_file",
-                            "search_code", "execute_python", "list_files", "shell_exec"},
-                        "debugging": {"read_file", "execute_python", "search_code",
-                            "shell_exec", "git_diff", "git_log", "lsp_diagnostics"},
-                        "refactoring": {"read_file", "write_file", "patch_file",
-                            "search_code", "shell_exec", "git_diff"},
-                        "code_review": {"read_file", "search_code", "git_diff",
-                            "shell_exec"},
-                        "testing": {"read_file", "write_file", "execute_python",
-                            "shell_exec", "install_package"},
-                        "git_operations": {"git_status", "git_add", "git_commit",
-                            "git_diff", "git_log", "git_push", "git_branch", "read_file"},
-                    }
-                    _nlu_cat = ""
-                    if self._nlu_cache:
-                        _nlu_cat = str(self._nlu_cache.get("category", ""))
-                    elif _task_grade and _task_grade.reasoning:
-                        _nlu_cat = _task_grade.reasoning[0] if _task_grade.reasoning else ""
-                    _allowed = None
-                    for _cat, _tools in _cat_map.items():
-                        if _cat in _nlu_cat or _cat in effective_mode:
-                            _allowed = _tools
-                            break
-                    if _allowed:
-                        _full_count = len(all_tools)
-                        all_tools = [
-                            t for t in all_tools if t.get("name", "") in _allowed
-                        ]
-                        logger.debug(
-                            "tool_selection_filtered before=%d after=%d",
-                            _full_count, len(all_tools),
-                        )
-
-                # ── V2: 合并 V2 能力到工具列表 ──
-                try:
-                    from pycoder.server.app import get_v2_engine
-
-                    v2_engine = get_v2_engine()
-                    if v2_engine:
-                        for cap in v2_engine.registry.list_all():
-                            cap_short = cap.id.split(".")[-1]
-                            if tool_names is not None and cap_short not in name_set:
-                                continue
-                            # ── P0-4: V2能力也按类别过滤 ──
-                            if _allowed:
-                                _cap_matches = any(
-                                    t in cap.id for t in _allowed
-                                )
-                                if not _cap_matches:
-                                    continue
-                            tools_payload.append(
-                                {
-                                    "type": "function",
-                                    "function": {
-                                        "name": cap.id.replace(".", "_"),
-                                        "description": f"[V2] {cap.description}",
-                                        "parameters": cap.schema
-                                        or {"type": "object", "properties": {}},
-                                    },
-                                }
-                            )
-                except (ImportError, AttributeError, TypeError, ValueError):
-                    pass
-
-                for t in all_tools:
-                    import re as _re
-
-                    name = t.get("name", "")
-                    if name in skip_tools:
-                        continue
-                    safe_name = _re.sub(r"[^a-zA-Z0-9_-]", "_", name)
-                    schema = t.get("input_schema", {"type": "object", "properties": {}})
-                    tools_payload.append(
-                        {
-                            "type": "function",
-                            "function": {
-                                "name": safe_name,
-                                "description": t.get("description", ""),
-                                "parameters": schema,
-                            },
-                        }
-                    )
-            except (ImportError, RuntimeError) as e:
-                logger.warning("tools_injection_failed error=%s", e)
-
-        # ── 缓存命中率优化: 规范化 tools 序列顺序 ──
-        from pycoder.prompts.cache_rules import canonicalize_tools
-
-        tools_payload = canonicalize_tools(tools_payload)
+            task_grade_reasoning = _task_grade.reasoning if _task_grade else None
+            tools_payload = build_tools_payload(
+                tool_names=tool_names,
+                nlu_cache=self._nlu_cache,
+                task_grade_reasoning=task_grade_reasoning,
+                effective_mode=effective_mode,
+            )
 
         is_deepseek = self.config.model.startswith("deepseek")
         client = await ChatBridge._get_client()
@@ -755,7 +622,6 @@ class ChatBridge:
             try:
                 from pycoder.ai.fusion.engine import FusionEngine, FusionMode
                 _fusion = FusionEngine()
-                # 仅用前 2 个 provider 做融合（控制延迟）
                 _f_result = await _fusion.fuse(
                     prompt=message,
                     mode=FusionMode.BEST_OF_N,
@@ -774,27 +640,25 @@ class ChatBridge:
                 pass
 
         # ── ReAct 工具调用循环 ──
+        round_num = 0
         for round_num in range(max(max_tool_rounds, 1)):
-            # 仅在非首轮或明确需要工具时显示进度
             if round_num > 0 and force_tools:
                 yield ChatEvent(
                     event_type="token",
                     content=f"\n🔄 第 {round_num + 1}/{max_tool_rounds} 轮...\n",
                 )
-            payload: dict = {
-                "model": self.config.model,
-                "messages": messages,
-                "stream": True,
-                "temperature": self.config.temperature,
-                "max_tokens": self.config.max_tokens,
-            }
-            if is_deepseek and self.config.enable_thinking:
-                payload["reasoning_effort"] = self.config.reasoning_effort
-            if is_deepseek and self.config.enable_cache:
-                payload["enable_cache"] = True
-            if tools_payload:
-                payload["tools"] = tools_payload
-                payload["tool_choice"] = "auto"
+
+            payload = build_request_payload(
+                model=self.config.model,
+                messages=messages,
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
+                tools_payload=tools_payload,
+                is_deepseek=is_deepseek,
+                reasoning_effort=self.config.reasoning_effort,
+                enable_thinking=self.config.enable_thinking,
+                enable_cache=self.config.enable_cache,
+            )
 
             round_content = ""
             usage: dict = {}
@@ -818,49 +682,31 @@ class ChatBridge:
                             response.status_code, err_text[:100],
                         )
                         tried_providers.add(current_model)
-                        # 🔴 自动失效标记：401 Key 永久加入黑名单
-                        try:
-                            from pycoder.providers.auth import get_model_manager
-                            get_model_manager().mark_key_invalid(current_provider)
-                        except (ImportError, RuntimeError, ValueError, TypeError):
-                            pass
+                        mark_provider_key_invalid(current_provider)
 
                         # 尝试降级到下一个可用 Provider
-                        if fallback_providers:
-                            next_prov = None
-                            for nm, nk, nb in fallback_providers:
-                                if nm not in tried_providers:
-                                    next_prov = (nm, nk, nb)
-                                    break
-                            if next_prov:
-                                nm, nk, nb = next_prov
-                                logger.warning(
-                                    "provider_401_fallback from=%s to=%s reason=%s",
-                                    current_model, nm, err_text[:100],
-                                )
-                                self.config.model = nm
-                                self.config.api_key = nk
-                                self.config.api_base = nb
-                                api_key = nk
-                                is_deepseek = nm.startswith("deepseek")
-                                # 更新请求头
-                                headers["Authorization"] = f"Bearer {nk}"
-                                # 更新 payload model
-                                payload["model"] = nm
-                                # 重建 KV cache 等 DeepSeek 特有选项
-                                if is_deepseek and self.config.enable_thinking:
-                                    payload["reasoning_effort"] = self.config.reasoning_effort
-                                elif "reasoning_effort" in payload:
-                                    del payload["reasoning_effort"]
-                                if is_deepseek and self.config.enable_cache:
-                                    payload["enable_cache"] = True
-                                elif "enable_cache" in payload:
-                                    del payload["enable_cache"]
-                                yield ChatEvent(
-                                    event_type="token",
-                                    content=f"\n⚠️ {current_model} Key 无效，自动降级到 {nm}...\n",
-                                )
-                                continue  # 重试当前轮次
+                        next_prov = None
+                        for nm, nk, nb in fallback_providers:
+                            if nm not in tried_providers:
+                                next_prov = (nm, nk, nb)
+                                break
+                        if next_prov:
+                            nm, nk, nb = next_prov
+                            logger.warning(
+                                "provider_401_fallback from=%s to=%s reason=%s",
+                                current_model, nm, err_text[:100],
+                            )
+                            self.config.model = nm
+                            self.config.api_key = nk
+                            self.config.api_base = nb
+                            api_key = nk
+                            is_deepseek = nm.startswith("deepseek")
+                            headers["Authorization"] = f"Bearer {nk}"
+                            yield ChatEvent(
+                                event_type="token",
+                                content=f"\n⚠️ {current_model} Key 无效，自动降级到 {nm}...\n",
+                            )
+                            continue  # 重试当前轮次
                         # 所有 Provider 均失败
                         yield ChatEvent(
                             event_type="error",
@@ -882,50 +728,27 @@ class ChatBridge:
                         return
 
                     async for line in response.aiter_lines():
-                        if not line.startswith("data: "):
-                            continue
-                        data_str = line[6:].strip()
-                        if data_str == "[DONE]":
-                            continue
-                        try:
-                            data = json.loads(data_str)
-                        except json.JSONDecodeError:
+                        data = parse_sse_line(line)
+                        if data is None:
                             continue
 
-                        if choice := (data.get("choices") or [None])[0]:
-                            delta = choice.get("delta") or {}
-                            if delta.get("reasoning_content"):
-                                yield ChatEvent(
-                                    event_type="reasoning", content=delta["reasoning_content"]
-                                )
-                                # FIX: Agnes/纯推理模型的内容在 reasoning_content 中
-                                if not delta.get("content"):
-                                    round_content += delta["reasoning_content"]
-                                    yield ChatEvent(event_type="token", content=delta["reasoning_content"])
-                            if content := delta.get("content"):
-                                round_content += content
-                                yield ChatEvent(event_type="token", content=content)
-                            # 流式累积工具调用
-                            if delta.get("tool_calls"):
-                                for tc in delta["tool_calls"]:
-                                    idx = tc.get("index", 0)
-                                    while len(tool_calls) <= idx:
-                                        tool_calls.append(
-                                            {"id": "", "function": {"name": "", "arguments": ""}}
-                                        )
-                                    if tc.get("id"):
-                                        tool_calls[idx]["id"] += tc["id"]
-                                    if tc.get("function"):
-                                        if tc["function"].get("name"):
-                                            tool_calls[idx]["function"]["name"] += tc["function"][
-                                                "name"
-                                            ]
-                                        if tc["function"].get("arguments"):
-                                            tool_calls[idx]["function"]["arguments"] += tc[
-                                                "function"
-                                            ]["arguments"]
-                            if choice.get("finish_reason") == "tool_calls":
-                                break
+                        content_delta, reasoning_delta, tool_calls, finish_is_tool = (
+                            extract_stream_delta(
+                                data, existing_tool_calls=tool_calls,
+                            )
+                        )
+                        if reasoning_delta:
+                            yield ChatEvent(
+                                event_type="reasoning", content=reasoning_delta
+                            )
+                            if content_delta:
+                                round_content += content_delta
+                                yield ChatEvent(event_type="token", content=content_delta)
+                        elif content_delta:
+                            round_content += content_delta
+                            yield ChatEvent(event_type="token", content=content_delta)
+                        if finish_is_tool:
+                            break
 
                         if data.get("usage"):
                             usage = data["usage"]
@@ -942,17 +765,7 @@ class ChatBridge:
                 total_usage = usage
 
             # 记录 token 用量
-            if usage:
-                try:
-                    from pycoder.server.services.cost_control import get_cost_controller
-
-                    get_cost_controller().record_usage(
-                        input_tokens=usage.get("prompt_tokens", 0),
-                        output_tokens=usage.get("completion_tokens", 0),
-                        model=self.config.model,
-                    )
-                except (ImportError, RuntimeError, ValueError, TypeError) as e:
-                    logger.warning("cost_record_failed error=%s", e)
+            record_cost_usage(usage=usage, model=self.config.model)
 
             # 无工具调用 → 结束
             if not tool_calls:
@@ -984,119 +797,40 @@ class ChatBridge:
                 except json.JSONDecodeError:
                     tool_args = {}
 
-                # ── 文件读取缓存（避免重复读取相同文件）──
-                _skip_tool = False
-                if tool_name == "file_read":
-                    _fp = tool_args.get("path", "")
-                    if _fp in self._read_file_cache:
-                        result_str = json.dumps({
-                            "content": self._read_file_cache[_fp][:2000],
-                            "(已缓存)": True,
-                            "path": _fp,
-                        }, ensure_ascii=False, indent=2)
-                        yield ChatEvent(
-                            event_type="token",
-                            content=f"📋 {tool_name} (缓存): 📁 {_fp} 已缓存\n",
-                        )
-                        self._repeating_round_count += 1
-                        _skip_tool = True
-                    else:
-                        # 标记为待缓存
-                        pass
-
-                if not _skip_tool:
-                    yield ChatEvent(event_type="token", content=f"\n\n🔧 执行 {tool_name}...\n")
-                else:
-                    # 跳过重复工具的执行，直接注入结果
+                # ── 文件读取缓存 ──
+                cached = get_cached_file_read(self._read_file_cache, tool_name, tool_args)
+                if cached is not None:
+                    yield ChatEvent(
+                        event_type="token",
+                        content=(
+                            f"📋 {tool_name} (缓存): 📁 "
+                            f"{tool_args.get('path', '')} 已缓存\n"
+                        ),
+                    )
+                    self._repeating_round_count += 1
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tc["id"],
-                        "content": result_str,
+                        "content": cached,
                     })
-                    continue  # 跳过完整执行路径
+                    continue
+
+                yield ChatEvent(
+                    event_type="token",
+                    content=f"\n\n🔧 执行 {tool_name}...\n",
+                )
                 logger.info(
                     "mcp_tool_call_from_ai round=%d tool=%s args=%s",
-                    round_num + 1,
-                    tool_name,
-                    str(tool_args)[:200],
+                    round_num + 1, tool_name, str(tool_args)[:200],
                 )
 
-                try:
-                    # ── P2-1: Docker沙箱（shell_exec/execute_python优先）──
-                    _use_docker = tool_name in ("shell_exec", "run_command", "execute_python")
-                    result_str = None
-                    if _use_docker:
-                        try:
-                            from pycoder.adapters.docker_sandbox import DockerSandbox
-                            _sb = DockerSandbox()
-                            _code = tool_args.get("command", "") or tool_args.get("code", "")
-                            _sb_result = await _sb.execute(_code, timeout=30)
-                            if _sb_result.success:
-                                result_str = json.dumps({
-                                    "stdout": _sb_result.stdout[:2000],
-                                    "stderr": _sb_result.stderr[:500],
-                                    "sandbox": "docker",
-                                    "exit_code": _sb_result.exit_code,
-                                }, ensure_ascii=False, indent=2)
-                        except (ImportError, RuntimeError, ValueError, TypeError, OSError):
-                            try:
-                                from pycoder.adapters.subprocess_sandbox import SubprocessSandbox
-                                _sb2 = SubprocessSandbox()
-                                _sb_result2 = await _sb2.execute(_code, timeout=30)
-                                if _sb_result2.success:
-                                    result_str = json.dumps({
-                                        "stdout": _sb_result2.stdout[:2000],
-                                        "stderr": _sb_result2.stderr[:500],
-                                        "sandbox": "subprocess",
-                                        "exit_code": _sb_result2.exit_code,
-                                    }, ensure_ascii=False, indent=2)
-                            except (ImportError, RuntimeError, ValueError, TypeError, OSError):
-                                pass
+                # 执行工具调用
+                result_str = await execute_tool_call(tool_name, tool_args)
 
-                    # ── V2/V1: 非沙箱工具走能力总线或 mcp_tools ──
-                    if result_str is None:
-                        try:
-                            from pycoder.server.app import get_v2_engine
-                            v2_engine = get_v2_engine()
-                            if v2_engine:
-                                cap_id = tool_name.replace("_", ".")
-                                cap_result = await v2_engine.call(
-                                    cap_id, tool_args, caller="chatbridge"
-                                )
-                                if cap_result.success:
-                                    result_str = json.dumps(
-                                        cap_result.data if cap_result.data else {"ok": True},
-                                        ensure_ascii=False, indent=2,
-                                    )
-                                    max_result_len = 8000 if tool_name == "list_agent_configs" else 3000
-                                    result_str = result_str[:max_result_len]
-                                elif cap_result.error_code != "NOT_FOUND":
-                                    result_str = json.dumps({"error": cap_result.error}, ensure_ascii=False)
-                        except (AttributeError, TypeError, ValueError):
-                            pass
-
-                    if result_str is None:
-                        from pycoder.server.mcp_tools import call_builtin_tool
-                        result = await call_builtin_tool(tool_name, tool_args)
-                        if result.success:
-                            result_str = json.dumps(result.output, ensure_ascii=False, indent=2)
-                            max_result_len = 8000 if tool_name == "list_agent_configs" else 3000
-                            result_str = result_str[:max_result_len]
-                        else:
-                            result_str = json.dumps({"error": result.error}, ensure_ascii=False)
-                except Exception as e:
-                    result_str = json.dumps({"error": str(e)[:500]}, ensure_ascii=False)
-
-                # ── 文件读取缓存（成功读取后缓存内容）──
-                if tool_name == "file_read" and not result_str.startswith("{") or ("\"success\": true" in result_str):
-                    try:
-                        _parsed = json.loads(result_str)
-                        _content = _parsed.get("content", "") or _parsed.get("data", {}).get("content", "")
-                        _fp2 = _parsed.get("path", "") or tool_args.get("path", "")
-                        if _content and _fp2:
-                            self._read_file_cache[_fp2] = _content[:3000]
-                    except (json.JSONDecodeError, AttributeError, TypeError, ValueError):
-                        pass
+                # 文件读取缓存
+                cache_file_read(
+                    self._read_file_cache, tool_name, tool_args, result_str,
+                )
 
                 yield ChatEvent(
                     event_type="token",
@@ -1113,205 +847,70 @@ class ChatBridge:
 
             logger.info("tool_round_complete round=%d tools=%d", round_num + 1, len(tool_calls))
 
-            # ── 检测重复循环（连续重复读取3次以上）──
+            # ── 检测重复循环 ──
             if self._repeating_round_count >= 3 and round_num > 2:
-                logger.warning("early_termination repeating=%d round=%d",
-                    self._repeating_round_count, round_num + 1)
-                messages.append({"role": "system", "content": (
-                    "⚠️ 检测到重复操作，请直接输出当前结果报告，不要再调用工具。"
-                )})
+                logger.warning(
+                    "early_termination repeating=%d round=%d",
+                    self._repeating_round_count, round_num + 1,
+                )
+                messages.append({
+                    "role": "system",
+                    "content": "⚠️ 检测到重复操作，请直接输出当前结果报告，不要再调用工具。",
+                })
                 self._repeating_round_count = 0
 
-            # ── P0-2: 幻觉抑制 — 工具结果验证（含缓存）──
+            # ── P0-2: 幻觉抑制（工具结果验证）──
+            # 注意：result_str 来自上面 for tc in tool_calls 循环；
+            # 若 tool_calls 为空，外层 `if not tool_calls: break` 已退出本轮
             if force_tools and result_str and len(result_str) > 100:
-                try:
-                    from pycoder.server.services.hallucination_guard import get_hallucination_guard
-                    _guard = get_hallucination_guard()
-                    _v = await _guard.validate(
-                        result_str,
-                        context={"tool": tool_name, "round": round_num + 1},
+                guard_result = await hallucination_validate(
+                    result_str,
+                    context={"tool": tool_name, "round": round_num + 1},
+                )
+                if guard_result and guard_result.overall_score < 50:
+                    try:
+                        parsed = json.loads(result_str) if result_str.startswith("{") else result_str
+                    except json.JSONDecodeError:
+                        parsed = result_str
+                    result_str = json.dumps(
+                        {
+                            "data": parsed,
+                            "⚠️ 幻觉风险": f"可信度 {guard_result.overall_score}/100",
+                            "建议": guard_result.recommendations[:2],
+                        },
+                        ensure_ascii=False, indent=2,
                     )
-                    if _v.overall_score < 50:
-                        result_str = json.dumps({
-                            "data": json.loads(result_str) if result_str.startswith("{") else result_str,
-                            "⚠️ 幻觉风险": f"可信度 {_v.overall_score}/100",
-                            "建议": _v.recommendations[:2],
-                        }, ensure_ascii=False, indent=2)
-                except (ImportError, RuntimeError, ValueError, TypeError, json.JSONDecodeError):
-                    pass
 
             # ── P1-1: RuminationEngine（事前+事中）──
             if force_tools and round_num > 0:
-                try:
-                    from pycoder.ai.rumination import get_rumination_engine
-                    _re = get_rumination_engine()
-                    await _re.pre_execute(tool_name, tool_args)
-                    _rr = await _re.mid_execute(
-                        tool_name=tool_name,
-                        actual=result_str if result_str else "",
-                        round_num=round_num,
-                    )
-                    if _rr.deviation_score > 0.4:
-                        messages.append({
-                            "role": "system", "content": _rr.correction_msg,
-                        })
-                    self._rumination_count += 1
+                await rumination_pre_execute(tool_name, tool_args)
+                rumination_result = await rumination_mid_execute(
+                    tool_name, result_str or "", round_num,
+                )
+                if rumination_result.deviation_score > 0.4:
+                    messages.append({
+                        "role": "system",
+                        "content": rumination_result.correction_msg,
+                    })
+                self._rumination_count += 1
 
-                    # 检测严重偏离 → 触发回溯
-                    if _rr.deviation_score > 0.7:
-                        _bk = await _re.backtrack()
-                        if not _bk.should_continue:
-                            messages.append({
-                                "role": "system",
-                                "content": _bk.correction_msg,
-                            })
-                except (ImportError, RuntimeError, ValueError, TypeError):
-                    _reflect_msg = (
-                        "🔍 反思: 操作结果是否符合预期？"
-                        "如有偏差请纠正，如已完成请停止。"
-                    )
-                    messages.append({"role": "system", "content": _reflect_msg})
-
-            # ── P2-3: 代码自愈回滚（写入后自动Build-Test-Fix循环）──
-            if force_tools and tool_name in (
-                "write_file", "create_file", "patch_file",
-            ):
+            # ── P2-3: 代码自愈回滚 ──
+            if force_tools and tool_name in ("write_file", "create_file", "patch_file"):
                 _path = tool_args.get("path", "")
                 if _path and _path.endswith(".py"):
-                    # Step 1: 语法检查
-                    try:
-                        from pycoder.server.mcp_tools import call_builtin_tool
-                        _exec_r = await call_builtin_tool(
-                            "execute_python", {
-                                "code": (
-                                    "import py_compile; "
-                                    f"py_compile.compile(r'{_path}', doraise=True); "
-                                    "print('SYNTAX_OK')"
-                                ),
-                            },
-                        )
-                        if _exec_r.success:
-                            yield ChatEvent(
-                                event_type="token",
-                                content=f"✅ {_path} 语法 OK\n",
-                            )
-                        else:
-                            _err = str(_exec_r.output)[:300]
-                            logger.warning(
-                                "syntax_error path=%s err=%s", _path, _err[:100],
-                            )
-                            messages.append({
-                                "role": "system",
-                                "content": (
-                                    f"❌ {_path} 语法错误:\n{_err}\n"
-                                    "🔧 请立即修复并重新写入（第1次尝试）"
-                                ),
-                            })
-                            # 记录 ProjectState
-                            try:
-                                from pycoder.server.services.project_state import get_project_state
-                                get_project_state().record_error(
-                                    f"语法错误 {_path}: {_err[:80]}",
-                                )
-                                get_project_state().record_fix_attempt(_path)
-                            except (ImportError, RuntimeError, ValueError, TypeError):
-                                pass
-                    except (ImportError, RuntimeError, ValueError, TypeError):
-                        pass
+                    async for event in self_heal_after_write_async(_path):
+                        yield event
 
-                    # Step 2: 运行 pytest（如有对应测试文件）
-                    _test_path = _path.replace(".py", "_test.py")
-                    _alt_test = "tests/"
-                    try:
-                        import os as _os
-                        if _os.path.exists(_os.path.join(_os.getcwd(), _test_path)):
-                            _test_cmd = f"pytest {_test_path} -x -q"
-                        elif _os.path.exists(_os.path.join(_os.getcwd(), "tests")):
-                            _test_cmd = "pytest tests/ -x -q"
-                        else:
-                            _test_cmd = ""
-                        if _test_cmd:
-                            from pycoder.server.mcp_tools import call_builtin_tool
-                            _test_r = await call_builtin_tool(
-                                "shell_run_terminal",
-                                {"command": _test_cmd, "timeout": 30},
-                            )
-                            if _test_r.success:
-                                yield ChatEvent(
-                                    event_type="token",
-                                    content=f"✅ 测试通过: {_test_cmd}\n",
-                                )
-                            else:
-                                _test_err = str(_test_r.output)[:300]
-                                yield ChatEvent(
-                                    event_type="token",
-                                    content=f"⚠️ 测试失败:\n{_test_err[:200]}\n",
-                                )
-                                # P0: 尝试 AutoFixer LLM 自动修复（异步触发）
-                                try:
-                                    from pycoder.ai.auto_fixer import AutoFixer
-                                    _fixer = AutoFixer(max_retries=1)
-                                    _fix_result = await _fixer.validate_and_fix(
-                                        _path,
-                                        auto_fix=False,  # 仅验证，不自动LLM修复
-                                    )
-                                    if _fix_result.status == "verified":
-                                        yield ChatEvent(
-                                            event_type="token",
-                                            content="🔧 AutoFixer 验证通过\n",
-                                        )
-                                    else:
-                                        yield ChatEvent(
-                                            event_type="token",
-                                            content=(
-                                                f"⚠️ AutoFixer: {_fix_result.status}"
-                                                f" ({_fix_result.error_type})\n"
-                                            ),
-                                        )
-                                except (ImportError, RuntimeError, ValueError, TypeError) as _afe:
-                                    logger.debug("autofixer_skip error=%s", _afe)
-                        # Step 3: 更新 ProjectState
-                        try:
-                            from pycoder.server.services.project_state import get_project_state
-                            get_project_state().record_file_modified(_path)
-                        except (ImportError, RuntimeError, ValueError, TypeError):
-                            pass
-                    except (ImportError, RuntimeError, ValueError, TypeError):
-                        pass
-
-                # ── 2.2: 写入后五层代码分析 ──
+                # 五层代码分析
                 if _path and _path.endswith((".py", ".js", ".ts")):
-                    try:
-                        from pycoder.ai.analysis.composite_analyzer import (
-                            CompositeAnalyzer,
-                        )
-                        _analyzer = CompositeAnalyzer()
-                        _analysis = _analyzer.analyze([_path])
-                        if _analysis and _analysis.issues:
-                            _issues = _analysis.issues[:5]
-                            _lines = []
-                            for _i in _issues:
-                                if hasattr(_i, "line") and hasattr(_i, "message"):
-                                    _lines.append(f"  L{_i.line}: {_i.message}")
-                            if _lines:
-                                yield ChatEvent(
-                                    event_type="token",
-                                    content=(
-                                        f"🔍 分析 {_path}: "
-                                        f"{len(_issues)} 问题\n"
-                                        + "\n".join(_lines[:3]) + "\n"
-                                    ),
-                                )
-                    except (ImportError, RuntimeError, ValueError, TypeError, AttributeError):
-                        pass
+                    async for event in analyze_after_write_async(_path):
+                        yield event
 
             # 🔴 铁律: 多步任务每轮后注入阶段报告指令
             stage_num = round_num + 1
             if max_tool_rounds > 1 and force_tools:
                 remaining = max_tool_rounds - round_num - 1
                 if remaining > 0:
-                    # 还有后续步骤 → 要求阶段报告
-                    stage_num = round_num + 1
                     stage_msg = (
                         f"📌 **阶段报告 {stage_num}/{max_tool_rounds} 要求**：\n"
                         f"请先输出当前步骤的**阶段报告**（做了什么、结果、下一步），"
@@ -1320,7 +919,6 @@ class ChatBridge:
                         f"**剩余 {remaining} 步**。"
                     )
                 else:
-                    # 最后一步 → 要求最终完整报告
                     stage_msg = (
                         "🔴 **最终报告要求**：这是最后一步。请输出完整的**任务总结报告**：\n"
                         "📋 任务报告\n"
@@ -1337,74 +935,43 @@ class ChatBridge:
                     content=f"\n📋 📌 阶段报告 {stage_num}/{max_tool_rounds} 已请求...\n",
                 )
             elif round_num == max_tool_rounds - 1 and max_tool_rounds <= 1:
-                # 单步任务 → 要求最终报告
-                messages.append({"role": "system", "content": (
-                    "🔴 **输出任务报告**：请输出完整任务报告（需求、步骤、状态、产出物），不要继续调用工具。"
-                )})
-            # else: 单步 chat 模式无工具有报告 → LLM 自然会回复
+                messages.append({
+                    "role": "system",
+                    "content": "🔴 **输出任务报告**：请输出完整任务报告（需求、步骤、状态、产出物），不要继续调用工具。",
+                })
 
-        # P5: 可观测性 — 记录延迟和 token 消耗
-        try:
-            from pycoder.server.services.observability import get_metrics, track_tokens
-
-            metrics = get_metrics()
-            elapsed_ms = (time.perf_counter() - _start_time) * 1000
-            metrics.observe("chat_latency_ms", elapsed_ms, labels={"model": self.config.model})
-            metrics.increment("chat_requests_total", labels={"model": self.config.model})
-            if total_usage:
-                track_tokens(
-                    self.config.model,
-                    total_usage.get("prompt_tokens", 0),
-                    total_usage.get("completion_tokens", 0),
-                )
-        except (ImportError, RuntimeError, ValueError, TypeError):
-            pass  # 可观测性失败不影响主流程
+        # P5: 可观测性
+        elapsed_ms = (time.perf_counter() - _start_time) * 1000
+        record_observability(
+            elapsed_ms=elapsed_ms,
+            model=self.config.model,
+            usage=total_usage,
+        )
 
         # ── P0-2: 最终幻觉抑制验证 ──
         _hallucination_warning = ""
         if force_tools and all_content and len(all_content) > 50:
-            try:
-                from pycoder.server.services.hallucination_guard import get_hallucination_guard
-                _guard = get_hallucination_guard()
-                _final = await _guard.validate(
-                    all_content, context={"mode": "final", "rounds": round_num + 1},
+            guard_result = await hallucination_validate(
+                all_content,
+                context={"mode": "final", "rounds": round_num + 1},
+            )
+            if guard_result and guard_result.overall_score < 60:
+                _hallucination_warning = format_hallucination_warning(
+                    guard_result.overall_score, guard_result.recommendations,
                 )
-                if _final.overall_score < 60:
-                    _hallucination_warning = (
-                        "\n\n⚠️ **可信度评级**: {}/100 | {}\n"
-                    ).format(_final.overall_score, ", ".join(_final.recommendations[:3]))
-            except (ImportError, RuntimeError, ValueError, TypeError):
-                pass
 
         # ── P1-1: Rumination 最终反思评分 ──
-        _rumination_summary = ""
-        try:
-            from pycoder.ai.rumination import get_rumination_engine
-            _re = get_rumination_engine()
-            if force_tools and all_content:
-                await _re.post_execute(all_content)
-            _score = _re.score()
-            _rumination_summary = (
-                f"反思{_score['rounds']}次 "
-                f"质量{_score['status']} "
-            )
-        except (ImportError, RuntimeError, ValueError, TypeError):
-            pass
+        _rumination_summary, _ = await rumination_post_execute(
+            all_content, is_tool_mode=force_tools,
+        )
 
         # ── P2-2: 在线自进化 — 每次 chat 结束记录经验 ──
-        try:
-            from pycoder.capabilities.self_evo.live import get_live_learner
-            _learner = get_live_learner()
-            await _learner.observe(
-                task=message[:200],
-                result=dict(
-                    success=bool(all_content),
-                    rounds=round_num + 1,
-                    mode=effective_mode,
-                ),
-            )
-        except (ImportError, RuntimeError, ValueError, TypeError):
-            pass
+        await live_learner_observe(
+            message,
+            success=bool(all_content),
+            rounds=round_num + 1,
+            mode=effective_mode,
+        )
 
         # ── 报告完整性二次确认 ──
         if force_tools and all_content:
@@ -1426,9 +993,13 @@ class ChatBridge:
             usage=total_usage,
         )
 
+    # ════════════════════════════════════════════════════
+    # 资源管理
+    # ════════════════════════════════════════════════════
+
     async def close(self):
         """清理资源"""
-        self._messages.clear()
+        self._history.clear()
 
     @classmethod
     async def close_global(cls):
@@ -1437,7 +1008,9 @@ class ChatBridge:
             await cls._shared_client.aclose()
             cls._shared_client = None
 
-    # ── 自身能力注入 ──
+    # ════════════════════════════════════════════════════
+    # 自身能力注入
+    # ════════════════════════════════════════════════════
 
     def _build_capabilities_block(self) -> str:
         """生成能力清单块，让 AI 知道自身的功能"""
@@ -1465,121 +1038,115 @@ class ChatBridge:
 
 
 # ══════════════════════════════════════════════════════════
-# 工具函数
+# 异步生成器适配器（用于将子模块的 yield_event 转换为 ChatEvent 流）
 # ══════════════════════════════════════════════════════════
 
 
-def estimate_tokens(text: str) -> int:
-    """估算文本的 token 数量 (~每中文字符1token，每英文词1.3token)"""
-    if not text:
-        return 0
+async def self_heal_after_write_async(file_path: str) -> AsyncIterator[ChatEvent]:
+    """异步生成器：自愈检查并 yield ChatEvent"""
+    async def yield_event(content: str):
+        yield ChatEvent(event_type="token", content=content)
 
+    # 用队列桥接子模块的 yield_event 回调
+    queue: asyncio.Queue = asyncio.Queue()
 
-# ══════════════════════════════════════════════════════════
-# P4: 多模型路由支持
-# ══════════════════════════════════════════════════════════
+    async def event_yield(content: str):
+        await queue.put(ChatEvent(event_type="token", content=content))
 
-MODEL_ROUTING: dict[str, dict[str, str]] = {
-    "deepseek": {
-        "provider": "deepseek",
-        "model": "deepseek-chat",
-        "base": "https://api.deepseek.com",
-    },
-    "deepseek-reasoner": {
-        "provider": "deepseek",
-        "model": "deepseek-reasoner",
-        "base": "https://api.deepseek.com",
-    },
-    "qwen": {
-        "provider": "qwen",
-        "model": "qwen-coder-plus",
-        "base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    },
-    "glm": {
-        "provider": "glm",
-        "model": "glm-4-flash",
-        "base": "https://open.bigmodel.cn/api/paas/v4",
-    },
-    "gpt-4o-mini": {
-        "provider": "openai",
-        "model": "gpt-4o-mini",
-        "base": "https://api.openai.com/v1",
-    },
-}
-
-
-def _resolve_model_endpoint(model: str) -> tuple[str, str]:
-    """解析模型名称为 API Base URL + 实际模型名
-
-    Args:
-        model: 模型名称（deepseek/qwen/glm/gpt-4o-mini 等）
-
-    Returns:
-        (api_base_url, resolved_model_name)
-    """
-    # 检查是否匹配已知模型
-    route = MODEL_ROUTING.get(model)
-    if route:
-        return route["base"], route["model"]
-
-    # 通过前缀匹配
-    for prefix, route in [
-        ("deepseek-reasoner", MODEL_ROUTING.get("deepseek-reasoner")),
-        ("deepseek", MODEL_ROUTING.get("deepseek")),
-        ("qwen", MODEL_ROUTING.get("qwen")),
-        ("glm", MODEL_ROUTING.get("glm")),
-        ("gpt", MODEL_ROUTING.get("gpt-4o-mini")),
-    ]:
-        if model.startswith(prefix) and route:
-            return route["base"], model
-
-    # 默认回退到 DeepSeek
-    return (
-        PROVIDER_API_BASES.get("deepseek", "https://api.deepseek.com"),
-        model,
-    )
-
-
-class TokenCounter:
-    """精确 Token 计数器 — 使用 tiktoken (兼容 cl100k_base)
-
-    当 tiktoken 不可用时自动降级为 len//3 估算。
-    """
-
-    _encoders: dict[str, object] = {}
-
-    @classmethod
-    def count(cls, text: str, model: str = "deepseek-chat") -> int:
-        """精确计算 token 数"""
+    async def run_check():
         try:
-            encoding = cls._get_encoding(model)
-            return len(encoding.encode(text))
-        except (ImportError, KeyError, ValueError):
-            return len(text) // 3  # 降级估算
+            await self_heal_after_write(file_path, yield_event=event_yield)
+        finally:
+            await queue.put(None)  # sentinel
 
-    @classmethod
-    def truncate(cls, text: str, max_tokens: int, model: str = "deepseek-chat") -> str:
-        """精确截断到指定 token 数"""
+    task = asyncio.create_task(run_check())
+    while True:
+        ev = await queue.get()
+        if ev is None:
+            break
+        yield ev
+    await task
+
+
+async def analyze_after_write_async(file_path: str) -> AsyncIterator[ChatEvent]:
+    """异步生成器：五层代码分析并 yield ChatEvent"""
+    async def event_yield(content: str):
+        yield ChatEvent(event_type="token", content=content)
+
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def event_yield_v2(content: str):
+        await queue.put(ChatEvent(event_type="token", content=content))
+
+    async def run_analysis():
         try:
-            encoding = cls._get_encoding(model)
-            tokens = encoding.encode(text)
-            return encoding.decode(tokens[:max_tokens])
-        except (ImportError, KeyError):
-            return text[:max_tokens * 3]  # 降级截断
+            await analyze_after_write(file_path, yield_event=event_yield_v2)
+        finally:
+            await queue.put(None)
 
-    @classmethod
-    def _get_encoding(cls, model: str):
-        """获取编码器（带缓存）"""
-        if model not in cls._encoders:
-            import tiktoken
-            # DeepSeek/Qwen/GLM 兼容 cl100k_base
-            cls._encoders[model] = tiktoken.get_encoding("cl100k_base")
-        return cls._encoders[model]
+    task = asyncio.create_task(run_analysis())
+    while True:
+        ev = await queue.get()
+        if ev is None:
+            break
+        yield ev
+    await task
 
-def estimate_tokens(text: str) -> int:
-    """估算文本的 token 数量 (~每中文字符1token，每英文词1.3token)"""
-    if not text:
-        return 0
-    chinese_chars = sum(1 for c in text if "\u4e00" <= c <= "\u9fff")
-    other_chars = len(text) - chinese_chars
-    return int(chinese_chars * 1.2 + other_chars / 2.5) + 4
+
+__all__ = [
+    # 主类
+    "ChatBridge",
+    "ChatEvent",
+    "BridgeConfig",
+    "HistoryManager",
+    # 路由
+    "PROVIDER_API_BASES",
+    "MODEL_ROUTING",
+    "_detect_provider",
+    "_resolve_model_endpoint",
+    # Token
+    "TokenCounter",
+    "estimate_tokens",
+    # 上下文
+    "_get_context_anchor",
+    "_compress_old_messages",
+    "_check_token_budget",
+    "_apply_context_anchor",
+    "_apply_history_sliding_window",
+    # 流式
+    "parse_sse_line",
+    "extract_stream_delta",
+    "build_request_payload",
+    "rebuild_payload_for_fallback",
+    # 工具
+    "build_tools_payload",
+    "execute_tool_call",
+    "execute_tool_with_sandbox",
+    "execute_tool_via_v2",
+    "execute_tool_via_v1",
+    "cache_file_read",
+    "get_cached_file_read",
+    "SKIP_TOOLS",
+    "CATEGORY_TOOL_MAP",
+    # 钩子
+    "RuminationResult",
+    "GuardResult",
+    "TaskGrade",
+    "grade_task_difficulty",
+    "rumination_pre_execute",
+    "rumination_mid_execute",
+    "rumination_post_execute",
+    "hallucination_validate",
+    "format_hallucination_warning",
+    "maybe_annotate_tool_result",
+    "live_learner_observe",
+    "record_project_error",
+    "record_project_fix_attempt",
+    "record_project_file_modified",
+    "self_heal_after_write",
+    "analyze_after_write",
+    "record_observability",
+    "record_cost_usage",
+    "check_cost_budget",
+    "mark_provider_key_invalid",
+]
