@@ -246,7 +246,13 @@ class ChatBridge:
                     logger.warning("chat_sync_error provider=%s status=%d", try_prov, resp.status_code)
                     continue
             except (OSError, ValueError, KeyError, AttributeError) as e:
+                # OSError 不覆盖 httpx 的 TransportError（TimeoutException/ConnectError 等）
                 logger.warning("chat_sync_exception provider=%s error=%s", try_prov, e)
+                continue
+            except Exception as e:
+                # 兜底：捕获 httpx.TimeoutException / ConnectError / NetworkError 等
+                # 这些异常在 P3-C 混沌测试中被识别为未处理的崩溃场景
+                logger.warning("chat_sync_network_error provider=%s error=%s", try_prov, e)
                 continue
 
         return ""

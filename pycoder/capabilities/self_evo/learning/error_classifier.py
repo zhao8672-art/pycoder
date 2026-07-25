@@ -146,7 +146,11 @@ class ErrorClassifier:
     def open_ticket(
         self, error_signature: str, error_message: str, file_path: str = "", line: int = 0
     ) -> ErrorTicket:
-        """创建或更新错误工单"""
+        """创建或更新错误工单
+
+        _recurrence 仅在工单已存在时递增（即"重复出现"次数，首次不计）。
+        阈值语义：repeat_count>=2 → high, repeat_count>=4 → critical
+        """
         sig = error_signature[:200]
 
         if sig in self._tickets:

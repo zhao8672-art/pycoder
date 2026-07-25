@@ -1,0 +1,185 @@
+{
+  "timestamp": "2026-07-25T14:07:20.640657",
+  "categories": {
+    "network": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "degraded": 3,
+      "tests": [
+        {
+          "name": "llm_api_timeout",
+          "category": "network",
+          "passed": true,
+          "graceful_degradation": true,
+          "error_message": "",
+          "duration_ms": 1843.7412999919616,
+          "details": {
+            "behavior": "返回空响应（降级）"
+          }
+        },
+        {
+          "name": "connection_refused",
+          "category": "network",
+          "passed": true,
+          "graceful_degradation": true,
+          "error_message": "",
+          "duration_ms": 1.3478000037139282,
+          "details": {
+            "behavior": "返回空响应（降级）"
+          }
+        },
+        {
+          "name": "llm_api_500",
+          "category": "network",
+          "passed": true,
+          "graceful_degradation": true,
+          "error_message": "",
+          "duration_ms": 1.1660999880405143,
+          "details": {
+            "behavior": "返回空响应（降级）"
+          }
+        }
+      ]
+    },
+    "dependency": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "degraded": 2,
+      "tests": [
+        {
+          "name": "missing_pil",
+          "category": "dependency",
+          "passed": true,
+          "graceful_degradation": true,
+          "error_message": "",
+          "duration_ms": 2.245800002128817,
+          "details": {
+            "behavior": "multimodal 模块优雅降级"
+          }
+        },
+        {
+          "name": "missing_optional_module",
+          "category": "dependency",
+          "passed": true,
+          "graceful_degradation": true,
+          "error_message": "",
+          "duration_ms": 0.5514000076800585,
+          "details": {
+            "behavior": "observability 模块降级（sentry 不可用）"
+          }
+        }
+      ]
+    },
+    "data": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "degraded": 1,
+      "tests": [
+        {
+          "name": "empty_input",
+          "category": "data",
+          "passed": true,
+          "graceful_degradation": false,
+          "error_message": "",
+          "duration_ms": 1.324400000157766,
+          "details": {
+            "behavior": "处理空输入成功"
+          }
+        },
+        {
+          "name": "oversized_input",
+          "category": "data",
+          "passed": true,
+          "graceful_degradation": false,
+          "error_message": "",
+          "duration_ms": 1.1817000049632043,
+          "details": {
+            "behavior": "处理超大输入成功"
+          }
+        },
+        {
+          "name": "malformed_json",
+          "category": "data",
+          "passed": true,
+          "graceful_degradation": true,
+          "error_message": "",
+          "duration_ms": 1.2107999937143177,
+          "details": {
+            "behavior": "JSON 解析失败被正确处理"
+          }
+        }
+      ]
+    },
+    "resource": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "degraded": 1,
+      "tests": [
+        {
+          "name": "memory_pressure",
+          "category": "resource",
+          "passed": true,
+          "graceful_degradation": false,
+          "error_message": "",
+          "duration_ms": 935.2757000015117,
+          "details": {
+            "behavior": "内存压力测试通过（old=True, new=True）"
+          }
+        },
+        {
+          "name": "disk_full",
+          "category": "resource",
+          "passed": true,
+          "graceful_degradation": true,
+          "error_message": "",
+          "duration_ms": 3.105600000708364,
+          "details": {
+            "behavior": "OSError 被正确处理: 28"
+          }
+        }
+      ]
+    },
+    "concurrency": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "degraded": 0,
+      "tests": [
+        {
+          "name": "concurrent_burst",
+          "category": "concurrency",
+          "passed": true,
+          "graceful_degradation": false,
+          "error_message": "",
+          "duration_ms": 321.62220000464004,
+          "details": {
+            "behavior": "接受 100/100, 拒绝 0/100"
+          }
+        }
+      ]
+    },
+    "cascade": {
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "degraded": 1,
+      "tests": [
+        {
+          "name": "circuit_breaker",
+          "category": "cascade",
+          "passed": true,
+          "graceful_degradation": true,
+          "error_message": "",
+          "duration_ms": 13.367399995331652,
+          "details": {
+            "behavior": "连续失败 5 次后熔断"
+          }
+        }
+      ]
+    }
+  }
+}

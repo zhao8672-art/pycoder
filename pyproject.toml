@@ -10,7 +10,7 @@
 #     requirements/requirements-help.in   ← 交互式帮助 (可选)
 #     requirements/requirements-playwright.in ← Playwright (可选)
 #  3. requirements-all.txt                 ← pip install -r 一次性全量入口
-#  4. 关键依赖 (litellm/openai/fastapi/pydantic/httpx) 使用 ~= 锁定兼容版本
+#  4. 关键依赖 (fastapi/pydantic/httpx) 使用 ~= 锁定兼容版本
 #
 #  ─── 修改依赖的流程 ───
 #  a) 编辑 requirements/requirements.in (或对应 .in)
@@ -63,28 +63,28 @@ dynamic = ["dependencies", "optional-dependencies"]
 # 显式声明关键依赖 (精确锁定在 requirements.txt 中，此处使用兼容范围 ~=)
 # 审计工具注意: dependencies 使用 ~= 是 pyproject.toml 标准写法，
 # 精确锁定 (==) 在 requirements.txt (pip-compile 生成) 中，而非此处
+# P3-B 依赖治理 (2026-07-25): 移除未使用的依赖
+#   - litellm, openai: 项目使用 httpx 直接调用 LLM API，无需 SDK
+#   - pydantic-settings: 仅在模板字符串中引用，未实际 import
+#   - pdfplumber, opencv-python-headless: PDF/图像处理未使用
+#   - orjson, jinja2: 未在代码中直接 import
+# P3-B 漏洞修复 (2026-07-25): 升级有漏洞的依赖
+#   - starlette 0.46.2 → 1.3.1+ (修复 7 个 CVE)
+#   - Pillow 10.4.0 → 12.3.0+ (修复 14 个 CVE)
 dependencies = [
     # Web 框架 (锁定 patch)
-    "fastapi~=0.115.0",
+    "fastapi~=0.135.0",
     "uvicorn[standard]~=0.32.0",
-    "pydantic~=2.9.0",
-    "pydantic-settings~=2.6.0",
-    "starlette~=0.41.0",
+    "pydantic~=2.12.0",
+    "starlette>=1.3.1",
     "httpx~=0.27.0",
-    # LLM 客户端 (锁定兼容版本避免 API 破坏)
-    "litellm~=1.51.0",
-    "openai~=1.55.0",
     # 错误监控
     "sentry-sdk[fastapi,httpx]~=2.10.0",
-    # 多模态
-    "Pillow~=10.4.0",
+    # 多模态 (仅图像 + OCR)
+    "Pillow>=12.3.0",
     "pytesseract~=0.3.13",
-    "pdfplumber~=0.11.0",
-    "opencv-python-headless~=4.10.0",
     # 工具
-    "orjson",
     "structlog",
-    "jinja2",
     "python-multipart",
     "pyyaml",
 ]

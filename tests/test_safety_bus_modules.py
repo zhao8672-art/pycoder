@@ -92,10 +92,10 @@ class TestSideEffect:
         assert SideEffect.SELF_MODIFY == "self_modify"
 
     def test_count(self):
-        """验证 8 种副作用类型"""
+        """验证 9 种副作用类型"""
         from pycoder.bus.protocol import SideEffect
 
-        assert len(list(SideEffect)) == 8
+        assert len(list(SideEffect)) == 9
 
 
 class TestTrustLevel:

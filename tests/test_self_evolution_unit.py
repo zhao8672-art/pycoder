@@ -262,7 +262,8 @@ class TestApplyFixSecurity:
 
     @pytest.mark.asyncio
     async def test_rejects_truncated_content(self, tmp_path):
-        original = "\n".join(f"line{i}" for i in range(100))
+        # 阈值: orig_lines > 200 才触发长度异常检查
+        original = "\n".join(f"line{i}" for i in range(250))
         self._create_file(tmp_path, "test.py", original)
         engine = SelfEvolutionEngine(project_root=tmp_path)
         ok, msg = await engine._apply_fix({
@@ -274,7 +275,8 @@ class TestApplyFixSecurity:
 
     @pytest.mark.asyncio
     async def test_rejects_missing_imports(self, tmp_path):
-        original = "import os\nimport sys\nimport json\nx = 1\n"
+        # 阈值: orig_imports > 5 才触发 import 缺失检查
+        original = "\n".join(f"import mod{i}" for i in range(6)) + "\nx = 1\n"
         self._create_file(tmp_path, "test.py", original)
         engine = SelfEvolutionEngine(project_root=tmp_path)
         ok, msg = await engine._apply_fix({

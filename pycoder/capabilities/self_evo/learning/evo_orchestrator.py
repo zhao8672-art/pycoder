@@ -210,10 +210,12 @@ class EvoOrchestrator:
             report.error = str(e)[:500]
             logger.error("evolution_cycle_failed: %s", e)
 
-        report.duration_ms = (time.perf_counter() - t0) * 1000
-        self._cycle_count += 1
-        self._total_fixes += report.fixes_applied
-        self._total_latency_ms += int(report.duration_ms)
+        finally:
+            # 无论是否提前返回或抛异常，都更新计数（确保统计准确）
+            report.duration_ms = (time.perf_counter() - t0) * 1000
+            self._cycle_count += 1
+            self._total_fixes += report.fixes_applied
+            self._total_latency_ms += int(report.duration_ms)
 
         return report
 
