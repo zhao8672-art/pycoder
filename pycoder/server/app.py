@@ -113,8 +113,9 @@ def _check_llm_keys_on_startup():
         _logger.debug("llm_key_check_skipped: %s", e)
 
 
-# 在模块加载时执行检测
-_check_llm_keys_on_startup()
+# P1-A: 推迟到 lifespan 中执行，避免模块加载时阻塞 import 链
+# 原: _check_llm_keys_on_startup()  ← 模块加载即执行
+# 新: 在 lifespan() 内调用，与 V2 引擎/DI 容器并行阶段执行
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
@@ -198,38 +199,54 @@ async def verify_ws_auth(ws: WebSocket) -> bool:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期 — 启动时初始化 V2 引擎、推荐数据库、DI 容器和调度器"""
+    # P1-A: 启动性能埋点
+    from pycoder.core.lazy_import import get_startup_profiler
+
+    profiler = get_startup_profiler()
+
     # 阶段 0 架构升级：显式触发 subprocess 兼容补丁
     # （从 pycoder/__init__.py 的导入期副作用拆出，延迟到此处执行）
-    try:
-        from pycoder import _install_subprocess_compat
+    with profiler.measure("subprocess_compat_install"):
+        try:
+            from pycoder import _install_subprocess_compat
 
-        _install_subprocess_compat()
-    except ImportError:
-        pass
+            _install_subprocess_compat()
+        except ImportError:
+            pass
 
-    await _init_recommendation_db()
-    _init_di_container()
+    # P1-A: LLM Key 检测从模块加载推迟到 lifespan（与 V2 引擎并行阶段）
+    with profiler.measure("llm_keys_check"):
+        _check_llm_keys_on_startup()
+
+    with profiler.measure("recommendation_db_init"):
+        await _init_recommendation_db()
+
+    with profiler.measure("di_container_init"):
+        _init_di_container()
 
     # ── 环境工具检测 ──
-    _check_environment_tools()
+    with profiler.measure("env_tools_check"):
+        _check_environment_tools()
 
     # ── V2 引擎初始化 ──
-    v2_engine = await _init_v2_engine()
+    with profiler.measure("v2_engine_init"):
+        v2_engine = await _init_v2_engine()
     app.state.v2_engine = v2_engine
 
     # ── 插件注册表初始化 ──
-    try:
-        from pycoder.plugins.base import PluginRegistry
-        from pycoder.plugins.hermes_plugin import HermesPlugin
+    with profiler.measure("plugin_registry_init"):
+        try:
+            from pycoder.plugins.base import PluginRegistry
+            from pycoder.plugins.hermes_plugin import HermesPlugin
 
-        reg = PluginRegistry()
-        reg.register(HermesPlugin())
-        global _plugin_registry
-        _plugin_registry = reg
-        _logger.info("plugin_registry_initialized: plugins=1")
-    except Exception as e:
-        _logger.warning("plugin_registry_init_failed: %s", e)
-        _plugin_registry = None
+            reg = PluginRegistry()
+            reg.register(HermesPlugin())
+            global _plugin_registry
+            _plugin_registry = reg
+            _logger.info("plugin_registry_initialized: plugins=1")
+        except Exception as e:
+            _logger.warning("plugin_registry_init_failed: %s", e)
+            _plugin_registry = None
 
     # ── 自动升级检查：恢复中断的升级 ──
     try:
@@ -241,8 +258,13 @@ async def lifespan(app: FastAPI):
     except ImportError:
         pass
 
-    await _start_scheduler()
+    with profiler.measure("scheduler_start"):
+        await _start_scheduler()
+
+    _logger.info("startup_profile:\n%s", profiler.format_report())
+
     yield
+
     # 关闭 V2 引擎
     if v2_engine:
         try:

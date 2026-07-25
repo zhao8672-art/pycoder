@@ -1388,13 +1388,65 @@ class DeepMemorySystem:
         self._project_root = project_root
         self._global_dir = global_dir or Path.home() / ".pycoder" / "global_memory"
 
-        # 初始化四级记忆
-        self._working = WorkingMemory()
-        self._iteration = IterationMemory(project_root / ".pycoder" / "iteration_memory")
-        self._project = ProjectMemory(project_root)
-        self._global = GlobalMemory(self._global_dir)
+        # P1-B: 子层懒加载 — 首次访问才初始化，避免启动时一次性初始化 4 个子系统
+        # 原实现: WorkingMemory() / IterationMemory(...) / ProjectMemory(...) / GlobalMemory(...)
+        #         全部在 __init__ 中初始化，启动即触发 SQLite/ChromaDB 连接
+        # 新实现: 用 None 占位，由对应的 _ensure_* 方法在首次访问时初始化
+        self._working: WorkingMemory | None = None
+        self._iteration: IterationMemory | None = None
+        self._project: ProjectMemory | None = None
+        self._global: GlobalMemory | None = None
 
         self._last_cleanup = _now_iso()
+
+    # ── P1-B: 懒加载访问器 ────────────────────────────────
+
+    @property
+    def working(self) -> WorkingMemory:
+        """工作记忆（首次访问时初始化）"""
+        if self._working is None:
+            self._working = WorkingMemory()
+            logger.debug("lazy_init working_memory")
+        return self._working
+
+    @property
+    def iteration(self) -> IterationMemory:
+        """迭代记忆（首次访问时初始化，触发 SQLite 打开）"""
+        if self._iteration is None:
+            self._iteration = IterationMemory(
+                self._project_root / ".pycoder" / "iteration_memory"
+            )
+            logger.debug("lazy_init iteration_memory")
+        return self._iteration
+
+    @property
+    def project(self) -> ProjectMemory:
+        """项目记忆（首次访问时初始化，触发 ChromaDB 连接）"""
+        if self._project is None:
+            self._project = ProjectMemory(self._project_root)
+            logger.debug("lazy_init project_memory")
+        return self._project
+
+    @property
+    def global_memory(self) -> GlobalMemory:
+        """全局记忆（首次访问时初始化）"""
+        if self._global is None:
+            self._global = GlobalMemory(self._global_dir)
+            logger.debug("lazy_init global_memory")
+        return self._global
+
+    def _ensure_working(self) -> WorkingMemory:
+        """向后兼容: 内部代码访问 self._working 的统一入口"""
+        return self.working
+
+    def _ensure_iteration(self) -> IterationMemory:
+        return self.iteration
+
+    def _ensure_project(self) -> ProjectMemory:
+        return self.project
+
+    def _ensure_global(self) -> GlobalMemory:
+        return self.global_memory
 
     # ── 统一存储 ──
 
@@ -1418,15 +1470,15 @@ class DeepMemorySystem:
         """
         match level:
             case 1:
-                return self._working.store(key, value, metadata)
+                return self.working.store(key, value, metadata)
             case 2:
-                return await self._iteration._store(
+                return await self.iteration._store(
                     "note", key, value, metadata or {}
                 )
             case 3:
-                return await self._project.store(key, value, metadata)
+                return await self.project.store(key, value, metadata)
             case 4:
-                return await self._global.store(key, value, metadata)
+                return await self.global_memory.store(key, value, metadata)
             case _:
                 raise ValueError(f"无效的记忆层级: {level}，有效值为 1-4")
 
@@ -1454,32 +1506,32 @@ class DeepMemorySystem:
 
         if level == "all" or level == 1:
             # WorkingMemory 按 key 精确匹配
-            wm_entry = self._working.retrieve(query)
+            wm_entry = self.working.retrieve(query)
             if wm_entry:
                 entries.append(wm_entry)
                 source_levels.append(1)
             # 也做内容匹配
-            for e in self._working.get_all_entries():
+            for e in self.working.get_all_entries():
                 if query.lower() in e.content.lower() and e not in entries:
                     entries.append(e)
                     source_levels.append(1)
 
         if level == "all" or level == 2:
-            im_entries = await self._iteration.search(query, limit=k)
+            im_entries = await self.iteration.search(query, limit=k)
             for e in im_entries:
                 if e not in entries:
                     entries.append(e)
                     source_levels.append(2)
 
         if level == "all" or level == 3:
-            pm_entries = await self._project.search(query, k=k)
+            pm_entries = await self.project.search(query, k=k)
             for e in pm_entries:
                 if e not in entries:
                     entries.append(e)
                     source_levels.append(3)
 
         if level == "all" or level == 4:
-            gm_entries = await self._global.search(query, k=k)
+            gm_entries = await self.global_memory.search(query, k=k)
             for e in gm_entries:
                 if e not in entries:
                     entries.append(e)
@@ -1511,13 +1563,13 @@ class DeepMemorySystem:
         summaries: dict[int, str] = {}
 
         if level == "all" or level == 1:
-            summaries[1] = await self._working.summarize(llm_provider)
+            summaries[1] = await self.working.summarize(llm_provider)
         if level == "all" or level == 2:
-            summaries[2] = await self._iteration.summarize(llm_provider)
+            summaries[2] = await self.iteration.summarize(llm_provider)
         if level == "all" or level == 3:
-            summaries[3] = await self._project.summarize(llm_provider)
+            summaries[3] = await self.project.summarize(llm_provider)
         if level == "all" or level == 4:
-            summaries[4] = await self._global.summarize(llm_provider)
+            summaries[4] = await self.global_memory.summarize(llm_provider)
 
         return summaries
 
@@ -1535,17 +1587,17 @@ class DeepMemorySystem:
         cleaned: dict[int, int] = {}
 
         if level == "all" or level == 1:
-            self._working.clear()
+            self.working.clear()
             cleaned[1] = 0  # WorkingMemory 是瞬时清理
 
         if level == "all" or level == 2:
-            cleaned[2] = await self._iteration.cleanup(older_than_days=14)
+            cleaned[2] = await self.iteration.cleanup(older_than_days=14)
 
         if level == "all" or level == 3:
-            cleaned[3] = await self._project.cleanup(older_than_days=90)
+            cleaned[3] = await self.project.cleanup(older_than_days=90)
 
         if level == "all" or level == 4:
-            cleaned[4] = await self._global.cleanup(older_than_days=365)
+            cleaned[4] = await self.global_memory.cleanup(older_than_days=365)
 
         self._last_cleanup = _now_iso()
         logger.info("deep_memory_cleanup cleaned=%s", cleaned)
@@ -1574,19 +1626,19 @@ class DeepMemorySystem:
         source_levels: list[int] = []
 
         # Level 3: 项目向量搜索
-        pm_entries = await self._project.search(query, k=k, embedding=embedding)
+        pm_entries = await self.project.search(query, k=k, embedding=embedding)
         for e in pm_entries:
             entries.append(e)
             source_levels.append(3)
 
         # Level 4: 全局向量搜索
-        gm_entries = await self._global.search(query, k=k, embedding=embedding)
+        gm_entries = await self.global_memory.search(query, k=k, embedding=embedding)
         for e in gm_entries:
             entries.append(e)
             source_levels.append(4)
 
         # Level 2: FTS5 全文搜索补充
-        im_entries = await self._iteration.search(query, limit=k)
+        im_entries = await self.iteration.search(query, limit=k)
         for e in im_entries:
             if e not in entries:
                 entries.append(e)
@@ -1608,13 +1660,13 @@ class DeepMemorySystem:
     def get_stats(self) -> MemoryStats:
         """获取所有级别的记忆统计"""
         level_stats: dict[int, dict[str, int]] = {
-            1: {"entries": self._working.entry_count, "tokens": self._working.token_count},
-            2: self._iteration.get_stats(),
-            3: self._project.get_stats(),
-            4: self._global.get_stats(),
+            1: {"entries": self.working.entry_count, "tokens": self.working.token_count},
+            2: self.iteration.get_stats(),
+            3: self.project.get_stats(),
+            4: self.global_memory.get_stats(),
         }
 
-        total_entries = self._working.entry_count
+        total_entries = self.working.entry_count
         for level in (2, 3, 4):
             stats = level_stats[level]
             total_entries += stats.get("total", stats.get("total_sqlite", 0))
@@ -1631,47 +1683,39 @@ class DeepMemorySystem:
 
     async def start_iteration(self, iteration_id: str) -> None:
         """开始新迭代"""
-        await self._iteration.start_iteration(iteration_id)
+        await self.iteration.start_iteration(iteration_id)
 
     async def end_iteration(self) -> None:
         """结束当前迭代"""
-        await self._iteration.end_iteration()
+        await self.iteration.end_iteration()
 
     # ── 便捷方法 ──
 
     async def track_file(self, file_path: str, action: str = "modified") -> MemoryEntry:
         """便捷：追踪文件变更"""
-        return await self._iteration.track_file(file_path, action)
+        return await self.iteration.track_file(file_path, action)
 
     async def track_command(
         self, command: str, exit_code: int = 0, output: str = "",
     ) -> MemoryEntry:
         """便捷：追踪命令执行"""
-        return await self._iteration.track_command(command, exit_code, output)
+        return await self.iteration.track_command(command, exit_code, output)
 
     async def track_error(self, error_message: str, resolved: bool = False) -> MemoryEntry:
         """便捷：追踪错误"""
-        return await self._iteration.track_error(error_message, resolved)
+        return await self.iteration.track_error(error_message, resolved)
 
     def close(self) -> None:
         """关闭所有资源"""
-        self._iteration.close()
+        self.iteration.close()
 
-    @property
-    def working(self) -> WorkingMemory:
-        return self._working
-
-    @property
-    def iteration(self) -> IterationMemory:
-        return self._iteration
-
-    @property
-    def project(self) -> ProjectMemory:
-        return self._project
-
+    # P1-B: 原 working/iteration/project/global_ property 已上移到 __init__ 之后
+    # 新增懒加载版本（首次访问才初始化子层）
+    # 兼容旧 API: 保留 global_ 别名指向 global_memory
     @property
     def global_(self) -> GlobalMemory:
-        return self._global
+        """向后兼容: 旧 API 用 system.global_，新代码用 system.global_memory"""
+        return self.global_memory
 
 
 # ══════════════════════════════════════════════════════════════════════════════

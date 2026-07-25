@@ -325,130 +325,166 @@ async def _handle_chat_v2(msg: dict, ws: WebSocket, session_id: str, current_mod
     """V2 统一入口聊天处理器 — 通过 UnifiedEntryAgent 自动路由三种模式
 
     改动: 不再需要前端传 hermes 参数，UnifiedEntryAgent 自动根据意图分类路由。
+
+    P1-C: 集成并发控制
+    - 背压: 限制单连接并发请求数（默认 10）
+    - LLM 限流: 限制全局并发 LLM 调用数（默认 8）
     """
-    message = msg.get("message", "")
-    files = msg.get("files")
+    # P1-C: 背压检查
+    from pycoder.server.ws_concurrency import (
+        get_backpressure_manager,
+        get_llm_limiter,
+    )
 
-    if not message and not files:
+    bp = get_backpressure_manager()
+    bp_conn_id = f"{session_id}:{id(ws)}"
+    if not bp.try_acquire(bp_conn_id):
         log.warning(
-            "ws_v2_empty_message",
-            extra={
-                "session_id": session_id,
-                "msg_keys": list(msg.keys()),
-                "raw_msg_type": msg.get("type", "unknown"),
-            },
+            "ws_v2_backpressure_rejected",
+            extra={"session_id": session_id, "connection_id": bp_conn_id},
         )
-        await ws.send_json({"type": "error", "message": "Empty message"})
+        await ws.send_json({
+            "type": "error",
+            "message": "Too many in-flight requests, please wait",
+        })
         return
 
-    model = msg.get("model", current_model)
-    effective_model = _get_effective_model(model)
+    try:
+        message = msg.get("message", "")
+        files = msg.get("files")
 
-    # 获取 API Key
-    api_key = _get_api_key_for_model(effective_model)
-    if not api_key:
-        await ws.send_json({"type": "error", "message": "No API Key configured"})
-        return
+        if not message and not files:
+            log.warning(
+                "ws_v2_empty_message",
+                extra={
+                    "session_id": session_id,
+                    "msg_keys": list(msg.keys()),
+                    "raw_msg_type": msg.get("type", "unknown"),
+                },
+            )
+            await ws.send_json({"type": "error", "message": "Empty message"})
+            return
 
-    # ── /setup 命令: 直接在聊天中配置 API Key ──────────
-    if message.startswith("/setup"):
-        parts = message.split(maxsplit=2)
-        if len(parts) == 1:
-            # 显示引导
-            from pycoder.providers.auth import PROVIDER_DEFS, get_model_manager
-            mgr = get_model_manager()
-            guide = mgr.format_setup_guide()
-            await ws.send_json({
-                "type": "content",
-                "content": f"```\n{guide}\n```\n\n**快捷配置:** 发送 `/setup deepseek YOUR_API_KEY`",
-            })
-            await ws.send_json({"type": "done", "content": ""})
+        model = msg.get("model", current_model)
+        effective_model = _get_effective_model(model)
+
+        # 获取 API Key
+        api_key = _get_api_key_for_model(effective_model)
+        if not api_key:
+            await ws.send_json({"type": "error", "message": "No API Key configured"})
             return
-        provider = parts[1].lower()
-        if provider == "guide":
-            from pycoder.providers.auth import PROVIDER_DEFS, get_model_manager
-            mgr = get_model_manager()
-            guide = mgr.format_setup_guide()
-            await ws.send_json({"type": "content", "content": f"```\n{guide}\n```"})
-            await ws.send_json({"type": "done", "content": ""})
+
+        # ── /setup 命令: 直接在聊天中配置 API Key ──────────
+        if message.startswith("/setup"):
+            await _handle_setup_command(message, ws, effective_model)
             return
-        if len(parts) < 3:
-            await ws.send_json({
-                "type": "content",
-                "content": (
-                    f"用法: `/setup {provider} YOUR_API_KEY`\n"
-                    f"示例: `/setup deepseek sk-abc123`\n\n"
-                    "查看所有提供商: `/setup guide`"
-                ),
-            })
-            await ws.send_json({"type": "done", "content": ""})
-            return
-        api_key_value = parts[2]
-        from pycoder.providers.setup_wizard import set_api_key
-        result = set_api_key(provider, api_key_value)
-        if result.get("success"):
-            # 刷新 api_key 变量
-            api_key = _get_api_key_for_model(effective_model)
-            await ws.send_json({
-                "type": "content",
-                "content": f"✅ **{provider} API Key 已配置成功!**\n现在可以正常使用 AI 功能了 🚀",
-            })
-        else:
-            await ws.send_json({
-                "type": "content",
-                "content": (
-                    f"❌ 配置失败: {result.get('error', '未知错误')}\n"
-                    "支持提供商: deepseek, qwen, glm, openai, openrouter, nvidia"
-                ),
-            })
+
+        # V2: 记录审计事件
+        if v2:
+            try:
+                from pycoder.safety.audit import AuditRecord
+
+                v2.audit.log(
+                    AuditRecord(
+                        trace_id=str(uuid.uuid4()),
+                        capability_id="chat.send_message",
+                        params_summary=message[:200],
+                        permission_level=0,
+                        decision="auto_allow",
+                        user_confirmed=False,
+                        success=True,
+                        session_id=session_id,
+                        caller="user",
+                    )
+                )
+            except (ImportError, AttributeError, TypeError, ValueError):
+                pass
+
+        # ── 统一入口: 所有消息走 UnifiedEntryAgent 自动路由 ──
+        from pycoder.server.services.unified_entry import UnifiedEntryAgent
+
+        entry = UnifiedEntryAgent(model=effective_model, api_key=api_key)
+
+        # P1-C: LLM 并发限流
+        limiter = get_llm_limiter()
+        final_content = ""
+        async with limiter.acquire():
+            async for event in entry.process_stream(message, session_id=session_id):
+                await ws.send_json(event)
+                if event.get("type") == "done":
+                    final_content = event.get("content", "")
+                await asyncio.sleep(0)
+
+        # 消息持久化
+        if final_content:
+            try:
+                store.add_message(session_id, "user", message)
+                store.add_message(session_id, "assistant", final_content)
+            except (OSError, ValueError, RuntimeError) as e:
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "save_message_failed",
+                    extra={"session_id": session_id, "error": str(e)},
+                )
+    finally:
+        # P1-C: 释放背压槽位
+        bp.release(bp_conn_id)
+
+
+async def _handle_setup_command(message: str, ws: WebSocket, effective_model: str) -> None:
+    """处理 /setup 命令 — 从 _handle_chat_v2 拆出，便于维护
+
+    P2-B chat_bridge 拆分后此函数可移到独立模块。
+    """
+    parts = message.split(maxsplit=2)
+    if len(parts) == 1:
+        # 显示引导
+        from pycoder.providers.auth import get_model_manager
+        mgr = get_model_manager()
+        guide = mgr.format_setup_guide()
+        await ws.send_json({
+            "type": "content",
+            "content": f"```\n{guide}\n```\n\n**快捷配置:** 发送 `/setup deepseek YOUR_API_KEY`",
+        })
         await ws.send_json({"type": "done", "content": ""})
         return
-
-    # V2: 记录审计事件
-    if v2:
-        try:
-            from pycoder.safety.audit import AuditRecord
-
-            v2.audit.log(
-                AuditRecord(
-                    trace_id=str(uuid.uuid4()),
-                    capability_id="chat.send_message",
-                    params_summary=message[:200],
-                    permission_level=0,
-                    decision="auto_allow",
-                    user_confirmed=False,
-                    success=True,
-                    session_id=session_id,
-                    caller="user",
-                )
-            )
-        except (ImportError, AttributeError, TypeError, ValueError):
-            pass
-
-    # ── 统一入口: 所有消息走 UnifiedEntryAgent 自动路由 ──
-    from pycoder.server.services.unified_entry import UnifiedEntryAgent
-
-    entry = UnifiedEntryAgent(model=effective_model, api_key=api_key)
-
-    final_content = ""
-    async for event in entry.process_stream(message, session_id=session_id):
-        await ws.send_json(event)
-        if event.get("type") == "done":
-            final_content = event.get("content", "")
-        await asyncio.sleep(0)
-
-    # 消息持久化
-    if final_content:
-        try:
-            store.add_message(session_id, "user", message)
-            store.add_message(session_id, "assistant", final_content)
-        except (OSError, ValueError, RuntimeError) as e:
-            import logging
-
-            logging.getLogger(__name__).warning(
-                "save_message_failed",
-                extra={"session_id": session_id, "error": str(e)},
-            )
+    provider = parts[1].lower()
+    if provider == "guide":
+        from pycoder.providers.auth import get_model_manager
+        mgr = get_model_manager()
+        guide = mgr.format_setup_guide()
+        await ws.send_json({"type": "content", "content": f"```\n{guide}\n```"})
+        await ws.send_json({"type": "done", "content": ""})
+        return
+    if len(parts) < 3:
+        await ws.send_json({
+            "type": "content",
+            "content": (
+                f"用法: `/setup {provider} YOUR_API_KEY`\n"
+                f"示例: `/setup deepseek sk-abc123`\n\n"
+                "查看所有提供商: `/setup guide`"
+            ),
+        })
+        await ws.send_json({"type": "done", "content": ""})
+        return
+    api_key_value = parts[2]
+    from pycoder.providers.setup_wizard import set_api_key
+    result = set_api_key(provider, api_key_value)
+    if result.get("success"):
+        await ws.send_json({
+            "type": "content",
+            "content": f"✅ **{provider} API Key 已配置成功!**\n现在可以正常使用 AI 功能了 🚀",
+        })
+    else:
+        await ws.send_json({
+            "type": "content",
+            "content": (
+                f"❌ 配置失败: {result.get('error', '未知错误')}\n"
+                "支持提供商: deepseek, qwen, glm, openai, openrouter, nvidia"
+            ),
+        })
+    await ws.send_json({"type": "done", "content": ""})
 
 
 async def _handle_mcp_v2(msg_type: str, msg: dict, ws: WebSocket, v2):
