@@ -170,7 +170,13 @@ class CodeSandbox:
     - 无网络访问
     - 严格的内存和时间限制
     - 只允许纯计算
+
+    ⚠️ 已弃用：exec() 沙箱存在逃逸风险，推荐使用 SubprocessSandbox 或 DockerSandbox。
+    将在 v1.0 移除。
     """
+
+    # P0 安全增强：标记为已弃用
+    _DEPRECATED = True
 
     ALLOWED_BUILTINS = {
         "abs",
@@ -229,6 +235,15 @@ class CodeSandbox:
     }
 
     def __init__(self, timeout: float = 5.0):
+        import warnings
+
+        warnings.warn(
+            "CodeSandbox 使用 exec() 执行代码，存在沙箱逃逸风险。"
+            "推荐使用 pycoder.adapters.SubprocessSandbox 或 DockerSandbox。"
+            "CodeSandbox 将在 v1.0 移除。",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.timeout = timeout
 
     async def execute(self, code: str) -> SandboxResult:

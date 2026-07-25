@@ -73,9 +73,22 @@ async def call_builtin_tool(name: str, args: dict) -> MCPCallResult:
     """通过 V2 引擎调用内置工具
 
     P0-3 修复: 增加全面的工具名归一化，覆盖 dot/underscore/前缀 变体
+    P0 安全增强: 调用前检查 ToolWhitelist
     """
     from pycoder.bus.protocol import CapabilityCall
     from pycoder.server.app import get_v2_engine
+
+    # P0 安全增强：白名单检查
+    try:
+        from pycoder.safety.tool_whitelist import get_tool_whitelist
+        whitelist = get_tool_whitelist()
+        allowed, reason = whitelist.is_allowed(name, args)
+        if not allowed:
+            log.warning("mcp_tool_denied tool=%s reason=%s", name, reason)
+            return MCPCallResult(success=False, error=f"工具调用被拒绝: {reason}", tool=name)
+    except Exception as e:
+        # 白名单检查失败时降级到允许（避免阻断正常流程），但记录警告
+        log.warning("whitelist_check_failed error=%s, falling back to allow", str(e))
 
     v2 = get_v2_engine()
     if not v2:

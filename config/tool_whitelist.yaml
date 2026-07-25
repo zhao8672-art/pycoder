@@ -1,0 +1,58 @@
+# MCP 工具白名单配置
+#
+# 模式:
+#   allow_all  — 允许所有工具（无限制，仅审计）
+#   deny_all   — 拒绝所有工具（最严格）
+#   allowlist  — 白名单模式（默认）：仅允许 allowed_tools 中的工具
+#
+# 通配符:
+#   * 匹配任意字符（包括点号）
+#   ? 匹配单个字符
+#
+# 优先级: denied_tools > mode > allowed_tools
+
+mode: allowlist
+
+# 允许的工具
+allowed_tools:
+  # 文件操作（安全级别：低）
+  - "files.read"
+  - "files.write"
+  - "files.list"
+  - "files.search"
+  - "files.delete"
+  # 搜索
+  - "search.*"
+  # 编辑器
+  - "editor.*"
+  # Git
+  - "git.*"
+  # 代码质量
+  - "quality.*"
+  # 测试
+  - "testing.*"
+  # 环境
+  - "env.*"
+  # 内置工具
+  - "tools.*"
+  - "v1.*"
+  # 技能市场
+  - "marketplace.*"
+  # Agent
+  - "agent.*"
+
+# 禁止的工具（即使 allowed_tools 中包含，也被禁止）
+denied_tools:
+  # 危险操作
+  - "system.shutdown"
+  - "system.reboot"
+  - "tools.exec_raw"      # 原始 exec，禁止
+  - "tools.eval_raw"      # 原始 eval，禁止
+
+# 参数模式校验（可选）
+# 格式: tool_name: { param_name: "regex_pattern" }
+param_schemas:
+  files.write:
+    path: "^(/tmp/|/home/|/Users/|C:\\\\Users\\\\)"  # 仅允许用户目录和临时目录
+  files.delete:
+    path: "^(/tmp/|/home/|/Users/|C:\\\\Users\\\\)"

@@ -1,7 +1,8 @@
 name: Security Scan
 
 # P2-5: CI/CD 安全扫描与回归防护
-# 每次 push/PR 到 master 时运行：Bandit + Semgrep + Safety + pytest 覆盖率门禁
+# P0 增强: CRITICAL 严重度阻断 + Bandit -ii + Semgrep --error
+# 每次 push/PR 到 master 时运行：Bandit + Semgrep + pip-audit + pytest 覆盖率门禁
 on:
     push:
         branches: [master, main]
@@ -24,17 +25,35 @@ jobs:
                   pip install bandit semgrep pip-audit pytest pytest-cov pytest-asyncio
                   pip install -e ".[dev]" || pip install -e .
 
-            - name: Bandit security scan
+            - name: Bandit security scan (HIGH + MEDIUM)
               # Bandit 检测 Python 代码安全漏洞（SQL注入、命令注入、硬编码密码等）
-              run: bandit -r pycoder/ -f json -o bandit-report.json -ll
+              # P0 增强: -ii 报告 HIGH + MEDIUM 严重度（原 -ll 仅 HIGH）
+              # CRITICAL/HIGH 级别发现将导致 CI 失败
+              run: |
+                  bandit -r pycoder/ -f json -o bandit-report.json -ii
+                  # 检查是否有 HIGH 严重度问题，有则失败
+                  python -c "
+                  import json
+                  with open('bandit-report.json') as f:
+                      data = json.load(f)
+                  high_issues = [r for r in data.get('results', []) if r.get('issue_severity') == 'HIGH']
+                  if high_issues:
+                      print(f'❌ Bandit 发现 {len(high_issues)} 个 HIGH 严重度问题:')
+                      for issue in high_issues:
+                          print(f\"  - {issue['filename']}:{issue['line_number']} {issue['test_name']}: {issue['issue_text']}\")
+                      exit(1)
+                  print(f'✅ Bandit 扫描通过（{len(data.get(\"results\", []))} 个 MEDIUM/LOW 问题）')
+                  "
 
-            - name: Semgrep scan
+            - name: Semgrep scan (fail on error)
               # Semgrep 检测已知漏洞模式与反模式
-              run: semgrep scan --config auto pycoder/ --json -o semgrep-report.json
+              # P0 增强: --error 在发现问题时返回非零退出码
+              run: semgrep scan --config auto pycoder/ --json -o semgrep-report.json --error
 
             - name: Audit dependencies for vulnerabilities
               # pip-audit 检测已知漏洞的依赖包
-              run: pip-audit
+              # P0 增强: --strict 在任何漏洞发现时失败
+              run: pip-audit --strict
 
             - name: Run tests with coverage gate
               # 覆盖率门禁针对 pycoder.server 核心运行时模块
