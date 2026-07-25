@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 
 class CustomRulesEngine:

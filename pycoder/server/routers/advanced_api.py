@@ -10,7 +10,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from pycoder.python.multilang_debugger import get_multilang_debugger
 from pycoder.server.custom_rules import get_rules_engine
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 from pycoder.server.realtime_collab import get_collab_engine
 from pycoder.server.scheduler import get_scheduler
 

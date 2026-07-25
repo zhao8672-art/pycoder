@@ -22,7 +22,7 @@ from fastapi import APIRouter, Body, Query
 from fastapi import Path as PathParam
 from pydantic import BaseModel, Field
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 # ═══════════════════════════════════════════════════════════
 # Pydantic 模型

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from pycoder.server.services.task_grader import (
+from pycoder.core.services.task_grader import (
     GRADE_CONFIG,
     SCORE_THRESHOLDS,
     GradeLevel,

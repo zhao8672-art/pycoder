@@ -69,7 +69,7 @@ async def run_pipeline(req: AutonomousRunRequest):
 
             traceback.print_exc()
             try:
-                from pycoder.server.log import log
+                from pycoder.core.services.log import log
 
                 log.error("autonomous_bg_task_crash", error=str(exc), run_id=pre_run.id)
             except Exception as e:

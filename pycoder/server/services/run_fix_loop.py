@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 
 @dataclass

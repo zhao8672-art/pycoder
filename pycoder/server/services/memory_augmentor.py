@@ -54,7 +54,7 @@ class MemoryAugmentor:
 
     def __init__(self, db_path: str | None = None):
         if db_path is None:
-            from pycoder.server.unified_db import get_db_path
+            from pycoder.core.services.unified_db import get_db_path
 
             db_path = str(get_db_path())
         self._db_path = db_path

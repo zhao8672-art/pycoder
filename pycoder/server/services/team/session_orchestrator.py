@@ -12,7 +12,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 
 @dataclass

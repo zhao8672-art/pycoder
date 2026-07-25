@@ -267,7 +267,7 @@ class V2Engine:
 
         logger.info("注册任务难度分级能力...")
         try:
-            from pycoder.server.services.task_grader import register_capabilities as register_grader
+            from pycoder.core.services.task_grader import register_capabilities as register_grader
 
             register_grader(self.registry)
         except Exception as e:

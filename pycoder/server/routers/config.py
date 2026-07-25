@@ -10,7 +10,7 @@ import time
 from fastapi import APIRouter
 
 from pycoder.python.env_detector import detect_environment
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 router = APIRouter()
 

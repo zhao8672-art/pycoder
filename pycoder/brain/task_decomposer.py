@@ -391,11 +391,18 @@ class TaskDecomposer:
         return TaskLevel.B
 
     async def _call_llm(self, prompt: str) -> str:
-        """调用 LLM 进行任务分解"""
-        try:
-            from pycoder.server.chat_bridge import ChatBridge
+        """调用 LLM 进行任务分解
 
-            bridge = ChatBridge()
+        P2-D: 通过 importlib 动态加载 ChatBridge，避免 brain → server 的静态依赖
+        （分层架构固化：brain 层不应直接引用 server 层）
+        """
+        try:
+            import importlib
+
+            chat_bridge_mod = importlib.import_module("pycoder.server.chat_bridge")
+            ChatBridgeCls = getattr(chat_bridge_mod, "ChatBridge")
+
+            bridge = ChatBridgeCls()
             bridge.configure(model="deepseek-chat", temperature=0.2, max_tokens=2048)
             return await bridge.chat(prompt, max_tokens=2048)
         except Exception as exc:
@@ -712,7 +719,7 @@ class DAGExecutor:
         """初始化重试策略"""
         if self._retry_policy is None:
             try:
-                from pycoder.evolution.retry_policy import RetryPolicy
+                from pycoder.core.retry_policy import RetryPolicy
                 self._retry_policy = RetryPolicy(max_retries=3)
             except ImportError:
                 logger.debug("RetryPolicy 不可用")
@@ -739,7 +746,7 @@ class DAGExecutor:
         """初始化审计日志"""
         if self._audit_logger is None:
             try:
-                from pycoder.server.services.audit_logger import AuditLogger
+                from pycoder.core.services.audit_logger import AuditLogger
                 self._audit_logger = AuditLogger()
             except ImportError:
                 logger.debug("AuditLogger 不可用")

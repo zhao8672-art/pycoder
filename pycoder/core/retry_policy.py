@@ -1,5 +1,4 @@
-"""
-失败分级重试策略 — 借鉴生产级 Agent 团队方案
+"""失败分级重试策略 — 借鉴生产级 Agent 团队方案
 
 分级:
   - TRANSIENT: 轻度异常（网络超时、临时锁），自动重试 3 次
@@ -7,10 +6,16 @@
   - FATAL: 致命异常（磁盘满、OOM），立即停止
 
 用法:
-  from pycoder.evolution.retry_policy import RetryPolicy, ErrorSeverity
+  from pycoder.core.retry_policy import RetryPolicy, ErrorSeverity
 
   policy = RetryPolicy(max_retries=3)
   result = await policy.execute(lambda: risky_operation())
+
+定位:
+  本模块位于 pycoder.core (L0 基础抽象层)，无内部依赖。
+  任何高层模块（brain / evolution / server 等）均可安全导入。
+  原先位于 pycoder.evolution.retry_policy, P2-D 移至 core 以
+  消除 brain → evolution 的非法依赖。
 """
 
 from __future__ import annotations
@@ -234,3 +239,11 @@ class RetryPolicy:
             total_duration_ms=(time.monotonic() - start) * 1000,
             retry_history=history,
         )
+
+
+__all__ = [
+    "ErrorSeverity",
+    "RetryPolicy",
+    "RetryResult",
+    "classify_error",
+]

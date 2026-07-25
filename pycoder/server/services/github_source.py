@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional
 
 import aiohttp
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 
 @dataclass

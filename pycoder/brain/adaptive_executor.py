@@ -34,11 +34,21 @@ from pycoder.brain.intent_analyzer import IntentAnalysis
 from pycoder.brain.agent_selector import AgentSelection
 from pycoder.brain.tool_planner import ToolPlan
 from pycoder.brain.feedback_loop import FeedbackLoop, ExecutionSignal, get_feedback_loop
-from pycoder.server.services.agent_parser import parse_response
-from pycoder.server.services.agent_parser import WRITE_TOOLS as WRITE_SAFE_TOOLS
-from pycoder.server.services.agent_tools import execute_agent_tool
+from pycoder.core.services.agent_parser import parse_response
+from pycoder.core.services.agent_parser import WRITE_TOOLS as WRITE_SAFE_TOOLS
 
+# P2-D: execute_agent_tool 通过 importlib 动态加载，避免 brain → server 的静态依赖
+# （agent_tools 依赖 server 层多个模块，不适合下沉到 core）
 logger = logging.getLogger(__name__)
+
+
+async def _execute_agent_tool(*args, **kwargs):
+    """动态加载 execute_agent_tool 的薄包装"""
+    import importlib
+
+    _mod = importlib.import_module("pycoder.server.services.agent_tools")
+    _fn = getattr(_mod, "execute_agent_tool")
+    return await _fn(*args, **kwargs)
 
 WORKSPACE = Path(
     __import__("os").environ.get(
@@ -566,7 +576,7 @@ class AdaptiveExecutor:
 
         for attempt in range(max_retries + 1):
             try:
-                result = await execute_agent_tool(
+                result = await _execute_agent_tool(
                     tool_name,
                     params,
                     self.workspace,

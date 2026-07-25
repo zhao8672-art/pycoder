@@ -40,9 +40,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 from pycoder.safety.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
-from pycoder.evolution.retry_policy import RetryPolicy, ErrorSeverity
-from pycoder.server.services.audit_logger import AuditLogger, get_audit_logger
-from pycoder.server.services.task_grader import TaskGrader, TaskGrade, GradeLevel, get_task_grader
+from pycoder.core.retry_policy import RetryPolicy, ErrorSeverity
+from pycoder.core.services.audit_logger import AuditLogger, get_audit_logger
+from pycoder.core.services.task_grader import TaskGrader, TaskGrade, GradeLevel, get_task_grader
 
 logger = logging.getLogger(__name__)
 

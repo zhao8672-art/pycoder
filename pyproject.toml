@@ -301,3 +301,81 @@ output = "coverage.xml"
 # ────────────────────────────────────────────────────────────────────
 [tool.setuptools.package-data]
 pycoder = ["py.typed", "*.pyi", "templates/*", "static/*"]
+
+# ────────────────────────────────────────────────────────────────────
+# import-linter 依赖边界固化 (P2-D)
+# ────────────────────────────────────────────────────────────────────
+# 运行: lint-imports --config pyproject.toml
+#
+# 分层原则 (高层可依赖低层, 低层不得依赖高层):
+#   L4 (顶层编排): pycoder.evolution / pycoder.lifecycle / pycoder.server
+#   L3 (业务逻辑): pycoder.capabilities / pycoder.brain / pycoder.ai
+#   L2 (基础设施): pycoder.memory / pycoder.providers / pycoder.safety
+#   L1 (核心工具): pycoder.config / pycoder.observability
+#   L0 (基础抽象): pycoder.core
+#
+# layers 数组顺序: 从高到低 (import-linter 约定)
+#
+# 验证命令:
+#   lint-imports --config pyproject.toml
+# ────────────────────────────────────────────────────────────────────
+[tool.importlinter]
+root_package = "pycoder"
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture - 高层可依赖低层, 低层不得依赖高层"
+type = "layers"
+# 顺序: 从高到低
+# P2-D: 调整分层顺序，将 server 提升至最上层（HTTP 路由层应可调用所有业务层）
+layers = [
+    "pycoder.server",
+    "pycoder.lifecycle",
+    "pycoder.evolution",
+    "pycoder.capabilities",
+    "pycoder.brain",
+    "pycoder.ai",
+    "pycoder.memory",
+    "pycoder.providers",
+    "pycoder.safety",
+    "pycoder.config",
+    "pycoder.observability",
+    "pycoder.core",
+]
+# 容许同层互导 (顶层编排器之间会有少量互调, 后续逐步消除)
+# P2-D: 已通过 importlib 动态加载消除 evolution→server、lifecycle→evolution 的静态依赖
+ignore_imports = [
+    # lifecycle 编排器委托 server 的 autonomous_pipeline (设计允许)
+    "pycoder.lifecycle.adapters -> pycoder.server.services.autonomous_pipeline",
+]
+
+[[tool.importlinter.contracts]]
+name = "Forbidden - core 不得依赖业务层 (最严格)"
+type = "forbidden"
+source_modules = ["pycoder.core"]
+forbidden_modules = [
+    "pycoder.server",
+    "pycoder.brain",
+    "pycoder.ai",
+    "pycoder.capabilities",
+    "pycoder.lifecycle",
+    "pycoder.evolution",
+    "pycoder.providers",
+    "pycoder.memory",
+    "pycoder.safety",
+]
+
+[[tool.importlinter.contracts]]
+name = "Forbidden - observability 不得依赖业务层"
+type = "forbidden"
+source_modules = ["pycoder.observability"]
+forbidden_modules = [
+    "pycoder.server",
+    "pycoder.brain",
+    "pycoder.ai",
+    "pycoder.capabilities",
+    "pycoder.lifecycle",
+    "pycoder.evolution",
+    "pycoder.providers",
+    "pycoder.memory",
+    "pycoder.safety",
+]

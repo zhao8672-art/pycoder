@@ -10,7 +10,7 @@ import json
 import time
 from collections.abc import Callable
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 
 class RealtimeCollabEngine:

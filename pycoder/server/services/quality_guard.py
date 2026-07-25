@@ -19,7 +19,7 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 from pycoder.server.services.execution_rules import ExecutionRules
 
 

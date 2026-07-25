@@ -27,8 +27,8 @@ from pycoder.brain.intelligent_router import (
     RoutingDecision,
     get_intelligent_router,
 )
-from pycoder.server.services.agent_parser import parse_response, validate_tool_call
-from pycoder.server.services.agent_parser import WRITE_TOOLS as WRITE_SAFE_TOOLS
+from pycoder.core.services.agent_parser import parse_response, validate_tool_call
+from pycoder.core.services.agent_parser import WRITE_TOOLS as WRITE_SAFE_TOOLS
 from pycoder.server.services.agent_strategies import AgentStrategy
 from pycoder.server.services.agent_tools import execute_agent_tool
 

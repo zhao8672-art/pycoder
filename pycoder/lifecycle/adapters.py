@@ -435,8 +435,12 @@ class HealAdapter(BasePhaseAdapter):
             return
 
         # 调用 EvolutionPipeline 进行修复（复用现有自我进化能力）
+        # P2-D: 通过 importlib 动态加载，避免 lifecycle → evolution 的静态依赖
         try:
-            from pycoder.evolution.core import EvolutionPipeline
+            import importlib as _il
+
+            _evo_mod = _il.import_module("pycoder.evolution.core")
+            EvolutionPipeline = getattr(_evo_mod, "EvolutionPipeline")
 
             pipeline = EvolutionPipeline()
             report = await pipeline.run(

@@ -85,7 +85,9 @@ class DeepAnalyzer:
     async def _call_llm(self, text: str) -> dict | None:
         """调用 LLM 分析"""
         try:
-            from pycoder.server.chat_bridge import ChatBridge
+            import importlib as _il
+            _mod = _il.import_module("pycoder.server.chat_bridge")
+            ChatBridge = getattr(_mod, "ChatBridge")
 
             bridge = ChatBridge()
             bridge.configure(model="deepseek-chat", temperature=0.1, max_tokens=1024)

@@ -186,7 +186,9 @@ class IterativeGenerator:
     ) -> str:
         """调用 LLM"""
         try:
-            from pycoder.server.chat_bridge import ChatBridge
+            import importlib as _il
+            _mod = _il.import_module("pycoder.server.chat_bridge")
+            ChatBridge = getattr(_mod, "ChatBridge")
 
             bridge = ChatBridge()
             bridge.configure(

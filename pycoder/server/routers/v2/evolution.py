@@ -13,7 +13,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 router = APIRouter(prefix="/api/v2/evolution", tags=["v2-evolution"])
 ws_router = APIRouter(prefix="/api/v2", tags=["v2-ws"])

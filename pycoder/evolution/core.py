@@ -1120,8 +1120,12 @@ class EvolutionBrain:
         max_tokens = max_tokens or self._config.max_llm_tokens
 
         try:
-            from pycoder.server.chat_bridge import ChatBridge
-            from pycoder.server.chat_handler import _get_api_key_for_model
+            import importlib as _il
+
+            _cb_mod = _il.import_module("pycoder.server.chat_bridge")
+            ChatBridge = getattr(_cb_mod, "ChatBridge")
+            _ch_mod = _il.import_module("pycoder.server.chat_handler")
+            _get_api_key_for_model = getattr(_ch_mod, "_get_api_key_for_model")
 
             bridge = ChatBridge()
             api_key = _get_api_key_for_model(self._config.llm_model)

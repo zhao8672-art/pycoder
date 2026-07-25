@@ -118,7 +118,9 @@ def _reg(registry, cid, name, desc, schema, required, handler):
 
 
 async def _handle_execute_python(params: dict, context: dict) -> dict:
-    from pycoder.server.routers.code_exec import _run_in_subprocess
+    import importlib as _il
+    _mod = _il.import_module("pycoder.server.routers.code_exec")
+    _run_in_subprocess = getattr(_mod, "_run_in_subprocess")
 
     result = await asyncio.to_thread(_run_in_subprocess, params["code"], params.get("timeout", 30))
     return {
@@ -189,7 +191,9 @@ async def _handle_debug_python(params: dict, context: dict) -> dict:
                 indent = " " * (len(lines[bp - 1]) - len(lines[bp - 1].lstrip()))
                 lines.insert(bp - 1, f"{indent}import pdb; pdb.set_trace()")
         code = "\n".join(lines)
-    from pycoder.server.routers.code_exec import _run_in_subprocess
+    import importlib as _il
+    _mod = _il.import_module("pycoder.server.routers.code_exec")
+    _run_in_subprocess = getattr(_mod, "_run_in_subprocess")
 
     result = await asyncio.to_thread(_run_in_subprocess, code, params.get("timeout", 30))
     return {

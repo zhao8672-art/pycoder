@@ -51,7 +51,9 @@ def register(registry: Any) -> None:
 
 
 async def _handle_list_agent_configs(params: dict, context: dict) -> dict:
-    from pycoder.server.services.agent_definitions import AGENT_ROLES as roles
+    import importlib as _il
+    _mod = _il.import_module("pycoder.server.services.agent_definitions")
+    roles = getattr(_mod, "AGENT_ROLES")
 
     agent_list = []
     for role_id, role in roles.items():

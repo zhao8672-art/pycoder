@@ -1636,7 +1636,7 @@ class TestParsedResponse:
 
     def test_parsed_response_defaults(self):
         """ParsedResponse 应有合理的默认值"""
-        from pycoder.server.services.agent_parser import ParsedResponse
+        from pycoder.core.services.agent_parser import ParsedResponse
 
         pr = ParsedResponse(
             raw="test",
@@ -1656,42 +1656,42 @@ class TestDetectCompletion:
 
     def test_detect_completion_chinese_done(self):
         """中文"完成"应检测为完成信号"""
-        from pycoder.server.services.agent_parser import _detect_completion
+        from pycoder.core.services.agent_parser import _detect_completion
 
         is_comp, summary = _detect_completion("完成！所有任务已完成。")
         assert is_comp is True
 
     def test_detect_completion_done(self):
         """英文"done"应检测为完成信号"""
-        from pycoder.server.services.agent_parser import _detect_completion
+        from pycoder.core.services.agent_parser import _detect_completion
 
         is_comp, summary = _detect_completion("done.")
         assert is_comp is True
 
     def test_detect_completion_finished(self):
         """英文"finished"应检测为完成信号"""
-        from pycoder.server.services.agent_parser import _detect_completion
+        from pycoder.core.services.agent_parser import _detect_completion
 
         is_comp, summary = _detect_completion("finished!")
         assert is_comp is True
 
     def test_detect_completion_summary(self):
         """"总结:"应检测为完成信号"""
-        from pycoder.server.services.agent_parser import _detect_completion
+        from pycoder.core.services.agent_parser import _detect_completion
 
         is_comp, summary = _detect_completion("总结：本次开发了用户认证模块...")
         assert is_comp is True
 
     def test_detect_completion_emoji(self):
         """"✅"开头应检测为完成信号"""
-        from pycoder.server.services.agent_parser import _detect_completion
+        from pycoder.core.services.agent_parser import _detect_completion
 
         is_comp, summary = _detect_completion("✅ 所有任务已完成")
         assert is_comp is True
 
     def test_detect_not_completion(self):
         """普通文本不应检测为完成信号"""
-        from pycoder.server.services.agent_parser import _detect_completion
+        from pycoder.core.services.agent_parser import _detect_completion
 
         is_comp, summary = _detect_completion("请读取文件 config.yaml")
         assert is_comp is False
@@ -1702,7 +1702,7 @@ class TestParseResponse:
 
     def test_parse_empty_text(self):
         """空文本应返回空结果"""
-        from pycoder.server.services.agent_parser import parse_response
+        from pycoder.core.services.agent_parser import parse_response
 
         result = parse_response("")
         assert result.completion is False
@@ -1711,7 +1711,7 @@ class TestParseResponse:
 
     def test_parse_completion_signal(self):
         """完成信号应正确识别"""
-        from pycoder.server.services.agent_parser import parse_response
+        from pycoder.core.services.agent_parser import parse_response
 
         result = parse_response("完成！所有任务已完成。")
         assert result.completion is True
@@ -1719,7 +1719,7 @@ class TestParseResponse:
 
     def test_parse_tool_calls_json(self):
         """JSON tool_calls 格式应正确解析"""
-        from pycoder.server.services.agent_parser import parse_response
+        from pycoder.core.services.agent_parser import parse_response
 
         text = '```json\n{"tool_calls": [{"name": "read_file", "params": {"path": "test.py"}}]}\n```'
         result = parse_response(text)
@@ -1729,7 +1729,7 @@ class TestParseResponse:
 
     def test_parse_tool_calls_bare_json(self):
         """裸 JSON tool_calls 应正确解析"""
-        from pycoder.server.services.agent_parser import parse_response
+        from pycoder.core.services.agent_parser import parse_response
 
         text = '{"tool_calls": [{"name": "write_file", "params": {"path": "test.py", "content": "hello"}}]}'
         result = parse_response(text)
@@ -1738,7 +1738,7 @@ class TestParseResponse:
 
     def test_parse_single_tool_format(self):
         """单工具 JSON 格式应正确解析"""
-        from pycoder.server.services.agent_parser import parse_response
+        from pycoder.core.services.agent_parser import parse_response
 
         text = '{"name": "read_file", "params": {"path": "config.yaml"}}'
         result = parse_response(text)
@@ -1747,7 +1747,7 @@ class TestParseResponse:
 
     def test_parse_react_format(self):
         """ReAct 格式应正确解析"""
-        from pycoder.server.services.agent_parser import parse_response
+        from pycoder.core.services.agent_parser import parse_response
 
         text = '{"thought": "需要读文件", "action": "read_file", "action_input": {"path": "test.py"}}'
         result = parse_response(text)
@@ -1757,7 +1757,7 @@ class TestParseResponse:
 
     def test_parse_react_finish_not_tool_call(self):
         """ReAct FINISH 动作不应被解析为工具调用"""
-        from pycoder.server.services.agent_parser import parse_response
+        from pycoder.core.services.agent_parser import parse_response
 
         text = '{"thought": "完成", "action": "FINISH", "action_input": {}}'
         result = parse_response(text)
@@ -1765,7 +1765,7 @@ class TestParseResponse:
 
     def test_parse_file_blocks(self):
         """FILE: 代码块应正确解析"""
-        from pycoder.server.services.agent_parser import parse_response
+        from pycoder.core.services.agent_parser import parse_response
 
         text = "```FILE:test.py\nprint('hello')\n```"
         result = parse_response(text)
@@ -1775,7 +1775,7 @@ class TestParseResponse:
 
     def test_parse_inline_code_blocks(self):
         """内联代码块应正确解析"""
-        from pycoder.server.services.agent_parser import parse_response
+        from pycoder.core.services.agent_parser import parse_response
 
         text = "```python:test.py\nprint('hello')\n```"
         result = parse_response(text)
@@ -1784,7 +1784,7 @@ class TestParseResponse:
 
     def test_parse_response_combines_all(self):
         """混合内容应同时解析工具调用和文件块"""
-        from pycoder.server.services.agent_parser import parse_response
+        from pycoder.core.services.agent_parser import parse_response
 
         text = (
             '{"tool_calls": [{"name": "read_file", "params": {"path": "a.py"}}]}\n'
@@ -1800,7 +1800,7 @@ class TestParseJsonBlock:
 
     def test_parse_tool_calls_array(self):
         """tool_calls 数组格式"""
-        from pycoder.server.services.agent_parser import _parse_json_block
+        from pycoder.core.services.agent_parser import _parse_json_block
 
         block = json.dumps({
             "tool_calls": [
@@ -1813,7 +1813,7 @@ class TestParseJsonBlock:
 
     def test_parse_single_tool_in_block(self):
         """单个工具格式"""
-        from pycoder.server.services.agent_parser import _parse_json_block
+        from pycoder.core.services.agent_parser import _parse_json_block
 
         block = json.dumps({"name": "read_file", "params": {"path": "test.py"}})
         result = _parse_json_block(block)
@@ -1822,7 +1822,7 @@ class TestParseJsonBlock:
 
     def test_parse_direct_array(self):
         """直接工具数组格式"""
-        from pycoder.server.services.agent_parser import _parse_json_block
+        from pycoder.core.services.agent_parser import _parse_json_block
 
         block = json.dumps([
             {"name": "read_file", "params": {"path": "a.py"}},
@@ -1833,7 +1833,7 @@ class TestParseJsonBlock:
 
     def test_parse_invalid_json(self):
         """无效 JSON 应返回空列表"""
-        from pycoder.server.services.agent_parser import _parse_json_block
+        from pycoder.core.services.agent_parser import _parse_json_block
 
         result = _parse_json_block("not json")
         assert result == []
@@ -1844,7 +1844,7 @@ class TestParseBareJson:
 
     def test_parse_with_prefix_suffix(self):
         """带前后缀的裸 JSON 应正确解析"""
-        from pycoder.server.services.agent_parser import _parse_bare_json
+        from pycoder.core.services.agent_parser import _parse_bare_json
 
         text = 'prefix text {"name": "read_file", "params": {"path": "test.py"}} suffix'
         result = _parse_bare_json(text)
@@ -1853,7 +1853,7 @@ class TestParseBareJson:
 
     def test_no_braces(self):
         """无花括号应返回空列表"""
-        from pycoder.server.services.agent_parser import _parse_bare_json
+        from pycoder.core.services.agent_parser import _parse_bare_json
 
         result = _parse_bare_json("no braces")
         assert result == []
@@ -1864,7 +1864,7 @@ class TestExtractFileBlocks:
 
     def test_extract_single_file_block(self):
         """单个 FILE 块应正确提取"""
-        from pycoder.server.services.agent_parser import _extract_file_blocks
+        from pycoder.core.services.agent_parser import _extract_file_blocks
 
         text = "```FILE:src/app.py\nprint('hello')\n```"
         blocks = _extract_file_blocks(text)
@@ -1874,7 +1874,7 @@ class TestExtractFileBlocks:
 
     def test_extract_multiple_file_blocks(self):
         """多个 FILE 块应全部提取"""
-        from pycoder.server.services.agent_parser import _extract_file_blocks
+        from pycoder.core.services.agent_parser import _extract_file_blocks
 
         text = (
             "```FILE:a.py\ncontent a\n```\n"
@@ -1885,7 +1885,7 @@ class TestExtractFileBlocks:
 
     def test_extract_no_file_blocks(self):
         """无 FILE 块应返回空列表"""
-        from pycoder.server.services.agent_parser import _extract_file_blocks
+        from pycoder.core.services.agent_parser import _extract_file_blocks
 
         blocks = _extract_file_blocks("plain text")
         assert blocks == []
@@ -1896,7 +1896,7 @@ class TestIsToolNameValid:
 
     def test_known_tool_valid(self):
         """已知工具名应验证通过"""
-        from pycoder.server.services.agent_parser import is_tool_name_valid
+        from pycoder.core.services.agent_parser import is_tool_name_valid
 
         assert is_tool_name_valid("read_file") is True
         assert is_tool_name_valid("write_file") is True
@@ -1904,19 +1904,19 @@ class TestIsToolNameValid:
 
     def test_unknown_tool_invalid(self):
         """未知工具名应验证失败"""
-        from pycoder.server.services.agent_parser import is_tool_name_valid
+        from pycoder.core.services.agent_parser import is_tool_name_valid
 
         assert is_tool_name_valid("unknown_tool") is False
 
     def test_pycoder_prefix_valid(self):
         """pycoder. 前缀的工具名应验证通过"""
-        from pycoder.server.services.agent_parser import is_tool_name_valid
+        from pycoder.core.services.agent_parser import is_tool_name_valid
 
         assert is_tool_name_valid("pycoder.custom_tool") is True
 
     def test_underscore_prefix_valid(self):
         """_ 前缀的工具名应验证通过"""
-        from pycoder.server.services.agent_parser import is_tool_name_valid
+        from pycoder.core.services.agent_parser import is_tool_name_valid
 
         assert is_tool_name_valid("_internal_tool") is True
 
@@ -1926,7 +1926,7 @@ class TestValidateToolCall:
 
     def test_valid_tool_call(self):
         """有效的工具调用应校验通过"""
-        from pycoder.server.services.agent_parser import validate_tool_call
+        from pycoder.core.services.agent_parser import validate_tool_call
 
         valid, msg = validate_tool_call({"name": "read_file", "params": {"path": "test.py"}})
         assert valid is True
@@ -1934,7 +1934,7 @@ class TestValidateToolCall:
 
     def test_missing_name(self):
         """缺少名称应校验失败"""
-        from pycoder.server.services.agent_parser import validate_tool_call
+        from pycoder.core.services.agent_parser import validate_tool_call
 
         valid, msg = validate_tool_call({"params": {}})
         assert valid is False
@@ -1942,7 +1942,7 @@ class TestValidateToolCall:
 
     def test_params_not_dict(self):
         """参数非字典应校验失败"""
-        from pycoder.server.services.agent_parser import validate_tool_call
+        from pycoder.core.services.agent_parser import validate_tool_call
 
         valid, msg = validate_tool_call({"name": "read_file", "params": "not a dict"})
         assert valid is False

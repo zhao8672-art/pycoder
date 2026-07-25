@@ -26,7 +26,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pycoder.server.unified_db import get_db_path
+from pycoder.core.services.unified_db import get_db_path
 
 DB_DIR = get_db_path().parent
 DB_PATH = get_db_path()

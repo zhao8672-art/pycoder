@@ -18,7 +18,7 @@ from pathlib import Path
 from fastapi import APIRouter, Body, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 from pycoder.server.services.evolution_report import ReportGenerator
 
 # ═══════════════════════════════════════════════════════════

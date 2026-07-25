@@ -33,7 +33,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 # ── 标准库白名单（不尝试安装）──
 _STDLIB_MODULES = {

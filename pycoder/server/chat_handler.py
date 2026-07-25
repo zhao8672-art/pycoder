@@ -396,7 +396,7 @@ def _try_write_code_files(content: str):
             wrote_any = True
 
     if wrote_any:
-        from pycoder.server.log import log
+        from pycoder.core.services.log import log
 
         log.info("auto_write_files_complete", workspace=str(work_dir))
 
@@ -415,7 +415,7 @@ async def _execute_xml_tool_calls(content: str) -> tuple[str, list[dict]]:
     Returns:
         (cleaned_content, tool_results): 清理后的内容和工具结果列表
     """
-    from pycoder.server.log import log
+    from pycoder.core.services.log import log
 
     pattern = re.compile(r"<(\w+)>\s*(.*?)\s*</\1>", re.DOTALL)
     cleaned = content
@@ -509,7 +509,7 @@ def _write_file_safe(work_dir: Path, rel_path: str, code: str):
     if target.is_relative_to(work_dir):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(code, encoding="utf-8")
-        from pycoder.server.log import log
+        from pycoder.core.services.log import log
 
         log.info("auto_write_file", path=rel_path, size=len(code))
 
@@ -860,7 +860,7 @@ async def _run_chat_stream(
     # ── 断裂点4修复: Agent 自动路由 — 任务难度≥MEDIUM 时自动启用 Agent 团队 ──
     if not hermes and not agent_mode:
         try:
-            from pycoder.server.services.task_grader import get_task_grader
+            from pycoder.core.services.task_grader import get_task_grader
             _grader = get_task_grader()
             # 快速预评估：基于任务描述关键词 + 长度
             _quick_ctx: dict[str, str] = {"domain": ""}

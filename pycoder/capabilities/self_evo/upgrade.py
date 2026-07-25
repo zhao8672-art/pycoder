@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from pycoder import __version__
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 # ── 常量 ──────────────────────────────────────────────────
 PENDING_FILE = Path.home() / ".pycoder" / "pending_upgrade.json"

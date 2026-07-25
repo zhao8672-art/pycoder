@@ -152,7 +152,7 @@ class TestRun:
         mock_pipeline.run = fake_run
 
         # 让 log.error 抛异常 → 进入内层 except → 调用 logger.debug
-        from pycoder.server.log import log as pycoder_log
+        from pycoder.core.services.log import log as pycoder_log
         original_error = pycoder_log.error
 
         def failing_error(*a, **kw):

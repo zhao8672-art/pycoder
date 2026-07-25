@@ -103,7 +103,9 @@ class TestDrivenGenerator:
         self, prompt: str, max_tokens: int, temperature: float
     ) -> str:
         try:
-            from pycoder.server.chat_bridge import ChatBridge
+            import importlib as _il
+            _mod = _il.import_module("pycoder.server.chat_bridge")
+            ChatBridge = getattr(_mod, "ChatBridge")
             bridge = ChatBridge()
             bridge.configure(model="deepseek-chat", temperature=temperature, max_tokens=max_tokens)
             return await bridge.chat(prompt, max_tokens=max_tokens)

@@ -38,7 +38,7 @@ from pycoder.brain.cost_controller import CostController, get_cost_controller
 from pycoder.brain.execution_report import (
     ExecutionReport, ReportBuilder, ReportStatus, get_report_builder,
 )
-from pycoder.server.services.task_grader import TaskGrader, get_task_grader
+from pycoder.core.services.task_grader import TaskGrader, get_task_grader
 
 logger = logging.getLogger(__name__)
 

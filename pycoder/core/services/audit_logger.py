@@ -7,11 +7,14 @@
   - 调试辅助: 快速定位问题
 
 用法:
-  from pycoder.server.services.audit_logger import AuditLogger, AuditEntry
+  from pycoder.core.services.audit_logger import AuditLogger, AuditEntry
 
   logger = AuditLogger()
   logger.log("read_file", {"path": "app.py"}, "success", duration_ms=1.2)
   logger.log("execute_code", {"code": "..."}, "failed", error="SyntaxError")
+
+P2-D: 从 pycoder/server/services/ 迁移到 pycoder/core/services/，解决
+brain 层对 server 层的非法依赖（分层架构固化）。
 """
 
 from __future__ import annotations

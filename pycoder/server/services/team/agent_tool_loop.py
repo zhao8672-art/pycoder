@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pycoder.server.chat_bridge import ChatBridge  # noqa: F401
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 from pycoder.server.routers.files import get_workspace_root
 from pycoder.server.services.agent_definitions import AgentRole, AgentTask
 

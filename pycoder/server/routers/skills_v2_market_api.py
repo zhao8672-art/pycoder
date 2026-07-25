@@ -21,7 +21,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 from pycoder.skills import SkillMarketplace
 
 # ═══════════════════════════════════════════════════════════

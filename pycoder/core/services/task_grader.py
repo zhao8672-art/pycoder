@@ -17,7 +17,7 @@
   - 约束条件 (constraints):     性能/安全/兼容性等约束数量
 
 用法:
-    from pycoder.server.services.task_grader import TaskGrader, TaskGrade, GradeLevel
+    from pycoder.core.services.task_grader import TaskGrader, TaskGrade, GradeLevel
 
     grader = TaskGrader()
     grade = grader.assess(
@@ -25,6 +25,9 @@
         context={"files": 5, "dependencies": 3, "domain": "backend"},
     )
     print(f"难度: {grade.level.name}, 步数: {grade.max_iterations}, 温度: {grade.temperature}")
+
+P2-D: 从 pycoder/server/services/ 迁移到 pycoder/core/services/，解决
+brain/capabilities/ai 层对 server 层的非法依赖（分层架构固化）。
 """
 
 from __future__ import annotations

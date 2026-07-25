@@ -16,7 +16,9 @@ PyCoder 自我学习进化引擎 — 统一入口
   执行任务 → 记录经验 → 提取模式 → 收集反馈 → 调整参数 → 优化执行
 
 用法:
-  from pycoder.server.learning import LearningEngine
+  import importlib as _il
+  _mod = _il.import_module("pycoder.server.learning")
+  LearningEngine = getattr(_mod, "LearningEngine")
 
   engine = LearningEngine()
 

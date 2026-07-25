@@ -21,34 +21,34 @@ class TestLogModule:
     def test_get_logger_returns_logger(self, monkeypatch):
         """get_logger 返回一个有效的日志对象"""
         # 确保 structlog 可用
-        monkeypatch.setattr("pycoder.server.log._has_structlog", True)
+        monkeypatch.setattr("pycoder.core.services.log._has_structlog", True)
         import structlog
 
-        from pycoder.server.log import get_logger
+        from pycoder.core.services.log import get_logger
 
         logger = get_logger("test_logger")
         assert logger is not None
 
     def test_get_logger_with_custom_name(self, monkeypatch):
         """get_logger 使用自定义名称返回日志器"""
-        monkeypatch.setattr("pycoder.server.log._has_structlog", True)
-        from pycoder.server.log import get_logger
+        monkeypatch.setattr("pycoder.core.services.log._has_structlog", True)
+        from pycoder.core.services.log import get_logger
 
         logger = get_logger("my_custom_module")
         assert logger is not None
 
     def test_get_logger_default_name(self, monkeypatch):
         """get_logger 不传名称时使用 __name__"""
-        monkeypatch.setattr("pycoder.server.log._has_structlog", True)
-        from pycoder.server.log import get_logger
+        monkeypatch.setattr("pycoder.core.services.log._has_structlog", True)
+        from pycoder.core.services.log import get_logger
 
         logger = get_logger()
         assert logger is not None
 
     def test_log_convenience_access(self, monkeypatch):
         """log 便捷访问变量存在"""
-        monkeypatch.setattr("pycoder.server.log._has_structlog", True)
-        from pycoder.server.log import log
+        monkeypatch.setattr("pycoder.core.services.log._has_structlog", True)
+        from pycoder.core.services.log import log
 
         assert log is not None
 
@@ -70,10 +70,10 @@ class TestLogModule:
 
         # 删除已缓存的模块并重新导入
         for key in list(sys.modules.keys()):
-            if "pycoder.server.log" in key:
+            if "pycoder.core.services.log" in key:
                 del sys.modules[key]
 
-        import pycoder.server.log as log_mod
+        import pycoder.core.services.log as log_mod
 
         logger = log_mod.get_logger("fallback_test")
         assert isinstance(logger, logging.Logger)
@@ -94,10 +94,10 @@ class TestLogModule:
         monkeypatch.setattr(builtins, "__import__", fake_import)
 
         for key in list(sys.modules.keys()):
-            if "pycoder.server.log" in key:
+            if "pycoder.core.services.log" in key:
                 del sys.modules[key]
 
-        import pycoder.server.log as log_mod
+        import pycoder.core.services.log as log_mod
 
         logger = log_mod.get_logger(None)
         assert isinstance(logger, logging.Logger)

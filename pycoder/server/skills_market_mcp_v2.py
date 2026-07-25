@@ -13,7 +13,7 @@
 
 from __future__ import annotations
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 # ══════════════════════════════════════════════════════════
 # MCP Tool 定义和工具处理器

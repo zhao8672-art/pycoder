@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TypeVar
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 # 尝试导入 agent_bus（可能先于 agent_bus 加载）
 try:

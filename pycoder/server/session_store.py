@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 # ── 会话数据模型 ──────────────────────────────────────────
 
@@ -92,7 +92,7 @@ class SessionStore:
 
     def __init__(self, db_path: str | Path = None, pool_size: int = 5):
         if db_path is None:
-            from pycoder.server.unified_db import get_db_path
+            from pycoder.core.services.unified_db import get_db_path
 
             db_path = get_db_path("sessions")
         self._db_path = Path(db_path)

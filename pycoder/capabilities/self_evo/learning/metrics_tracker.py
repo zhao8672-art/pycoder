@@ -23,7 +23,7 @@ import sqlite3
 import time
 from dataclasses import dataclass, field
 
-from pycoder.server.unified_db import get_db_path
+from pycoder.core.services.unified_db import get_db_path
 
 logger = logging.getLogger(__name__)
 

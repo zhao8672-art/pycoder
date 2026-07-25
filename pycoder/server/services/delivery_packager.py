@@ -23,7 +23,7 @@ from enum import Enum
 from pathlib import Path
 
 from pycoder.server.chat_bridge import ChatBridge
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 
 
 class DeployTarget(Enum):

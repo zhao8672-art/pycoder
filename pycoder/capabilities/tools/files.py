@@ -96,7 +96,9 @@ def _infer_side(cid: str) -> list:
 
 
 async def _handle_read_file(params: dict, context: dict) -> dict:
-    from pycoder.server.routers.files import get_workspace_root
+    import importlib as _il
+    _mod = _il.import_module("pycoder.server.routers.files")
+    get_workspace_root = getattr(_mod, "get_workspace_root")
 
     work_dir = Path(get_workspace_root())
     target = (work_dir / params.get("path", "")).resolve()
@@ -114,7 +116,9 @@ async def _handle_read_file(params: dict, context: dict) -> dict:
 
 
 async def _handle_write_file(params: dict, context: dict) -> dict:
-    from pycoder.server.routers.files import get_workspace_root
+    import importlib as _il
+    _mod = _il.import_module("pycoder.server.routers.files")
+    get_workspace_root = getattr(_mod, "get_workspace_root")
 
     work_dir = Path(get_workspace_root())
     target = (work_dir / params["path"]).resolve()
@@ -126,7 +130,9 @@ async def _handle_write_file(params: dict, context: dict) -> dict:
 
 
 async def _handle_list_files(params: dict, context: dict) -> dict:
-    from pycoder.server.routers.files import get_workspace_root
+    import importlib as _il
+    _mod = _il.import_module("pycoder.server.routers.files")
+    get_workspace_root = getattr(_mod, "get_workspace_root")
 
     work_dir = Path(get_workspace_root())
     target = (work_dir / params.get("path", ".")).resolve()
@@ -147,7 +153,9 @@ async def _handle_list_files(params: dict, context: dict) -> dict:
 
 
 async def _handle_create_directory(params: dict, context: dict) -> dict:
-    from pycoder.server.routers.files import get_workspace_root
+    import importlib as _il
+    _mod = _il.import_module("pycoder.server.routers.files")
+    get_workspace_root = getattr(_mod, "get_workspace_root")
 
     work_dir = Path(get_workspace_root())
     target = (work_dir / params["path"]).resolve()
@@ -159,7 +167,9 @@ async def _handle_create_directory(params: dict, context: dict) -> dict:
 
 async def _handle_delete_file(params: dict, context: dict) -> dict:
     import shutil
-    from pycoder.server.routers.files import get_workspace_root
+    import importlib as _il
+    _mod = _il.import_module("pycoder.server.routers.files")
+    get_workspace_root = getattr(_mod, "get_workspace_root")
 
     work_dir = Path(get_workspace_root())
     target = (work_dir / params["path"]).resolve()

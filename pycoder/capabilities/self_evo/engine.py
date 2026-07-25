@@ -928,7 +928,7 @@ class SelfEvolutionEngine:
 
         # 任务难度自动分级
         try:
-            from pycoder.server.services.task_grader import get_task_grader
+            from pycoder.core.services.task_grader import get_task_grader
 
             grade = get_task_grader().grade_from_kwargs(task_type, target, custom_prompt)
             yield {
@@ -1173,8 +1173,12 @@ class SelfEvolutionEngine:
         优先使用网络 API Key。若未配置或连接失败，返回空串由调用方降级到纯 AST 扫描。
         """
         try:
-            from pycoder.server.chat_bridge import ChatBridge
-            from pycoder.server.chat_handler import _get_api_key_for_model
+            import importlib as _il
+            _mod = _il.import_module("pycoder.server.chat_bridge")
+            ChatBridge = getattr(_mod, "ChatBridge")
+            import importlib as _il
+            _mod = _il.import_module("pycoder.server.chat_handler")
+            _get_api_key_for_model = getattr(_mod, "_get_api_key_for_model")
 
             bridge = ChatBridge()
             # BUGFIX: 必须调用 configure() 设置 model 和 api_base
@@ -1433,7 +1437,9 @@ class SelfEvolutionEngine:
 
             # SnapshotManager 备份
             try:
-                from pycoder.server.services.version_snapshot import get_snapshot_manager
+                import importlib as _il
+                _mod = _il.import_module("pycoder.server.services.version_snapshot")
+                get_snapshot_manager = getattr(_mod, "get_snapshot_manager")
 
                 snap = get_snapshot_manager()
                 result = snap.create_snapshot(label=f"evo_{fix['file']}", pipeline_step="apply_fix")
@@ -1493,7 +1499,9 @@ class SelfEvolutionEngine:
         """创建快照备份"""
         ref = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + str(uuid.uuid4())[:8]
         try:
-            from pycoder.server.services.version_snapshot import get_snapshot_manager
+            import importlib as _il
+            _mod = _il.import_module("pycoder.server.services.version_snapshot")
+            get_snapshot_manager = getattr(_mod, "get_snapshot_manager")
 
             snap = get_snapshot_manager()
             snap.create_snapshot(label=f"evo_{ref}", pipeline_step="evolve_backup")
@@ -1504,7 +1512,9 @@ class SelfEvolutionEngine:
     async def _snapshot_rollback(self, ref: str) -> None:
         """从快照回滚"""
         try:
-            from pycoder.server.services.version_snapshot import get_snapshot_manager
+            import importlib as _il
+            _mod = _il.import_module("pycoder.server.services.version_snapshot")
+            get_snapshot_manager = getattr(_mod, "get_snapshot_manager")
 
             snap = get_snapshot_manager()
             snapshots = snap.list_snapshots()
@@ -1634,7 +1644,9 @@ class SelfEvolutionEngine:
     ) -> None:
         """记录学习经验到 LearningEngine"""
         try:
-            from pycoder.server.learning import get_learning_engine
+            import importlib as _il
+            _mod = _il.import_module("pycoder.server.learning")
+            get_learning_engine = getattr(_mod, "get_learning_engine")
 
             engine = get_learning_engine()
             outcome = (

@@ -137,7 +137,9 @@ class FIMCodeCompleter:
     ) -> list[str]:
         """尝试 DeepSeek FIM 专用 API"""
         try:
-            from pycoder.server.chat_bridge import PROVIDER_API_BASES
+            import importlib as _il
+            _mod = _il.import_module("pycoder.server.chat_bridge")
+            PROVIDER_API_BASES = getattr(_mod, "PROVIDER_API_BASES")
 
             api_base = PROVIDER_API_BASES.get("deepseek", "https://api.deepseek.com")
             url = f"{api_base}/beta/completions"  # DeepSeek FIM 端点
@@ -196,7 +198,9 @@ class FIMCodeCompleter:
     ) -> list[str]:
         """通过聊天接口实现 FIM 补全 (通用回退)"""
         try:
-            from pycoder.server.chat_bridge import ChatBridge
+            import importlib as _il
+            _mod = _il.import_module("pycoder.server.chat_bridge")
+            ChatBridge = getattr(_mod, "ChatBridge")
 
             prompt = FIM_CHAT_PROMPT.format(
                 language=language,

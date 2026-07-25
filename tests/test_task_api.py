@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from pycoder.server.services.task_grader import TaskGrade, TaskGrader
+from pycoder.core.services.task_grader import TaskGrade, TaskGrader
 from pycoder.server.services.task_persistence import (
     TaskPersistence,
     TaskState,
@@ -33,16 +33,17 @@ def _make_task_grade(
     level: str = "MEDIUM",
     score: int = 50,
 ) -> TaskGrade:
-    """创建测试用 TaskGrade"""
+    """创建测试用 TaskGrade
+
+    P2-D: 修正字段名以匹配 TaskGrade 实际定义
+    （原测试使用了不存在的 max_steps/reasoning_depth/description/detected_types 字段）
+    """
     return TaskGrade(
         level=level,
-        max_steps=20,
+        max_iterations=20,
         temperature=0.3,
         max_tokens=4096,
-        reasoning_depth="standard",
-        description="中等复杂度的编程任务",
         score=score,
-        detected_types=["coding", "testing"],
     )
 
 

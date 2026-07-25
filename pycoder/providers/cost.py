@@ -452,10 +452,17 @@ class TokenEstimator:
             预估报告
         """
         # 简单估算：每字符 ~0.25 token
-        from pycoder.server.chat_bridge import estimate_tokens
+        # P2-D: 内联 estimate_tokens 避免循环依赖 (providers -> server)
+        def _estimate_tokens(text: str) -> int:
+            """估算文本的 token 数量 (~每中文字符1token，每英文词1.3token)"""
+            if not text:
+                return 0
+            chinese_chars = sum(1 for c in text if "\u4e00" <= c <= "\u9fff")
+            other_chars = len(text) - chinese_chars
+            return int(chinese_chars * 1.2 + other_chars / 2.5) + 4
 
-        input_tokens = estimate_tokens(system_prompt) if system_prompt else 0
-        input_tokens += estimate_tokens(user_message)
+        input_tokens = _estimate_tokens(system_prompt) if system_prompt else 0
+        input_tokens += _estimate_tokens(user_message)
         if conversation_history:
             for msg in conversation_history:
                 input_tokens += estimate_tokens(str(msg.get("content", "")))

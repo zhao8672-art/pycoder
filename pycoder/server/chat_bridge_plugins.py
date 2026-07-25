@@ -81,7 +81,7 @@ def grade_task_difficulty(
         TaskGrade 实例，或 None（模块不可用时）
     """
     try:
-        from pycoder.server.services.task_grader import get_task_grader
+        from pycoder.core.services.task_grader import get_task_grader
 
         grader = get_task_grader()
         return grader.assess(message, context=context or {})

@@ -94,7 +94,7 @@ class TestMemoryAugmentorInit:
     def test_create_default_path(self):
         """使用默认路径创建增强器"""
         with patch(
-            "pycoder.server.unified_db.get_db_path",
+            "pycoder.core.services.unified_db.get_db_path",
             return_value="/tmp/test_default.db",
         ):
             aug = MemoryAugmentor()

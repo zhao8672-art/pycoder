@@ -18,7 +18,7 @@ from sqlalchemy import engine_from_config, pool
 
 # ── 加载 PyCoder 的 SQLAlchemy Base ──
 try:
-    from pycoder.server.unified_db import Base
+    from pycoder.core.services.unified_db import Base
     target_metadata = Base.metadata
 except ImportError:
     # 如果 unified_db 不可用，回退到空元数据

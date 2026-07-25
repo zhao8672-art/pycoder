@@ -28,7 +28,7 @@ from pycoder.server.chat_handler import (
     _get_effective_model,
 )
 from pycoder.server.hermes_engine import _execute_hermes_write
-from pycoder.server.log import log
+from pycoder.core.services.log import log
 from pycoder.server.session_share import get_session_share_manager
 from pycoder.server.session_store import get_session_store
 

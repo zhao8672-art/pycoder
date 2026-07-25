@@ -87,7 +87,9 @@ async def _handle_python_env(params: dict, context: dict) -> dict:
 
 async def _handle_docker_status(params: dict, context: dict) -> dict:
     try:
-        from pycoder.server.docker_backend import get_docker_backend
+        import importlib as _il
+        _mod = _il.import_module("pycoder.server.docker_backend")
+        get_docker_backend = getattr(_mod, "get_docker_backend")
 
         backend = get_docker_backend()
         return await backend.get_status()
@@ -101,7 +103,9 @@ async def _handle_docker_status(params: dict, context: dict) -> dict:
 
 
 async def _handle_docker_execute(params: dict, context: dict) -> dict:
-    from pycoder.server.docker_backend import get_docker_backend
+    import importlib as _il
+    _mod = _il.import_module("pycoder.server.docker_backend")
+    get_docker_backend = getattr(_mod, "get_docker_backend")
 
     backend = get_docker_backend()
     if not backend.is_available:
