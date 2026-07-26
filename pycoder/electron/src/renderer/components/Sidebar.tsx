@@ -1,24 +1,43 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { useAppStore } from '../stores/appStore';
 import { FileTree } from './FileTree';
+import { WorkspacePanel } from './WorkspacePanel';
 import { SearchPanel } from './SearchPanel';
 import { GitPanel } from './GitPanel';
 import { GitHubPanel } from './GitHubPanel';
-import { SettingsPanel } from './SettingsPanel';
-import { SkillsMarketV2 } from './skills-v2/SkillsMarketV2';
-import { TeamPanel } from './TeamPanel';
-import { CloudPanel } from './CloudPanel';
-import { ExtensionsPanel } from './ExtensionsPanel';
 import { DropZone } from './DropZone';
 import { DiffView } from './DiffView';
 import { GitBranchGraph } from './GitBranchGraph';
 import { SnippetsPanel } from './SnippetsPanel';
+
+// 懒加载重量级面板
+const SkillsMarketV2 = lazy(() => import('./skills-v2/SkillsMarketV2'));
+const ExtensionsPanel = lazy(() => import('./ExtensionsPanel'));
+const SettingsPanel = lazy(() => import('./SettingsPanel'));
+const TeamPanel = lazy(() => import('./TeamPanel'));
+const CloudPanel = lazy(() => import('./CloudPanel'));
+
+// 懒加载骨架屏
+const PanelSkeleton = () => (
+  <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    {Array.from({ length: 6 }).map((_, i) => (
+      <div key={i} style={{
+        height: 60, borderRadius: 6,
+        background: 'linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%)',
+        backgroundSize: '200% 100%',
+        animation: 'shimmer 1.5s infinite',
+      }} />
+    ))}
+    <style>{`@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
+  </div>
+);
 
 export const Sidebar: React.FC = () => {
   const { activeSidebar, toggleSidebar, wsClient, layout } = useAppStore();
 
   const itemConfig: Record<string, { label: string; icon: string }> = {
     files: { label: '文件资源管理器', icon: '📁' },
+    workspace: { label: '工作区管理', icon: '📂' },
     search: { label: '搜索', icon: '🔍' },
     git: { label: 'Git', icon: '📦' },
     github: { label: 'GitHub', icon: '🐙' },
@@ -39,6 +58,8 @@ export const Sidebar: React.FC = () => {
     switch (activeSidebar) {
       case 'files':
         return <FileTree />;
+      case 'workspace':
+        return <WorkspacePanel />;
       case 'search':
         return <SearchPanel />;
       case 'git':
@@ -54,15 +75,15 @@ export const Sidebar: React.FC = () => {
       case 'snippets':
         return <SnippetsPanel />;
       case 'skills':
-        return <SkillsMarketV2 />;
+        return <Suspense fallback={<PanelSkeleton />}><SkillsMarketV2 /></Suspense>;
       case 'extensions':
-        return <ExtensionsPanel />;
+        return <Suspense fallback={<PanelSkeleton />}><ExtensionsPanel /></Suspense>;
       case 'team':
-        return wsClient ? <TeamPanel wsClient={wsClient} /> : <div className="sidebar-placeholder">WebSocket 未连接</div>;
+        return wsClient ? <Suspense fallback={<PanelSkeleton />}><TeamPanel wsClient={wsClient} /></Suspense> : <div className="sidebar-placeholder">WebSocket 未连接</div>;
       case 'cloud':
-        return wsClient ? <CloudPanel wsClient={wsClient} /> : <div className="sidebar-placeholder">WebSocket 未连接</div>;
+        return wsClient ? <Suspense fallback={<PanelSkeleton />}><CloudPanel wsClient={wsClient} /></Suspense> : <div className="sidebar-placeholder">WebSocket 未连接</div>;
       case 'settings':
-        return <SettingsPanel />;
+        return <Suspense fallback={<PanelSkeleton />}><SettingsPanel /></Suspense>;
       default:
         return <FileTree />;
     }

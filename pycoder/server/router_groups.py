@@ -150,6 +150,7 @@ def _register_system(app: "FastAPI") -> None:
     from pycoder.server.routers.notify_api import ws_router as notify_ws_router
     from pycoder.server.routers.session_search import router as session_search_router
     from pycoder.server.routers.workspace_api import router as workspace_api_router
+    from pycoder.server.routers.workspace_manage_api import router as workspace_manage_router
 
     from pycoder.server.routers.dep_api import router as dep_api_router
     from pycoder.server.routers.env_api import router as env_api_router
@@ -164,6 +165,7 @@ def _register_system(app: "FastAPI") -> None:
     app.include_router(impact_router)  # P1-2
     app.include_router(dashboard_router)  # P1-3
     app.include_router(workspace_api_router)
+    app.include_router(workspace_manage_router)
     app.include_router(knowledge_api_router)
     app.include_router(memory_api_router)
     app.include_router(notify_api_router)

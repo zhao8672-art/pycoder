@@ -73,7 +73,11 @@ export class WSConnectionManager {
         if (this.handlers.size === 0) {
           this._incomingBuffer.push(msg);
         } else {
-          this.handlers.forEach((h) => h(msg));
+          // 异步分发给所有 handler，避免在 React render/commit 阶段同步更新 store 导致 error #306
+          const handlers = [...this.handlers];
+          queueMicrotask(() => {
+            handlers.forEach((h) => h(msg));
+          });
         }
       } catch {
         // Ignore non-JSON messages
@@ -129,11 +133,14 @@ export class WSConnectionManager {
 
   onMessage(handler: MessageHandler): () => void {
     this.handlers.add(handler);
-    // 如果有积压的消息，立即回放给新注册的 handler
+    // 如果有积压的消息，异步回放以避免 React 19 useSyncExternalStore 检测到
+    // commit 阶段中的 store 更新而抛出 error #306
     if (this._incomingBuffer.length > 0) {
       const buffer = [...this._incomingBuffer];
       this._incomingBuffer = [];
-      buffer.forEach((msg) => handler(msg));
+      queueMicrotask(() => {
+        buffer.forEach((msg) => handler(msg));
+      });
     }
     return () => this.handlers.delete(handler);
   }
@@ -149,7 +156,9 @@ export class WSConnectionManager {
   }
 
   private _notifyStatus(status: ConnectionStatus): void {
-    this.statusHandlers.forEach((h) => h(status));
+    this.statusHandlers.forEach((h) => {
+      queueMicrotask(() => h(status));
+    });
   }
 
   disconnect(): void {

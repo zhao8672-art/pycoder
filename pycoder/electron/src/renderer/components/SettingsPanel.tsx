@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAppStore } from '../stores/appStore';
+import { useAppStore, useChatStore } from '../stores/appStore';
 import { BackendAPI } from '../services/backend';
 import type { ModelInfo } from '../types';
 
 export const SettingsPanel: React.FC = () => {
   const { currentModel, models, setCurrentModel, setModels } = useAppStore();
+  const chatStore = useChatStore();
+  const reasoningEffort = chatStore.reasoningEffort;
+  const setReasoningEffort = chatStore.setReasoningEffort;
+  const enableCache = chatStore.enableCache;
+  const setEnableCache = chatStore.setEnableCache;
   const [apiKey, setApiKey] = useState('');
   const [keyStatus, setKeyStatus] = useState<Record<string, boolean>>({});
   const [saveMsg, setSaveMsg] = useState('');
@@ -53,7 +58,7 @@ export const SettingsPanel: React.FC = () => {
     const res = await BackendAPI.config.keys();
     if (res?.providers) {
       const status: Record<string, boolean> = {};
-      Object.entries(res.providers).forEach(([k, v]) => { status[k] = !!v.configured; });
+      Object.entries(res.providers).forEach(([k, v]) => { status[k] = !!(v.has_key || v.configured); });
       setKeyStatus(status);
     }
   };
@@ -218,11 +223,8 @@ export const SettingsPanel: React.FC = () => {
             ].map((opt) => (
               <button
                 key={opt.value}
-                className={`settings-btn-sm ${(useAppStore.getState() as any).reasoningEffort === opt.value ? 'active' : ''}`}
-                onClick={() => {
-                  const s = useAppStore.getState() as any;
-                  if (s.setReasoningEffort) s.setReasoningEffort(opt.value);
-                }}
+                className={`settings-btn-sm ${reasoningEffort === opt.value ? 'active' : ''}`}
+                onClick={() => setReasoningEffort(opt.value)}
               >
                 {opt.label}
               </button>
@@ -233,11 +235,8 @@ export const SettingsPanel: React.FC = () => {
           <label className="settings-toggle">
             <input
               type="checkbox"
-              checked={(useAppStore.getState() as any).enableCache !== false}
-              onChange={(e) => {
-                const s = useAppStore.getState() as any;
-                if (s.setEnableCache) s.setEnableCache(e.target.checked);
-              }}
+              checked={enableCache !== false}
+              onChange={(e) => setEnableCache(e.target.checked)}
             />
             <span>🔋 KV Cache 降本 <span className="settings-hint">(节省 50-90% 输入费)</span></span>
           </label>

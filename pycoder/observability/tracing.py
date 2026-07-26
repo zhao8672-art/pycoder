@@ -82,6 +82,18 @@ try:
 except ImportError:  # pragma: no cover
     trace = None  # type: ignore[assignment]
     _OTEL_AVAILABLE = False
+
+    # 提供桩类使 @traced 装饰器在 OTel 未安装时也能正常运行
+    class StatusCode:
+        OK = "ok"
+        ERROR = "error"
+        UNSET = "unset"
+
+    class Status:
+        def __init__(self, status_code: StatusCode, description: str = "") -> None:
+            self.status_code = status_code
+            self.description = description
+
     logger.info("opentelemetry-sdk 未安装，链路追踪降级为 NoOp")
 
 # ── 上下文变量（trace_id/span_id 注入日志）──

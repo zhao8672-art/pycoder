@@ -15,6 +15,7 @@ interface ActivityItem {
 
 const GROUP_CORE: ActivityItem[] = [
   { id: 'files', icon: '\u{1F4C1}', label: '文件', tooltip: 'fileManager', action: 'sidebar', sidebarView: 'files' },
+  { id: 'workspace', icon: '\u{1F4C2}', label: '工作区', tooltip: 'workspaceManager', action: 'sidebar', sidebarView: 'workspace' },
   { id: 'search', icon: '\u{1F50D}', label: '搜索', tooltip: 'searchInFiles', action: 'sidebar', sidebarView: 'search' },
   { id: 'git', icon: '\u{1F4E6}', label: 'Git', tooltip: 'versionControl', action: 'sidebar', sidebarView: 'git' },
   { id: 'ai', icon: '\u{1F916}', label: 'AI', tooltip: 'aiAssistant', action: 'toggle-ai' },

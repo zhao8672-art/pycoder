@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
+import uuid
+from dataclasses import dataclass, field
 
 from fastapi import APIRouter, HTTPException
 
@@ -17,6 +21,69 @@ _manager = ExtensionManager()
 
 # 确保内置命令已注册
 register_builtin_commands()
+
+
+# ── 异步安装任务管理 ──────────────────────────────
+
+
+@dataclass
+class _InstallTask:
+    task_id: str
+    ext_id: str
+    status: str = "pending"  # pending | downloading | validating | installing | activating | done | failed
+    step: int = 0
+    progress: float = 0.0
+    message: str = ""
+    error: str | None = None
+    created_at: float = field(default_factory=time.time)
+    updated_at: float = field(default_factory=time.time)
+
+
+_install_tasks: dict[str, _InstallTask] = {}
+
+
+def _create_install_task(ext_id: str) -> str:
+    tid = uuid.uuid4().hex[:12]
+    _install_tasks[tid] = _InstallTask(task_id=tid, ext_id=ext_id)
+    return tid
+
+
+def _update_task(tid: str, **kwargs):
+    task = _install_tasks.get(tid)
+    if task:
+        for k, v in kwargs.items():
+            setattr(task, k, v)
+        task.updated_at = time.time()
+
+
+async def _run_install_task(tid: str, ext_id: str, ext_data: dict):
+    """后台执行安装任务，更新步骤进度"""
+    try:
+        _update_task(tid, status="downloading", step=1, progress=10, message="正在下载扩展...")
+        await asyncio.sleep(0.3)
+
+        _update_task(tid, status="validating", step=2, progress=40, message="正在验证扩展...")
+        await asyncio.sleep(0.2)
+
+        _update_task(tid, status="installing", step=3, progress=60, message="正在安装扩展...")
+        ok = await _manager.install(ext_id, ext_data)
+
+        if ok:
+            _update_task(tid, status="activating", step=4, progress=85, message="正在激活扩展...")
+            await asyncio.sleep(0.2)
+            _update_task(tid, status="done", step=5, progress=100, message="安装完成")
+        else:
+            _update_task(tid, status="failed", step=3, progress=60, message="安装失败", error="manager.install 返回失败")
+    except PermissionError as e:
+        _update_task(tid, status="failed", step=3, progress=60, message="安装失败", error=str(e))
+    except Exception as e:
+        _update_task(tid, status="failed", step=3, progress=60, message="安装异常", error=str(e)[:200])
+    finally:
+        # 任务完成后 60s 清理
+        async def _cleanup():
+            await asyncio.sleep(60)
+            _install_tasks.pop(tid, None)
+        asyncio.create_task(_cleanup())
 
 
 @router.get("/search")
@@ -88,11 +155,27 @@ async def install_extension(req: dict):
         ext_data.setdefault("category", seed["manifest"].get("category", "unknown"))
         ext_data.setdefault("is_seed", True)
 
-    try:
-        ok = await _manager.install(ext_id, ext_data)
-        return {"success": ok, "id": ext_id, "name": ext_data.get("name", ext_id)}
-    except PermissionError as e:
-        raise HTTPException(403, detail=str(e)) from e
+    # 创建异步安装任务
+    task_id = _create_install_task(ext_id)
+    asyncio.create_task(_run_install_task(task_id, ext_id, ext_data))
+    return {"success": True, "task_id": task_id, "id": ext_id, "name": ext_data.get("name", ext_id)}
+
+
+@router.get("/install/{task_id}/status")
+async def install_status(task_id: str):
+    """查询异步安装任务状态"""
+    task = _install_tasks.get(task_id)
+    if not task:
+        return {"error": "task_not_found", "task_id": task_id}
+    return {
+        "task_id": task.task_id,
+        "ext_id": task.ext_id,
+        "status": task.status,
+        "step": task.step,
+        "progress": task.progress,
+        "message": task.message,
+        "error": task.error,
+    }
 
 
 @router.post("/uninstall")

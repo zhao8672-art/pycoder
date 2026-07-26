@@ -7,6 +7,12 @@ import type {
   SessionMessagesResponse,
   SessionItem,
   WorkspaceResponse,
+  WorkspaceConfig,
+  WorkspaceFolderItem,
+  RulesContent,
+  AiContextPrompt,
+  ScaffoldResult,
+  ScaffoldTemplate,
   GitStatusResponse,
   SearchResponse,
   DiffListResponse,
@@ -92,6 +98,62 @@ export const BackendAPI = {
     current: () => request<WorkspaceResponse>('/api/files/workspace/current'),
     recent: () => request<{ workspaces: string[] }>('/api/files/workspace/recent'),
     restore: () => request<WorkspaceResponse>('/api/files/workspace/restore'),
+
+    // 工作区管理（新）
+    manage: {
+      getConfig: () => request<WorkspaceConfig>('/api/workspace/manage/config'),
+      init: (path: string) =>
+        request<{ success: boolean; workspace: string; name: string }>('/api/workspace/manage/init', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path }),
+        }).catch(() => null),
+      saveConfig: () => request<{ success: boolean; path?: string }>('/api/workspace/manage/save', { method: 'POST' }),
+      updateName: (name: string) =>
+        request<{ success: boolean; name: string }>('/api/workspace/manage/config/name', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        }),
+      updateDescription: (description: string) =>
+        request<{ success: boolean; description: string }>('/api/workspace/manage/config/description', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description }),
+        }),
+      listFolders: () => request<{ folders: WorkspaceFolderItem[] }>('/api/workspace/manage/folders'),
+      addFolder: (path: string, name?: string) =>
+        request<{ success: boolean; folder?: WorkspaceFolderItem; error?: string }>('/api/workspace/manage/folders/add', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path, name }),
+        }),
+      removeFolder: (path: string) =>
+        request<{ success: boolean; error?: string }>('/api/workspace/manage/folders/remove', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path }),
+        }),
+      reorderFolders: (paths: string[]) =>
+        request<{ success: boolean; folders?: WorkspaceFolderItem[]; error?: string }>('/api/workspace/manage/folders/reorder', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paths }),
+        }),
+      getRules: () => request<RulesContent>('/api/workspace/manage/rules'),
+      saveRules: (content: string) =>
+        request<{ success: boolean; error?: string }>('/api/workspace/manage/rules', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content }),
+        }),
+      getAiContext: () => request<AiContextPrompt>('/api/workspace/manage/ai-context'),
+      getSettings: () => request<{ settings: Record<string, unknown> }>('/api/workspace/manage/settings'),
+      updateSettings: (settings: Record<string, unknown>) =>
+        request<{ success: boolean; settings?: Record<string, unknown> }>('/api/workspace/manage/settings', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ settings }),
+        }),
+      scaffold: (name: string, template: string) =>
+        request<ScaffoldResult>('/api/workspace/manage/scaffold', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, template }),
+        }),
+      templates: () => request<{ templates: ScaffoldTemplate[] }>('/api/workspace/manage/templates'),
+    },
   },
 
   extensions: {
@@ -110,6 +172,8 @@ export const BackendAPI = {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       }),
+    installStatus: (taskId: string) =>
+      request<{ task_id: string; ext_id: string; status: string; step: number; progress: number; message: string; error?: string }>(`/api/extensions/install/${taskId}/status`),
     uninstall: (id: string) =>
       request<SuccessResponse>('/api/extensions/uninstall', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -280,6 +344,15 @@ export const BackendAPI = {
 
   team: {
     runs: (limit = 10) => request<TeamResponse>(`/api/team/runs?limit=${limit}`),
+    start: (task: string) =>
+      request<{ success: boolean; run_id?: string; message?: string }>('/api/team/start', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task }),
+      }),
+    status: (runId: string) =>
+      request<{ id: string; status: string; progress: number; current_agent?: string; tasks?: unknown[]; review_rounds?: number; success_count?: number; total_tasks?: number }>(
+        `/api/team/status/${runId}`,
+      ),
   },
 
   diff: {

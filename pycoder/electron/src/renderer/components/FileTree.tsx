@@ -94,6 +94,7 @@ export const FileTree: React.FC = () => {
     const folder = await window.electronAPI?.openFolderDialog();
     if (folder) {
       await BackendAPI.workspace.switch(folder);
+      await BackendAPI.workspace.manage.init(folder);
       setProjectRoot(folder);
       const treeData = await window.electronAPI?.getFileTree(folder, 4);
       if (treeData) {

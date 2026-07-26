@@ -24,6 +24,7 @@ import type {
 import { useDebounce } from '../../hooks/useDebounce';
 import { SkillDetailV2 } from './SkillDetailV2';
 import { SkillPublishFormV2 } from './SkillPublishFormV2';
+import { PanelContainer } from '../common/PanelContainer';
 
 type TabKey = 'recommended' | 'installed' | 'favorites';
 type SortKey = 'relevance' | 'rating' | 'downloads' | 'updated' | 'name' | 'stars';
@@ -529,118 +530,21 @@ export const SkillsMarketV2: React.FC = () => {
     const displaySkills = tab === 'favorites' ? favorites : skills;
 
     return (
-        <div className="skills-v2-container">
-            {/* 顶部标题栏 */}
-            <div className="skills-v2-header">
-                <h3 className="skills-v2-title">🧩 技能市场 V2</h3>
-                <div className="skills-v2-header-actions">
-                    {hasUpdatesAvailable && (
-                        <button
-                            className="skills-v2-btn skills-v2-btn-update-all"
-                            onClick={handleUpdateAll}
-                            disabled={updatingAll}
-                        >
-                            {updatingAll ? '⏳ 更新中...' : '🔄 全部更新'}
-                        </button>
-                    )}
-                    <button
-                        className="skills-v2-btn skills-v2-btn-publish"
-                        onClick={() => setShowPublish(true)}
-                    >
-                        📦 发布
-                    </button>
-                </div>
-            </div>
-
-            {/* 顶部 Tab */}
-            <div className="skills-v2-tabs">
-                <button
-                    className={`skills-v2-tab ${tab === 'recommended' ? 'active' : ''}`}
-                    onClick={() => setTab('recommended')}
-                >
-                    🔥 推荐
-                </button>
-                <button
-                    className={`skills-v2-tab ${tab === 'installed' ? 'active' : ''}`}
-                    onClick={() => setTab('installed')}
-                >
-                    ✅ 已安装
-                </button>
-                <button
-                    className={`skills-v2-tab ${tab === 'favorites' ? 'active' : ''}`}
-                    onClick={() => setTab('favorites')}
-                >
-                    ⭐ 收藏 ({favorites.length})
-                </button>
-            </div>
-
-            {/* 搜索栏 + 工具栏 */}
-            <div className="skills-v2-toolbar">
-                <div className="skills-v2-search-wrapper">
-                    <input
-                        className="skills-v2-search-input"
-                        placeholder="搜索技能..."
-                        value={searchInput}
-                        onChange={(e) => {
-                            setSearchInput(e.target.value);
-                            setShowSuggestions(true);
-                        }}
-                        onFocus={() => setShowSuggestions(true)}
-                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                    />
-                    {showSuggestions && suggestions.length > 0 && (
-                        <ul className="skills-v2-suggestions">
-                            {suggestions.map((s) => (
-                                <li
-                                    key={s.id}
-                                    className="skills-v2-suggestion-item"
-                                    onClick={() => {
-                                        setSearchInput(s.name);
-                                        setShowSuggestions(false);
-                                        openDetail(s.id);
-                                    }}
-                                >
-                                    <span className="skills-v2-suggestion-icon">
-                                        {s.icon_url ? (
-                                            <img src={s.icon_url} alt="" width={20} height={20} />
-                                        ) : (
-                                            '🧩'
-                                        )}
-                                    </span>
-                                    <span className="skills-v2-suggestion-name">{s.name}</span>
-                                    <span className="skills-v2-suggestion-meta">
-                                        ⭐ {s.rating.toFixed(1)} · ⬇ {s.downloads}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
-
-                <select
-                    className="skills-v2-sort-select"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as SortKey)}
-                    aria-label="排序"
-                >
-                    <option value="relevance">相关性</option>
-                    <option value="rating">评分最高</option>
-                    <option value="downloads">下载最多</option>
-                    <option value="updated">最近更新</option>
-                    <option value="name">按名称</option>
-                    <option value="stars">最多星</option>
-                </select>
-
-                <button
-                    className="skills-v2-btn skills-v2-btn-sidebar-toggle"
-                    onClick={() => setSidebarCollapsed((c) => !c)}
-                >
-                    {sidebarCollapsed ? '☰' : '✕'}
-                </button>
-            </div>
-
-            {/* 主体：侧栏 + 卡片列表 */}
+        <PanelContainer
+            title="技能市场"
+            icon="🧩"
+            loading={loading && displaySkills.length === 0}
+            empty={!loading && displaySkills.length === 0 && !error}
+            emptyMessage={
+                tab === 'installed' ? '暂无已安装的技能' :
+                    tab === 'favorites' ? '暂无收藏的技能' :
+                        (debouncedSearch ? '未找到 "' + debouncedSearch + '"' : '暂无可用技能')
+            }
+            error={error || undefined}
+            className="skills-v2-container"
+        >
             <div className="skills-v2-body">
+
                 {/* 左侧筛选栏 */}
                 {!sidebarCollapsed && (
                     <aside className="skills-v2-sidebar">
@@ -961,7 +865,8 @@ export const SkillsMarketV2: React.FC = () => {
                     )}
                 </main>
             </div>
-        </div>
+
+        </PanelContainer>
     );
 };
 

@@ -174,6 +174,8 @@ const AppInner: React.FC = () => {
         }
         if (envRes?.workspace && window.electronAPI) {
           window.electronAPI.getFileTree(envRes.workspace, 4).then(setFileTree);
+          // 首次启动，自动将 env workspace 注册为工作区（静默执行）
+          BackendAPI.workspace.manage.init(envRes.workspace).catch(() => {/* 忽略 */ });
         }
 
         // 自动恢复上次工作区
@@ -184,6 +186,8 @@ const AppInner: React.FC = () => {
             useAppStore.getState().setProjectRoot(restoreRes.path);
             setFileTree(tree);
           }
+          // 自动注册为工作区（静默执行）
+          BackendAPI.workspace.manage.init(restoreRes.path).catch(() => {/* 忽略 */ });
         }
 
         if (gitRes) setGitStatus(gitRes);

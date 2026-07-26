@@ -155,6 +155,44 @@ export interface WorkspaceResponse {
   restored?: boolean;
 }
 
+// === 工作区管理（新） ===
+export interface WorkspaceFolderItem {
+  path: string;
+  name: string;
+}
+
+export interface WorkspaceConfig {
+  $schema: string;
+  name: string;
+  description: string;
+  version: string;
+  folders: WorkspaceFolderItem[];
+  ai: Record<string, unknown>;
+  settings: Record<string, unknown>;
+  tasks: Record<string, string>;
+}
+
+export interface ScaffoldTemplate {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface ScaffoldResult {
+  success: boolean;
+  path?: string;
+  files?: string[];
+  error?: string;
+}
+
+export interface RulesContent {
+  content: string;
+}
+
+export interface AiContextPrompt {
+  prompt: string;
+}
+
 export interface GitStatusResponse {
   branch: string;
   changes: GitChange[];
@@ -183,6 +221,27 @@ export interface ExtensionInfo {
 export interface ExtensionsResponse {
   extensions: ExtensionInfo[];
   total: number;
+  total_all?: number;
+  offset?: number;
+  limit?: number;
+  has_more?: boolean;
+}
+
+export interface InstallTaskResponse {
+  success: boolean;
+  task_id?: string;
+  id?: string;
+  error?: string;
+}
+
+export interface InstallTaskStatus {
+  task_id: string;
+  ext_id: string;
+  status: 'pending' | 'downloading' | 'validating' | 'installing' | 'activating' | 'done' | 'failed';
+  step: number;
+  progress: number;
+  message: string;
+  error?: string;
 }
 
 export interface SkillsResponse {
