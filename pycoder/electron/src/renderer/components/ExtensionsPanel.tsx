@@ -35,26 +35,46 @@ export const ExtensionsPanel: React.FC = () => {
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(false);
     const PAGE_SIZE = 20;
+    // 推荐标签页: 缓存所有未安装的扩展（避免 API 分页与过滤冲突）
+    const [allUninstalled, setAllUninstalled] = useState<Extension[]>([]);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-    // Search/Filter/Page 变化时重新拉取
+    // 推荐标签页: 全量拉取 → 本地过滤 + 本地分页
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => {
-            if (tab === 'recommended') fetchExtensions(search);
+            if (tab === 'recommended') {
+                setPage(0);
+                fetchExtensions(search);
+            }
         }, 400);
         return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-    }, [search, category, sortBy, page, tab]);
+    }, [search, category, sortBy, tab]);
+
+    useEffect(() => {
+        // page 变化时直接从缓存的 allUninstalled 里切，不重新请求
+        setHasMore((page + 1) * PAGE_SIZE < allUninstalled.length);
+    }, [page, allUninstalled]);
 
     const fetchExtensions = useCallback(async (q: string = '') => {
         setLoading(true);
         setError('');
         setNetworkFailed(false);
         try {
-            const res = await BackendAPI.extensions.search(q, category, PAGE_SIZE, page * PAGE_SIZE);
+            // 推荐标签页拉取大页 (200) 以便本地完整过滤
+            const limit = tab === 'recommended' ? 200 : PAGE_SIZE;
+            const res = await BackendAPI.extensions.search(q, category, limit, 0);
             const list = res?.extensions || [];
+            // 本地过滤已安装的
+            const uninstalled = list.filter(e => !isInstalledCheck(e))
+                .sort((a, b) => {
+                    if (sortBy === 'stars') return b.stars - a.stars;
+                    if (sortBy === 'name') return a.name.localeCompare(b.name);
+                    return (b.downloads || b.stars) - (a.downloads || a.stars);
+                });
+            setAllUninstalled(uninstalled);
             setExtensions(list);
-            setHasMore(res?.has_more || false);
+            setHasMore(PAGE_SIZE < uninstalled.length);
             if (list.length <= 6) {
                 // Only seed data returned - GitHub API likely rate limited
             }
@@ -160,12 +180,10 @@ export const ExtensionsPanel: React.FC = () => {
 
     const isInstalledCheck = (ext: Extension) => ext.installed || installed.some(i => i.id === ext.id);
 
-    const displayList = tab === 'installed' ? installed : extensions.filter(e => !isInstalledCheck(e))
-        .sort((a, b) => {
-            if (sortBy === 'stars') return b.stars - a.stars;
-            if (sortBy === 'name') return a.name.localeCompare(b.name);
-            return (b.downloads || b.stars) - (a.downloads || a.stars);
-        });
+    // 推荐标签页: 从本地全量缓存中取当前页
+    const displayList = tab === 'installed'
+        ? installed
+        : allUninstalled.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
     // Detail view
     if (detailExt) {

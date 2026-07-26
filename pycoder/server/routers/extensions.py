@@ -378,3 +378,20 @@ async def update_setting(req: dict):
     reg = get_settings_registry()
     ok = reg.set(key, value)
     return {"success": ok, "key": key, "value": value}
+
+
+@router.post("/external-sync")
+async def sync_external_extensions():
+    """从外部数据源导入扩展（类似 Skills 的 external-sync）
+
+    通过 GitHub API 搜索热门 Python 仓库，扩充扩展市场数量。
+    """
+    from pycoder.extensions.external_sources import import_external_extensions
+
+    result = import_external_extensions()
+    logger.info(
+        "external_ext_sync: added=%d total=%d",
+        result.get("added", 0),
+        result.get("total", 0),
+    )
+    return result

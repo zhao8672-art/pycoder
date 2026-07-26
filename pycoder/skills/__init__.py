@@ -398,15 +398,120 @@ class SkillMarketplace:
     def _preinstall_builtins(self) -> None:
         """预安装内置技能（如果尚未安装）"""
         try:
+            # 修复已有内置技能: 按内置 ID 列表标记已安装（兼容 is_builtin=0 的旧数据）
+            builtin_ids = [
+                "code-review", "test-generator", "doc-generator", "refactor-helper",
+                "security-scanner", "performance-analyzer", "git-helper",
+                "dependency-checker", "lint-fixer", "api-doc-generator",
+                "code-explainer", "project-scaffolder",
+            ]
+            now = __import__("datetime").datetime.now().isoformat()
+            with sqlite3.connect(str(self._db_path)) as conn:
+                placeholders = ",".join("?" for _ in builtin_ids)
+                conn.execute(
+                    f"UPDATE skills SET is_builtin=1, installed_at=? "
+                    f"WHERE id IN ({placeholders}) "
+                    f"AND (installed_at IS NULL OR installed_at = '')",
+                    [now] + builtin_ids,
+                )
+                updated = conn.total_changes
+                if updated:
+                    logger.info("内置技能安装状态已修复: %d 个", updated)
+
             from pycoder.skills.builtin import BUILTIN_SKILLS
 
             for skill_def in BUILTIN_SKILLS:
                 if not self._skill_exists(skill_def.id):
-                    self._save_skill_to_db(skill_def, mark_as_installed=False)
+                    self._save_skill_to_db(skill_def, mark_as_installed=True)
                     self._save_skill_content(skill_def)
                     logger.info("内置技能已安装", skill_id=skill_def.id, name=skill_def.name)
         except ImportError:
             logger.warning("无法加载内置技能模块")
+
+    def import_external_skills(self) -> dict:
+        """从外部数据源导入技能到 SQLite 数据库（Tech Leads + OpenClaw）
+
+        将 EnhancedSkill → SkillDefinition 转换后写入 skills.db，
+        使 5000+ 外部技能可通过 V2 API 搜索。
+
+        Returns:
+            导入结果统计
+        """
+        try:
+            from pycoder.server.skills_external_sources import fetch_all_external_skills
+        except ImportError:
+            return {"success": False, "error": "技能采集模块不可用"}
+
+        all_skills, sources_status = fetch_all_external_skills()
+        added = 0
+        skipped = 0
+        errors = 0
+
+        now = __import__("datetime").datetime.now().isoformat()
+
+        for es in all_skills:
+            if self._skill_exists(es.id):
+                skipped += 1
+                continue
+
+            try:
+                # EnhancedSkill → SkillDefinition
+                tags = (es.tags or []) + (es.topics or [])
+                sd = SkillDefinition(
+                    id=es.id,
+                    name=es.name,
+                    version=es.version or "1.0.0",
+                    description=(es.description or "")[:500],
+                    author=es.author or "Community",
+                    category=es.category or "other",
+                    tags=list(set(tags))[:10],
+                    install_count=max(es.downloads, 1),
+                    rating=min(es.rating, 5.0) if es.rating else 0,
+                    created_at=now,
+                    updated_at=now,
+                    is_builtin=False,
+                    publisher=es.author or "Community",
+                    verified=es.verified,
+                    source_url=es.repository_url or es.url or "",
+                    stars=es.stars or 0,
+                )
+                self._save_skill_to_db(sd, mark_as_installed=False)
+                added += 1
+            except Exception as e:
+                logger.debug("导入外部技能失败", skill_id=es.id, error=str(e)[:60])
+                errors += 1
+
+        # 重建 FTS5 索引
+        try:
+            import sqlite3
+            with sqlite3.connect(str(self._db_path)) as conn:
+                total = conn.execute("SELECT COUNT(*) FROM skills").fetchone()[0]
+                conn.execute("DELETE FROM skills_fts")
+                conn.execute(
+                    "INSERT INTO skills_fts(skill_id, name, description, tags) "
+                    "SELECT id, name, description, tags FROM skills"
+                )
+                conn.commit()
+            logger.info("外部技能 FTS5 索引已重建", total=total)
+        except Exception as e:
+            logger.debug("FTS5 重建失败", error=str(e)[:60])
+
+        return {
+            "success": True,
+            "added": added,
+            "skipped": skipped,
+            "errors": errors,
+            "total_in_db": self._count_skills(),
+            "sources": sources_status,
+        }
+
+    def _count_skills(self) -> int:
+        """获取技能总数"""
+        try:
+            with sqlite3.connect(str(self._db_path)) as conn:
+                return conn.execute("SELECT COUNT(*) FROM skills").fetchone()[0]
+        except Exception:
+            return 0
 
     def _skill_exists(self, skill_id: str) -> bool:
         """检查技能是否已存在于数据库中"""

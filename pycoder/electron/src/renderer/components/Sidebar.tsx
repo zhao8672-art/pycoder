@@ -5,7 +5,7 @@ import { SearchPanel } from './SearchPanel';
 import { GitPanel } from './GitPanel';
 import { GitHubPanel } from './GitHubPanel';
 import { SettingsPanel } from './SettingsPanel';
-import { SkillsMarket } from './SkillsMarket';
+import { SkillsMarketV2 } from './skills-v2/SkillsMarketV2';
 import { TeamPanel } from './TeamPanel';
 import { CloudPanel } from './CloudPanel';
 import { ExtensionsPanel } from './ExtensionsPanel';
@@ -54,7 +54,7 @@ export const Sidebar: React.FC = () => {
       case 'snippets':
         return <SnippetsPanel />;
       case 'skills':
-        return wsClient ? <SkillsMarket wsClient={wsClient} /> : <div className="sidebar-placeholder">WebSocket 未连接</div>;
+        return <SkillsMarketV2 />;
       case 'extensions':
         return <ExtensionsPanel />;
       case 'team':

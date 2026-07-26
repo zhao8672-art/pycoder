@@ -742,11 +742,37 @@ async def _start_scheduler():
         )
     )
 
+    # ── Phase 2: 技能生命周期分析（每日 05:00）──
+    scheduler.add_task(
+        ScheduledTask(
+            id="skills-lifecycle-daily",
+            name="技能生命周期每日分析 (05:00)",
+            trigger="cron",
+            config={"cron": "0 5 * * *"},
+            action="python:pycoder.server.app._scheduled_lifecycle_analysis",
+            action_args={},
+        )
+    )
+
+    # ── Phase 2: 技能市场月报（每月1日 06:00）──
+    scheduler.add_task(
+        ScheduledTask(
+            id="skills-monthly-report",
+            name="技能市场月报生成 (每月1日06:00)",
+            trigger="cron",
+            config={"cron": "0 6 1 * *"},
+            action="python:pycoder.server.app._scheduled_skills_report",
+            action_args={},
+        )
+    )
+
     await scheduler.start()
     import logging
 
     logging.getLogger("pycoder.server.app").info(
-        "scheduler_started: 9 tasks registered (skills×2, extensions×2, evo-scan, evo-fix, memory-cleanup, security-scan, skills-health)"
+        "scheduler_started: 11 tasks registered "
+        "(skills×2, extensions×2, evo-scan, evo-fix, memory-cleanup, "
+        "security-scan, skills-health, lifecycle-daily, monthly-report)"
     )
 
 
@@ -836,6 +862,76 @@ async def _scheduled_skills_health_check():
         _logger.info("skills_health: installed=%d skills", len(installed))
     except Exception as e:
         _logger.debug("skills_health_skip: %s", e)
+
+
+async def _scheduled_lifecycle_analysis():
+    """定时技能生命周期分析 (每日 05:00)
+
+    1. 从 OSSInsight 获取最新排名
+    2. 计算增长率和动量
+    3. 更新生命周期标签数据库
+    """
+    try:
+        from pycoder.server.skills_data_sources import get_ossinsight_client
+        from pycoder.server.skills_lifecycle import get_lifecycle_engine
+
+        engine = get_lifecycle_engine()
+        client = get_ossinsight_client()
+
+        # 获取所有分类的最新排名
+        collections = client.fetch_all_collections()
+        all_items = []
+        for col_id, items in collections.items():
+            for item in items:
+                all_items.append({
+                    "id": f"ossinsight_{item.repo_name.replace('/', '_')}",
+                    "name": item.repo_name.split("/")[-1],
+                    "stars_28d": item.stars_28d,
+                    "stars_total": item.stars_total,
+                    "category": col_id,
+                })
+
+        if all_items:
+            trends = engine.analyze_trends(all_items, source="ossinsight")
+            engine.save_trends(trends)
+
+            # 导入 SO 数据
+            engine.import_so_survey()
+
+            _logger.info(
+                "lifecycle_analysis_done: skills=%d trends=%d",
+                len(all_items), len(trends),
+            )
+        else:
+            _logger.info("lifecycle_analysis_skip: no ossinsight data")
+    except Exception as e:
+        _logger.debug("lifecycle_analysis_error: %s", e)
+
+
+async def _scheduled_skills_report():
+    """定时生成技能市场月报 (每月1日 06:00)"""
+    try:
+        from pycoder.server.skills_lifecycle import get_lifecycle_engine
+        from pycoder.server.skills_report import SkillsReportGenerator
+
+        engine = get_lifecycle_engine()
+        generator = SkillsReportGenerator()
+
+        # 先执行一次生命周期分析
+        await _scheduled_lifecycle_analysis()
+
+        # 生成报告
+        from pycoder.server.skills_report import generate_skills_report
+        result = generate_skills_report(engine, generator)
+
+        _logger.info(
+            "skills_report_generated: path=%s emerging=%d trending=%d",
+            result.get("report_path", ""),
+            result.get("emerging_count", 0),
+            result.get("trending_count", 0),
+        )
+    except Exception as e:
+        _logger.debug("skills_report_error: %s", e)
 
 
 async def _init_recommendation_db():

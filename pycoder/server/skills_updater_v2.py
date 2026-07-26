@@ -19,6 +19,13 @@ from pathlib import Path
 
 from pycoder.core.services.log import log
 
+# Phase 1 增强数据源
+from pycoder.server.skills_data_sources import (
+    make_github_request,
+    classify_with_onet,
+    get_ossinsight_client,
+)
+
 
 def _validate_url(url: str) -> str:
     """验证 URL 协议仅允许 http/https"""
@@ -28,6 +35,25 @@ def _validate_url(url: str) -> str:
     if parsed.scheme not in ("http", "https"):
         raise ValueError(f"不允许的 URL 协议: {parsed.scheme}")
     return url
+
+
+# 检查 GITHUB_TOKEN 是否可用
+_GITHUB_TOKEN_AVAILABLE = bool(os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN"))
+if not _GITHUB_TOKEN_AVAILABLE:
+    # 也检查 ~/.pycoder/config.json
+    try:
+        _cfg_path = Path.home() / ".pycoder" / "config.json"
+        if _cfg_path.exists():
+            _cfg = json.loads(_cfg_path.read_text(encoding="utf-8"))
+            _GITHUB_TOKEN_AVAILABLE = bool(
+                _cfg.get("github_token", "") or _cfg.get("github", {}).get("token", "")
+            )
+    except Exception:
+        pass
+if _GITHUB_TOKEN_AVAILABLE:
+    log.info("github_token_detected", message="GitHub Token 可用, API 配额 5000 次/小时")
+else:
+    log.warning("github_token_missing", message="未检测到 GITHUB_TOKEN, API 配额仅 60 次/小时")
 
 
 @dataclass
@@ -157,7 +183,7 @@ class EnhancedSkillsFetcher:
         # ── 新增在线数据源（2026-07） ──
         "github_trending_python": {
             "name": "GitHub Trending Python",
-            "description": "GitHub 热门 Python 项目（stars:>500, 近期活跃）",
+            "description": "GitHub 热门 Python 项目（认证 API）",
             "url": (
                 "https://api.github.com/search/repositories"
                 "?q=language:python+stars:>500+pushed:>2025-01-01"
@@ -167,7 +193,7 @@ class EnhancedSkillsFetcher:
         },
         "github_mcp_servers": {
             "name": "GitHub MCP Servers",
-            "description": "GitHub 上的 MCP Server 项目",
+            "description": "GitHub 上的 MCP Server 项目（认证 API）",
             "url": (
                 "https://api.github.com/search/repositories"
                 "?q=topic:mcp-server+stars:>10&sort=stars&order=desc&per_page=50"
@@ -190,8 +216,18 @@ class EnhancedSkillsFetcher:
         "github_awesome_code_assistants": {
             "name": "Awesome Code Assistants",
             "description": "精选 AI 代码助手和编码 Agent",
-            "url": "https://raw.githubusercontent.com/ricklamers/awesome-ai-code-assistants/main/README.md",
+            "url": (
+                "https://raw.githubusercontent.com/"
+                "ricklamers/awesome-ai-code-assistants/main/README.md"
+            ),
             "type": "markdown_list",
+        },
+        # ── Phase 1 增强数据源（2026-07-25） ──
+        "ossinsight_trending": {
+            "name": "OSSInsight 热门项目",
+            "description": "基于 OSSInsight 200+ 分类的实时排名数据",
+            "url": "https://ossinsight.io/api/collections",
+            "type": "ossinsight",
         },
         "github_topic_ai_agent": {
             "name": "GitHub AI Agent Topic",
@@ -210,6 +246,56 @@ class EnhancedSkillsFetcher:
                 "?q=topic:code-assistant+stars:>20&sort=stars&order=desc&per_page=50"
             ),
             "type": "github_search",
+        },
+        # ── Phase 3: 中国技能市场数据源（2026-07-25） ──
+        "github_china_ai_tools": {
+            "name": "中国 AI 工具生态",
+            "description": "GitHub 上中国 AI 相关热门项目（中文生态）",
+            "url": (
+                "https://api.github.com/search/repositories"
+                "?q=language:python+topic:ai+topic:chinese+stars:>100"
+                "&sort=stars&order=desc&per_page=50"
+            ),
+            "type": "github_search",
+        },
+        "github_awesome_chinese_dev": {
+            "name": "中文开发者 Awesome 列表",
+            "description": "独立开发与 AI 出海中文工具资源",
+            "url": (
+                "https://api.github.com/search/repositories"
+                "?q=topic:chinese+topic:developer-tools+stars:>50"
+                "&sort=stars&order=desc&per_page=50"
+            ),
+            "type": "github_search",
+        },
+        "github_china_llm": {
+            "name": "中国大模型生态",
+            "description": "中国大模型相关开源项目 (DeepSeek/Qwen/ChatGLM等)",
+            "url": (
+                "https://api.github.com/search/repositories"
+                "?q=topic:llm+topic:chinese+stars:>200"
+                "&sort=stars&order=desc&per_page=50"
+            ),
+            "type": "github_search",
+        },
+        "ossinsight_china_lang": {
+            "name": "OSSInsight 中国编程语言",
+            "description": "中国编程语言专项排名数据",
+            "url": "https://ossinsight.io/collections/programming-language-of-china",
+            "type": "ossinsight",
+        },
+        # ── Phase 4: 外部高质数据源（2026-07-26） ──
+        "techleads_club": {
+            "name": "Tech Leads Club Agent Skills",
+            "description": "200+ 安全验证的 AI Agent 技能（Snyk 扫描）",
+            "url": "https://github.com/tech-leads-club/agent-skills",
+            "type": "external_techleads",
+        },
+        "openclaw_awesome": {
+            "name": "OpenClaw Awesome Skills",
+            "description": "5400+ OpenClaw 生态技能",
+            "url": "https://github.com/VoltAgent/awesome-openclaw-skills",
+            "type": "external_openclaw",
         },
     }
 
@@ -390,6 +476,18 @@ class EnhancedSkillsFetcher:
                     skills = await asyncio.to_thread(
                         self._parse_markdown_list_from_url, config["url"], source_id
                     )
+                elif config["type"] == "ossinsight":
+                    skills = await asyncio.to_thread(
+                        self._fetch_ossinsight, source_id
+                    )
+                elif config["type"] == "external_techleads":
+                    skills = await asyncio.to_thread(
+                        self._fetch_external_techleads, source_id
+                    )
+                elif config["type"] == "external_openclaw":
+                    skills = await asyncio.to_thread(
+                        self._fetch_external_openclaw, source_id
+                    )
                 else:
                     skills = []
 
@@ -449,26 +547,25 @@ class EnhancedSkillsFetcher:
         }
 
     def _fetch_github_search(self, url: str, source_id: str) -> list[EnhancedSkill]:
-        """从 GitHub Search API 拉取"""
-        import urllib.request
-
-        _validate_url(url)
-        req = urllib.request.Request(
-            url,
-            headers={
-                "Accept": "application/vnd.github.v3+json",
-                "User-Agent": "PyCoder-Skills-Bot/2.0",
-            },
-        )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode())
+        """从 GitHub Search API 拉取 (认证 + 速率限制感知)"""
+        try:
+            data = make_github_request(url)
+        except RuntimeError as e:
+            log.warning("github_search_failed", source=source_id, error=str(e)[:80])
+            return []
 
         skills = []
         for item in data.get("items", []):
+            # 使用 ONET 分类
+            name = item.get("name", "").replace("-", " ").title()
+            desc = (item.get("description") or "")[:300]
+            topics = item.get("topics", [])[:5]
+            category = classify_with_onet(name, desc, topics)
+
             skill = EnhancedSkill(
                 id=item.get("name", "").lower().replace("-", "_"),
-                name=item.get("name", "").replace("-", " ").title(),
-                description=(item.get("description") or "")[:300],
+                name=name,
+                description=desc,
                 author=item.get("full_name", "").split("/")[0],
                 repository_url=item.get("html_url", ""),
                 stars=item.get("stargazers_count", 0),
@@ -478,13 +575,12 @@ class EnhancedSkillsFetcher:
                 created_at=item.get("created_at", ""),
                 updated_at=item.get("updated_at", ""),
                 pushed_at=item.get("pushed_at", ""),
-                topics=item.get("topics", [])[:5],
+                topics=topics,
                 language=item.get("language", "Unknown"),
                 source=source_id,
                 archived=item.get("archived", False),
+                category=category,
             )
-            # 分类推断
-            skill.category = self._infer_category(skill.name, skill.description)
             skills.append(skill)
 
         return skills
@@ -527,7 +623,8 @@ class EnhancedSkillsFetcher:
                         description=f"来自 awesome-claude-skills 列表: {dir_name}",
                         repository_url=d.get(
                             "html_url",
-                            f"https://github.com/secondstate/awesome-claude-skills/tree/main/{dir_name}",
+                            ("https://github.com/secondstate/"
+                             "awesome-claude-skills/tree/main/") + dir_name,
                         ),
                         stars=10,
                         downloads=5,
@@ -688,26 +785,60 @@ class EnhancedSkillsFetcher:
 
         return skills
 
+    def _fetch_external_techleads(self, source_id: str) -> list[EnhancedSkill]:
+        """从 Tech Leads Club 采集技能 (200+ 安全验证)"""
+        try:
+            from pycoder.server.skills_external_sources import fetch_techleads_skills
+            skills = fetch_techleads_skills()
+            log.info("external_techleads_fetched", count=len(skills))
+            return skills
+        except Exception as e:
+            log.warning("external_techleads_failed", error=str(e)[:80])
+            return []
+
+    def _fetch_external_openclaw(self, source_id: str) -> list[EnhancedSkill]:
+        """从 OpenClaw Awesome 采集技能 (5400+)"""
+        try:
+            from pycoder.server.skills_external_sources import fetch_openclaw_skills
+            skills = fetch_openclaw_skills()
+            log.info("external_openclaw_fetched", count=len(skills))
+            return skills
+        except Exception as e:
+            log.warning("external_openclaw_failed", error=str(e)[:80])
+            return []
+
     @staticmethod
     def _infer_category(name: str, description: str) -> str:
-        """推断分类"""
-        text = (name + " " + description).lower()
-        categories = {
-            "security": ["security", "pentest", "red team", "offensive"],
-            "code-quality": ["test", "quality", "lint", "analysis"],
-            "database": ["database", "postgres", "sql", "redis", "mongodb"],
-            "devops": ["deploy", "docker", "k8s", "ci/cd", "kubernetes"],
-            "research": ["research", "paper", "ml", "ai", "model"],
-            "mobile": ["ios", "android", "mobile", "app"],
-            "web": ["web", "frontend", "react", "vue", "api"],
-            "creative": ["generate", "image", "video", "audio", "art"],
-            "productivity": ["productivity", "pm", "management", "task"],
-            "data": ["data", "analytics", "visualization", "dashboard"],
-        }
-        for category, keywords in categories.items():
-            if any(kw in text for kw in keywords):
-                return category
-        return "other"
+        """推断分类 (使用 ONET 标准)"""
+        return classify_with_onet(name, description)
+
+    def _fetch_ossinsight(self, source_id: str) -> list[EnhancedSkill]:
+        """从 OSSInsight 获取热门项目排名"""
+        try:
+            client = get_ossinsight_client()
+            trending = client.get_trending_repos(min_stars_28d=5)
+        except Exception as e:
+            log.warning("ossinsight_fetch_failed", error=str(e)[:80])
+            return []
+
+        skills = []
+        for item in trending[:100]:
+            category = classify_with_onet(item.repo_name, "")
+            skill = EnhancedSkill(
+                id=f"ossinsight_{item.repo_name.replace('/', '_')}",
+                name=item.repo_name.split("/")[-1].replace("-", " ").title(),
+                description=f"OSSInsight 排名 #{item.rank}, 28天 {item.stars_28d} stars",
+                repository_url=f"https://github.com/{item.repo_name}",
+                stars=item.stars_total,
+                downloads=item.stars_28d,
+                source=source_id,
+                category=category,
+                tags=["trending"],
+                updated_at=time.strftime("%Y-%m-%d"),
+            )
+            skills.append(skill)
+
+        return skills
 
     def _save_registry(self, skills: dict[str, EnhancedSkill]):
         """保存注册表"""

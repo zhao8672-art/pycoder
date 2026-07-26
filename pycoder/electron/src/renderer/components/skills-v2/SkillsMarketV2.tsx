@@ -85,11 +85,14 @@ export const SkillsMarketV2: React.FC = () => {
     const [total, setTotal] = useState(0);
     const [tookMs, setTookMs] = useState(0);
     const [page, setPage] = useState(1);
-    const [pageSize] = useState(20);
+    const [pageSize] = useState(100);
     const [loading, setLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState('');
     const [hasMore, setHasMore] = useState(true);
+
+    // ── 分页输入 ──
+    const [jumpPageInput, setJumpPageInput] = useState('');
 
     // ── 分类 ──
     const [categories, setCategories] = useState<Category[]>([]);
@@ -143,7 +146,7 @@ export const SkillsMarketV2: React.FC = () => {
         };
     }, [selectedCategory, ratingFilter, downloadsFilter, updatedFilter, verifiedOnly, hasUpdateOnly]);
 
-    // ── 拉取分类列表（仅一次） ──
+    // ── 拉取分类列表（仅一次 + tab/搜索变化时刷新总数） ──
     useEffect(() => {
         skillsApi
             .categories()
@@ -152,7 +155,7 @@ export const SkillsMarketV2: React.FC = () => {
                     setCategories(res.data.categories);
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     // ── 拉取收藏列表（切到收藏 Tab 时） ──
@@ -267,11 +270,30 @@ export const SkillsMarketV2: React.FC = () => {
                     fetchSkills(nextPage, true);
                 }
             },
-            { rootMargin: '200px' },
+            { rootMargin: '400px' },
         );
         observer.observe(el);
         return () => observer.disconnect();
     }, [hasMore, loadingMore, loading, page, fetchSkills, tab]);
+
+    // ── 加载更多（按钮） ──
+    const handleLoadMore = useCallback(() => {
+        if (!hasMore || loadingMore || loading) return;
+        const nextPage = page + 1;
+        setPage(nextPage);
+        fetchSkills(nextPage, true);
+    }, [hasMore, loadingMore, loading, page, fetchSkills]);
+
+    const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+
+    // ── 跳转到指定页 ──
+    const handleJumpPage = useCallback(() => {
+        const p = parseInt(jumpPageInput, 10);
+        if (isNaN(p) || p < 1 || p > totalPages) return;
+        setJumpPageInput('');
+        setPage(p);
+        fetchSkills(p, false);
+    }, [jumpPageInput, totalPages, fetchSkills]);
 
     // ── 详情 ──
     const openDetail = useCallback(async (skillId: string) => {
@@ -446,7 +468,6 @@ export const SkillsMarketV2: React.FC = () => {
         return () => clearTimeout(t);
     }, [statusMsg]);
 
-    const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
     const hasUpdatesAvailable = skills.some((s) => s.has_update);
 
     // ═══════════════════════════════════════════════════════════
@@ -798,9 +819,8 @@ export const SkillsMarketV2: React.FC = () => {
                                                         return (
                                                             <span
                                                                 key={step}
-                                                                className={`skills-v2-progress-step ${
-                                                                    active ? 'active' : ''
-                                                                }`}
+                                                                className={`skills-v2-progress-step ${active ? 'active' : ''
+                                                                    }`}
                                                             >
                                                                 {active ? '✓' : idx + 1}. {step}
                                                             </span>
@@ -875,22 +895,70 @@ export const SkillsMarketV2: React.FC = () => {
                         </div>
                     )}
 
-                    {/* 无限滚动哨兵 */}
-                    {tab !== 'favorites' && hasMore && (
-                        <div ref={sentinelRef} className="skills-v2-sentinel">
-                            {loadingMore ? '加载更多...' : ''}
+                    {/* 无限滚动哨兵 + 加载更多按钮 */}
+                    {tab !== 'favorites' && (
+                        <div className="skills-v2-pagination-bar">
+                            {/* 空哨兵（用于 IntersectionObserver 触发下一页） */}
+                            {hasMore && (
+                                <div ref={sentinelRef} className="skills-v2-sentinel" style={{ height: 1 }} />
+                            )}
+
+                            {/* 加载更多按钮 */}
+                            {hasMore && (
+                                <button
+                                    className="skills-v2-btn skills-v2-btn-load-more"
+                                    onClick={handleLoadMore}
+                                    disabled={loadingMore || loading}
+                                >
+                                    {loadingMore
+                                        ? '⏳ 加载中...'
+                                        : `📥 加载更多（当前 ${displaySkills.length} / ${total}）`}
+                                </button>
+                            )}
+
+                            {!hasMore && total > 0 && (
+                                <div className="skills-v2-all-loaded">
+                                    ✅ 全部加载完毕（共 {total} 个技能）
+                                </div>
+                            )}
+
+                            {/* 分页跳转 */}
+                            {totalPages > 1 && (
+                                <div className="skills-v2-page-jump">
+                                    <span>
+                                        第 {page} / {totalPages} 页
+                                    </span>
+                                    <input
+                                        className="skills-v2-page-input"
+                                        type="number"
+                                        min={1}
+                                        max={totalPages}
+                                        placeholder="跳转页"
+                                        value={jumpPageInput}
+                                        onChange={(e) => setJumpPageInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleJumpPage();
+                                        }}
+                                    />
+                                    <button
+                                        className="skills-v2-btn skills-v2-btn-jump"
+                                        onClick={handleJumpPage}
+                                    >
+                                        跳转
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* 状态信息 */}
+                            <div className="skills-v2-status-bar">
+                                <span>共 {total} 个技能</span>
+                                <span>耗时 {tookMs} ms</span>
+                                {statusMsg && (
+                                    <span className="skills-v2-status-msg">{statusMsg}</span>
+                                )}
+                            </div>
                         </div>
                     )}
-
-                    {/* 状态栏 */}
-                    <div className="skills-v2-status-bar">
-                        <span>共 {total} 个技能</span>
-                        <span>耗时 {tookMs} ms</span>
-                        <span>
-                            第 {page} / {totalPages} 页
-                        </span>
-                        {statusMsg && <span className="skills-v2-status-msg">{statusMsg}</span>}
-                    </div>
                 </main>
             </div>
         </div>

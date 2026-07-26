@@ -141,7 +141,7 @@ async def search_skills_v2(
         description="排序",
     ),
     page: int = Query(default=1, ge=1, description="页码"),
-    page_size: int = Query(default=20, ge=1, le=100, description="每页数量"),
+    page_size: int = Query(default=20, ge=1, le=500, description="每页数量"),
 ) -> dict:
     """V2 统一搜索端点"""
     marketplace = _get_marketplace()
@@ -329,7 +329,7 @@ async def list_reviews(
     skill_id: str,
     sort_by: str = Query(default="recent", pattern="^(recent|helpful|rating_desc|rating_asc)$"),
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=500),
 ) -> dict:
     """评论列表"""
     marketplace = _get_marketplace()
@@ -609,6 +609,45 @@ async def sync_registry(payload: RegistrySyncRequest = Body(...)) -> dict:
     except Exception as e:
         log.error("skills_v2_registry_sync_error", url=url, error=str(e))
         raise _fail(f"Registry 同步失败: {e}", 500) from e
+
+
+# ═══════════════════════════════════════════════════════════
+# 外部数据源同步 (Tech Leads Club 84 + OpenClaw 5147)
+# ═══════════════════════════════════════════════════════════
+
+
+@router.post(
+    "/external-sync",
+    summary="🔄 同步外部高质技能（Tech Leads + OpenClaw）",
+    description=(
+        "从 Tech Leads Club (84 验证技能) 和 OpenClaw Awesome (5147 技能) "
+        "采集并导入本地数据库，使前端可搜索。"
+        "首次同步约需 25-40 秒（下载 30 个分类文件）。"
+    ),
+)
+async def sync_external() -> dict:
+    """同步外部技能到本地数据库"""
+    marketplace = _get_marketplace()
+    try:
+        result = marketplace.import_external_skills()
+        return _ok(
+            {
+                "added": result.get("added", 0),
+                "skipped": result.get("skipped", 0),
+                "errors": result.get("errors", 0),
+                "total_in_db": result.get("total_in_db", 0),
+                "sources": result.get("sources", []),
+            },
+            meta={
+                "message": (
+                    f"新增 {result.get('added', 0)} 个技能, "
+                    f"数据库总计 {result.get('total_in_db', 0)} 个"
+                ),
+            },
+        )
+    except Exception as e:
+        log.error("skills_external_sync_error", error=str(e))
+        raise _fail(f"外部技能同步失败: {e}", 500) from e
 
 
 __all__ = ["router"]

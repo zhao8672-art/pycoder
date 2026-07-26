@@ -3429,6 +3429,480 @@
   cursor: pointer;
 }
 
+/* ═══════════════════════════════════════════════
+   Skills Market V2 — 完整样式
+   ═══════════════════════════════════════════════ */
+.skills-v2-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  padding: 12px;
+  background: var(--bg-primary);
+}
+
+.skills-v2-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.skills-v2-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.skills-v2-header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.skills-v2-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.skills-v2-tab {
+  padding: 6px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+
+.skills-v2-tab.active {
+  background: var(--bg-primary);
+  border-bottom-color: var(--accent-blue);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.skills-v2-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.skills-v2-search-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.skills-v2-search-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.skills-v2-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  z-index: 100;
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 4px 0;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.skills-v2-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.skills-v2-suggestion-item:hover {
+  background: var(--bg-secondary);
+}
+
+.skills-v2-sort-select {
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.skills-v2-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.skills-v2-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-blue);
+}
+
+.skills-v2-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.skills-v2-btn-update-all {
+  background: var(--accent-orange, #fab387);
+  color: #000;
+}
+
+.skills-v2-btn-publish {
+  background: var(--accent-yellow);
+  color: #000;
+}
+
+.skills-v2-body {
+  display: flex;
+  flex: 1;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.skills-v2-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
+
+.skills-v2-sidebar-section {
+  margin-bottom: 14px;
+}
+
+.skills-v2-sidebar-title {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: var(--text-secondary);
+}
+
+.skills-v2-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.skills-v2-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.skills-v2-count-badge {
+  margin-left: auto;
+  background: var(--bg-primary);
+  padding: 0 5px;
+  border-radius: 8px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.skills-v2-select {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.skills-v2-main {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skills-v2-loading {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.skills-v2-error {
+  padding: 12px;
+  background: rgba(243, 139, 168, 0.1);
+  border: 1px solid #f38ba8;
+  border-radius: 6px;
+  color: #f38ba8;
+  font-size: 12px;
+}
+
+.skills-v2-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.skills-v2-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skills-v2-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.skills-v2-card:hover {
+  border-color: var(--accent-blue);
+  background: var(--bg-hover);
+}
+
+.skills-v2-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skills-v2-card-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skills-v2-card-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.skills-v2-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.skills-v2-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.skills-v2-badge-verified {
+  background: var(--accent-green);
+  color: #000;
+}
+
+.skills-v2-badge-update {
+  background: var(--accent-orange, #fab387);
+  color: #000;
+}
+
+.skills-v2-card-stats {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.skills-v2-card-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 6px 0 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.skills-v2-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.skills-v2-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-muted);
+}
+
+.skills-v2-card-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+/* 分页栏 */
+.skills-v2-pagination-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  flex-shrink: 0;
+}
+
+.skills-v2-btn-load-more {
+  padding: 8px 24px;
+  background: var(--accent-blue, #89b4fa);
+  color: #000;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.skills-v2-btn-load-more:hover {
+  opacity: 0.85;
+}
+
+.skills-v2-btn-load-more:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.skills-v2-all-loaded {
+  font-size: 12px;
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.skills-v2-page-jump {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.skills-v2-page-input {
+  width: 60px;
+  padding: 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: center;
+}
+
+.skills-v2-btn-jump {
+  font-size: 11px;
+  padding: 4px 10px;
+}
+
+.skills-v2-status-bar {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  justify-content: center;
+}
+
+.skills-v2-status-msg {
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+/* 安装进度 */
+.skills-v2-install-progress {
+  margin-top: 8px;
+}
+
+.skills-v2-progress-steps {
+  display: flex;
+  gap: 2px;
+}
+
+.skills-v2-progress-step {
+  flex: 1;
+  text-align: center;
+  font-size: 9px;
+  padding: 2px 0;
+  border-radius: 3px;
+  background: var(--bg-primary);
+  color: var(--text-muted);
+}
+
+.skills-v2-progress-step.active {
+  background: var(--accent-blue);
+  color: #000;
+  font-weight: 600;
+}
+
+.skills-v2-install-error {
+  font-size: 11px;
+  color: #f38ba8;
+  margin-top: 4px;
+}
+
+/* 详情页 */
+.skills-v2-detail {
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.skills-v2-btn-back {
+  margin-bottom: 12px;
+}
+
+/* V2 badge 颜色 */
+.skills-v2-badge-category {
+  background: rgba(137, 180, 250, 0.15);
+  color: #89b4fa;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
 .skills-card-clickable:hover {
   background: var(--bg-hover);
   border-radius: 6px;

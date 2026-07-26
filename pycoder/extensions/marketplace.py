@@ -433,6 +433,61 @@ async def _github_request_with_retry(client, url: str, params: dict) -> dict | N
     return None
 
 
+# ── 新增数据源: Awesome VS Code Extensions ──────────
+
+
+async def _fetch_awesome_vscode_extensions(client) -> tuple[list[dict], float]:
+    """从 awesome-vscode 生态获取热门扩展
+
+    策略: 搜索 topic:vscode-extension+python 的高星项目
+    """
+    start = time.time()
+    result = await _github_request_with_retry(
+        client,
+        "https://api.github.com/search/repositories",
+        {"q": "topic:vscode-extension+language:python+stars:>50", "sort": "stars", "per_page": 50},
+    )
+    exts = [_gh_repo_to_extension(r) for r in (result or {}).get("items", [])]
+    return exts, time.time() - start
+
+
+async def _fetch_awesome_python_tools(client) -> tuple[list[dict], float]:
+    """从 GitHub 搜索获取热门 Python 开发者工具
+
+    搜索 CLI/Linter/Formatter/Test 工具
+    """
+    start = time.time()
+    queries = [
+        {"q": "topic:python+topic:cli+stars:>500", "sort": "stars", "per_page": 30},
+        {"q": "topic:linter+language:python+stars:>200", "sort": "stars", "per_page": 20},
+        {"q": "topic:testing+language:python+stars:>500", "sort": "stars", "per_page": 20},
+        {"q": "topic:formatter+language:python+stars:>200", "sort": "stars", "per_page": 20},
+    ]
+    seen_ids: set[str] = set()
+    all_exts: list[dict] = []
+    for query in queries:
+        result = await _github_request_with_retry(
+            client, "https://api.github.com/search/repositories", query)
+        for r in (result or {}).get("items", []):
+            ext = _gh_repo_to_extension(r)
+            if ext["id"] not in seen_ids:
+                seen_ids.add(ext["id"])
+                all_exts.append(ext)
+    return all_exts, time.time() - start
+
+
+async def _fetch_github_top_python_repos(client) -> tuple[list[dict], float]:
+    """获取 GitHub 上最热门的 Python 仓库作为扩展推荐"""
+    start = time.time()
+    result = await _github_request_with_retry(
+        client,
+        "https://api.github.com/search/repositories",
+        {"q": "language:python+stars:>8000", "sort": "stars", "per_page": 50},
+    )
+    exts = [_gh_repo_to_extension(r) for r in (result or {}).get("items", [])]
+    return exts, time.time() - start
+
+
 # ══════════════════════════════════════════════════════════
 # 公共 API
 # ══════════════════════════════════════════════════════════
@@ -447,6 +502,9 @@ ALL_SOURCES = [
     ("open-vsx", _fetch_open_vsx, 35, 0.6),
     ("github-trending-python", _fetch_github_trending_python, 15, 0.9),
     ("github-mcp-servers", _fetch_github_mcp_servers, 18, 0.85),
+    ("awesome-vscode-extensions", _fetch_awesome_vscode_extensions, 12, 0.9),
+    ("awesome-python-tools", _fetch_awesome_python_tools, 14, 0.85),
+    ("github-top-python-repos", _fetch_github_top_python_repos, 16, 0.8),
 ]
 
 _PARALLEL_TIMEOUT = 25
@@ -574,6 +632,9 @@ async def _parallel_fetch_all() -> tuple[list[dict], dict]:
             "github-devtools",
             "github-trending-python",
             "github-mcp-servers",
+            "awesome-vscode-extensions",
+            "awesome-python-tools",
+            "github-top-python-repos",
         }
         for name, fetch_func, priority, weight in ALL_SOURCES:
             if name not in registered_names:
