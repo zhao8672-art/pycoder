@@ -686,7 +686,8 @@ class SelfEvolutionEngine:
     async def _run_tests(self) -> bool:
         """运行全量测试"""
         try:
-            result = subprocess.run(
+            result = await asyncio.to_thread(
+                subprocess.run,
                 ["pytest", "tests/", "-x", "--tb=short", "-q"],
                 capture_output=True,
                 text=True,
@@ -700,7 +701,8 @@ class SelfEvolutionEngine:
         """确保在 self_evo 分支上"""
         try:
             # 检查当前分支
-            r = subprocess.run(
+            r = await asyncio.to_thread(
+                subprocess.run,
                 ["git", "branch", "--show-current"],
                 capture_output=True,
                 text=True,
@@ -714,7 +716,8 @@ class SelfEvolutionEngine:
 
             # 创建新分支
             branch_name = f"self_evo/{int(time.time())}"
-            subprocess.run(
+            await asyncio.to_thread(
+                subprocess.run,
                 ["git", "checkout", "-b", branch_name],
                 capture_output=True,
                 text=True,
@@ -729,8 +732,14 @@ class SelfEvolutionEngine:
     async def _commit_fix(self, proposal: FixProposal) -> str:
         """提交修复"""
         try:
-            subprocess.run(["git", "add", proposal.file_path], capture_output=True, timeout=10)
-            result = subprocess.run(
+            await asyncio.to_thread(
+                subprocess.run,
+                ["git", "add", proposal.file_path],
+                capture_output=True,
+                timeout=10,
+            )
+            result = await asyncio.to_thread(
+                subprocess.run,
                 [
                     "git",
                     "commit",
@@ -748,8 +757,18 @@ class SelfEvolutionEngine:
     async def _rollback(self) -> None:
         """回滚变更"""
         try:
-            subprocess.run(["git", "checkout", "--", "."], capture_output=True, timeout=10)
-            subprocess.run(["git", "clean", "-fd"], capture_output=True, timeout=10)
+            await asyncio.to_thread(
+                subprocess.run,
+                ["git", "checkout", "--", "."],
+                capture_output=True,
+                timeout=10,
+            )
+            await asyncio.to_thread(
+                subprocess.run,
+                ["git", "clean", "-fd"],
+                capture_output=True,
+                timeout=10,
+            )
             logger.info("已回滚变更")
         except Exception as e:
             logger.error("回滚失败: %s", e)
@@ -1593,14 +1612,30 @@ class SelfEvolutionEngine:
             import httpx
 
             branch = f"self_evo/{task.id}"
-            subprocess.run(["git", "checkout", "-b", branch], capture_output=True, timeout=10)
-            subprocess.run(["git", "add", "-A"], capture_output=True, timeout=10)
-            subprocess.run(
+            await asyncio.to_thread(
+                subprocess.run,
+                ["git", "checkout", "-b", branch],
+                capture_output=True,
+                timeout=10,
+            )
+            await asyncio.to_thread(
+                subprocess.run,
+                ["git", "add", "-A"],
+                capture_output=True,
+                timeout=10,
+            )
+            await asyncio.to_thread(
+                subprocess.run,
                 ["git", "commit", "-m", f"self_evo: {task.description[:72]}"],
                 capture_output=True,
                 timeout=10,
             )
-            subprocess.run(["git", "push", "origin", branch], capture_output=True, timeout=30)
+            await asyncio.to_thread(
+                subprocess.run,
+                ["git", "push", "origin", branch],
+                capture_output=True,
+                timeout=30,
+            )
 
             async with httpx.AsyncClient() as client:
                 resp = await client.post(

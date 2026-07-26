@@ -642,10 +642,12 @@ async def _apply_fix(params: dict[str, Any], context: dict[str, Any]) -> dict[st
 
 async def _run_self_tests(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """运行 Pycoder 自身测试"""
+    import asyncio
     import subprocess
 
     try:
-        result = subprocess.run(
+        result = await asyncio.to_thread(
+            subprocess.run,
             ["pytest", "tests/", "-x", "--tb=short", "-q"],
             capture_output=True,
             text=True,
@@ -663,10 +665,12 @@ async def _run_self_tests(params: dict[str, Any], context: dict[str, Any]) -> di
 
 async def _check_coverage(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """检查测试覆盖率"""
+    import asyncio
     import subprocess
 
     try:
-        result = subprocess.run(
+        result = await asyncio.to_thread(
+            subprocess.run,
             ["pytest", "--cov=pycoder", "--cov-report=term", "tests/", "-q"],
             capture_output=True,
             text=True,
@@ -741,10 +745,12 @@ async def _hot_reload(params: dict[str, Any], context: dict[str, Any]) -> dict[s
 
 async def _rollback_changes(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """回滚自进化变更"""
+    import asyncio
     import subprocess
 
     try:
-        result = subprocess.run(
+        result = await asyncio.to_thread(
+            subprocess.run,
             ["git", "stash"],
             capture_output=True,
             text=True,
@@ -863,10 +869,12 @@ def _template_fix_for_issue(issue: CodeIssue) -> dict[str, Any]:
 
 async def _run_tests_and_report() -> dict[str, Any]:
     """运行测试并返回简要报告"""
+    import asyncio
     import subprocess
 
     try:
-        result = subprocess.run(
+        result = await asyncio.to_thread(
+            subprocess.run,
             ["pytest", "tests/", "-x", "--tb=short", "-q"],
             capture_output=True,
             text=True,

@@ -23,15 +23,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import re
 import subprocess
 import sys
 import time
 import traceback
-import uuid
-from dataclasses import dataclass, field
-from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -41,103 +37,15 @@ PYCODER_ROOT = Path(__file__).resolve().parents[2]
 EVOLUTION_DB_DIR = Path.home() / ".pycoder" / "evolution"
 EVOLUTION_HISTORY_FILE = EVOLUTION_DB_DIR / "evolution_history.json"
 
-
-# ══════════════════════════════════════════════════════════
-# 数据模型
-# ══════════════════════════════════════════════════════════
-
-
-class EvolutionPhase(StrEnum):
-    """进化阶段"""
-    OBSERVE = "observe"       # 采集数据
-    ANALYZE = "analyze"       # LLM 分析
-    GENERATE = "generate"     # 生成方案
-    VALIDATE = "validate"     # 安全验证
-    APPLY = "apply"           # 应用修改
-    LEARN = "learn"           # 经验沉淀
-    DONE = "done"             # 完成
-    FAILED = "failed"         # 失败
-
-
-@dataclass
-class EvolutionTask:
-    """单次进化任务"""
-
-    id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
-    task_type: str = "auto_fix"  # auto_fix / policy_optimize / knowledge_build
-    target: str = ""  # 目标文件或模块
-    description: str = ""
-    phase: EvolutionPhase = EvolutionPhase.OBSERVE
-    errors_collected: list[dict[str, Any]] = field(default_factory=list)
-    llm_analysis: str = ""
-    fix_plan: str = ""
-    fix_code: str = ""
-    validation_result: dict[str, Any] = field(default_factory=dict)
-    applied: bool = False
-    test_passed: bool = False
-    rollback_performed: bool = False
-    grade: float = 0.0
-    lessons: str = ""
-    created_at: float = field(default_factory=time.time)
-    completed_at: float = 0.0
-    duration_ms: float = 0.0
-    error: str = ""
-
-    def to_dict(self) -> dict[str, Any]:
-        phase_value = self.phase.value if hasattr(self.phase, "value") else str(self.phase)
-        return {
-            "id": self.id,
-            "task_type": self.task_type,
-            "target": self.target,
-            "description": self.description,
-            "phase": phase_value,
-            "errors_collected": self.errors_collected if isinstance(self.errors_collected, list) else [],
-            "llm_analysis": self.llm_analysis[:500],
-            "fix_plan": self.fix_plan[:500],
-            "applied": self.applied,
-            "test_passed": self.test_passed,
-            "rollback_performed": self.rollback_performed,
-            "grade": self.grade,
-            "lessons": self.lessons[:300],
-            "created_at": self.created_at,
-            "completed_at": self.completed_at,
-            "duration_ms": self.duration_ms,
-            "error": self.error,
-        }
-
-
-@dataclass
-class EvolutionReport:
-    """进化报告"""
-
-    task_id: str = ""
-    success: bool = False
-    phases_completed: list[str] = field(default_factory=list)
-    issues_found: int = 0
-    fixes_generated: int = 0
-    fixes_applied: int = 0
-    tests_passed: bool = False
-    grade: float = 0.0
-    metrics: dict[str, Any] = field(default_factory=dict)
-    recommendations: list[str] = field(default_factory=list)
-    duration_ms: float = 0.0
-    error: str = ""
-
-
-@dataclass
-class EvolutionConfig:
-    """进化配置"""
-
-    auto_apply: bool = False  # 是否自动应用修复
-    max_files_per_run: int = 3
-    max_llm_tokens: int = 8192
-    llm_model: str = "deepseek-chat"
-    safety_strict: bool = True
-    test_timeout_seconds: int = 300
-    evolution_interval_seconds: int = 3600  # 自动进化间隔
-    cost_budget_daily_usd: float = 5.0
-    min_grade_threshold: float = 70.0
-    max_retries: int = 3
+# 从拆分后的模块导入数据模型
+from pycoder.evolution.models import (
+    EvolutionPhase,
+    EvolutionTask,
+    EvolutionReport,
+    EvolutionConfig,
+)
+from pycoder.evolution.pipeline import EvolutionPipeline
+from pycoder.evolution.metrics import EvolutionMetrics
 
 
 # ══════════════════════════════════════════════════════════
@@ -1069,7 +977,8 @@ class EvolutionBrain:
 
         # 检查 Git 可用性
         try:
-            result = subprocess.run(
+            result = await asyncio.to_thread(
+                subprocess.run,
                 ["git", "--version"],
                 capture_output=True, text=True, timeout=5,
             )
@@ -1079,7 +988,8 @@ class EvolutionBrain:
 
         # 检查 pytest 可用性
         try:
-            result = subprocess.run(
+            result = await asyncio.to_thread(
+                subprocess.run,
                 ["pytest", "--version"],
                 capture_output=True, text=True, timeout=5,
             )
@@ -1263,267 +1173,6 @@ class EvolutionBrain:
 
     def get_history(self, limit: int = 20) -> list[dict[str, Any]]:
         return [t.to_dict() for t in self._history[-limit:]]
-
-
-# ══════════════════════════════════════════════════════════
-# EvolutionPipeline — 完整的进化闭环自动化执行器
-# ══════════════════════════════════════════════════════════
-
-
-class EvolutionPipeline:
-    """进化管线 — 自动化运行完整的进化闭环
-
-    流程: observe → analyze → generate → validate → apply → learn
-    """
-
-    def __init__(self, brain: EvolutionBrain | None = None):
-        self._brain = brain or EvolutionBrain()
-        self._reports: list[EvolutionReport] = []
-
-    async def run(
-        self,
-        task_type: str = "auto_fix",
-        target: str = "",
-        description: str = "",
-        auto_apply: bool = False,
-    ) -> EvolutionReport:
-        """运行一次完整的 8 阶段进化闭环流水线
-
-        阶段:
-          1. INTAKE     → observe()  采集数据
-          2. DESIGN     → 任务分级与方案规划
-          3. DECOMPOSE  → analyze()  LLM 分析拆解
-          4. ENV_SETUP  → 环境校验
-          5. DEVELOP    → generate() 生成修复方案
-          6. TEST       → validate() 安全验证
-          7. DEPLOY     → apply()    应用修复
-          8. REVIEW     → learn()    经验沉淀 + 知识库迭代
-        """
-        report = await self._brain.run_pipeline(
-            task_type=task_type,
-            target=target,
-            description=description,
-            auto_apply=auto_apply,
-        )
-        self._reports.append(report)
-        if len(self._reports) > 100:
-            self._reports = self._reports[-100:]
-        return report
-
-    def _calculate_grade(self, task: EvolutionTask) -> float:
-        """计算进化评分 (0-100)"""
-        score = 0.0
-
-        if task.errors_collected:
-            score += min(20, len(task.errors_collected) * 2)
-
-        if task.llm_analysis and len(task.llm_analysis) > 50:
-            score += 20
-
-        if task.fix_plan and len(task.fix_plan) > 50:
-            score += 20
-
-        if task.validation_result.get("passed"):
-            score += 15
-
-        if task.applied:
-            score += 10
-
-        if task.test_passed:
-            score += 15
-
-        return min(score, 100)
-
-    async def _build_metrics(self, task: EvolutionTask) -> dict[str, Any]:
-        """构建进化指标"""
-        metrics: dict[str, Any] = {
-            "phases": len([p for p in EvolutionPhase if task.phase >= p]),
-            "errors_collected": len(task.errors_collected),
-            "analysis_length": len(task.llm_analysis),
-            "fix_plan_length": len(task.fix_plan),
-            "validated": task.validation_result.get("passed", False),
-            "applied": task.applied,
-            "tests_passed": task.test_passed,
-        }
-
-        # 聚合历史趋势
-        try:
-            from pycoder.capabilities.self_evo.learning.metrics_tracker import get_metrics_tracker
-            tracker = get_metrics_tracker()
-            metrics["historical_success_rate"] = tracker.get_success_rate()
-        except (ImportError, AttributeError):
-            metrics["historical_success_rate"] = 0.0
-
-        return metrics
-
-    def _generate_recommendations(self, task: EvolutionTask) -> list[str]:
-        """生成改进建议"""
-        recs = []
-
-        if not task.errors_collected:
-            recs.append("建议: 启用更多日志和监控以收集进化数据")
-        if not task.llm_analysis or len(task.llm_analysis) < 50:
-            recs.append("建议: 配置 LLM API Key 以启用深度分析")
-        if not task.validation_result.get("passed"):
-            recs.append("建议: 检查 safety 模块配置和沙箱规则")
-        if task.applied and not task.test_passed:
-            recs.append("建议: 修复的代码导致测试失败，需要人工审查")
-        if task.lessons:
-            recs.append(f"经验: {task.lessons[:200]}")
-
-        return recs
-
-    def get_reports(self, limit: int = 20) -> list[dict[str, Any]]:
-        """获取最近的进化报告"""
-        return [
-            {
-                "task_id": r.task_id,
-                "success": r.success,
-                "phases": r.phases_completed,
-                "grade": r.grade,
-                "duration_ms": r.duration_ms,
-                "error": r.error,
-            }
-            for r in self._reports[-limit:]
-        ]
-
-    def get_stats(self) -> dict[str, Any]:
-        """获取进化统计"""
-        if not self._reports:
-            return {"total": 0, "success_rate": 0, "avg_grade": 0}
-
-        total = len(self._reports)
-        success = sum(1 for r in self._reports if r.success)
-        avg_grade = sum(r.grade for r in self._reports) / max(total, 1)
-        avg_duration = sum(r.duration_ms for r in self._reports) / max(total, 1)
-
-        return {
-            "total": total,
-            "success": success,
-            "failure": total - success,
-            "success_rate": round(success / total * 100, 1),
-            "avg_grade": round(avg_grade, 1),
-            "avg_duration_ms": round(avg_duration, 0),
-        }
-
-
-# ══════════════════════════════════════════════════════════
-# EvolutionMetrics — 进化效果评估与趋势分析
-# ══════════════════════════════════════════════════════════
-
-
-class EvolutionMetrics:
-    """进化效果评估器 — 跟踪和评估进化效果
-
-    指标:
-      - 成功率: 进化修复的成功率
-      - 覆盖率: 被进化处理的代码比例
-      - 回归率: 修复引入新问题的比例
-      - 效率: 平均每次进化的耗时
-      - 成本: Token 消耗和 API 费用
-    """
-
-    def __init__(self):
-        self._data: list[dict[str, Any]] = []
-        self._load_data()
-
-    def record(self, task: EvolutionTask) -> None:
-        """记录一次进化指标"""
-        entry = {
-            "task_id": task.id,
-            "task_type": task.task_type,
-            "timestamp": task.completed_at,
-            "duration_ms": task.duration_ms,
-            "errors_collected": len(task.errors_collected),
-            "applied": task.applied,
-            "test_passed": task.test_passed,
-            "grade": task.grade,
-            "rollback": task.rollback_performed,
-        }
-        self._data.append(entry)
-        if len(self._data) > 500:
-            self._data = self._data[-500:]
-        self._save_data()
-
-    def get_summary(self) -> dict[str, Any]:
-        """获取进化指标摘要"""
-        if not self._data:
-            return self._empty_summary()
-
-        total = len(self._data)
-        success = sum(1 for d in self._data if d["test_passed"])
-        applied = sum(1 for d in self._data if d["applied"])
-        rolled = sum(1 for d in self._data if d["rollback"])
-        avg_grade = sum(d["grade"] for d in self._data) / total
-        avg_duration = sum(d["duration_ms"] for d in self._data) / total
-
-        # 最近 10 次趋势
-        recent = self._data[-10:]
-        recent_success = sum(1 for d in recent if d["test_passed"]) / max(len(recent), 1)
-
-        return {
-            "total_evolutions": total,
-            "success_rate": round(success / total * 100, 1),
-            "apply_rate": round(applied / total * 100, 1),
-            "rollback_rate": round(rolled / total * 100, 1),
-            "avg_grade": round(avg_grade, 1),
-            "avg_duration_ms": round(avg_duration, 0),
-            "recent_success_rate": round(recent_success * 100, 1),
-            "trend": "improving" if recent_success > (success / total) else "declining",
-        }
-
-    def get_trend_data(self, days: int = 7) -> list[dict[str, Any]]:
-        """获取按天聚合的趋势数据"""
-        from collections import defaultdict
-
-        now = time.time()
-        day_data: dict[str, list[dict]] = defaultdict(list)
-
-        for d in self._data:
-            if now - d["timestamp"] > days * 86400:
-                continue
-            day = time.strftime("%Y-%m-%d", time.localtime(d["timestamp"]))
-            day_data[day].append(d)
-
-        return [
-            {
-                "date": day,
-                "count": len(entries),
-                "success_rate": round(
-                    sum(1 for e in entries if e["test_passed"]) / len(entries) * 100, 1
-                ),
-                "avg_grade": round(sum(e["grade"] for e in entries) / len(entries), 1),
-            }
-            for day, entries in sorted(day_data.items())
-        ]
-
-    def _empty_summary(self) -> dict[str, Any]:
-        return {
-            "total_evolutions": 0,
-            "success_rate": 0.0,
-            "apply_rate": 0.0,
-            "rollback_rate": 0.0,
-            "avg_grade": 0.0,
-            "avg_duration_ms": 0.0,
-            "recent_success_rate": 0.0,
-            "trend": "no_data",
-        }
-
-    def _load_data(self) -> None:
-        metrics_file = EVOLUTION_DB_DIR / "metrics.json"
-        try:
-            if metrics_file.exists():
-                self._data = json.loads(metrics_file.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    def _save_data(self) -> None:
-        EVOLUTION_DB_DIR.mkdir(parents=True, exist_ok=True)
-        metrics_file = EVOLUTION_DB_DIR / "metrics.json"
-        metrics_file.write_text(
-            json.dumps(self._data[-500:], indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
 
 
 # ══════════════════════════════════════════════════════════

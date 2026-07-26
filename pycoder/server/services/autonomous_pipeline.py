@@ -1464,13 +1464,15 @@ class AutonomousPipeline:
                 zip_dir.mkdir(parents=True, exist_ok=True)
                 zip_target = zip_dir / f"{run.project_name}.zip"
                 if shutil.which("zip"):
-                    subprocess.run(
+                    await asyncio.to_thread(
+                        subprocess.run,
                         ["zip", "-r", str(zip_target), "."],
                         cwd=str(self._workspace),
                         capture_output=True,
                     )
                 elif shutil.which("tar"):
-                    subprocess.run(
+                    await asyncio.to_thread(
+                        subprocess.run,
                         ["tar", "-czf", f"{zip_target.with_suffix('.tar.gz')}", "."],
                         cwd=str(self._workspace),
                         capture_output=True,

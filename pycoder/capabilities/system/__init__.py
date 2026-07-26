@@ -309,9 +309,11 @@ async def _execute_shell(params: dict[str, Any], context: dict[str, Any]) -> dic
 
 async def _git_status(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """Git 状态"""
+    import asyncio
     import subprocess
 
-    result = subprocess.run(
+    result = await asyncio.to_thread(
+        subprocess.run,
         ["git", "status", "--porcelain"],
         capture_output=True,
         text=True,
@@ -322,15 +324,18 @@ async def _git_status(params: dict[str, Any], context: dict[str, Any]) -> dict[s
 
 async def _git_diff(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """Git 差异"""
+    import asyncio
     import subprocess
 
-    result = subprocess.run(
+    result = await asyncio.to_thread(
+        subprocess.run,
         ["git", "diff", "--stat"],
         capture_output=True,
         text=True,
         timeout=30,
     )
-    result2 = subprocess.run(
+    result2 = await asyncio.to_thread(
+        subprocess.run,
         ["git", "diff"],
         capture_output=True,
         text=True,
@@ -344,6 +349,7 @@ async def _git_diff(params: dict[str, Any], context: dict[str, Any]) -> dict[str
 
 async def _git_commit(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """Git 提交"""
+    import asyncio
     import subprocess
 
     message = params["message"]
@@ -353,8 +359,9 @@ async def _git_commit(params: dict[str, Any], context: dict[str, Any]) -> dict[s
     else:
         cmd.append("-A")
 
-    subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-    result = subprocess.run(
+    await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True, timeout=30)
+    result = await asyncio.to_thread(
+        subprocess.run,
         ["git", "commit", "-m", message],
         capture_output=True,
         text=True,
@@ -369,9 +376,11 @@ async def _git_commit(params: dict[str, Any], context: dict[str, Any]) -> dict[s
 
 async def _git_push(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """Git 推送"""
+    import asyncio
     import subprocess
 
-    result = subprocess.run(
+    result = await asyncio.to_thread(
+        subprocess.run,
         ["git", "push"],
         capture_output=True,
         text=True,
@@ -385,6 +394,7 @@ async def _git_push(params: dict[str, Any], context: dict[str, Any]) -> dict[str
 
 async def _install_package(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """安装包"""
+    import asyncio
     import subprocess
 
     packages = params["packages"]
@@ -399,7 +409,7 @@ async def _install_package(params: dict[str, Any], context: dict[str, Any]) -> d
     else:
         cmd = ["pip", "install"] + packages
 
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    result = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True, timeout=300)
     return {
         "success": result.returncode == 0,
         "output": result.stdout[-2000:] + result.stderr[-2000:],
@@ -408,9 +418,11 @@ async def _install_package(params: dict[str, Any], context: dict[str, Any]) -> d
 
 async def _list_packages(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """列出已安装包"""
+    import asyncio
     import subprocess
 
-    result = subprocess.run(
+    result = await asyncio.to_thread(
+        subprocess.run,
         ["pip", "list", "--format=json"],
         capture_output=True,
         text=True,
