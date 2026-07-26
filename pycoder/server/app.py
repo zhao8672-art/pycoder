@@ -152,23 +152,36 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 
         # BUG-003/004 修复：缺少 Origin 头时（如 curl/server-to-server 调用）
         # 必须强制验证 API Key，不能再以"无 Origin"为由放行
+        # 例外：OpenAPI 文档路径（GET 方法）免认证，方便用户查阅
+        if (
+            request.method == "GET"
+            and request.url.path in ("/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect")
+        ):
+            return await call_next(request)
+
         api_key = request.headers.get("X-API-Key", "")
         if not api_key:
             from fastapi.responses import JSONResponse
 
-            return JSONResponse(
+            from pycoder.server.error_handlers import make_error_response, ErrorCode
+
+            return make_error_response(
+                code=ErrorCode.UNAUTHORIZED,
+                message="缺少 API Key，请在请求头添加 X-API-Key",
                 status_code=401,
-                content={"detail": "Missing API key"},
-                headers={"WWW-Authenticate": "X-API-Key"},
+                details={"auth_method": "X-API-Key"},
             )
 
         if not _secrets.compare_digest(api_key, _API_KEY):
             from fastapi.responses import JSONResponse
 
-            return JSONResponse(
+            from pycoder.server.error_handlers import make_error_response, ErrorCode
+
+            return make_error_response(
+                code=ErrorCode.UNAUTHORIZED,
+                message="API Key 无效",
                 status_code=401,
-                content={"detail": "Invalid API key"},
-                headers={"WWW-Authenticate": "X-API-Key"},
+                details={"auth_method": "X-API-Key"},
             )
         response = await call_next(request)
         return response
@@ -488,9 +501,19 @@ def _create_sandbox(run_fn, sandbox_config):
 
 app = FastAPI(
     title="PyCoder API",
-    description="Python AI Coding Agent",
+    description="Python AI Coding Agent - 统一 REST API",
     version=__version__,
     lifespan=lifespan,
+    # 启用自动 OpenAPI 文档
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    swagger_ui_parameters={
+        "persistAuthorization": True,  # 保留 API Key 认证状态
+        "displayRequestDuration": True,  # 显示请求耗时
+        "filter": True,  # 启用过滤
+        "tryItOutEnabled": True,  # 启用 Try it out
+    },
 )
 
 # 加载权限策略并在启动时缓存
@@ -506,6 +529,10 @@ from pycoder.server.middleware import (  # noqa: E402
     RequestBodyScannerMiddleware,
     SecurityHeadersMiddleware,
 )
+
+# 注册统一错误处理器（FastAPI exception_handler 会在中间件之后生效）
+from pycoder.server.error_handlers import register_error_handlers  # noqa: E402
+register_error_handlers(app)
 
 # 中间件注册顺序（从外到内执行）：
 # 1. ErrorHandling — 捕获所有未处理异常
@@ -570,6 +597,75 @@ app.add_middleware(
 # ── 路由注册（阶段 1 架构升级：61 处 include_router 收敛为 1 处）──
 # 详见 pycoder.server.router_groups
 register_router_groups(app)
+
+# 注册统一错误处理器（标准错误响应格式，符合 API 规范）
+from pycoder.server.error_handlers import register_error_handlers  # noqa: E402
+register_error_handlers(app)
+
+
+# ── OpenAPI 元数据：安全方案 + 标签分组 ──
+def _customize_openapi() -> dict:
+    """自定义 OpenAPI 文档：添加安全方案、标签说明"""
+    from fastapi.openapi.utils import get_openapi
+    import pycoder
+
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+
+    # 添加 API Key 安全方案
+    openapi_schema.setdefault("components", {}).setdefault("securitySchemes", {})
+    openapi_schema["components"]["securitySchemes"]["ApiKeyAuth"] = {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API Key 认证，从 ~/.pycoder/.api_key 文件获取",
+    }
+    openapi_schema["security"] = [{"ApiKeyAuth": []}]
+
+    # 添加标签说明
+    openapi_schema["tags"] = [
+        {"name": "capabilities", "description": "V2 能力总线 (192 个能力)"},
+        {"name": "skills", "description": "技能市场 - 安装/管理/搜索"},
+        {"name": "memory", "description": "四级记忆系统"},
+        {"name": "evolution", "description": "自我进化引擎"},
+        {"name": "lifecycle", "description": "项目生命周期管理"},
+        {"name": "agent", "description": "Agent 调度"},
+        {"name": "chat", "description": "AI 对话"},
+        {"name": "files", "description": "文件操作"},
+        {"name": "code", "description": "代码执行"},
+        {"name": "git", "description": "Git 版本控制"},
+        {"name": "dashboard", "description": "系统仪表盘"},
+        {"name": "health", "description": "健康检查"},
+        {"name": "extensions", "description": "扩展管理"},
+        {"name": "learning", "description": "学习系统"},
+        {"name": "security", "description": "安全"},
+        {"name": "scheduler", "description": "调度器"},
+        {"name": "visualize", "description": "可视化"},
+        {"name": "knowledge", "description": "知识库"},
+        {"name": "impact", "description": "影响分析"},
+        {"name": "refactor", "description": "代码重构"},
+        {"name": "recommendations", "description": "智能推荐"},
+        {"name": "context", "description": "项目上下文"},
+        {"name": "autonomous", "description": "自主执行"},
+        {"name": "dag", "description": "DAG 任务编排"},
+        {"name": "workspaces", "description": "工作区管理"},
+        {"name": "browser", "description": "浏览器AI"},
+        {"name": "cloud", "description": "云服务"},
+        {"name": "models", "description": "AI 模型管理"},
+    ]
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = _customize_openapi
 
 # ── Skills Market REST API ──
 

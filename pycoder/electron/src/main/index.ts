@@ -5,8 +5,24 @@ import { createTray } from './tray';
 import { PythonBackendManager } from './backend';
 import { registerIpcHandlers } from './ipc-handlers';
 
+// 全局错误捕获，确保任何未处理异常都可见
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] uncaughtException:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] unhandledRejection:', reason);
+});
+
 // Step6: 设置自定义 app name → 自动改变 userData/cache 路径，避免缓存权限问题
 app.name = 'pycoder-electron';
+
+// P0-Fix: 启动前禁用 GPU 加速相关的命令行参数，避免 GPU 缓存创建失败导致进程退出
+// 这能解决 "Unable to move the cache: 拒绝访问" 错误
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+app.commandLine.appendSwitch('disable-gpu-compositing');
+app.commandLine.appendSwitch('no-sandbox');
+app.disableHardwareAcceleration();
 
 const SERVER_PORT = parseInt(process.env.PYCODER_BACKEND_PORT || '8423', 10);
 const isDev = process.env.NODE_ENV === 'development';
