@@ -202,3 +202,5 @@ export const CloudPanel: React.FC<Props> = ({ wsClient }) => {
         </div>
     );
 };
+
+export default CloudPanel;

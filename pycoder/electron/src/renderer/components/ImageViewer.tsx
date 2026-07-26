@@ -38,3 +38,5 @@ export const ImageViewer: React.FC<Props> = ({ initialSrc = '' }) => {
         </div>
     );
 };
+
+export default ImageViewer;

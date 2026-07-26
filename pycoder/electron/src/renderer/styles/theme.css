@@ -93,6 +93,38 @@
   --ai-diff-add-bg: rgba(78, 201, 176, 0.08);
   --ai-diff-del-bg: rgba(244, 71, 71, 0.06);
   --ai-user-bubble-bg: rgba(0, 122, 204, 0.12);
+
+  /* ── 语义化颜色（P1-5 新增） ── */
+  --color-error: #F44747;
+  --color-error-bg: rgba(244, 71, 71, 0.1);
+  --color-success: #4EC9B0;
+  --color-success-bg: rgba(78, 201, 176, 0.1);
+  --color-warning: #DCDCAA;
+  --color-warning-bg: rgba(220, 220, 170, 0.1);
+  --color-info: #007ACC;
+  --color-info-bg: rgba(0, 122, 204, 0.1);
+
+  /* ── 品牌色 ── */
+  --brand-primary: #007ACC;
+  --brand-gradient: linear-gradient(135deg, #007ACC, #1A85C7);
+
+  /* ── 交互状态 ── */
+  --state-hover: rgba(255, 255, 255, 0.06);
+  --state-active: rgba(255, 255, 255, 0.1);
+  --state-focus: rgba(0, 122, 204, 0.4);
+  --state-disabled-opacity: 0.4;
+
+  /* ── Z-Index 层级 ── */
+  --z-sidebar: 10;
+  --z-overlay: 100;
+  --z-modal: 1000;
+  --z-command-palette: 2000;
+  --z-toast: 3000;
+
+  /* ── 响应式断点 ── */
+  --breakpoint-sm: 768px;
+  --breakpoint-md: 1024px;
+  --breakpoint-lg: 1440px;
 }
 
 /* ── 明亮主题 — VS Code Light+ 风格 ── */
@@ -162,6 +194,26 @@
   --ai-diff-add-bg: rgba(9, 134, 88, 0.06);
   --ai-diff-del-bg: rgba(209, 38, 38, 0.06);
   --ai-user-bubble-bg: rgba(0, 102, 184, 0.10);
+
+  /* ── 语义化颜色（明亮） ── */
+  --color-error: #D12626;
+  --color-error-bg: rgba(209, 38, 38, 0.08);
+  --color-success: #098658;
+  --color-success-bg: rgba(9, 134, 88, 0.08);
+  --color-warning: #795E26;
+  --color-warning-bg: rgba(121, 94, 38, 0.08);
+  --color-info: #0066B8;
+  --color-info-bg: rgba(0, 102, 184, 0.08);
+
+  /* ── 品牌色 ── */
+  --brand-primary: #0066B8;
+  --brand-gradient: linear-gradient(135deg, #0066B8, #1A85C7);
+
+  /* ── 交互状态 ── */
+  --state-hover: rgba(0, 0, 0, 0.05);
+  --state-active: rgba(0, 0, 0, 0.08);
+  --state-focus: rgba(0, 102, 184, 0.3);
+  --state-disabled-opacity: 0.4;
 }
 
 /* ── 全局基础 ── */

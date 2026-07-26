@@ -60,3 +60,5 @@ export const TestGenPanel: React.FC = () => {
         </div>
     );
 };
+
+export default TestGenPanel;

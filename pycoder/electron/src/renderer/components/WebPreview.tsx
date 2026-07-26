@@ -41,3 +41,5 @@ export const WebPreview: React.FC<Props> = ({ defaultUrl = '' }) => {
         </div>
     );
 };
+
+export default WebPreview;

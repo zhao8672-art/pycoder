@@ -154,3 +154,5 @@ export const RunFixPanel: React.FC<Props> = ({ wsClient, onClose }) => {
         </div>
     );
 };
+
+export default RunFixPanel;

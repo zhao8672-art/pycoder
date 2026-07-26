@@ -77,7 +77,7 @@ class SkillMarketplace:
     def import_external_skills(self) -> dict:
         """从外部数据源导入技能到 SQLite 数据库"""
         try:
-            from pycoder.server.skills_external_sources import fetch_all_external_skills
+            from pycoder.core.services.external_skills import fetch_all_external_skills
         except ImportError:
             return {"success": False, "error": "技能采集模块不可用"}
 

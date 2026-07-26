@@ -468,3 +468,5 @@ export const TeamPanel: React.FC<Props> = ({ wsClient }) => {
         </div>
     );
 };
+
+export default TeamPanel;

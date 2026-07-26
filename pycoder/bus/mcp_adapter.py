@@ -101,12 +101,12 @@ class MCPProtocolAdapter:
 
     @property
     def registry(self) -> Any:
-        """获取能力注册表（延迟加载）"""
+        """获取能力注册表（延迟加载，通过 P 层端口）"""
         if self._registry is None:
             try:
-                from pycoder.server.app import get_v2_engine
+                from pycoder.core.ports.engine import get_engine
 
-                engine = get_v2_engine()
+                engine = get_engine()
                 if engine:
                     self._registry = engine.registry
             except ImportError:

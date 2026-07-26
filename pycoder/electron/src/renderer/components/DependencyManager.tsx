@@ -79,3 +79,5 @@ export const DependencyManager: React.FC = () => {
         </div>
     );
 };
+
+export default DependencyManager;

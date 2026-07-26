@@ -432,3 +432,5 @@ export const ExtensionsPanel: React.FC = () => {
         </PanelContainer>
     );
 };
+
+export default ExtensionsPanel;

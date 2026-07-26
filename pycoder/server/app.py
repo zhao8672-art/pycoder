@@ -246,6 +246,30 @@ async def lifespan(app: FastAPI):
         v2_engine = await _init_v2_engine()
     app.state.v2_engine = v2_engine
 
+    # ── P 层端口工厂注册（消除 D→C/P→C 违规的依赖注入） ──
+    with profiler.measure("ports_registration"):
+        try:
+            from pycoder.core.ports.engine import register_engine_getter
+            register_engine_getter(lambda: app.state.v2_engine)
+        except Exception as e:
+            _logger.warning("engine_port_register_failed: %s", e)
+        try:
+            from pycoder.core.ports.pipeline import register_pipeline_factory
+            from pycoder.server.services.autonomous_pipeline import AutonomousPipeline
+            register_pipeline_factory(AutonomousPipeline)
+        except Exception as e:
+            _logger.warning("pipeline_port_register_failed: %s", e)
+        try:
+            from pycoder.core.services.external_skills import (
+                register_skills_fetcher, register_roles_getter,
+            )
+            from pycoder.server.skills_external_sources import fetch_all_external_skills
+            register_skills_fetcher(fetch_all_external_skills)
+            from pycoder.server.services.agent_definitions import AGENT_ROLES
+            register_roles_getter(lambda: AGENT_ROLES)
+        except Exception as e:
+            _logger.warning("skills_port_register_failed: %s", e)
+
     # ── 插件注册表初始化 ──
     with profiler.measure("plugin_registry_init"):
         try:

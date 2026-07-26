@@ -311,7 +311,8 @@ def generate_role_prompts_md(output_dir: str | None = None) -> list[Path]:
     Returns:
         生成的 .md 文件路径列表
     """
-    from pycoder.server.services.agent_definitions import AGENT_ROLES
+    from pycoder.core.services.external_skills import get_agent_roles as _get_roles
+    AGENT_ROLES = _get_roles()
 
     base = Path(output_dir) if output_dir else (Path(__file__).resolve().parent / "agents")
     base.mkdir(parents=True, exist_ok=True)

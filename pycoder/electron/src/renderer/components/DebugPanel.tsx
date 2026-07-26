@@ -221,3 +221,5 @@ export const DebugPanel: React.FC<Props> = ({ wsClient }) => {
         </div>
     );
 };
+
+export default DebugPanel;

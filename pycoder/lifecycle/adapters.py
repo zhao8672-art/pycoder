@@ -237,9 +237,9 @@ class DevelopAdapter(BasePhaseAdapter):
 
     async def _run(self, ctx: ProjectContext, record: PhaseRecord) -> None:
         try:
-            from pycoder.server.services.autonomous_pipeline import AutonomousPipeline
+            from pycoder.core.ports.pipeline import get_pipeline
 
-            pipeline = AutonomousPipeline(
+            pipeline = get_pipeline(
                 workspace_root=ctx.workspace or None,
                 model=ctx.model,
             )

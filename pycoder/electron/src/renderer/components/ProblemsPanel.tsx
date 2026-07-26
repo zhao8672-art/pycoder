@@ -93,3 +93,5 @@ export const ProblemsPanel: React.FC = () => {
         </div>
     );
 };
+
+export default ProblemsPanel;

@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 
 from pycoder.core.services.log import log
-from pycoder.server.skills_data_sources import make_github_request
+from pycoder.core.services.net import make_github_request
 
 
 def import_external_extensions() -> dict:

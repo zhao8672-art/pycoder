@@ -2,10 +2,12 @@ import React from 'react';
 import { useUIStore } from '../stores/uiStore';
 import { useAppStore } from '../stores/appStore';
 import { t } from '../../locales';
+import { Icon } from './common/Icon';
+import type { IconName } from './common/Icon';
 
 interface ActivityItem {
   id: string;
-  icon: string;
+  icon: IconName;
   label: string;
   tooltip: string;
   badge?: number;
@@ -14,30 +16,30 @@ interface ActivityItem {
 }
 
 const GROUP_CORE: ActivityItem[] = [
-  { id: 'files', icon: '\u{1F4C1}', label: '文件', tooltip: 'fileManager', action: 'sidebar', sidebarView: 'files' },
-  { id: 'workspace', icon: '\u{1F4C2}', label: '工作区', tooltip: 'workspaceManager', action: 'sidebar', sidebarView: 'workspace' },
-  { id: 'search', icon: '\u{1F50D}', label: '搜索', tooltip: 'searchInFiles', action: 'sidebar', sidebarView: 'search' },
-  { id: 'git', icon: '\u{1F4E6}', label: 'Git', tooltip: 'versionControl', action: 'sidebar', sidebarView: 'git' },
-  { id: 'ai', icon: '\u{1F916}', label: 'AI', tooltip: 'aiAssistant', action: 'toggle-ai' },
+  { id: 'files', icon: 'folder', label: '文件', tooltip: 'fileManager', action: 'sidebar', sidebarView: 'files' },
+  { id: 'workspace', icon: 'folder-open', label: '工作区', tooltip: 'workspaceManager', action: 'sidebar', sidebarView: 'workspace' },
+  { id: 'search', icon: 'search', label: '搜索', tooltip: 'searchInFiles', action: 'sidebar', sidebarView: 'search' },
+  { id: 'git', icon: 'git', label: 'Git', tooltip: 'versionControl', action: 'sidebar', sidebarView: 'git' },
+  { id: 'ai', icon: 'bot', label: 'AI', tooltip: 'aiAssistant', action: 'toggle-ai' },
 ];
 
 const GROUP_AI_TOOLS: ActivityItem[] = [
-  { id: 'team', icon: '\u{1F465}', label: '团队', tooltip: 'aiAgentTeam', action: 'sidebar', sidebarView: 'team' },
-  { id: 'evolution', icon: '\u{1F9EC}', label: '进化', tooltip: 'evolutionEngine', action: 'toggle-evo' },
-  { id: 'skills', icon: '\u{1F9E9}', label: '技能', tooltip: 'skillsMarket', action: 'sidebar', sidebarView: 'skills' },
-  { id: 'extensions', icon: '\u{1F9F0}', label: '扩展', tooltip: 'extensionsManager', action: 'sidebar', sidebarView: 'extensions' },
-  { id: 'snippets', icon: '\u{1F4CB}', label: '片段', tooltip: 'snippetsManager', action: 'sidebar', sidebarView: 'snippets' },
+  { id: 'team', icon: 'team', label: '团队', tooltip: 'aiAgentTeam', action: 'sidebar', sidebarView: 'team' },
+  { id: 'evolution', icon: 'evolution', label: '进化', tooltip: 'evolutionEngine', action: 'toggle-evo' },
+  { id: 'skills', icon: 'puzzle', label: '技能', tooltip: 'skillsMarket', action: 'sidebar', sidebarView: 'skills' },
+  { id: 'extensions', icon: 'extensions', label: '扩展', tooltip: 'extensionsManager', action: 'sidebar', sidebarView: 'extensions' },
+  { id: 'snippets', icon: 'snippets', label: '片段', tooltip: 'snippetsManager', action: 'sidebar', sidebarView: 'snippets' },
 ];
 
 const GROUP_UTILITIES: ActivityItem[] = [
-  { id: 'browser', icon: '\u{1F310}', label: '浏览', tooltip: 'builtinBrowser', action: 'toggle-browser' },
-  { id: 'terminal', icon: '\u25B6', label: '运行', tooltip: 'terminalRunner', action: 'toggle-bottom' },
-  { id: 'command', icon: '\u2318', label: '命令', tooltip: 'commandPalette', action: 'command-palette' },
+  { id: 'browser', icon: 'browser', label: '浏览', tooltip: 'builtinBrowser', action: 'toggle-browser' },
+  { id: 'terminal', icon: 'run', label: '运行', tooltip: 'terminalRunner', action: 'toggle-bottom' },
+  { id: 'command', icon: 'command', label: '命令', tooltip: 'commandPalette', action: 'command-palette' },
 ];
 
 const GROUP_SYSTEM: ActivityItem[] = [
-  { id: 'cloud', icon: '\u2601\uFE0F', label: '云', tooltip: 'pycoderCloud', action: 'sidebar', sidebarView: 'cloud' },
-  { id: 'settings', icon: '\u2699', label: '设置', tooltip: 'settings', action: 'sidebar', sidebarView: 'settings' },
+  { id: 'cloud', icon: 'cloud', label: '云', tooltip: 'pycoderCloud', action: 'sidebar', sidebarView: 'cloud' },
+  { id: 'settings', icon: 'settings', label: '设置', tooltip: 'settings', action: 'sidebar', sidebarView: 'settings' },
 ];
 
 export const ActivityBar: React.FC = () => {
@@ -124,7 +126,7 @@ export const ActivityBar: React.FC = () => {
         onClick={() => handleItemClick(item)}
         title={t(`activity.${item.tooltip}`, item.tooltip)}
       >
-        <span className="activity-icon" aria-hidden="true">{item.icon}</span>
+        <span className="activity-icon" aria-hidden="true"><Icon name={item.icon} size={18} /></span>
         <span className="activity-label">{t(`activity.${item.label}`, item.label)}</span>
         {item.id === 'git' && gitChangeCount > 0 && (
           <span className="activity-badge">{gitChangeCount}</span>

@@ -1,24 +1,26 @@
 /**
  * App Store — 兼容层，从子 Store 重新导出
  *
- * 建议新组件直接导入子 store:
- *   import { useUIStore } from './stores/uiStore';
- *   import { useChatStore } from './stores/chatStore';
- *   import { useEditorStore } from './stores/editorStore';
- *   import { useGitStore } from './stores/gitStore';
+ * 新组件建议直接导入子 store:
+ *   import { useUIStore } from './uiStore';
+ *   import { useChatStore } from './chatStore';
+ *   import { useEditorStore } from './editorStore';
+ *   import { useGitStore } from './gitStore';
+ *   import { useBackendStore } from './backendStore';
  */
 
 export { useUIStore } from './uiStore';
 export { useChatStore } from './chatStore';
 export { useEditorStore } from './editorStore';
 export { useGitStore } from './gitStore';
+export { useBackendStore } from './backendStore';
 
 // ── 兼容层：保留 useAppStore 供旧组件使用 ──
 import { useUIStore } from './uiStore';
 import { useChatStore } from './chatStore';
 import { useEditorStore } from './editorStore';
 import { useGitStore } from './gitStore';
-import { create } from 'zustand';
+import { useBackendStore } from './backendStore';
 import type { WSConnectionManager } from '../services/websocket';
 import type { BackendStatus } from '../types';
 
@@ -85,7 +87,7 @@ interface LegacyAppState {
   setAutoCommitEnabled: (enabled: boolean) => void;
   setCommitMsgMode: (mode: 'auto' | 'confirm' | 'manual') => void;
 
-  // 原生字段
+  // 原生字段（委托到 backendStore）
   backendStatus: BackendStatus;
   backendUrl: string;
   wsClient: WSConnectionManager | null;
@@ -93,21 +95,18 @@ interface LegacyAppState {
   setWsClient: (client: WSConnectionManager | null) => void;
 }
 
-const useBackendStore = create<Pick<LegacyAppState, 'backendStatus' | 'backendUrl' | 'wsClient' | 'setBackendStatus' | 'setWsClient'>>((set) => ({
-  backendStatus: 'stopped' as BackendStatus,
-  backendUrl: 'http://127.0.0.1:8423',
-  wsClient: null,
-  setBackendStatus: (status) => set({ backendStatus: status }),
-  setWsClient: (client) => set({ wsClient: client }),
-}));
-
 // 构建一次完整的合并状态（供 getState 使用）
 function buildLegacyState(): LegacyAppState {
+  const be = useBackendStore.getState();
+  return { ...buildCoreState(), ...buildBackendState(be) };
+}
+
+// 核心状态构建（复用）
+function buildCoreState(): Omit<LegacyAppState, 'backendStatus' | 'backendUrl' | 'wsClient' | 'setBackendStatus' | 'setWsClient'> {
   const ui = useUIStore.getState();
   const chat = useChatStore.getState();
   const editor = useEditorStore.getState();
   const git = useGitStore.getState();
-  const be = useBackendStore.getState();
 
   return {
     theme: ui.theme,
@@ -124,6 +123,8 @@ function buildLegacyState(): LegacyAppState {
     setCommandPaletteOpen: ui.setCommandPaletteOpen,
     evoPanelOpen: ui.evoPanelOpen,
     toggleEvoPanel: ui.toggleEvoPanel,
+    browserPanelOpen: ui.browserPanelOpen,
+    toggleBrowserPanel: ui.toggleBrowserPanel,
     activeGroup: ui.activeGroup,
     setActiveGroup: ui.setActiveGroup as (group: string) => void,
     bottomPanel: ui.bottomPanel,
@@ -168,7 +169,11 @@ function buildLegacyState(): LegacyAppState {
     commitMsgMode: git.commitMsgMode,
     setAutoCommitEnabled: git.setAutoCommitEnabled,
     setCommitMsgMode: git.setCommitMsgMode,
+  };
+}
 
+function buildBackendState(be: ReturnType<typeof useBackendStore.getState>) {
+  return {
     backendStatus: be.backendStatus,
     backendUrl: be.backendUrl,
     wsClient: be.wsClient,

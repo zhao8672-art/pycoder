@@ -97,3 +97,5 @@ export const ChatHistorySearch: React.FC<Props> = ({ wsClient }) => {
         </div>
     );
 };
+
+export default ChatHistorySearch;

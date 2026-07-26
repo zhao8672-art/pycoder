@@ -102,3 +102,5 @@ export const TerminalPanel: React.FC = () => {
     </div>
   );
 };
+
+export default TerminalPanel;

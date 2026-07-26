@@ -71,6 +71,8 @@ export const ThemeManager: React.FC = () => {
     );
 };
 
+export default ThemeManager;
+
 export function getEditorModeConfig(mode: string): Record<string, any> {
     if (mode === 'vim') return { 'editor.defaultMode': 'vim' };
     if (mode === 'emacs') return { 'editor.defaultMode': 'emacs' };

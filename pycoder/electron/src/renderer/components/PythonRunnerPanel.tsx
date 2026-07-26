@@ -57,3 +57,5 @@ export const PythonRunnerPanel: React.FC = () => {
         </div>
     );
 };
+
+export default PythonRunnerPanel;

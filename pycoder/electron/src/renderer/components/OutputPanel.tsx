@@ -44,3 +44,5 @@ export const OutputPanel: React.FC = () => {
         </div>
     );
 };
+
+export default OutputPanel;
