@@ -1,4 +1,4 @@
-import { ChildProcess, spawn } from 'child_process';
+import { ChildProcess, spawn, execSync } from 'child_process';
 import path from 'path';
 import http from 'http';
 import { EventEmitter } from 'events';
@@ -80,68 +80,126 @@ export class PythonBackendManager extends EventEmitter {
 
       const projectRoot = path.resolve(__dirname, '..', '..', '..', '..');
 
-      this.process = spawn(this.pythonPath, ['-m', 'pycoder', '--server', '--server-port', String(this.port)], {
+      // ════════════════════════════════════════════════════
+      // P0: 启动前强制杀掉占用目标端口的进程（防止重启循环）
+      // ════════════════════════════════════════════════════
+      if (this.process) {
+        try { this.process.kill('SIGKILL'); } catch { }
+        this.process = null;
+      }
+      // 使用系统命令找到并杀死占用端口的进程
+      try {
+        const netstatOut = execSync(
+          `netstat -ano | findstr :${this.port}`,
+          { timeout: 3000, encoding: 'utf-8' }
+        );
+        const lines = netstatOut.trim().split('\n');
+        const killedPids = new Set<number>();
+        for (const line of lines) {
+          const parts = line.trim().split(/\s+/);
+          if (parts.length >= 5) {
+            const pid = parseInt(parts[parts.length - 1], 10);
+            if (pid && pid > 0 && !killedPids.has(pid)) {
+              try {
+                process.kill(pid, 'SIGTERM');
+                killedPids.add(pid);
+                console.log(
+                  `[PyCoder Backend] Killed PID ${pid} on port ${this.port}`
+                );
+              } catch { }
+            }
+          }
+        }
+        // 等 1.5 秒让 TIME_WAIT 释放
+        setTimeout(() => this._doSpawn(resolve, projectRoot), 1500);
+      } catch {
+        // netstat 没找到占用进程 → 直接启动
+        this._doSpawn(resolve, projectRoot);
+      }
+    });
+  }
+
+  private _doSpawn(
+    resolve: (ready: boolean) => void,
+    projectRoot: string
+  ): void {
+    this._lastStderr = '';  // 重置错误缓冲
+
+    this.process = spawn(
+      this.pythonPath,
+      ['-m', 'pycoder', '--server', '--server-port', String(this.port)],
+      {
         cwd: projectRoot,
         stdio: 'pipe',
         windowsHide: true,
         env: { ...process.env, PYTHONUTF8: '1' },
-      });
+      }
+    );
 
-      this.process.stdout?.on('data', (data: Buffer) => {
-        const text = data.toString('utf-8').replace(/\x00/g, '').trim();
-        if (text) console.log(`[PyCoder Backend] ${text}`);
-      });
-
-      this.process.stderr?.on('data', (data: Buffer) => {
-        const text = data.toString('utf-8').replace(/\x00/g, '').trim();
-        if (text) {
-          console.error(`[PyCoder Backend Error] ${text}`);
-          this._lastStderr += text + '\n';
-        }
-      });
-
-      this.process.on('error', (err: Error) => {
-        console.error(`[PyCoder Backend] Process error:`, err.message);
-        this.status = 'error';
-        this.emit('status-change', 'error');
-        resolve(false);
-      });
-
-      this.process.on('exit', (code: number | null) => {
-        console.log(`[PyCoder Backend] Process exited with code ${code}`);
-        if (this.status !== 'stopped') {
-          this.status = 'crashed';
-          this.emit('status-change', 'crashed');
-
-          // P0-2 修复: 端口绑定失败时退出码可能为 1 或 3，匹配多种错误模式
-          const stderrLower = (this._lastStderr || '').toLowerCase();
-          const isPortConflict = stderrLower.includes('bind') ||
-            stderrLower.includes('10048') ||
-            stderrLower.includes('eaddrinuse') ||
-            stderrLower.includes('address already in use');
-          if (isPortConflict) {
-            console.log('[PyCoder Backend] Port occupied, checking existing backend...');
-            this._tryConnectExisting(resolve);
-            return;
-          }
-
-          if (this.restartCount < this.maxRestarts && !this.isRestarting) {
-            this.restartCount++;
-            this.isRestarting = true;
-            console.log(`[PyCoder Backend] Auto-restarting (attempt ${this.restartCount}/${this.maxRestarts})...`);
-            setTimeout(() => this.startProcess(), 2000);
-          } else if (this.restartCount >= this.maxRestarts) {
-            console.error('[PyCoder Backend] Max restart attempts reached, giving up');
-            this.isRestarting = false;
-            this.status = 'error';
-            this.emit('status-change', 'error');
-            resolve(false);
-          }
-        }
-      });
-
-      this.waitForReady(resolve);
+    this.process.stdout?.on('data', (data: Buffer) => {
+      const text = data.toString('utf-8').replace(/\x00/g, '').trim();
+      if (text) console.log(`[PyCoder Backend] ${text}`);
     });
+
+    this.process.stderr?.on('data', (data: Buffer) => {
+      const text = data.toString('utf-8').replace(/\x00/g, '').trim();
+      if (text) {
+        console.error(`[PyCoder Backend Error] ${text}`);
+        this._lastStderr += text + '\n';
+      }
+    });
+
+    this.process.on('error', (err: Error) => {
+      console.error(`[PyCoder Backend] Process error:`, err.message);
+      this.status = 'error';
+      this.emit('status-change', 'error');
+      resolve(false);
+    });
+
+    this.process.on('exit', (code: number | null) => {
+      console.log(`[PyCoder Backend] Process exited with code ${code}`);
+      if (this.status !== 'stopped') {
+        this.status = 'crashed';
+        this.emit('status-change', 'crashed');
+
+        const stderrLower = (this._lastStderr || '').toLowerCase();
+        const isPortConflict = stderrLower.includes('bind') ||
+          stderrLower.includes('10048') ||
+          stderrLower.includes('eaddrinuse') ||
+          stderrLower.includes('address already in use');
+        if (isPortConflict) {
+          console.log(
+            '[PyCoder Backend] Port occupied, checking existing backend...'
+          );
+          this._tryConnectExisting(resolve);
+          return;
+        }
+
+        if (this.restartCount < this.maxRestarts && !this.isRestarting) {
+          this.restartCount++;
+          this.isRestarting = true;
+          console.log(
+            '[PyCoder Backend] Auto-restarting'
+            + ` (${this.restartCount}/${this.maxRestarts})...`
+          );
+          // 直接重启（旧进程已退出，不再 kill）
+          setTimeout(
+            () => this._doSpawn(resolve, projectRoot),
+            2000
+          );
+        } else if (this.restartCount >= this.maxRestarts) {
+          console.error(
+            '[PyCoder Backend] Max restart attempts reached'
+          );
+          this.isRestarting = false;
+          this.status = 'error';
+          this.emit('status-change', 'error');
+          resolve(false);
+        }
+      }
+    });
+
+    this.waitForReady(resolve);
   }
 
   private waitForReady(resolve: (ready: boolean) => void, retries = 30): void {
@@ -167,9 +225,11 @@ export class PythonBackendManager extends EventEmitter {
   }
 
   /** 端口被占用时: 轮询健康检查来代替启动新进程 */
-  private async _tryConnectExisting(resolve: (ready: boolean) => void): Promise<void> {
+  private async _tryConnectExisting(
+    resolve: (ready: boolean) => void
+  ): Promise<void> {
     this.isRestarting = true;
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 10; i++) {
       const ok = await this.checkHealth();
       if (ok) {
         console.log('[PyCoder Backend] Connected to existing backend');
@@ -183,11 +243,22 @@ export class PythonBackendManager extends EventEmitter {
       }
       await new Promise(r => setTimeout(r, 1000));
     }
-    console.error('[PyCoder Backend] Could not connect to any backend');
-    this.isRestarting = false;
-    this.status = 'error';
-    this.emit('status-change', 'error');
-    resolve(false);
+    // 10 秒后仍未连接 → 强制清理僵尸进程并重新启动
+    console.log(
+      '[PyCoder Backend] No existing backend, killing stale processes...'
+    );
+    try {
+      execSync('taskkill /f /im python.exe 2>nul', {
+        timeout: 5000,
+        encoding: 'utf-8',
+      });
+    } catch { }
+    // 等 2 秒让端口释放，然后重试启动
+    setTimeout(() => {
+      this.isRestarting = false;
+      this.restartCount = 0;
+      this.startProcess().then(resolve);
+    }, 2000);
   }
 
   private checkHealth(): Promise<boolean> {
