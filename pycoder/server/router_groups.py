@@ -172,6 +172,13 @@ def _register_system(app: "FastAPI") -> None:
     app.include_router(notify_ws_router)
     app.include_router(metrics_router)  # Prometheus /metrics
 
+    # ── P1-3: 工具白名单管理 API（最高权限运维） ──
+    from pycoder.server.routers.whitelist_admin_api import (
+        router as whitelist_admin_router,
+    )
+
+    app.include_router(whitelist_admin_router)
+
 
 # ── 9. Phase 1 升级（Gateway / Sandbox / DeepMemory / Guard） ─────
 def _register_phase1(app: "FastAPI") -> None:

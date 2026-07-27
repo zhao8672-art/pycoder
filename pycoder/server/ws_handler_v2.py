@@ -32,6 +32,10 @@ from pycoder.core.services.log import log
 from pycoder.server.session_share import get_session_share_manager
 from pycoder.server.session_store import get_session_store
 
+# ── 取消事件表：session_id → asyncio.Event ──
+# 前端发送 {type: "stop"} 时，设置对应事件通知正在运行的流停止
+_cancel_events: dict[str, asyncio.Event] = {}
+
 
 async def websocket_chat_v2(ws: WebSocket):
     """V2 WebSocket 处理器 — AI-Centric 架构入口
@@ -82,6 +86,19 @@ async def websocket_chat_v2(ws: WebSocket):
             data = await ws.receive_text()
             msg = json.loads(data)
             msg_type = msg.get("type", "message")
+
+            # ── 停止当前 AI 执行 ──
+            if msg_type == "stop":
+                cancel_event = _cancel_events.get(session_id)
+                if cancel_event:
+                    cancel_event.set()
+                # 同时取消后台任务，确保立即停止（不等待流 yield）
+                stream_task = _cancel_events.get(session_id + ":task")
+                if stream_task and not stream_task.done():
+                    stream_task.cancel()
+                log.info("ws_v2_stop_requested", extra={"session_id": session_id})
+                await ws.send_json({"type": "stopped", "session_id": session_id})
+                continue
 
             # ── 会话管理（与 V1 相同）──
             if msg_type == "create_session":
@@ -260,7 +277,12 @@ async def websocket_chat_v2(ws: WebSocket):
                         agent_chat_stream as agent_stream,
                     )
 
-                    async for event in agent_stream(plan_content, model=model):
+                    cancel_event = asyncio.Event()
+                    _cancel_events[session_id] = cancel_event
+                    async for event in agent_stream(plan_content, model=model, cancel_event=cancel_event):
+                        if cancel_event.is_set():
+                            await ws.send_json({"type": "done", "content": "", "stopped": True})
+                            break
                         await ws.send_json(event)
                         await asyncio.sleep(0)
                 else:
@@ -320,6 +342,9 @@ async def websocket_chat_v2(ws: WebSocket):
         log.info("ws_v2_disconnect", extra={"session_id": session_id})
     except Exception as e:
         log.error("ws_v2_error", extra={"session_id": session_id, "error": str(e)})
+    finally:
+        # 清理取消事件
+        _cancel_events.pop(session_id, None)
 
 
 @traced("ws_v2.handle_chat")
@@ -407,31 +432,55 @@ async def _handle_chat_v2(msg: dict, ws: WebSocket, session_id: str, current_mod
 
         entry = UnifiedEntryAgent(model=effective_model, api_key=api_key)
 
+        # ── 取消事件：前端 stop 信号 ──
+        cancel_event = asyncio.Event()
+        _cancel_events[session_id] = cancel_event
+
         # P1-C: LLM 并发限流
         limiter = get_llm_limiter()
         final_content = ""
-        async with limiter.acquire():
-            async for event in entry.process_stream(message, session_id=session_id):
-                await ws.send_json(event)
-                if event.get("type") == "done":
-                    final_content = event.get("content", "")
-                await asyncio.sleep(0)
 
-        # 消息持久化
-        if final_content:
+        async def _run_stream():
+            """后台运行流，支持被 cancel_event 中断"""
+            nonlocal final_content
+            async with limiter.acquire():
+                async for event in entry.process_stream(message, session_id=session_id):
+                    if cancel_event.is_set():
+                        await ws.send_json({"type": "done", "content": final_content, "stopped": True})
+                        log.info("ws_v2_stream_cancelled", extra={"session_id": session_id})
+                        return
+                    await ws.send_json(event)
+                    if event.get("type") == "done":
+                        final_content = event.get("content", "")
+                    await asyncio.sleep(0)
+
+        stream_task = asyncio.create_task(_run_stream())
+        _cancel_events[session_id + ":task"] = stream_task
+
+        # ── 后台流完成后的清理 ──
+        async def _on_stream_done():
             try:
-                store.add_message(session_id, "user", message)
-                store.add_message(session_id, "assistant", final_content)
-            except (OSError, ValueError, RuntimeError) as e:
-                import logging
+                await stream_task
+            except asyncio.CancelledError:
+                await ws.send_json({"type": "done", "content": final_content, "stopped": True})
+            finally:
+                _cancel_events.pop(session_id, None)
+                _cancel_events.pop(session_id + ":task", None)
+                bp.release(bp_conn_id)
+                if final_content:
+                    try:
+                        store.add_message(session_id, "user", message)
+                        store.add_message(session_id, "assistant", final_content)
+                    except Exception:
+                        pass
 
-                logging.getLogger(__name__).warning(
-                    "save_message_failed",
-                    extra={"session_id": session_id, "error": str(e)},
-                )
-    finally:
-        # P1-C: 释放背压槽位
+        # 不阻塞主循环 — 后台流 + 清理任务
+        asyncio.create_task(_on_stream_done())
+        return
+
+    except Exception as e:
         bp.release(bp_conn_id)
+        raise
 
 
 async def _handle_setup_command(message: str, ws: WebSocket, effective_model: str) -> None:
@@ -522,25 +571,58 @@ async def _handle_mcp_v2(msg_type: str, msg: dict, ws: WebSocket, v2):
             await ws.send_json({"type": "error", "message": "mcp_call requires 'tool' field"})
             return
 
+        # P1-3 修复: 先做工具名重定向 (head/body(path=...) → tools.file.read)
+        # 必须在 V2 调用之前执行，因为 V2 不会回退到 V1 路径
+        try:
+            from pycoder.server.mcp_tools import _maybe_redirect_common_aliases
+
+            tool_name, tool_args = _maybe_redirect_common_aliases(tool_name, tool_args)
+        except (ImportError, AttributeError) as e:
+            import logging as _lg
+
+            _lg.getLogger(__name__).debug("alias_redirect_unavailable: %s", e)
+
         # V2: 优先通过能力总线调用
+        v2_succeeded = False
         if v2:
             # 尝试 v1.<tool_name> 格式
             v2_id = f"v1.{tool_name}" if not tool_name.startswith("v1.") else tool_name
             try:
                 result = await v2.call(v2_id, tool_args)
-                await ws.send_json(
-                    {
-                        "type": "mcp_result",
-                        "tool": tool_name,
-                        "success": result.success,
-                        "output": result.data,
-                        "error": result.error,
-                        "via": "v2_bus",
-                    }
-                )
-                return
+                if result and getattr(result, "success", False):
+                    await ws.send_json(
+                        {
+                            "type": "mcp_result",
+                            "tool": tool_name,
+                            "success": True,
+                            "output": result.data,
+                            "error": result.error,
+                            "via": "v2_bus",
+                        }
+                    )
+                    v2_succeeded = True
+                else:
+                    # V2 找到能力但执行失败（或路由未找到），
+                    # 不直接返回错误 — 回退到 V1 路径（含重定向）再尝试
+                    import logging as _lg
+
+                    _lg.getLogger(__name__).info(
+                        "v2_call_failed tool=%s error=%s, falling back to v1",
+                        tool_name,
+                        getattr(result, "error", "unknown"),
+                    )
             except (AttributeError, TypeError, ValueError):
                 pass  # 回退到 V1 路径
+            except Exception as e:
+                import logging as _lg
+
+                _lg.getLogger(__name__).warning(
+                    "v2_call_exception tool=%s error=%s, falling back to v1",
+                    tool_name, e,
+                )
+
+        if v2_succeeded:
+            return
 
         # V1 回退路径
         from pycoder.server.mcp_tools import call_builtin_tool, get_mcp_client_manager

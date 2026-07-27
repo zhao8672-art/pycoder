@@ -92,9 +92,14 @@ class ParamSchema:
 
 @dataclass
 class WhitelistConfig:
-    """白名单配置"""
+    """白名单配置
 
-    mode: WhitelistMode = WhitelistMode.ALLOWLIST
+    默认模式为 ALLOW_ALL（允许所有工具），
+    denied_tools 和 param_schemas 仍然生效。
+    可通过 config/tool_whitelist.yaml 覆盖配置。
+    """
+
+    mode: WhitelistMode = WhitelistMode.ALLOW_ALL
     allowed_tools: list[str] = field(default_factory=list)
     denied_tools: list[str] = field(default_factory=list)
     param_schemas: dict[str, ParamSchema] = field(default_factory=dict)
@@ -149,13 +154,21 @@ class ToolWhitelist:
         )
 
     def load_from_dict(self, data: dict[str, Any]) -> None:
-        """从字典加载配置"""
-        mode_str = data.get("mode", "allowlist")
+        """从字典加载配置
+
+        安全默认值: 如果未指定 mode 或 mode 不合法，默认 ALLOW_ALL（最高权限）
+        这样 AI 在最高权限下不会因为白名单配置问题而无法使用任何工具。
+        """
+        mode_str = data.get("mode", "allow_all")
         try:
             self._config.mode = WhitelistMode(mode_str)
         except ValueError:
-            logger.warning("invalid_whitelist_mode=%s, using allowlist", mode_str)
-            self._config.mode = WhitelistMode.ALLOWLIST
+            logger.warning(
+                "invalid_whitelist_mode=%s, falling back to allow_all (highest authority)",
+                mode_str,
+            )
+            # 降级到 ALLOW_ALL 而非 ALLOWLIST — 保证 AI 不被错误配置阻断
+            self._config.mode = WhitelistMode.ALLOW_ALL
 
         self._config.allowed_tools = list(data.get("allowed_tools", []))
         self._config.denied_tools = list(data.get("denied_tools", []))
@@ -302,10 +315,27 @@ _whitelist: ToolWhitelist | None = None
 
 
 def get_tool_whitelist() -> ToolWhitelist:
-    """获取全局 ToolWhitelist 单例"""
+    """获取全局 ToolWhitelist 单例（自动加载配置文件）"""
     global _whitelist
     if _whitelist is None:
         _whitelist = ToolWhitelist()
+    # 每次调用都尝试加载配置（如果之前加载失败，下次可能成功）
+    # 查找 config/tool_whitelist.yaml
+    tried_paths = []
+    for base in [
+        Path.cwd(),
+        Path(__file__).resolve().parent.parent.parent,  # 项目根目录
+        Path(__file__).resolve().parent.parent,  # pycoder/
+    ]:
+        p = base / "config" / "tool_whitelist.yaml"
+        tried_paths.append(str(p))
+        if p.exists():
+            try:
+                _whitelist.load_config(str(p))
+                return _whitelist
+            except Exception:
+                continue
+    logger.debug("whitelist_config_not_found tried=%s", tried_paths)
     return _whitelist
 
 

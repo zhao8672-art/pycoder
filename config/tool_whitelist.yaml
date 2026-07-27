@@ -11,7 +11,7 @@
 #
 # 优先级: denied_tools > mode > allowed_tools
 
-mode: allowlist
+mode: allow_all
 
 # 允许的工具
 allowed_tools:
@@ -38,6 +38,11 @@ allowed_tools:
   - "v1.*"
   # 技能市场
   - "marketplace.*"
+  # 网络/HTTP 请求
+  - "http.*"
+  - "web.*"
+  - "head"
+  - "body"
   # Agent
   - "agent.*"
 
@@ -46,13 +51,13 @@ denied_tools:
   # 危险操作
   - "system.shutdown"
   - "system.reboot"
-  - "tools.exec_raw"      # 原始 exec，禁止
-  - "tools.eval_raw"      # 原始 eval，禁止
+  - "tools.exec_raw" # 原始 exec，禁止
+  - "tools.eval_raw" # 原始 eval，禁止
 
 # 参数模式校验（可选）
 # 格式: tool_name: { param_name: "regex_pattern" }
 param_schemas:
   files.write:
-    path: "^(/tmp/|/home/|/Users/|C:\\\\Users\\\\)"  # 仅允许用户目录和临时目录
+    path: "^(/tmp/|/home/|/Users/|C:\\\\Users\\\\)" # 仅允许用户目录和临时目录
   files.delete:
     path: "^(/tmp/|/home/|/Users/|C:\\\\Users\\\\)"

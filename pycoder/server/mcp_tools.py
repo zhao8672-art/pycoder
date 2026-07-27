@@ -74,9 +74,14 @@ async def call_builtin_tool(name: str, args: dict) -> MCPCallResult:
 
     P0-3 修复: 增加全面的工具名归一化，覆盖 dot/underscore/前缀 变体
     P0 安全增强: 调用前检查 ToolWhitelist
+    P1-3 智能回退: LLM 误用 head/body 作为文件读取时，自动重定向到 file.read
     """
     from pycoder.bus.protocol import CapabilityCall
     from pycoder.server.app import get_v2_engine
+
+    # P1-3 智能回退: LLM 经常误用 head/body 作为"读取文件"工具
+    # 如果 args 包含 path（文件读取语义），自动重定向到文件读取工具
+    name, args = _maybe_redirect_common_aliases(name, args)
 
     # P0 安全增强：白名单检查
     try:
@@ -130,11 +135,14 @@ async def call_builtin_tool(name: str, args: dict) -> MCPCallResult:
             cap_core = cap_id.replace(".", "_").replace("-", "_").lower()
             # 去掉前缀后比较
             cap_stripped = cap_core
-            for prefix in ("tools_", "v1_", "editor_", "io_", "system_"):
+            for prefix in ("tools_", "v1_", "editor_", "io_", "system_", "system_html_"):
                 if cap_stripped.startswith(prefix):
                     cap_stripped = cap_stripped[len(prefix):]
                     break
-            if name_core == cap_stripped or name_core == cap_core:
+            # 也检查倒数的组件名称（如 head 匹配 system.html.head → html_head）
+            cap_parts = cap_stripped.split("_")
+            last_part = cap_parts[-1] if cap_parts else ""
+            if name_core == cap_stripped or name_core == cap_core or name_core == last_part:
                 try:
                     call_req = CapabilityCall(
                         capability_id=cap_id, params=args, caller="shim"
@@ -176,13 +184,71 @@ def _build_tool_name_candidates(name: str) -> list[str]:
     result: list[str] = []
     seen: set[str] = set()
     for base in [name, underscore_name, dot_name]:
-        for prefix in ["", "tools.", "v1.", "editor.", "io.", "system."]:
+        for prefix in ["", "tools.", "v1.", "editor.", "io.", "system.", "system.html."]:
             full = f"{prefix}{base}" if prefix else base
             if full not in seen:
                 seen.add(full)
                 result.append(full)
 
     return result
+
+
+# ── P1-3: LLM 工具名智能重定向 ──
+# LLM 经常用错误的工具名（幻觉或概念混淆）调用功能。
+# 下面的映射将常见误用重定向到正确的工具。
+
+_FILE_READ_ALIASES = frozenset({
+    "head", "body", "tail", "read", "read_file", "file_read",
+    "cat", "load_file", "get_file", "view_file", "show_file",
+    "open_file", "fetch_file", "get_content", "readfile",
+    "view", "cat_file", "show", "preview",
+})
+
+_HTML_HEAD_PARAMS = frozenset({"title", "style", "meta"})
+_HTML_BODY_PARAMS = frozenset({"div", "h1", "h2", "h3", "p", "span", "section"})
+
+
+def _maybe_redirect_common_aliases(
+    name: str, args: dict
+) -> tuple[str, dict]:
+    """P1-3: 智能重定向常见的 LLM 工具名误用
+
+    场景:
+    1. LLM 调用 head/body/tail 等，但参数是 path → 重定向到 tools.file.read
+    2. LLM 调用 head，参数是 title/style → 保留 system.html.head
+    3. LLM 调用 body，参数是 div/h1/p → 保留 system.html.body
+    4. LLM 调用 read_file/read → 重定向到 tools.file.read
+
+    Args:
+        name: LLM 调用的工具名（可能未注册）
+        args: LLM 传入的参数
+
+    Returns:
+        (redirected_name, redirected_args)
+    """
+    # 先取小写做别名匹配
+    n = (name or "").lower().strip()
+    arg_keys = set((args or {}).keys())
+
+    # 1. 如果是 head/body/tail 等，但 args 包含 path → 文件读取
+    if n in _FILE_READ_ALIASES:
+        if "path" in arg_keys or "file" in arg_keys or "filepath" in arg_keys:
+            log.info(
+                "tool_alias_redirect from=%s to=tools.file.read (args has path/file)",
+                name,
+            )
+            return "tools.file.read", args
+
+    # 2. 如果是 head，但 args 是 HTML head 语义 → 保留 system.html.head
+    if n == "head" and arg_keys & _HTML_HEAD_PARAMS:
+        return "system.html.head", args
+
+    # 3. 如果是 body，但 args 是 HTML body 语义 → 保留 system.html.body
+    if n == "body" and arg_keys & _HTML_BODY_PARAMS:
+        return "system.html.body", args
+
+    # 4. 默认: 不重定向
+    return name, args
 
 
 class MCPClientManager:
