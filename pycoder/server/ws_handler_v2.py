@@ -89,19 +89,38 @@ async def websocket_chat_v2(ws: WebSocket):
 
             # ── 停止当前 AI 执行 ──
             if msg_type == "stop":
+                # 1. 精确取消：设置对应 session 的 cancel_event
                 cancel_event = _cancel_events.get(session_id)
                 if cancel_event:
                     cancel_event.set()
-                # 同时取消后台任务，确保立即停止
+                # 2. 精确取消：取消对应 session 的后台任务
                 stream_task = _cancel_events.get(session_id + ":task")
                 if stream_task and not stream_task.done():
                     stream_task.cancel()
-                # 也清理旧键名（兼容）
+                # 兼容旧键名
                 old_task = _cancel_events.get(session_id + "_task")
                 if old_task and not old_task.done():
                     old_task.cancel()
                 _cancel_events.pop(session_id + "_task", None)
-                done_flag = stream_task.done() if stream_task else 'no_task'
+                # 3. 全局兜底：取消所有活跃的后台任务（防止 key 匹配失败）
+                global_cancelled = 0
+                for key in list(_cancel_events.keys()):
+                    if key.endswith(":task") or key.endswith("_task"):
+                        t = _cancel_events.get(key)
+                        if t and hasattr(t, "done") and not t.done():
+                            t.cancel()
+                            _cancel_events.pop(key, None)
+                            global_cancelled += 1
+                # 也设置所有 cancel_event
+                for key in list(_cancel_events.keys()):
+                    if not (key.endswith(":task") or key.endswith("_task")):
+                        ev = _cancel_events.get(key)
+                        if ev and hasattr(ev, "set"):
+                            ev.set()
+                done_flag = (
+                    stream_task.done() if stream_task else
+                    f'global_cancelled={global_cancelled}'
+                )
                 log.info("ws_v2_stop_requested done=%s", done_flag)
                 await ws.send_json({"type": "stopped", "session_id": session_id})
                 continue

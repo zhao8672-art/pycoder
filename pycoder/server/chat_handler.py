@@ -449,7 +449,7 @@ async def _execute_xml_tool_calls(content: str) -> tuple[str, list[dict]]:
         tool_name = m.group(1)
         inner = m.group(2).strip()
 
-        # 跳过非工具标签
+        # 跳过非工具标签（包括所有 HTML 标签，防止 AI 生成页面时被误解析）
         if tool_name in (
             "code",
             "thinking",
@@ -468,6 +468,17 @@ async def _execute_xml_tool_calls(content: str) -> tuple[str, list[dict]]:
             "json",
             "xml",
             "html",
+            # HTML 元素标签（防止 AI 生成 HTML 时被误解析为工具调用）
+            "head", "body", "title", "style", "script", "link", "meta",
+            "h1", "h2", "h3", "h4", "h5", "h6",
+            "p", "div", "span", "a", "br", "hr", "img", "input", "button",
+            "ul", "ol", "li", "dl", "dt", "dd",
+            "table", "tr", "td", "th", "thead", "tbody", "tfoot",
+            "form", "label", "select", "option", "textarea",
+            "nav", "header", "footer", "main", "section", "article", "aside",
+            "iframe", "canvas", "video", "audio", "source",
+            "strong", "em", "b", "i", "u", "s", "small", "mark", "pre",
+            "blockquote", "code", "kbd", "sub", "sup",
         ):
             continue
 
