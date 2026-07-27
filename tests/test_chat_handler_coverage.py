@@ -733,7 +733,7 @@ class TestRunChatStream:
         assert any(e["type"] == "done" for e in events)
 
     async def test_system_prompt_set(self, monkeypatch):
-        """传入 system_prompt → 设置到 bridge.config"""
+        """传入 system_prompt → 设置到 bridge.config（可能追加记忆/反馈上下文）"""
         monkeypatch.setattr(ch, "_get_api_key_for_model", lambda m: "key")
         fake_cc = MagicMock()
         fake_cc.check_before_call.return_value = (True, "")
@@ -751,8 +751,10 @@ class TestRunChatStream:
         ):
             events.append(ev)
 
-        # bridge.config.system_prompt 应被设置为 custom prompt
-        assert bridge.config.system_prompt == "custom prompt"
+        # 用户传入的 system_prompt 必须被保留（即使后续追加记忆/反馈上下文，
+        # 原始 prompt 也应作为前缀存在；避免被静默覆盖）
+        assert "custom prompt" in bridge.config.system_prompt
+        assert bridge.config.system_prompt.startswith("custom prompt")
 
     async def test_save_user_and_assistant_messages(self, monkeypatch):
         """普通聊天结束时应保存用户与 AI 消息"""

@@ -107,8 +107,10 @@ class TestListRoles:
         data = resp.json()
         assert "roles" in data
         assert "count" in data
-        assert data["count"] == 10
-        assert len(data["roles"]) == 10
+        # AgentRole 枚举的实际数量 (14) — 测试应与代码同步
+        expected_count = len(AgentRole)
+        assert data["count"] == expected_count
+        assert len(data["roles"]) == expected_count
         # 验证每个角色包含必要字段
         for role_data in data["roles"]:
             assert "role" in role_data
@@ -153,7 +155,7 @@ class TestSelectAgents:
         headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
-        assert "task_description" in resp.json()["detail"]
+        assert "task_description" in resp.json()["error"]["message"]
 
     def test_select_agents_whitespace_only(self, client_with_mgr: TestClient) -> None:
         """测试纯空白任务描述返回 400"""
@@ -235,7 +237,7 @@ class TestCreateTeam:
         headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
-        assert "团队名称" in resp.json()["detail"]
+        assert "团队名称" in resp.json()["error"]["message"]
 
     def test_create_team_no_roles(self, client_with_mgr: TestClient) -> None:
         """测试无角色列表返回 400"""
@@ -245,7 +247,7 @@ class TestCreateTeam:
         headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
-        assert "至少需要一个角色" in resp.json()["detail"]
+        assert "至少需要一个角色" in resp.json()["error"]["message"]
 
     def test_create_team_invalid_roles(self, client_with_mgr: TestClient) -> None:
         """测试无效角色名返回错误信息"""
@@ -327,7 +329,7 @@ class TestAssignTask:
         headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 404
-        assert "团队不存在" in resp.json()["detail"]
+        assert "团队不存在" in resp.json()["error"]["message"]
 
     def test_assign_task_empty_role(self, client_with_mgr: TestClient) -> None:
         """测试空角色名返回 400"""
@@ -340,7 +342,7 @@ class TestAssignTask:
         headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
-        assert "agent_role" in resp.json()["detail"]
+        assert "agent_role" in resp.json()["error"]["message"]
 
     def test_assign_task_empty_task(self, client_with_mgr: TestClient) -> None:
         """测试空任务描述返回 400"""
@@ -353,7 +355,7 @@ class TestAssignTask:
         headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
-        assert "task" in resp.json()["detail"]
+        assert "task" in resp.json()["error"]["message"]
 
     def test_assign_task_invalid_role(self, client_with_mgr: TestClient, mock_team_mgr: MagicMock) -> None:
         """测试无效角色名返回错误"""
@@ -438,7 +440,7 @@ class TestTeamProgress:
 
         resp = client_with_mgr.get("/api/agents/team/nonexistent/progress", headers=_AUTH_HEADERS)
         assert resp.status_code == 404
-        assert "团队不存在" in resp.json()["detail"]
+        assert "团队不存在" in resp.json()["error"]["message"]
 
     def test_get_progress_zero_tasks(self, client_with_mgr: TestClient, mock_team_mgr: MagicMock) -> None:
         """测试空任务进度"""

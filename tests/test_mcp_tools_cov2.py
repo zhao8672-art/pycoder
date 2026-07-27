@@ -46,6 +46,18 @@ async def _call(handler, args):
 # 数据模型与注册表
 # ══════════════════════════════════════════════════════════
 
+
+
+
+
+def _do_raise_io(*a, **k):
+    """用于模拟异常: monkeypatch 替换某个函数时,实际抛出 RuntimeError('io')。
+    替代旧的 `lambda *a, **k: (_ for _ in ()).throw(RuntimeError("io"))` 模式 —
+    旧模式实际是返回生成器,不抛异常,会让 pytest 在 traceback 格式化时崩溃。
+    """
+    raise RuntimeError("io")
+
+
 class TestDataModels:
     """MCPToolDef / MCPCallResult 数据模型"""
 
@@ -780,15 +792,13 @@ class TestProfilePython:
         assert "syntax error" in r["error"]
 
     async def test_timeout(self, monkeypatch):
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(
-            subprocess.TimeoutExpired(cmd="x", timeout=30)))
+        monkeypatch.setattr(subprocess, "run", lambda *a, **k: _do_raise_io())
         r = await mcp_tools._handle_profile_python({"code": "while True: pass", "timeout": 30})
         assert r["success"] is False
         assert "超时" in r["error"]
 
     async def test_other_exception(self, monkeypatch):
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(
-            RuntimeError("disk")))
+        monkeypatch.setattr(subprocess, "run", lambda *a, **k: _do_raise_io())
         r = await mcp_tools._handle_profile_python({"code": "x"})
         assert r["success"] is False
         assert "disk" in r["error"]
@@ -995,7 +1005,7 @@ class TestTestIntegration:
         assert r["route_count"] == 0
 
     async def test_exception(self, monkeypatch):
-        monkeypatch.setattr(Path, "exists", lambda self: (_ for _ in ()).throw(RuntimeError("io")))
+        monkeypatch.setattr(Path, "exists", lambda self: (_do_raise_io()))
         r = await mcp_tools._handle_test_integration({"app_file": "/x"})
         assert r["success"] is False
 
@@ -1071,8 +1081,7 @@ class TestPythonEnv:
         monkeypatch.delenv("VIRTUAL_ENV", raising=False)
         monkeypatch.delenv("CONDA_PREFIX", raising=False)
         monkeypatch.setattr(os, "getcwd", lambda: str(tmp_path))
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(
-            subprocess.SubprocessError("fail")))
+        monkeypatch.setattr(subprocess, "run", lambda *a, **k: _do_raise_io())
 
         r = await mcp_tools._handle_python_env({})
         assert r["success"] is True
@@ -1124,8 +1133,7 @@ class TestGitLog:
         assert r["count"] == 2
 
     async def test_exception(self, monkeypatch):
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(
-            RuntimeError("git not installed")))
+        monkeypatch.setattr(subprocess, "run", lambda *a, **k: _do_raise_io())
         r = await mcp_tools._handle_git_log({"limit": 5})
         assert r["success"] is False
         assert "git not installed" in r["error"]
@@ -1146,8 +1154,7 @@ class TestGitDiffBranch:
         assert "2 files changed" in r["stat"]
 
     async def test_exception(self, monkeypatch):
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(
-            RuntimeError("fail")))
+        monkeypatch.setattr(subprocess, "run", lambda *a, **k: _do_raise_io())
         r = await mcp_tools._handle_git_diff_branch({"branch1": "main"})
         assert r["success"] is False
 
@@ -1367,8 +1374,7 @@ class TestRunTerminal:
 
     async def test_timeout(self, tmp_path, monkeypatch):
         _patch_workspace(monkeypatch, tmp_path)
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(
-            subprocess.TimeoutExpired(cmd="x", timeout=5)))
+        monkeypatch.setattr(subprocess, "run", lambda *a, **k: _do_raise_io())
         r = await mcp_tools._handle_run_terminal({"command": "sleep 100", "timeout": 5})
         assert r["success"] is False
         assert "超时" in r["error"]
@@ -1376,8 +1382,7 @@ class TestRunTerminal:
 
     async def test_other_exception(self, tmp_path, monkeypatch):
         _patch_workspace(monkeypatch, tmp_path)
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(
-            RuntimeError("shell crash")))
+        monkeypatch.setattr(subprocess, "run", lambda *a, **k: _do_raise_io())
         r = await mcp_tools._handle_run_terminal({"command": "x"})
         assert r["success"] is False
         assert "shell crash" in r["error"]
