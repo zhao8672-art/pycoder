@@ -30,7 +30,7 @@ def import_external_extensions() -> dict:
     Returns:
         导入统计
     """
-    cache_path = Path.home() / ".pycoder" / "extensions_cache.json"
+    cache_path = Path.home() / ".pycoder" / "external_extensions_cache.json"
     source_health_path = Path.home() / ".pycoder" / "source_health.json"
 
     # 1. 读取现有缓存

@@ -671,97 +671,115 @@ class ChatBridge:
             tool_calls: list[dict] = []
 
             try:
-                async with client.stream(
-                    "POST",
-                    f"{self.config.api_base.rstrip('/')}/chat/completions",
-                    json=payload,
-                    headers=headers,
-                ) as response:
-                    if response.status_code == 401:
-                        error_body = await response.aread()
-                        err_text = error_body.decode()[:300]
-                        current_model = self.config.model
-                        current_provider = _detect_provider(current_model)
-                        logger.error(
-                            "D2_CHAT_401 model=%s base=%s status=%d body=%s",
-                            current_model, self.config.api_base,
-                            response.status_code, err_text[:100],
-                        )
-                        tried_providers.add(current_model)
-                        mark_provider_key_invalid(current_provider)
-
-                        # 尝试降级到下一个可用 Provider
-                        next_prov = None
-                        for nm, nk, nb in fallback_providers:
-                            if nm not in tried_providers:
-                                next_prov = (nm, nk, nb)
-                                break
-                        if next_prov:
-                            nm, nk, nb = next_prov
-                            logger.warning(
-                                "provider_401_fallback from=%s to=%s reason=%s",
-                                current_model, nm, err_text[:100],
+                async with asyncio.timeout(120):  # 单轮LLM调用最多120秒
+                    async with client.stream(
+                        "POST",
+                        f"{self.config.api_base.rstrip('/')}/chat/completions",
+                        json=payload,
+                        headers=headers,
+                    ) as response:
+                        if response.status_code == 401:
+                            error_body = await response.aread()
+                            err_text = error_body.decode()[:300]
+                            current_model = self.config.model
+                            current_provider = _detect_provider(current_model)
+                            logger.error(
+                                "D2_CHAT_401 model=%s base=%s status=%d body=%s",
+                                current_model, self.config.api_base,
+                                response.status_code, err_text[:100],
                             )
-                            self.config.model = nm
-                            self.config.api_key = nk
-                            self.config.api_base = nb
-                            api_key = nk
-                            is_deepseek = nm.startswith("deepseek")
-                            headers["Authorization"] = f"Bearer {nk}"
+                            tried_providers.add(current_model)
+                            mark_provider_key_invalid(current_provider)
+
+                            # 尝试降级到下一个可用 Provider
+                            next_prov = None
+                            for nm, nk, nb in fallback_providers:
+                                if nm not in tried_providers:
+                                    next_prov = (nm, nk, nb)
+                                    break
+                            if next_prov:
+                                nm, nk, nb = next_prov
+                                logger.warning(
+                                    "provider_401_fallback from=%s to=%s reason=%s",
+                                    current_model, nm, err_text[:100],
+                                )
+                                self.config.model = nm
+                                self.config.api_key = nk
+                                self.config.api_base = nb
+                                api_key = nk
+                                is_deepseek = nm.startswith("deepseek")
+                                headers["Authorization"] = f"Bearer {nk}"
+                                yield ChatEvent(
+                                    event_type="token",
+                                    content=f"\n⚠️ {current_model} Key 无效，自动降级到 {nm}...\n",
+                                )
+                                continue  # 重试当前轮次
+                            # 所有 Provider 均失败
                             yield ChatEvent(
-                                event_type="token",
-                                content=f"\n⚠️ {current_model} Key 无效，自动降级到 {nm}...\n",
+                                event_type="error",
+                                content=(
+                                    f"❌ **所有 API Key 均无效**\n"
+                                    f"已尝试 {len(tried_providers)} 个提供商，均返回认证失败。\n\n"
+                                    f"请在 Settings 面板更新 API Key，或发送:\n"
+                                    f"  `/setup deepseek YOUR_NEW_KEY`"
+                                ),
                             )
-                            continue  # 重试当前轮次
-                        # 所有 Provider 均失败
-                        yield ChatEvent(
-                            event_type="error",
-                            content=(
-                                f"❌ **所有 API Key 均无效**\n"
-                                f"已尝试 {len(tried_providers)} 个提供商，均返回认证失败。\n\n"
-                                f"请在 Settings 面板更新 API Key，或发送:\n"
-                                f"  `/setup deepseek YOUR_NEW_KEY`"
-                            ),
-                        )
-                        return
+                            return
 
-                    if response.status_code != 200:
-                        error_body = await response.aread()
-                        yield ChatEvent(
-                            event_type="error",
-                            content=f"API 请求失败 (HTTP {response.status_code}): {error_body.decode()[:500]}",
-                        )
-                        return
-
-                    async for line in response.aiter_lines():
-                        data = parse_sse_line(line)
-                        if data is None:
-                            continue
-
-                        content_delta, reasoning_delta, tool_calls, finish_is_tool = (
-                            extract_stream_delta(
-                                data, existing_tool_calls=tool_calls,
-                            )
-                        )
-                        if reasoning_delta:
+                        if response.status_code != 200:
+                            error_body = await response.aread()
                             yield ChatEvent(
-                                event_type="reasoning", content=reasoning_delta
+                                event_type="error",
+                                content=f"API 请求失败 (HTTP {response.status_code}): {error_body.decode()[:500]}",
                             )
-                            if content_delta:
+                            return
+
+                        async for line in response.aiter_lines():
+                            data = parse_sse_line(line)
+                            if data is None:
+                                continue
+
+                            content_delta, reasoning_delta, tool_calls, finish_is_tool = (
+                                extract_stream_delta(
+                                    data, existing_tool_calls=tool_calls,
+                                )
+                            )
+                            if reasoning_delta:
+                                yield ChatEvent(
+                                    event_type="reasoning", content=reasoning_delta
+                                )
+                                if content_delta:
+                                    round_content += content_delta
+                                    yield ChatEvent(event_type="token", content=content_delta)
+                            elif content_delta:
                                 round_content += content_delta
                                 yield ChatEvent(event_type="token", content=content_delta)
-                        elif content_delta:
-                            round_content += content_delta
-                            yield ChatEvent(event_type="token", content=content_delta)
-                        if finish_is_tool:
-                            break
+                            if finish_is_tool:
+                                break
 
-                        if data.get("usage"):
-                            usage = data["usage"]
+                            if data.get("usage"):
+                                usage = data["usage"]
 
+            except TimeoutError:
+                logger.warning(
+                    "chat_stream_timeout round=%s model=%s",
+                    round_num + 1, self.config.model,
+                )
+                yield ChatEvent(
+                    event_type="token",
+                    content="\n⏱ **LLM 调用超时 (120s)**，已返回当前进度。\n",
+                )
+                if round_content:
+                    all_content += round_content
+                break  # 有部分内容就退出循环，无内容下面异常处理会 return
             except (httpx.TimeoutException, httpx.ConnectError) as e:
                 yield ChatEvent(event_type="error", content=f"连接失败: {str(e)[:200]}")
                 return
+            except asyncio.CancelledError:
+                logger.info("chat_stream_cancelled round=%s", round_num + 1)
+                if round_content:
+                    all_content += round_content
+                break
             except Exception as e:
                 yield ChatEvent(event_type="error", content=f"请求异常: {str(e)[:300]}")
                 return

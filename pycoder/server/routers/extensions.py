@@ -90,10 +90,11 @@ async def _run_install_task(tid: str, ext_id: str, ext_data: dict):
 async def search_ext(
     q: str = "",
     category: str = "",
+    sort: str = "stars",
     limit: int = 50,
     offset: int = 0,
 ):
-    """搜索可用的扩展（支持分页）"""
+    """搜索可用的扩展（支持分页和排序）"""
     result = await search_extensions(q, category, limit, offset)
     # 标记已安装
     for ext in result["extensions"]:
@@ -101,6 +102,16 @@ async def search_ext(
         ext["installed"] = _manager.is_installed(ext_id)
         if ext["installed"]:
             ext["enabled"] = _manager.is_enabled(ext_id)
+    # 前端排序支持
+    if sort == "name":
+        result["extensions"].sort(key=lambda e: e.get("name", "").lower())
+    elif sort == "downloads":
+        result["extensions"].sort(
+            key=lambda e: e.get("downloads", e.get("installs", 0) or 0),
+            reverse=True,
+        )
+    else:
+        result["extensions"].sort(key=lambda e: e.get("stars", 0) or 0, reverse=True)
     return result
 
 
@@ -121,6 +132,27 @@ async def list_recommended():
         if ext["installed"]:
             ext["enabled"] = _manager.is_enabled(ext_id)
     return {"extensions": exts}
+
+
+@router.get("/categories")
+async def list_categories():
+    """列出所有可用分类"""
+    try:
+        result = await search_extensions("", "", limit=500, offset=0)
+        categories = set()
+        for ext in result.get("extensions", []):
+            cat = ext.get("category")
+            if cat:
+                categories.add(cat)
+        # 同时从种子扩展收集
+        for ext in get_seed_extensions():
+            cat = ext.get("category")
+            if cat:
+                categories.add(cat)
+        return {"categories": sorted(categories)}
+    except Exception as e:
+        logger.warning("list_categories failed: %s", e)
+        return {"categories": []}
 
 
 @router.post("/install")
@@ -206,8 +238,14 @@ async def disable_extension(req: dict):
 async def update_extension(req: dict):
     """更新扩展"""
     ext_id = req.get("id", "")
+    if not ext_id:
+        return {"success": False, "error": "id is required"}
+    if not _manager.is_installed(ext_id):
+        return {"success": False, "error": "扩展未安装", "id": ext_id}
     ok = _manager.update(ext_id)
-    return {"success": ok, "id": ext_id}
+    if ok:
+        return {"success": True, "id": ext_id}
+    return {"success": False, "id": ext_id, "error": "该扩展类型不支持自动更新（仅支持种子扩展和 Git 扩展）"}
 
 
 @router.get("/config/{ext_id}")

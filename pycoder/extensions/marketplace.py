@@ -348,7 +348,10 @@ async def _fetch_pypi_popular(client) -> tuple[list[dict], float]:
                         "name": pkg,
                         "description": (info.get("summary", "") or "")[:200],
                         "author": info.get("author", info.get("maintainer", "unknown")),
-                        "stars": (info.get("downloads", {}) or {}).get("releases", 0) or 0 // 1000,
+                        "stars": (
+                            (info.get("downloads", {}) or {}).get("releases", 0) or 0
+                        )
+                        // 1000,
                         "url": info.get("package_url", f"https://pypi.org/project/{pkg}/"),
                         "category": "pypi",
                         "tags": ["python", "pypi", pkg],
@@ -529,18 +532,28 @@ async def search_extensions(
 
     策略:
       - 有缓存（即使过期）立即返回，后台异步刷新
+      - 合并外部扩展缓存（external_sources 导入的数据）
       - 无缓存时: 首次尝试同步刷新, 若失败返回种子数据+后台刷新
       - 避免请求阻塞在远程 API 调用上
     """
     cache = _load_cache()
+    # 合并外部扩展缓存
+    external_cache = _load_external_cache()
+    external_exts = external_cache.get("extensions", []) if external_cache else []
 
     if cache and cache.get("extensions"):
         all_extensions = cache.get("extensions", [])
+        # 合并外部扩展（去重）
+        main_ids = {e["id"] for e in all_extensions if e.get("id")}
+        for ext in external_exts:
+            if ext.get("id") and ext["id"] not in main_ids:
+                all_extensions.append(ext)
         if _is_cache_stale(cache):
             asyncio.create_task(_background_refresh())
         use_cache = True
         log.info(
-            "marketplace_cache_hit total=%d stale=%s", len(all_extensions), _is_cache_stale(cache)
+            "marketplace_cache_hit total=%d external=%d stale=%s",
+            len(all_extensions), len(external_exts), _is_cache_stale(cache),
         )
     else:
         # 无缓存 — 先尝试实时拉取（最多等 15s），失败则返回种子
@@ -555,6 +568,10 @@ async def search_extensions(
             for s in seeds:
                 if s["id"] not in seen_ids:
                     all_extensions.append(s)
+            # 合并外部扩展
+            for ext in external_exts:
+                if ext.get("id") and ext["id"] not in seen_ids:
+                    all_extensions.append(ext)
             all_extensions = _merge_and_dedup(all_extensions)
             _save_cache(
                 {
@@ -568,8 +585,14 @@ async def search_extensions(
             use_cache = True
         except (TimeoutError, OSError, Exception) as e:
             log.warning("marketplace_inline_refresh_failed error=%s", e)
-            # 回退到种子数据，后台再刷新
-            all_extensions = get_seed_extensions()
+            # 回退到种子数据 + 外部扩展，后台再刷新
+            seeds = get_seed_extensions()
+            seen_ids = {s["id"] for s in seeds if s.get("id")}
+            for ext in external_exts:
+                if ext.get("id") and ext["id"] not in seen_ids:
+                    seen_ids.add(ext["id"])
+                    seeds.append(ext)
+            all_extensions = seeds
             asyncio.create_task(_background_refresh())
             use_cache = False
 
@@ -600,6 +623,11 @@ async def _background_refresh():
             if s["id"] not in seen_ids:
                 seen_ids.add(s["id"])
                 all_extensions.append(s)
+        # 合并外部扩展缓存
+        ext_cache = _load_external_cache()
+        for ext in ext_cache.get("extensions", []):
+            if ext.get("id") and ext["id"] not in seen_ids:
+                all_extensions.append(ext)
         all_extensions = _merge_and_dedup(all_extensions)
         _save_cache(
             {
@@ -758,6 +786,18 @@ def _load_cache() -> dict:
             return json.loads(MARKETPLACE_CACHE.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError) as e:
             log.debug("marketplace_cache_load_failed error=%s", e)
+            return {}
+    return {}
+
+
+def _load_external_cache() -> dict:
+    """加载外部扩展缓存（由 external_sources.py 导入的数据）"""
+    ext_path = Path.home() / ".pycoder" / "external_extensions_cache.json"
+    if ext_path.exists():
+        try:
+            return json.loads(ext_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as e:
+            log.debug("external_cache_load_failed error=%s", e)
             return {}
     return {}
 

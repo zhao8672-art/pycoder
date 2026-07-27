@@ -92,11 +92,17 @@ async def websocket_chat_v2(ws: WebSocket):
                 cancel_event = _cancel_events.get(session_id)
                 if cancel_event:
                     cancel_event.set()
-                # 同时取消后台任务，确保立即停止（不等待流 yield）
+                # 同时取消后台任务，确保立即停止
                 stream_task = _cancel_events.get(session_id + ":task")
                 if stream_task and not stream_task.done():
                     stream_task.cancel()
-                log.info("ws_v2_stop_requested", extra={"session_id": session_id})
+                # 也清理旧键名（兼容）
+                old_task = _cancel_events.get(session_id + "_task")
+                if old_task and not old_task.done():
+                    old_task.cancel()
+                _cancel_events.pop(session_id + "_task", None)
+                done_flag = stream_task.done() if stream_task else 'no_task'
+                log.info("ws_v2_stop_requested done=%s", done_flag)
                 await ws.send_json({"type": "stopped", "session_id": session_id})
                 continue
 
@@ -444,7 +450,9 @@ async def _handle_chat_v2(msg: dict, ws: WebSocket, session_id: str, current_mod
             """后台运行流，支持被 cancel_event 中断"""
             nonlocal final_content
             async with limiter.acquire():
-                async for event in entry.process_stream(message, session_id=session_id):
+                async for event in entry.process_stream(
+                    message, session_id=session_id, cancel_event=cancel_event
+                ):
                     if cancel_event.is_set():
                         await ws.send_json({"type": "done", "content": final_content, "stopped": True})
                         log.info("ws_v2_stream_cancelled", extra={"session_id": session_id})

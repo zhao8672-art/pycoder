@@ -5,14 +5,16 @@ import { apiRequest, type SuccessResponse } from './client';
 import type { ExtensionsResponse } from '../../types';
 
 export const extensionApi = {
-  search: (q: string, category?: string, limit?: number, offset?: number) => {
+  search: (q: string, category?: string, sort?: string, limit?: number, offset?: number) => {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (category) params.set('category', category);
+    if (sort) params.set('sort', sort);
     if (limit) params.set('limit', String(limit));
     if (offset) params.set('offset', String(offset));
     return apiRequest<ExtensionsResponse>(`/api/extensions/search?${params.toString()}`);
   },
+  categories: () => apiRequest<{ categories: string[] }>('/api/extensions/categories'),
   installed: () => apiRequest<ExtensionsResponse>('/api/extensions/installed'),
   recommended: () => apiRequest<ExtensionsResponse>('/api/extensions/recommended'),
   install: (id: string) =>

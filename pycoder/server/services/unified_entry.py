@@ -282,7 +282,11 @@ class UnifiedEntryAgent:
         return events
 
     async def process_stream(
-        self, user_message: str, context: str = "", session_id: str | None = None
+        self,
+        user_message: str,
+        context: str = "",
+        session_id: str | None = None,
+        cancel_event: asyncio.Event | None = None,
     ):
         """流式处理用户消息，逐事件返回给前端。
 
@@ -290,6 +294,7 @@ class UnifiedEntryAgent:
             user_message: 用户当前消息
             context: 额外上下文（如文件内容）
             session_id: 会话ID，用于加载历史记录保持上下文连续性
+            cancel_event: 取消事件，前端 stop 信号时被设置
 
         Yields:
             dict: 包含 "type" 字段的事件字典
@@ -497,11 +502,18 @@ class UnifiedEntryAgent:
                 bridge.configure(model=self.model, api_key=self.api_key)
             pipeline = ExecutionPipeline(config)
 
+            # ── 取消检查辅助函数 ──
+            async def _check_cancel():
+                if cancel_event and cancel_event.is_set():
+                    raise asyncio.CancelledError("用户取消")
+
             async for ev in pipeline.execute(
                 intent.beautified_command or intent.raw_input,
                 bridge,
                 history_context,
+                cancel_event=cancel_event,
             ):
+                await _check_cancel()
                 etype = ev.get("type", "")
                 if etype == "done":
                     mode_content = ev.get("content", "") or mode_content

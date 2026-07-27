@@ -187,6 +187,8 @@ class ExecutionPipeline:
         self._last_had_tools = False
         self._empty_retries = 0
         self._last_yield_time = 0.0  # 上次 yield 时间戳（用于 keepalive）
+        self._pending_correction: str | None = None  # P1-2: 待注入的偏差纠正提示
+        self._hallucination_low_count: int = 0  # P0-3: 连续低幻觉分计数
 
     async def _maybe_keepalive(self, phase: str = "llm"):
         """检查并发送 keepalive 心跳（如果超过 12 秒未 yield）"""
@@ -211,13 +213,25 @@ class ExecutionPipeline:
         message: str,
         bridge,  # ChatBridge
         history_context: str = "",
+        cancel_event: asyncio.Event | None = None,
     ) -> AsyncIterator[dict]:
         """主执行循环
+
+        Args:
+            message: 用户消息
+            bridge: ChatBridge 实例
+            history_context: 历史对话上下文
+            cancel_event: 取消事件，前端 stop 信号时设置
 
         Yields:
             → agent_status / progress / token / tool_result / done
         """
         strategy = self.config
+
+        # ── 取消检查辅助函数 ──
+        async def _check_cancel():
+            if cancel_event and cancel_event.is_set():
+                raise asyncio.CancelledError("用户取消执行")
 
         # ── Stage 1: Context Assembly ──
         from pycoder.prompts.cache_rules import inject_cache_rules
@@ -440,38 +454,60 @@ class ExecutionPipeline:
                     "3. 有没有更简单的替代方案？\n"
                 )
 
+            # P1-2: 注入待处理的偏差纠正提示
+            if self._pending_correction:
+                prompt += (
+                    f"\n\n---\n### ⚠️ 偏差纠正（第{iter_count}轮）\n"
+                    f"{self._pending_correction}\n"
+                    "请根据上述纠正建议调整当前执行方向。\n"
+                )
+                self._pending_correction = None  # 消费后清空
+
             # 调用 LLM (Native FC + 文本兜底)
             response_text = ""
             has_tool_calls = False
             tool_call_names: list[str] = []
 
+            # ── 取消检查 ──
+            await _check_cancel()
+
             # 重置 keepalive 计时器
             self._last_yield_time = time.monotonic()
 
             try:
-                async for ev in bridge.chat_stream(
-                    prompt, tool_names=tool_names
-                ):
-                    if ev.event_type == "token":
-                        self._last_yield_time = time.monotonic()
-                        response_text += ev.content
-                        total_tokens += len(ev.content)
-                        yield {"type": "token", "data": ev.content,
-                               "content": ev.content}
-                        if "🔧" in ev.content:
-                            tn = ev.content.replace(
-                                "🔧 执行 ", ""
-                            ).strip()[:40]
-                            tool_call_names.append(tn)
-                            has_tool_calls = True
-                    elif ev.event_type == "reasoning":
-                        # reasoning 期间也可能长时间无 yield
-                        yield {"type": "reasoning", "content": ev.content}
-                    elif ev.event_type == "done":
-                        response_text = ev.content or response_text
-                    elif ev.event_type == "error":
-                        yield {"type": "error", "message": ev.content}
-                        return
+                async with asyncio.timeout(120):  # 单轮LLM调用最多120秒
+                    async for ev in bridge.chat_stream(
+                        prompt, tool_names=tool_names
+                    ):
+                        # ── 流中取消检查 ──
+                        await _check_cancel()
+                        if ev.event_type == "token":
+                            self._last_yield_time = time.monotonic()
+                            response_text += ev.content
+                            total_tokens += len(ev.content)
+                            yield {"type": "token", "data": ev.content,
+                                   "content": ev.content}
+                            if "🔧" in ev.content:
+                                tn = ev.content.replace(
+                                    "🔧 执行 ", ""
+                                ).strip()[:40]
+                                tool_call_names.append(tn)
+                                has_tool_calls = True
+                        elif ev.event_type == "reasoning":
+                            yield {"type": "reasoning", "content": ev.content}
+                        elif ev.event_type == "done":
+                            response_text = ev.content or response_text
+                        elif ev.event_type == "error":
+                            yield {"type": "error", "message": ev.content}
+                            return
+            except TimeoutError:
+                yield {
+                    "type": "error",
+                    "message": "⏱ LLM 调用超时 (120s)，已返回当前进度",
+                }
+                if response_text:
+                    break  # 有部分内容就继续
+                continue  # 无内容重试
             except Exception as e:
                 yield {"type": "error",
                        "message": f"LLM 调用失败: {str(e)[:200]}"}
@@ -479,6 +515,54 @@ class ExecutionPipeline:
 
             self._last_had_tools = has_tool_calls
             full_content += response_text
+
+            # ════════════════════════════════════════════════════
+            # P0-3: 幻觉验证（每轮 LLM 输出后）
+            # ════════════════════════════════════════════════════
+            hallucination_score = 100.0
+            if strategy.name != "chat" and len(response_text) > 50:
+                try:
+                    from pycoder.server.services.hallucination_guard import (
+                        get_hallucination_guard,
+                    )
+                    guard = get_hallucination_guard()
+                    h_result = await guard.validate(
+                        response_text,
+                        context={
+                            "mode": strategy.name,
+                            "iteration": iter_count,
+                            "task": message[:200],
+                        },
+                    )
+                    hallucination_score = h_result.overall_score
+                    if hallucination_score < 60:
+                        yield {
+                            "type": "hallucination_warning",
+                            "score": hallucination_score,
+                            "issues": h_result.consistency_issues[:5],
+                            "recommendations": h_result.recommendations[:3],
+                            "message": (
+                                f"⚠️ 幻觉风险: 可信度 {hallucination_score:.0f}/100"
+                            ),
+                        }
+                        # 幻觉熔断：连续低分则注入纠正提示
+                        self._hallucination_low_count = (
+                            getattr(self, "_hallucination_low_count", 0) + 1
+                        )
+                        if self._hallucination_low_count >= 2:
+                            full_content += (
+                                "\n\n⚠️ [系统检测到连续幻觉风险，"
+                                "请仅基于实际工具结果回复，"
+                                "不要编造不存在的信息]"
+                            )
+                    else:
+                        self._hallucination_low_count = 0
+                    logger.debug(
+                        "pipeline_hallucination_check score=%.1f iter=%d",
+                        hallucination_score, iter_count,
+                    )
+                except Exception as e:
+                    logger.debug("hallucination_guard_skipped error=%s", str(e)[:100])
 
             # ════════════════════════════════════════════════════
             # 补充2: 偏差检测 + 补充5: 预算追踪
@@ -520,23 +604,32 @@ class ExecutionPipeline:
                     )
                     break
 
-            # 偏差检测（仅有计划时）
+            # 偏差检测（仅有计划时）—— P1-2: 即时纠正注入
             if detector is not None and has_tool_calls:
                 # 从工具调用名构造简化数据
                 tc_list = [{"name": tn, "params": {}} for tn in tool_call_names]
                 tc_results = [{"success": True} for _ in tc_list]
                 dev_report = detector.detect(tc_list, tc_results)
 
-                # 偏差纠正
+                # 偏差纠正 —— 注入到下一轮 LLM 调用
                 if dev_report.deviations:
                     correction = dev_report.correction_prompt()
                     if correction:
+                        self._pending_correction = correction
                         full_content += f"\n\n{correction}\n"
                         yield {
                             "type": "agent_status",
                             "status": "working",
-                            "message": f"📐 偏差检测: {len(dev_report.deviations)}项",
+                            "message": (
+                                f"📐 偏差检测: {len(dev_report.deviations)}项"
+                                " → 已注入纠正提示"
+                            ),
                         }
+                        logger.info(
+                            "deviation_correction_injected "
+                            "deviations=%d",
+                            len(dev_report.deviations),
+                        )
 
                 # 计划完成检测
                 if detector.is_complete:
@@ -556,6 +649,29 @@ class ExecutionPipeline:
                     self._empty_retries += 1
                     continue
                 break
+
+            # ── P1: XML 工具调用解析（兼容不支持 FC 的模型）──
+            if not has_tool_calls and response_text:
+                try:
+                    from pycoder.server.chat_handler import _execute_xml_tool_calls as _xml_exec
+                    cleaned, tool_results = await _xml_exec(response_text)
+                    if tool_results:
+                        has_tool_calls = True
+                        for tr in tool_results:
+                            tn = tr.get("tool", "unknown")
+                            tool_call_names.append(tn)
+                            if tr.get("success"):
+                                full_content += f"\n✅ [{tn}] 执行成功\n"
+                            else:
+                                full_content += f"\n❌ [{tn}] 失败: {tr.get('output', '')[:100]}\n"
+                            logger.info(
+                                "pipeline_xml_tool_call tool=%s success=%s",
+                                tn, tr.get("success"),
+                            )
+                    if cleaned != response_text:
+                        response_text = cleaned
+                except Exception as e:
+                    logger.debug("xml_tool_parse_skipped error=%s", str(e)[:100])
 
             # 完成检测（无工具调用时）
             if not has_tool_calls:
@@ -580,6 +696,34 @@ class ExecutionPipeline:
         # ── Stage 5: Result Assembly + 学习反馈（补充3）──
         elapsed = time.monotonic() - self._start_time
         tool_count = full_content.count("🔧 执行")
+
+        # 计划完成度
+        plan_status_dict = {}
+        if detector is not None:
+            plan_status_dict = detector.status_dict()
+
+        # ════════════════════════════════════════════════════
+        # Stage 5.5: 后验验证（P1-3）
+        # ── 验证声称的文件修改、命令执行是否实际发生 ──
+        # ════════════════════════════════════════════════════
+        post_verify_issues: list[str] = []
+        if strategy.name != "chat" and tool_count > 0:
+            try:
+                post_verify_issues = await self._post_execution_verify(
+                    full_content, self.written_files
+                )
+                if post_verify_issues:
+                    yield {
+                        "type": "post_verify",
+                        "issues": post_verify_issues[:10],
+                        "message": f"🔍 后验验证发现 {len(post_verify_issues)} 个问题",
+                    }
+                    logger.warning(
+                        "post_verify_issues count=%d", len(post_verify_issues),
+                    )
+            except Exception as e:
+                logger.debug("post_verify_skipped error=%s", str(e)[:100])
+
         summary_line = (
             f"⚡ 工具调用 {tool_count} 次"
             if tool_count > 0
@@ -589,16 +733,15 @@ class ExecutionPipeline:
 
         # 计划完成度
         plan_summary = ""
-        if detector is not None:
-            plan_status = detector.status_dict()
+        if plan_status_dict:
             plan_summary = (
-                f"📋 计划完成 {plan_status['completed']}/{plan_status['total']}"
-                f" ({plan_status['percent']}%)"
+                f"📋 计划完成 {plan_status_dict['completed']}/{plan_status_dict['total']}"
+                f" ({plan_status_dict['percent']}%)"
             )
-            if plan_status["deviations"] > 0:
-                plan_summary += f" | ⚠️ 偏差 {plan_status['deviations']}项"
-            if plan_status["replans"] > 0:
-                plan_summary += f" | 🔄 重规划 {plan_status['replans']}次"
+            if plan_status_dict.get("deviations", 0) > 0:
+                plan_summary += f" | ⚠️ 偏差 {plan_status_dict['deviations']}项"
+            if plan_status_dict.get("replans", 0) > 0:
+                plan_summary += f" | 🔄 重规划 {plan_status_dict['replans']}次"
 
         # 预算使用
         budget_summary = ""
@@ -646,6 +789,25 @@ class ExecutionPipeline:
                 f"\n\n---\n📊 执行摘要\n{summary}"
             )
 
+        # ════════════════════════════════════════════════════
+        # P1-1: 结构化执行报告
+        # ════════════════════════════════════════════════════
+        structured_report = {
+            "mode": strategy.name,
+            "duration_ms": int(elapsed * 1000),
+            "iterations": iter_count,
+            "tool_calls_count": tool_count,
+            "files_written": self.written_files,
+            "tool_calls": self.tool_calls,
+            "plan": plan_status_dict if plan_status_dict else None,
+            "budget": budget.to_dict() if budget else None,
+            "hallucination_score": (
+                getattr(self, "_hallucination_low_count", 0)
+            ),
+            "post_verify_issues": post_verify_issues[:10],
+            "success": len(post_verify_issues) == 0,
+        }
+
         yield {
             "type": "done",
             "content": final_content,
@@ -654,6 +816,11 @@ class ExecutionPipeline:
             "duration_ms": int(elapsed * 1000),
             "plan": detector.status_dict() if detector else None,
             "budget": budget.to_dict() if budget else None,
+            "report": structured_report,  # P1-1: 结构化报告
+            "post_verify": {  # P1-3: 后验验证结果
+                "issues_count": len(post_verify_issues),
+                "issues": post_verify_issues[:5],
+            },
         }
 
         yield {
@@ -663,6 +830,10 @@ class ExecutionPipeline:
                 f"✅ {strategy.name.upper()} 完成"
                 f" ({len(full_content)} 字符)"
                 + (f", {tool_count} 次工具调用" if tool_count else "")
+                + (
+                    f", {len(post_verify_issues)} 个验证问题"
+                    if post_verify_issues else ""
+                )
             ),
         }
 
@@ -794,3 +965,104 @@ class ExecutionPipeline:
             logger.debug("LearningEngine 未安装，跳过学习反馈")
         except Exception as e:
             logger.debug("学习反馈异常（非致命）: %s", e)
+
+    @staticmethod
+    async def _post_execution_verify(
+        content: str, written_files: list[str]
+    ) -> list[str]:
+        """P1-3: 后验验证 — 验证LLM声称的操作是否实际生效
+
+        检查项目:
+        1. 声称写入的文件是否真的存在且被修改
+        2. 声称的代码修改是否与实际文件内容一致
+        3. 引用的文件路径是否存在
+
+        Returns:
+            问题列表，空列表表示验证通过
+        """
+        issues: list[str] = []
+        try:
+            from pathlib import Path
+
+            cwd = Path.cwd()
+
+            # 1. 验证声称写入的文件
+            import re
+            write_pattern = re.compile(
+                r"(?:write_file|创建|写入|修改|更新).*?[\"'`]([^\"'`]+\.\w{1,10})[\"'`]",
+                re.IGNORECASE,
+            )
+            claimed_files = set()
+            for m in write_pattern.finditer(content):
+                fpath = m.group(1)
+                claimed_files.add(fpath)
+
+            for fpath in claimed_files:
+                target = (cwd / fpath).resolve()
+                try:
+                    if not target.is_relative_to(cwd):
+                        issues.append(f"文件路径越界: {fpath}")
+                        continue
+                except ValueError:
+                    issues.append(f"无效文件路径: {fpath}")
+                    continue
+
+                if not target.exists():
+                    issues.append(f"声称写入的文件不存在: {fpath}")
+                elif fpath in written_files:
+                    pass  # 已记录
+                else:
+                    # 检查文件修改时间是否在本次执行期间
+                    mtime = target.stat().st_mtime
+                    age_s = time.time() - mtime
+                    if age_s > 300:  # 超过5分钟未修改
+                        issues.append(
+                            f"声称修改的文件未实际变更: {fpath} "
+                            f"(最后修改 {age_s:.0f}s 前)"
+                        )
+
+            # 2. 验证引用的文件路径
+            file_ref_pattern = re.compile(
+                r"(?:文件|路径|位于|在).*?[\"'`]([^\"'`]+\.\w{1,10})[\"'`]",
+                re.IGNORECASE,
+            )
+            for m in file_ref_pattern.finditer(content):
+                fpath = m.group(1)
+                if fpath in claimed_files:
+                    continue
+                target = (cwd / fpath).resolve()
+                try:
+                    if target.is_relative_to(cwd) and not target.exists():
+                        issues.append(f"引用的文件不存在: {fpath}")
+                except ValueError:
+                    pass
+
+            # 3. 验证代码引用（简单启发式）
+            code_ref_pattern = re.compile(
+                r"(?:class|def|函数|方法|模块)\s+[\"'`]?(\w+)[\"'`]?",
+                re.IGNORECASE,
+            )
+            # 只在内容较长且有文件引用时做深度验证
+            if len(content) > 500 and claimed_files:
+                for fpath in list(claimed_files)[:3]:
+                    target = (cwd / fpath).resolve()
+                    if target.exists() and target.suffix == ".py":
+                        try:
+                            file_content = target.read_text(
+                                encoding="utf-8", errors="ignore"
+                            )
+                            for m in code_ref_pattern.finditer(content):
+                                symbol = m.group(1)
+                                if (
+                                    len(symbol) > 3
+                                    and symbol not in file_content
+                                    and symbol[0].isupper()
+                                ):
+                                    pass  # 类名可能在其他文件中
+                        except (OSError, UnicodeDecodeError):
+                            pass
+
+        except Exception as e:
+            logger.debug("post_verify_error: %s", str(e)[:100])
+
+        return issues

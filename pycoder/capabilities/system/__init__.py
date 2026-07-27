@@ -29,6 +29,7 @@ def register_system_capabilities(registry: Any) -> None:
     _register_shell_operations(registry)
     _register_git_operations(registry)
     _register_package_operations(registry)
+    _register_html_builder_operations(registry)
 
 
 def _register_file_operations(registry: Any) -> None:
@@ -446,4 +447,93 @@ async def _detect_environment(params: dict[str, Any], context: dict[str, Any]) -
         "executable": sys.executable,
         "platform": sys.platform,
         "cwd": os.getcwd(),
+    }
+
+
+# ── HTML 构建能力 ──
+
+
+def _register_html_builder_operations(registry: Any) -> None:
+    """注册 HTML 页面构建能力（head/body）
+    
+    AI Agent 在生成 HTML 页面时，会使用 <head> 和 <body> XML 工具
+    来构建页面结构和样式。
+    """
+
+    registry.register(
+        CapabilityDefinition(
+            id="system.html.head",
+            name="HTML Head",
+            description="构建 HTML 页面头部（title, style, meta 等），返回拼接后的 <head> 内容",
+            category=CapabilityCategory.SYSTEM,
+            permission=TrustLevel.READ_ONLY,
+            execution=ExecutionMode.SYNC,
+            schema={
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "页面标题"},
+                    "style": {"type": "string", "description": "CSS 样式内容"},
+                    "meta": {"type": "string", "description": "其他 meta 标签"},
+                },
+            },
+            tags=["head", "html", "style", "页面"],
+        ),
+        handler=_handle_html_head,
+    )
+
+    registry.register(
+        CapabilityDefinition(
+            id="system.html.body",
+            name="HTML Body",
+            description="构建 HTML 页面体（div, h1, p, span 等），返回拼接后的 <body> 内容",
+            category=CapabilityCategory.SYSTEM,
+            permission=TrustLevel.READ_ONLY,
+            execution=ExecutionMode.SYNC,
+            schema={
+                "type": "object",
+                "properties": {
+                    "div": {"type": "string", "description": "div 内容"},
+                    "h1": {"type": "string", "description": "h1 标题"},
+                    "p": {"type": "string", "description": "段落内容"},
+                    "span": {"type": "string", "description": "span 内容"},
+                },
+            },
+            tags=["body", "html", "div", "页面"],
+        ),
+        handler=_handle_html_body,
+    )
+
+
+async def _handle_html_head(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理 HTML <head> 构建"""
+    title = params.get("title", "")
+    style = params.get("style", "")
+    meta = params.get("meta", "")
+
+    head_parts = []
+    if title:
+        head_parts.append(f"<title>{title}</title>")
+    if meta:
+        head_parts.append(meta)
+    if style:
+        head_parts.append(f"<style>{style}</style>")
+
+    return {
+        "success": True,
+        "content": "\n".join(head_parts),
+        "title": title or "",
+    }
+
+
+async def _handle_html_body(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理 HTML <body> 构建"""
+    body_parts = []
+    for key in ("div", "h1", "h2", "h3", "p", "span", "section", "article", "main", "header", "footer", "nav", "aside"):
+        val = params.get(key)
+        if val:
+            body_parts.append(f"<{key}>{val}</{key}>")
+
+    return {
+        "success": True,
+        "content": "\n".join(body_parts),
     }
