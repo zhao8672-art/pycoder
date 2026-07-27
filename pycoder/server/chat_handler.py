@@ -185,7 +185,12 @@ def _get_effective_model(requested: str | None = None) -> str:
 
 
 def _get_api_key_for_model(model: str) -> str:
-    """获取模型对应的 API Key（支持所有模型，无硬编码前缀限制）"""
+    """获取模型对应的 API Key（支持所有模型，无硬编码前缀限制）
+
+    解析顺序: mgr.get_key → get_api_key → mgr.get_all_keys 第一项 → DEEPSEEK_API_KEY 环境变量
+    异常分支（模型以 deepseek 开头时走 get_api_key 回退，否则返回空字符串，
+              避免把无关的 DEEPSEEK_API_KEY 泄漏到非 deepseek 模型）。
+    """
     try:
         from pycoder.server.chat_bridge import _detect_provider
 
@@ -195,31 +200,40 @@ def _get_api_key_for_model(model: str) -> str:
         if key:
             return key
         # 兜底: 从任何已检测到的 Key 中取第一个
-        all_keys = mgr.get_all_keys()
+        all_keys = mgr.get_all_keys() or {}
         if all_keys:
-            return next(iter(all_keys.values()))
+            try:
+                first = next(iter(all_keys.values()))
+                if first:
+                    return first
+            except StopIteration:
+                pass
         return os.environ.get("DEEPSEEK_API_KEY", "")
     except (ValueError, KeyError, AttributeError, ImportError) as e:
         logger.warning("api_key_lookup_failed", extra={"model": model, "error": str(e)})
-        return os.environ.get("DEEPSEEK_API_KEY", "")
+        # deepseek 系模型 → 兜底走 get_api_key → 仍为空则用 DEEPSEEK_API_KEY 环境变量
+        if model.lower().startswith("deepseek"):
+            try:
+                k = get_api_key("deepseek")
+                if k:
+                    return k
+            except Exception:
+                pass
+            return os.environ.get("DEEPSEEK_API_KEY", "")
+        return ""
 
 
 def _read_file_head(path: str, max_chars: int = 2000) -> str:
-    """读取文件头部 — max_chars=0 时完整读取，>0 时分块 + 元数据"""
+    """读取文件头部 — max_chars=0 时完整读取，>0 时截断到 max_chars
+
+    行为约定: 返回内容长度不超过 max_chars。不附加任何元数据或提示。
+    调用方如需显示文件被截断的信息，由调用方自行处理（fstat/seek 等）。
+    """
     try:
         with open(path, encoding="utf-8") as f:
             if max_chars == 0:
                 return f.read()
-            content = f.read(max_chars)
-            peek = f.read(100)
-            if peek:
-                total_size = f.tell()
-                content += (
-                    f"\n\n...(文件过大，仅显示前 {len(content)} 字符。"
-                    f" 总大小约 {total_size} 字符。"
-                    f" 使用 max_chars=0 读取完整文件)"
-                )
-            return content
+            return f.read(max_chars)
     except (OSError, UnicodeDecodeError):
         return ""
 

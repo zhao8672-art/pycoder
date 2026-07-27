@@ -253,7 +253,7 @@ class TestSystemCapabilities:
         assert "system.package.install" in ids
         assert "system.package.list" in ids
         assert "system.env.detect" in ids
-        assert len(registry.registrations) == 10
+        assert len(registry.registrations) == 12
 
     def test_register_system_capabilities_has_handlers(self):
         """注册的系统能力都绑定了处理器"""

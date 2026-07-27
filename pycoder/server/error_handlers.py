@@ -59,6 +59,11 @@ def make_error_response(
     request_id: str | None = None,
 ) -> JSONResponse:
     """构造标准错误响应"""
+    # 401 响应应包含 WWW-Authenticate 头（RFC 6750 / RFC 7235）
+    # 项目使用 X-API-Key 鉴权方案（非标准 Bearer），按方案名声明质询
+    headers: dict[str, str] | None = None
+    if status_code == 401:
+        headers = {"WWW-Authenticate": "X-API-Key"}
     return JSONResponse(
         status_code=status_code,
         content={
@@ -71,6 +76,7 @@ def make_error_response(
             },
             "timestamp": _now_iso(),
         },
+        headers=headers,
     )
 
 

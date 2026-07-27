@@ -455,7 +455,7 @@ def _make_mock_bridge(events):
     bridge.add_message = MagicMock()
     bridge.close = AsyncMock(return_value=None)
 
-    async def chat_stream(prompt):
+    async def chat_stream(prompt, mode="auto"):
         for ev in events:
             yield ev
 

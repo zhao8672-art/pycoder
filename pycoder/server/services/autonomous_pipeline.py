@@ -19,6 +19,7 @@ AutonomousPipeline — 全自主开发流水线引擎
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import shutil

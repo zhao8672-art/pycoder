@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+import importlib
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -60,21 +62,36 @@ def mock_team_mgr() -> MagicMock:
     return mgr
 
 
+# 模块级别鉴权 Key — 必须在 app 模块加载前设置（_API_KEY 在模块导入时确定）
+_TEST_API_KEY = "test-secret-key-12345"
+
+
 @pytest.fixture
-def client_with_mgr(mock_team_mgr: MagicMock) -> TestClient:
-    """注入模拟 team mgr 的 TestClient"""
+def client_with_mgr(mock_team_mgr: MagicMock, monkeypatch) -> TestClient:
+    """注入模拟 team mgr 的 TestClient（自动设置 X-API-Key 鉴权）"""
+    # 在 import app 之前设置环境变量，确保 _API_KEY 取到测试值
+    monkeypatch.setenv("PYCODER_API_KEY", _TEST_API_KEY)
+    # 强制重新加载 app 模块，让 _API_KEY_ENV 生效
+    import pycoder.server.app as app_module
+    importlib.reload(app_module)
     from pycoder.server.routers import agents_api
 
     # 替换全局单例
     orig = agents_api._agent_team
     agents_api._agent_team = mock_team_mgr
 
-    from pycoder.server.app import app
-
-    with TestClient(app) as c:
+    with TestClient(app_module.app) as c:
         yield c
 
+    # 恢复
     agents_api._agent_team = orig
+    # 清理环境变量并恢复 app 模块（避免污染同进程内后续测试）
+    monkeypatch.delenv("PYCODER_API_KEY", raising=False)
+    importlib.reload(app_module)
+
+
+# 测试中所有请求都带 X-API-Key 头
+_AUTH_HEADERS = {"X-API-Key": _TEST_API_KEY}
 
 
 # ── GET /api/agents/roles 测试 ────────────────────────────
@@ -85,7 +102,7 @@ class TestListRoles:
 
     def test_list_roles_success(self, client_with_mgr: TestClient) -> None:
         """测试成功列出所有角色"""
-        resp = client_with_mgr.get("/api/agents/roles")
+        resp = client_with_mgr.get("/api/agents/roles", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert "roles" in data
@@ -101,7 +118,7 @@ class TestListRoles:
     def test_list_roles_empty(self, client_with_mgr: TestClient, mock_team_mgr: MagicMock) -> None:
         """测试角色列表为空的情况"""
         mock_team_mgr.get_all_profiles.return_value = []
-        resp = client_with_mgr.get("/api/agents/roles")
+        resp = client_with_mgr.get("/api/agents/roles", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert data["count"] == 0
@@ -119,6 +136,7 @@ class TestSelectAgents:
         resp = client_with_mgr.post(
             "/api/agents/select",
             json={"task_description": "编写代码并测试功能"},
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -132,6 +150,7 @@ class TestSelectAgents:
         resp = client_with_mgr.post(
             "/api/agents/select",
             json={"task_description": ""},
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
         assert "task_description" in resp.json()["detail"]
@@ -141,6 +160,7 @@ class TestSelectAgents:
         resp = client_with_mgr.post(
             "/api/agents/select",
             json={"task_description": "   "},
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
 
@@ -150,6 +170,7 @@ class TestSelectAgents:
         resp = client_with_mgr.post(
             "/api/agents/select",
             json={"task_description": "xyz_abc_123"},
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -161,6 +182,7 @@ class TestSelectAgents:
         resp = client_with_mgr.post(
             "/api/agents/select",
             json={"task_description": "设计系统架构"},
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -195,6 +217,7 @@ class TestCreateTeam:
                 "name": "测试团队",
                 "roles": ["architect", "developer"],
             },
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -209,6 +232,7 @@ class TestCreateTeam:
         resp = client_with_mgr.post(
             "/api/agents/team/create",
             json={"name": "", "roles": ["developer"]},
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
         assert "团队名称" in resp.json()["detail"]
@@ -218,6 +242,7 @@ class TestCreateTeam:
         resp = client_with_mgr.post(
             "/api/agents/team/create",
             json={"name": "测试", "roles": []},
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
         assert "至少需要一个角色" in resp.json()["detail"]
@@ -230,6 +255,7 @@ class TestCreateTeam:
                 "name": "测试",
                 "roles": ["invalid_role", "superhero"],
             },
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -245,6 +271,7 @@ class TestCreateTeam:
                 "name": "测试",
                 "roles": ["developer", "superhero"],
             },
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -278,6 +305,7 @@ class TestAssignTask:
                 "agent_role": "developer",
                 "task": "实现登录功能",
             },
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -296,6 +324,7 @@ class TestAssignTask:
                 "agent_role": "developer",
                 "task": "任务",
             },
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 404
         assert "团队不存在" in resp.json()["detail"]
@@ -308,6 +337,7 @@ class TestAssignTask:
                 "agent_role": "",
                 "task": "任务",
             },
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
         assert "agent_role" in resp.json()["detail"]
@@ -320,6 +350,7 @@ class TestAssignTask:
                 "agent_role": "developer",
                 "task": "",
             },
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
         assert "task" in resp.json()["detail"]
@@ -338,6 +369,7 @@ class TestAssignTask:
                 "agent_role": "superhero",
                 "task": "任务",
             },
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -358,6 +390,7 @@ class TestAssignTask:
                 "agent_role": "tester",
                 "task": "任务",
             },
+        headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -390,7 +423,7 @@ class TestTeamProgress:
         }
         mock_team_mgr.get_team.return_value = mock_team
 
-        resp = client_with_mgr.get("/api/agents/team/test-team/progress")
+        resp = client_with_mgr.get("/api/agents/team/test-team/progress", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert data["team_name"] == "测试团队"
@@ -403,7 +436,7 @@ class TestTeamProgress:
         """测试团队不存在返回 404"""
         mock_team_mgr.get_team.return_value = None
 
-        resp = client_with_mgr.get("/api/agents/team/nonexistent/progress")
+        resp = client_with_mgr.get("/api/agents/team/nonexistent/progress", headers=_AUTH_HEADERS)
         assert resp.status_code == 404
         assert "团队不存在" in resp.json()["detail"]
 
@@ -425,7 +458,7 @@ class TestTeamProgress:
         }
         mock_team_mgr.get_team.return_value = mock_team
 
-        resp = client_with_mgr.get("/api/agents/team/empty-team/progress")
+        resp = client_with_mgr.get("/api/agents/team/empty-team/progress", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert data["total_tasks"] == 0
