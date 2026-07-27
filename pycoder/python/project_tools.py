@@ -17,6 +17,7 @@ import os
 import subprocess
 import sys
 from dataclasses import dataclass, field
+from typing import ClassVar
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,10 @@ class DependencyAnalysisResult:
 @dataclass
 class TestResult:
     """测试结果"""
+
+    # 显式标记非测试类：防止 pytest 把 dataclass 当成 TestCase 收集
+    # 使用 ClassVar 让 dataclass 不要把它当作实例字段
+    __test__: ClassVar[bool] = False
 
     success: bool
     passed: int = 0
@@ -613,6 +618,9 @@ class TestRunner:
     - 执行pytest并返回结果
     - 生成覆盖率报告
     """
+
+    # 显式标记非测试类：防止 pytest 因其 __init__ 而误收集
+    __test__ = False
 
     def __init__(self, project_root: str | Path = "."):
         self.project_root = Path(project_root).resolve()

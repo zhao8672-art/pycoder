@@ -17,6 +17,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from typing import ClassVar
 from pathlib import Path
 
 from pycoder.core.services.log import log
@@ -26,6 +27,10 @@ from pycoder.core.services.log import log
 class TestCase:
     """单个测试用例"""
 
+    # 显式标记非测试类：防止 pytest 把 dataclass 当成 TestCase 收集
+    # 使用 ClassVar 让 dataclass 不要把它当作实例字段
+    __test__: ClassVar[bool] = False
+
     name: str
     source: str
     category: str = "normal"  # normal | edge | error
@@ -34,6 +39,10 @@ class TestCase:
 @dataclass
 class TestGenerationResult:
     """测试生成结果"""
+
+    # 显式标记非测试类：防止 pytest 把 dataclass 当成 TestCase 收集
+    # 使用 ClassVar 让 dataclass 不要把它当作实例字段
+    __test__: ClassVar[bool] = False
 
     success: bool
     test_file: str = ""
@@ -50,6 +59,9 @@ class TestGenerator:
     """
     智能测试生成器 — 单例模式
     """
+
+    # 显式标记非测试类：防止 pytest 因其 __init__ 而误收集
+    __test__ = False
 
     def __init__(self, workspace_root: str | Path | None = None):
         self._workspace = Path(workspace_root or os.getcwd()).resolve()
