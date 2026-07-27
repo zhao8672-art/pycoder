@@ -82,6 +82,8 @@ class FileChange:
 class TestSummary:
     """测试结果摘要"""
 
+    __test__ = False  # 防止 pytest 误收集为测试类
+
     passed: int = 0
     failed: int = 0
     skipped: int = 0

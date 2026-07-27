@@ -10,6 +10,7 @@ Docker 远程执行后端 — 在容器中运行代码和执行环境
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import subprocess
@@ -58,7 +59,8 @@ class DockerBackend:
     async def ensure_container(self) -> str:
         """确保运行中的 Python 容器"""
         if self._container_id:
-            check = subprocess.run(
+            check = await asyncio.to_thread(
+                subprocess.run,
                 ["docker", "inspect", self._container_id, "--format", "{{.State.Running}}"],
                 capture_output=True,
                 text=True,
@@ -68,7 +70,8 @@ class DockerBackend:
                 return self._container_id
 
         # 创建新容器
-        r = subprocess.run(
+        r = await asyncio.to_thread(
+            subprocess.run,
             [
                 "docker",
                 "run",
@@ -98,7 +101,8 @@ class DockerBackend:
         try:
             cid = await self.ensure_container()
             # 写入代码到容器
-            r = subprocess.run(
+            r = await asyncio.to_thread(
+                subprocess.run,
                 ["docker", "exec", "-i", cid, "python", "-c", code],
                 capture_output=True,
                 text=True,

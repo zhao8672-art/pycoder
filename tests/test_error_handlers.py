@@ -83,7 +83,8 @@ def test_register_error_handlers():
     async def test_validation(item: Item):
         return {"ok": True}
 
-    client = TestClient(app)
+    # raise_server_exceptions=False 让 500 异常被全局处理器捕获而非直接抛出
+    client = TestClient(app, raise_server_exceptions=False)
 
     # 测试 404
     resp = client.get("/test-404")

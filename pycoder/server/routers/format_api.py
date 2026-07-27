@@ -1,9 +1,12 @@
 """
 代码格式化 API — 支持 black/isort/ruff + 自动检测 Python
+
+P1 修复: subprocess.run 包装在 asyncio.to_thread 中，避免阻塞事件循环。
 """
 
 from __future__ import annotations
 
+import asyncio
 import subprocess
 import sys
 import tempfile
@@ -14,14 +17,8 @@ from fastapi import APIRouter
 router = APIRouter(prefix="/api")
 
 
-@router.post("/format")
-async def format_code(req: dict):
-    """格式化 Python 代码（支持 black/isort/ruff），Ctrl+S 保存时调用"""
-    code = req.get("code", "")
-    style = req.get("style", "black")
-    if not code:
-        return {"success": False, "error": "缺少 code 参数"}
-
+def _format_sync(code: str, style: str) -> dict:
+    """同步执行格式化（在线程池中调用）"""
     tf = tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8")
     with tf as f:
         f.write(code)
@@ -77,3 +74,15 @@ async def format_code(req: dict):
         }
     finally:
         Path(tmp_path).unlink(missing_ok=True)
+
+
+@router.post("/format")
+async def format_code(req: dict):
+    """格式化 Python 代码（支持 black/isort/ruff），Ctrl+S 保存时调用"""
+    code = req.get("code", "")
+    style = req.get("style", "black")
+    if not code:
+        return {"success": False, "error": "缺少 code 参数"}
+
+    # P1 修复: 在线程池中执行同步 subprocess，避免阻塞事件循环
+    return await asyncio.to_thread(_format_sync, code, style)

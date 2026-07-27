@@ -482,8 +482,8 @@ async def execute_code(req: CodeExecRequest):
         if any(c in req.code for c in ["$", "`", "\\"]):
             # 含可疑 shell 字符 → 仅记录警告，不直接拒绝（Python 代码可能含反斜杠）
             logger.debug("code_contains_shell_chars: skipping strict check")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("shell_char_check_failed: %s", e)
 
     # 根据模式选择超时限制
     if req.long_running:

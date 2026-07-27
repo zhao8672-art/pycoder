@@ -1,7 +1,12 @@
-"""Project tree, Git status, Diff preview helpers for WebSocket handler."""
+"""Project tree, Git status, Diff preview helpers for WebSocket handler.
+
+P1 修复: 所有同步 I/O 和 subprocess 调用已包装在 asyncio.to_thread 中，
+避免阻塞 FastAPI 事件循环。
+"""
 
 from __future__ import annotations
 
+import asyncio
 import os
 import subprocess
 from pathlib import Path
@@ -9,9 +14,9 @@ from pathlib import Path
 # ─── 桌面增强功能：项目树、文件打开、Diff 预览、Git 状态 ─────────────────
 
 
-async def _get_project_tree(path: str = None, max_depth: int = 3) -> dict:
+def _get_project_tree_sync(path: str = None, max_depth: int = 3) -> dict:
     """
-    扫描项目目录结构，返回树形 JSON。
+    扫描项目目录结构，返回树形 JSON（同步实现）。
     - path: 起始路径（默认当前工作目录）
     - max_depth: 最大递归深度，防止遍历过深
     """
@@ -93,7 +98,12 @@ async def _get_project_tree(path: str = None, max_depth: int = 3) -> dict:
     return tree
 
 
-async def _get_git_status(project_path: str = None) -> dict:
+async def _get_project_tree(path: str = None, max_depth: int = 3) -> dict:
+    """异步包装器 — 在线程池中执行同步扫描，避免阻塞事件循环。"""
+    return await asyncio.to_thread(_get_project_tree_sync, path, max_depth)
+
+
+def _get_git_status_sync(project_path: str = None) -> dict:
     """
     获取当前项目 Git 状态。
     返回：分支名、未暂存变更、暂存变更、未跟踪文件、提交统计
@@ -212,7 +222,12 @@ async def _get_git_status(project_path: str = None) -> dict:
     return result
 
 
-async def _get_diff_preview(file_path: str = None, staged: bool = False) -> dict:
+async def _get_git_status(project_path: str = None) -> dict:
+    """异步包装器 — 在线程池中执行同步 git 命令，避免阻塞事件循环。"""
+    return await asyncio.to_thread(_get_git_status_sync, project_path)
+
+
+def _get_diff_preview_sync(file_path: str = None, staged: bool = False) -> dict:
     """
     生成文件或整个项目的 diff 预览。
     - file_path: 指定文件（可选），null 时返回全部变更
@@ -289,3 +304,8 @@ async def _get_diff_preview(file_path: str = None, staged: bool = False) -> dict
     except Exception as e:
         result["error"] = str(e)
     return result
+
+
+async def _get_diff_preview(file_path: str = None, staged: bool = False) -> dict:
+    """异步包装器 — 在线程池中执行同步 diff 命令，避免阻塞事件循环。"""
+    return await asyncio.to_thread(_get_diff_preview_sync, file_path, staged)
