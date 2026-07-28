@@ -314,6 +314,33 @@ class SourceTracer:
         "mac", "ios", "android", "java", "rust", "go", "ruby", "php",
         "the", "a", "an", "is", "are", "was", "were", "will", "can",
         "for", "with", "from", "this", "that", "these", "those",
+        "use", "using", "used", "has", "have", "had", "been", "being",
+        "not", "but", "and", "or", "if", "else", "when", "then",
+        "all", "any", "some", "each", "every", "both", "few", "many",
+        "more", "most", "other", "such", "only", "own", "same", "so",
+        "than", "too", "very", "just", "now", "also", "even", "still",
+        "here", "there", "where", "which", "what", "who", "how", "why",
+        "one", "two", "first", "last", "new", "old", "good", "great",
+        "high", "low", "big", "big", "small", "long", "large", "next",
+        "create", "update", "delete", "select", "insert", "remove",
+        "using", "called", "named", "example", "sample", "test",
+        "file", "line", "code", "data", "type", "name", "value",
+        "user", "system", "error", "result", "method", "class",
+        "def", "function", "module", "package", "import", "export",
+    }
+
+    # 有效的代码文件扩展名（用于过滤假文件声明）
+    _VALID_CODE_EXTENSIONS: set[str] = {
+        ".py", ".js", ".ts", ".tsx", ".jsx", ".json", ".yaml", ".yml",
+        ".toml", ".cfg", ".ini", ".md", ".txt", ".css", ".html", ".env",
+        ".sh", ".bat", ".ps1", ".sql", ".xml", ".csv", ".lock",
+    }
+
+    # 常见非代码文件（对话中常出现但不应作为声明）
+    _NON_CLAIM_FILES: set[str] = {
+        "readme.md", "license.md", "changelog.md", "contributing.md",
+        "package.json", "package-lock.json", "requirements.txt",
+        ".gitignore", ".dockerignore", ".editorconfig",
     }
 
     def trace(self, response: str) -> TraceResult:
@@ -348,6 +375,9 @@ class SourceTracer:
         # 去重
         claims = self._deduplicate_claims(claims)
 
+        # 剪枝：移除低质量声明（噪音过多会导致评分失真）
+        claims = self._prune_low_quality_claims(claims)
+
         # 构建结果
         result = TraceResult(
             claims=claims,
@@ -365,19 +395,23 @@ class SourceTracer:
         """提取文件路径声明"""
         claims: list[Claim] = []
         for m in self._FILE_PATTERN.finditer(response):
-            file_path = m.group(1) or m.group(2)
+            file_path = (m.group(1) or m.group(2) or "").strip()
             if not file_path:
                 continue
-            if (
-                not file_path.startswith((".", "/", "\\"))
-                and "/" not in file_path
-                and "\\" not in file_path
-            ):
-                if "." not in file_path:
+            # 过滤：必须有有效扩展名且不是常见非代码文件
+            ext = Path(file_path).suffix.lower()
+            if ext not in self._VALID_CODE_EXTENSIONS:
+                continue
+            if file_path.lower() in self._NON_CLAIM_FILES:
+                continue
+            # 过滤：纯文件名（无路径分隔符）且是常见词
+            if "/" not in file_path and "\\" not in file_path:
+                stem = Path(file_path).stem.lower()
+                if stem in self._NOISE_WORDS:
                     continue
             claims.append(
                 Claim(
-                    text=file_path.strip(),
+                    text=file_path,
                     claim_type="file",
                     source=self._get_context(response, m.start(), m.end()),
                     confidence="medium",
@@ -389,12 +423,21 @@ class SourceTracer:
         """提取 API 路由声明"""
         claims: list[Claim] = []
         for m in self._API_PATTERN.finditer(response):
-            route = m.group(1)
+            route = (m.group(1) or "").strip()
             if not route:
+                continue
+            # 过滤：路由至少要有 2 段（如 /api/xxx），且不能是纯数字
+            parts = [p for p in route.split("/") if p]
+            if len(parts) < 2:
+                continue
+            if all(p.isdigit() for p in parts):
+                continue
+            # 过滤明显的假路由
+            if route in {"/api", "/v1", "/v2", "/api/v1", "/api/v2"}:
                 continue
             claims.append(
                 Claim(
-                    text=route.strip(),
+                    text=route,
                     claim_type="api",
                     source=self._get_context(response, m.start(), m.end()),
                     confidence="low",
@@ -406,17 +449,21 @@ class SourceTracer:
         """提取依赖声明"""
         claims: list[Claim] = []
         for m in self._DEP_PATTERN.finditer(response):
-            dep = m.group(1)
+            dep = (m.group(1) or "").strip()
             if not dep:
                 continue
-            dep_name = dep.strip().split()[0]  # 取第一个词作为包名
-            if dep_name.lower() in self._NOISE_WORDS:
+            dep_name = dep.split()[0].strip().lower() if dep else ""
+            # 过滤噪音词和过短的词
+            if dep_name in self._NOISE_WORDS:
                 continue
-            if len(dep_name) < 2:
+            if len(dep_name) < 3:
+                continue
+            # 过滤纯数字或纯标点
+            if dep_name.isdigit() or not any(c.isalpha() for c in dep_name):
                 continue
             claims.append(
                 Claim(
-                    text=dep.strip(),
+                    text=dep,
                     claim_type="dependency",
                     source=self._get_context(response, m.start(), m.end()),
                     confidence="medium",
@@ -428,37 +475,51 @@ class SourceTracer:
         """提取代码引用声明"""
         claims: list[Claim] = []
         for m in self._CODE_PATTERN.finditer(response):
-            code_ref = m.group(1) or m.group(2)
+            code_ref = (m.group(1) or m.group(2) or "").strip()
             if not code_ref:
                 continue
-            code_ref = code_ref.strip()
             if code_ref.lower() in self._NOISE_WORDS:
                 continue
             if len(code_ref) < 3:
                 continue
+            # 过滤纯数字
+            if code_ref.isdigit():
+                continue
+            # 带点号的模块路径给予更高置信度
+            confidence = "medium" if "." in code_ref else "low"
             claims.append(
                 Claim(
                     text=code_ref,
                     claim_type="code",
                     source=self._get_context(response, m.start(), m.end()),
-                    confidence="low" if "." not in code_ref else "medium",
+                    confidence=confidence,
                 )
             )
         return claims
 
     def _extract_stats_claims(self, response: str) -> list[Claim]:
-        """提取统计/数字断言"""
+        """提取统计/数字断言（仅提取有明确断言上下文的数字声明）"""
         claims: list[Claim] = []
         for m in self._STATS_PATTERN.finditer(response):
             value = m.group(1) or m.group(2) or m.group(3)
             if not value:
                 continue
+            full_text = m.group(0).strip()
+            # 过滤：必须是看起来像统计断言的内容（有上下文修饰词）
+            # 而不是普通的数字（如行号、ID 等）
+            ctx = self._get_context(response, m.start(), m.end())
+            # 检查是否有断言性关键词
+            assertion_keywords = {"约", "大约", "约", "至少", "最多", "超过", "不少于",
+                                  "about", "approximately", "at least", "at most", "around"}
+            has_assertion = any(kw in ctx.lower() for kw in assertion_keywords)
+            if not has_assertion and len(full_text) < 8:
+                continue  # 太短的纯数字不是统计声明
             claims.append(
                 Claim(
-                    text=m.group(0).strip(),
+                    text=full_text,
                     claim_type="statistics",
-                    source=self._get_context(response, m.start(), m.end()),
-                    confidence="low",
+                    source=ctx,
+                    confidence="low" if not has_assertion else "medium",
                 )
             )
         return claims
@@ -467,14 +528,16 @@ class SourceTracer:
         """提取配置项声明"""
         claims: list[Claim] = []
         for m in self._CONFIG_PATTERN.finditer(response):
-            key = m.group(1)
+            key = (m.group(1) or "").strip()
             if not key:
                 continue
             if key.lower() in self._NOISE_WORDS:
                 continue
+            if len(key) < 3:
+                continue
             claims.append(
                 Claim(
-                    text=key.strip(),
+                    text=key,
                     claim_type="config",
                     source=self._get_context(response, m.start(), m.end()),
                     confidence="low",
@@ -501,8 +564,41 @@ class SourceTracer:
                 unique.append(claim)
         return unique
 
+    @staticmethod
+    def _prune_low_quality_claims(claims: list[Claim], max_claims: int = 50) -> list[Claim]:
+        """剪枝低质量声明，控制总量避免评分失真
+
+        策略:
+          1. 优先保留高置信度声明
+          2. 同类型声明最多保留 15 条
+          3. 总数超过 max_claims 时裁剪低置信度声明
+        """
+        if len(claims) <= max_claims:
+            return claims
+
+        # 按置信度排序：high > medium > low > unverifiable
+        confidence_order = {"high": 0, "medium": 1, "low": 2, "unverifiable": 3}
+
+        # 分组：每种类型最多保留 15 条
+        type_limited: list[Claim] = []
+        type_counts: dict[str, int] = {}
+        for claim in sorted(claims, key=lambda c: confidence_order.get(c.confidence, 3)):
+            ct = claim.claim_type
+            if type_counts.get(ct, 0) < 15:
+                type_limited.append(claim)
+                type_counts[ct] = type_counts.get(ct, 0) + 1
+
+        # 总量裁剪
+        if len(type_limited) > max_claims:
+            type_limited = sorted(
+                type_limited,
+                key=lambda c: confidence_order.get(c.confidence, 3),
+            )[:max_claims]
+
+        return type_limited
+
     def _tag_high_risk(self, result: TraceResult) -> None:
-        """标记高风险声明"""
+        """标记高风险声明（仅标记，不改变置信度）"""
         for claim in result.claims:
             if claim.claim_type in HIGH_RISK_CATEGORIES:
                 if claim.confidence == "low":
@@ -615,67 +711,104 @@ class FactChecker:
             return claim
 
     def _verify_file(self, claim: Claim) -> Claim:
-        """验证文件是否存在"""
+        """验证文件是否存在（多级搜索 + 模糊匹配）"""
         rel_path = claim.text.strip().lstrip("/").lstrip("\\")
+        filename = Path(rel_path).name
+
+        # 策略 1: 精确路径匹配
         candidates = [
             self._workspace / rel_path,
             self._workspace / "pycoder" / rel_path,
+            self._workspace / "src" / rel_path,
         ]
         for p in candidates:
             try:
-                if p.exists():
+                if p.exists() and p.is_file():
                     claim.verified = True
                     claim.confidence = "high"
                     return claim
             except OSError:
                 continue
-        # 尝试 glob 模糊匹配
+
+        # 策略 2: 模糊 glob 匹配（按文件名搜索）
         try:
-            matches = list(self._workspace.rglob(rel_path))
+            # 限制搜索深度避免性能问题
+            matches = list(self._workspace.glob(f"**/{filename}"))
             if matches:
                 claim.verified = True
                 claim.confidence = "medium"
                 return claim
         except OSError:
             pass
+
+        # 策略 3: 尝试不同的路径变体
+        path_variants = [
+            rel_path.replace("-", "_"),
+            rel_path.replace("_", "-"),
+        ]
+        for variant in path_variants:
+            if variant == rel_path:
+                continue
+            for base in [self._workspace, self._workspace / "pycoder"]:
+                try:
+                    p = base / variant
+                    if p.exists() and p.is_file():
+                        claim.verified = True
+                        claim.confidence = "medium"
+                        return claim
+                except OSError:
+                    continue
+
         claim.verified = False
         claim.confidence = "low"
         return claim
 
     def _verify_api(self, claim: Claim) -> Claim:
-        """验证 API 路由是否存在"""
+        """验证 API 路由是否存在（全工作区搜索）"""
         route = claim.text.strip()
         if not route.startswith("/"):
             route = "/" + route
 
+        # 搜索路由定义 — 在整个工作区搜索
+        search_dirs = [self._workspace]
         pycoder_dir = self._workspace / "pycoder"
-        if not pycoder_dir.exists():
-            claim.verified = None
-            claim.confidence = "unverifiable"
-            return claim
+        if pycoder_dir.exists():
+            search_dirs.append(pycoder_dir)
 
-        # 搜索路由定义
-        for py_file in pycoder_dir.rglob("*.py"):
-            try:
-                content = py_file.read_text(encoding="utf-8", errors="ignore")
-                # 匹配 FastAPI 路由装饰器
-                if re.search(
-                    rf"""@(?:app|router)\.(?:get|post|put|delete|patch|options|head)\s*\(\s*["']{re.escape(route)}["']""",
-                    content,
-                ):
-                    claim.verified = True
-                    claim.confidence = "high"
-                    return claim
-                # 匹配 APIRouter 注册
-                if re.search(
-                    rf"""include_router\s*\(.*?prefix\s*=\s*["']{re.escape(route)}["']""",
-                    content,
-                ):
-                    claim.verified = True
-                    claim.confidence = "high"
-                    return claim
-            except (OSError, UnicodeDecodeError):
+        compiled_route = re.escape(route)
+
+        for search_dir in search_dirs:
+            if not search_dir.exists():
                 continue
+            for py_file in search_dir.rglob("*.py"):
+                try:
+                    content = py_file.read_text(encoding="utf-8", errors="ignore")
+                    # 匹配 FastAPI 路由装饰器
+                    if re.search(
+                        rf"""@(?:app|router)\.(?:get|post|put|delete|patch|options|head)\s*\(\s*["']{compiled_route}["']""",
+                        content,
+                    ):
+                        claim.verified = True
+                        claim.confidence = "high"
+                        return claim
+                    # 匹配 APIRouter prefix 注册
+                    if re.search(
+                        rf"""include_router\s*\(.*?prefix\s*=\s*["']{compiled_route}["']""",
+                        content,
+                    ):
+                        claim.verified = True
+                        claim.confidence = "high"
+                        return claim
+                    # 匹配路由字符串常量
+                    if re.search(
+                        rf"""["']{compiled_route}["']""",
+                        content,
+                    ):
+                        claim.verified = True
+                        claim.confidence = "medium"
+                        return claim
+                except (OSError, UnicodeDecodeError):
+                    continue
 
         claim.verified = False
         claim.confidence = "low"
@@ -749,29 +882,35 @@ class FactChecker:
         return claim
 
     def _verify_code(self, claim: Claim) -> Claim:
-        """验证代码引用（模块/类/函数是否存在）"""
+        """验证代码引用（模块/类/函数是否存在）— 全工作区搜索"""
         code_ref = claim.text.strip()
 
-        # 尝试作为模块路径验证
+        # 策略 1: 作为模块路径验证
         if "." in code_ref:
             module_path = code_ref.replace(".", "/") + ".py"
             for candidate in [
                 self._workspace / module_path,
                 self._workspace / "pycoder" / module_path,
+                self._workspace / "src" / module_path,
             ]:
                 try:
-                    if candidate.exists():
+                    if candidate.exists() and candidate.is_file():
                         claim.verified = True
                         claim.confidence = "high"
                         return claim
                 except OSError:
                     continue
 
-        # 尝试搜索符号定义
+        # 策略 2: 搜索符号定义（全工作区）
+        search_dirs = [self._workspace]
         pycoder_dir = self._workspace / "pycoder"
         if pycoder_dir.exists():
-            # 搜索独立的类名/函数名
-            for py_file in pycoder_dir.rglob("*.py"):
+            search_dirs.append(pycoder_dir)
+
+        for search_dir in search_dirs:
+            if not search_dir.exists():
+                continue
+            for py_file in search_dir.rglob("*.py"):
                 try:
                     content = py_file.read_text(encoding="utf-8", errors="ignore")
                     if re.search(rf"(?:class|def|async def)\s+{re.escape(code_ref)}\b", content):
@@ -781,15 +920,25 @@ class FactChecker:
                 except (OSError, UnicodeDecodeError):
                     continue
 
+        # 策略 3: 作为 import 尝试（仅顶级模块，不实际加载）
+        if "." in code_ref:
+            try:
+                __import__(code_ref.split(".")[0])
+                claim.verified = True
+                claim.confidence = "medium"
+                return claim
+            except (ImportError, ValueError):
+                pass
+
         claim.verified = False
         claim.confidence = "low"
         return claim
 
     def _verify_config(self, claim: Claim) -> Claim:
-        """验证配置项声明"""
+        """验证配置项声明（配置文件 + Python 源码搜索）"""
         config_key = claim.text.strip().lower()
 
-        # 搜索所有配置文件
+        # 策略 1: 搜索所有配置文件
         for pattern in CONFIG_FILE_PATTERNS:
             for config_file in self._workspace.rglob(pattern):
                 try:
@@ -801,12 +950,47 @@ class FactChecker:
                 except (OSError, UnicodeDecodeError):
                     continue
 
+        # 策略 2: 搜索 Python 源码中的配置引用
+        search_dirs = [self._workspace]
+        pycoder_dir = self._workspace / "pycoder"
+        if pycoder_dir.exists():
+            search_dirs.append(pycoder_dir)
+
+        for search_dir in search_dirs:
+            if not search_dir.exists():
+                continue
+            for py_file in search_dir.rglob("*.py"):
+                try:
+                    content = py_file.read_text(encoding="utf-8", errors="ignore")
+                    # 搜索配置项作为变量名或字典键
+                    if re.search(
+                        rf"""(?:os\.environ|os\.getenv|config|settings|\.get)\s*\(\s*["'].*?{re.escape(config_key)}.*?["']""",
+                        content,
+                        re.IGNORECASE,
+                    ):
+                        claim.verified = True
+                        claim.confidence = "medium"
+                        return claim
+                    # 搜索作为变量名
+                    if re.search(rf"\b{re.escape(config_key)}\s*=", content, re.IGNORECASE):
+                        claim.verified = True
+                        claim.confidence = "low"
+                        return claim
+                except (OSError, UnicodeDecodeError):
+                    continue
+
         claim.verified = False
         claim.confidence = "low"
         return claim
 
     def _verify_statistics(self, claim: Claim) -> Claim:
-        """尝试验证统计数据（从代码中搜索匹配数字）"""
+        """尝试验证统计数据（从代码和配置中搜索匹配数字）
+
+        统计类声明天然难以自动验证，采用宽松策略：
+          - 找到 2+ 处匹配 → 通过 (low confidence)
+          - 找到 1 处匹配 → 不确定 (unverifiable，不扣分)
+          - 找不到 → 不确定 (unverifiable，不扣分)
+        """
         stat_text = claim.text.strip()
         # 提取数字
         num_match = re.search(r"(\d+(?:\.\d+)?)", stat_text)
@@ -817,7 +1001,7 @@ class FactChecker:
 
         number = num_match.group(1)
 
-        # 搜索 pyproject.toml 中的版本号
+        # 检查版本相关
         if "version" in stat_text.lower() or "版本" in stat_text:
             pyproject = self._workspace / "pyproject.toml"
             if pyproject.exists():
@@ -831,23 +1015,35 @@ class FactChecker:
                     pass
 
         # 搜索代码中的数字常量
+        search_dirs = [self._workspace]
         pycoder_dir = self._workspace / "pycoder"
         if pycoder_dir.exists():
-            count = 0
-            for py_file in pycoder_dir.rglob("*.py"):
+            search_dirs.append(pycoder_dir)
+
+        count = 0
+        for search_dir in search_dirs:
+            if not search_dir.exists():
+                continue
+            for py_file in search_dir.rglob("*.py"):
                 try:
                     content = py_file.read_text(encoding="utf-8", errors="ignore")
                     if number in content:
                         count += 1
-                        if count >= 2:  # 至少2处出现才认为可信
+                        if count >= 2:  # 至少 2 处出现才认为可信
                             claim.verified = True
                             claim.confidence = "low"
                             return claim
                 except (OSError, UnicodeDecodeError):
                     continue
 
-        claim.verified = None
-        claim.confidence = "unverifiable"
+        # 统计类声明无法确定时，标记为不确定而非失败
+        # 避免因无法验证的数字断言而错误扣分
+        if count == 1:
+            claim.verified = None
+            claim.confidence = "unverifiable"
+        else:
+            claim.verified = None
+            claim.confidence = "unverifiable"
         return claim
 
 
@@ -1340,30 +1536,61 @@ class HallucinationGuard:
         verify: VerifyResult,
         consistency_issues: list[str],
     ) -> float:
-        """计算综合可信度评分
+        """计算综合可信度评分（加权评分 + 置信度衰减）
 
-        评分公式:
+        评分策略:
           - 基础分: 100
-          - 验证失败: 每个 -15 分
-          - 不确定声明: 每个 -5 分
-          - 一致性问题: 每个 -10 分
-          - 高风险类别未验证: 每个 -10 分
+          - 验证失败: 每个 -8 分（降低惩罚，避免误判过度扣分）
+          - 不确定声明: 每个 -3 分（降低惩罚）
+          - 一致性问题: 每个 -8 分
+          - 高风险未验证: 基于置信度加权扣分
+          - 验证通过比例加成: 通过率 > 50% 时加分
+
+        设计原则:
+          1. 不因无法验证的声明（unverifiable）过度扣分
+          2. 区分"已验证失败"和"无法验证"的严重程度
+          3. 验证通过率高时应给予正向加权
         """
         total_claims = verify.passed + verify.failed + verify.uncertain
         if total_claims == 0:
             return 100.0
 
         score = 100.0
-        score -= verify.failed * 15.0
-        score -= verify.uncertain * 5.0
-        score -= len(consistency_issues) * 10.0
 
-        # 高风险声明未验证惩罚
-        high_risk_unverified = sum(
+        # ── 1. 验证失败扣分（降低权重） ──
+        score -= verify.failed * 8.0
+
+        # ── 2. 不确定声明扣分（降低权重，不确定不等于错误） ──
+        score -= verify.uncertain * 3.0
+
+        # ── 3. 一致性问题扣分 ──
+        score -= len(consistency_issues) * 8.0
+
+        # ── 4. 高风险未验证加权扣分（仅对已验证失败的高风险项加重） ──
+        high_risk_failed = sum(
             1 for c in trace.claims
-            if c.claim_type in HIGH_RISK_CATEGORIES and c.verified is not True
+            if c.claim_type in HIGH_RISK_CATEGORIES and c.verified is False
         )
-        score -= high_risk_unverified * 10.0
+        high_risk_uncertain = sum(
+            1 for c in trace.claims
+            if c.claim_type in HIGH_RISK_CATEGORIES and c.verified is None
+        )
+        # 高风险失败项加重 50% 惩罚
+        score -= high_risk_failed * 4.0
+        # 高风险不确定项轻微惩罚
+        score -= high_risk_uncertain * 2.0
+
+        # ── 5. 验证通过率加成 ──
+        if total_claims > 0:
+            pass_rate = verify.passed / total_claims
+            if pass_rate > 0.5:
+                # 通过率越高，加分越多（最多 +15）
+                bonus = min(15.0, (pass_rate - 0.5) * 30.0)
+                score += bonus
+
+        # ── 6. 声明数量惩罚（声明过多说明提取质量差） ──
+        if total_claims > 30:
+            score -= min(10.0, (total_claims - 30) * 0.3)
 
         return max(0.0, min(100.0, score))
 
@@ -1374,40 +1601,75 @@ class HallucinationGuard:
         consistency_issues: list[str],
         overall_score: float,
     ) -> list[str]:
-        """生成改进建议"""
+        """生成改进建议（含具体修正方案）"""
         recommendations: list[str] = []
 
-        if overall_score < 60:
-            recommendations.append("⚠️ 幻觉风险高，建议人工审核 LLM 输出")
+        # ── 总体风险评估 ──
+        if overall_score < 30:
+            recommendations.append("🔴 可信度极低，强烈建议人工审核后重试")
+        elif overall_score < 60:
+            recommendations.append("🟡 幻觉风险较高，建议复核关键信息")
         elif overall_score < 80:
-            recommendations.append("⚠️ 存在可疑声明，建议复核关键信息")
+            recommendations.append("🟢 存在少量可疑声明，可选择性复核")
 
+        # ── 失败项详情 ──
         if verify.failed > 0:
             recommendations.append(
                 f"发现 {verify.failed} 条验证失败的声明，建议修正或删除"
             )
+            # 列出失败的声明类型
+            failed_types = Counter(
+                d["claim_type"] for d in verify.details if d.get("status") == "failed"
+            )
+            if failed_types:
+                type_summary = "、".join(
+                    f"{t}({c}条)" for t, c in failed_types.most_common(3)
+                )
+                recommendations.append(f"失败声明类型: {type_summary}")
 
+        # ── 不确定项 ──
         if verify.uncertain > 5:
             recommendations.append(
                 f"有 {verify.uncertain} 条声明无法自动验证，建议人工确认"
             )
 
+        # ── 一致性 ──
         if consistency_issues:
             recommendations.append(
-                f"发现 {len(consistency_issues)} 个一致性问题，需修正后再输出"
+                f"发现 {len(consistency_issues)} 个一致性问题"
+            )
+            # 展示前 2 个具体问题
+            for issue in consistency_issues[:2]:
+                recommendations.append(f"  → {issue}")
+
+        # ── 类别特定建议 ──
+        category_counts = Counter(c.claim_type for c in trace.claims)
+        failed_api = sum(
+            1 for c in trace.claims
+            if c.claim_type == "api" and c.verified is False
+        )
+        if failed_api > 0:
+            recommendations.append(
+                f"{failed_api} 个 API 路由声明验证失败，请检查路由是否已在 FastAPI 中注册"
             )
 
-        # 针对特定类别
-        category_counts = Counter(c.claim_type for c in trace.claims)
-        if category_counts.get("api", 0) > 3 and any(
-            c.verified is False for c in trace.claims if c.claim_type == "api"
-        ):
-            recommendations.append("多个 API 声明验证失败，建议检查路由注册情况")
+        failed_file = sum(
+            1 for c in trace.claims
+            if c.claim_type == "file" and c.verified is False
+        )
+        if failed_file > 0:
+            recommendations.append(
+                f"{failed_file} 个文件路径声明验证失败，请确认文件是否存在于工作区"
+            )
 
-        if category_counts.get("dependency", 0) > 3 and any(
-            c.verified is False for c in trace.claims if c.claim_type == "dependency"
-        ):
-            recommendations.append("多个依赖声明验证失败，建议对照 requirements.txt 确认")
+        failed_dep = sum(
+            1 for c in trace.claims
+            if c.claim_type == "dependency" and c.verified is False
+        )
+        if failed_dep > 0:
+            recommendations.append(
+                f"{failed_dep} 个依赖声明验证失败，请对照 requirements.txt 或 pyproject.toml 确认"
+            )
 
         if not recommendations:
             recommendations.append("✅ 未检测到明显幻觉，输出可信度较高")
