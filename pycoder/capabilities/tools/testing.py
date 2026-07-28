@@ -1,4 +1,4 @@
-"""测试工具 — generate_tests, test_integration, test_e2e, test_performance, generate_pipeline"""
+"""测试工具 — generate_tests, run_tests, test_integration, test_e2e, test_performance, generate_pipeline"""
 
 from __future__ import annotations
 
@@ -24,6 +24,22 @@ def register(registry: Any) -> None:
         },
         ["file"],
         _handle_generate_tests,
+    )
+
+    _reg(
+        registry,
+        "tools.testing.run_tests",
+        "运行测试",
+        "自动扫描并执行 pytest 测试，返回结构化结果（通过/失败及错误日志）",
+        {
+            "test_path": {"type": "string", "default": "tests/", "description": "测试文件或目录路径"},
+            "pattern": {"type": "string", "default": "test_*.py", "description": "测试文件匹配模式"},
+            "verbose": {"type": "boolean", "default": False},
+            "timeout": {"type": "number", "default": 120, "description": "超时时间（秒）"},
+            "cwd": {"type": "string", "default": ""},
+        },
+        [],
+        _handle_run_tests,
     )
 
     _reg(
@@ -108,6 +124,27 @@ async def _handle_generate_tests(params: dict, context: dict) -> dict:
         "test_file": f"test_{Path(params['file']).name}",
         "note": "测试生成需要 AI 完成具体代码",
     }
+
+
+async def _handle_run_tests(params: dict, context: dict) -> dict:
+    """执行 pytest 测试并返回结构化结果"""
+    from pycoder.capabilities.tools.test_runner import TestRunner
+
+    test_path = params.get("test_path", "tests/")
+    pattern = params.get("pattern", "test_*.py")
+    verbose = params.get("verbose", False)
+    timeout = int(params.get("timeout", 120))
+    cwd = params.get("cwd", "")
+
+    runner = TestRunner()
+    result = await runner.run(
+        test_path,
+        pattern=pattern,
+        verbose=verbose,
+        timeout=timeout,
+        cwd=cwd,
+    )
+    return result.to_dict()
 
 
 async def _handle_test_integration(params: dict, context: dict) -> dict:

@@ -240,3 +240,67 @@ class ErrorClassifier:
             "recurring_errors": len([k for k, v in self._recurrence.items() if v >= 3]),
             "verified_fixes": sum(1 for t in self._tickets.values() if t.fix_status == "verified"),
         }
+
+    # ══════════════════════════════════════════════════════
+    # 根因推断 (集成 error_patterns.py)
+    # ══════════════════════════════════════════════════════
+
+    def infer_root_cause(self, error_message: str, context: str = "") -> dict:
+        """推断错误根因
+
+        Args:
+            error_message: 错误消息
+            context: 错误上下文 (如文件路径、代码片段)
+
+        Returns:
+            包含根因分析和修复建议的字典
+        """
+        from pycoder.capabilities.self_evo.learning.error_patterns import (
+            ERROR_PATTERN_DB,
+            get_root_cause_chain,
+            lookup_by_message,
+        )
+
+        # 先按消息匹配
+        pattern = lookup_by_message(error_message)
+
+        # 再按错误类型名匹配
+        if not pattern:
+            for error_type, p in ERROR_PATTERN_DB.items():
+                if error_type.lower() in error_message.lower():
+                    pattern = p
+                    break
+
+        if not pattern:
+            return {
+                "found": False,
+                "message": "未匹配到已知错误模式",
+                "category": self.classify(error_message).value,
+                "strategies": self.recommend_strategy(self.classify(error_message)),
+            }
+
+        # 获取根因推断链
+        chain = get_root_cause_chain(pattern.error_type)
+
+        return {
+            "found": True,
+            "error_type": pattern.error_type,
+            "category": pattern.category,
+            "root_causes": pattern.root_causes,
+            "fix_templates": pattern.fix_templates,
+            "related_errors": pattern.related_errors,
+            "platform_specific": pattern.platform_specific,
+            "root_cause_chain": chain.error_chain if chain else [],
+            "primary_cause": chain.primary_cause if chain else "",
+            "confidence": chain.confidence if chain else 0.0,
+            "recommended_fixes": chain.recommended_fixes if chain else [],
+        }
+
+    def get_fix_template(self, error_type: str) -> str | None:
+        """获取错误修复模板"""
+        from pycoder.capabilities.self_evo.learning.error_patterns import lookup_pattern
+
+        pattern = lookup_pattern(error_type)
+        if pattern and pattern.fix_templates:
+            return pattern.fix_templates[0]
+        return None

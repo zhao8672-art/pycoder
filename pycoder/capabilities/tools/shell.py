@@ -49,6 +49,44 @@ def register(registry: Any) -> None:
         handler=wrap_handler(_handle_run_terminal),
     )
 
+    registry.register(
+        CapabilityDefinition(
+            id="tools.shell.run_pipeline",
+            name="命令管道",
+            description="按顺序执行多个命令步骤，支持失败重试和回滚（自动跨平台翻译）",
+            permission=TOOL_PERMISSIONS["tools.shell.run_pipeline"],
+            category=_CT,
+            execution=ExecutionMode.SYNC,
+            side_effects=[SideEffect.PROCESS, SideEffect.FILE_WRITE],
+            schema={
+                "type": "object",
+                "properties": {
+                    "steps": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "command": {"type": "string"},
+                                "description": {"type": "string", "default": ""},
+                                "timeout": {"type": "number", "default": 60},
+                                "retries": {"type": "number", "default": 0},
+                                "continue_on_failure": {"type": "boolean", "default": False},
+                                "working_dir": {"type": "string", "default": ""},
+                            },
+                            "required": ["command"],
+                        },
+                        "description": "命令步骤列表",
+                    },
+                    "cwd": {"type": "string", "default": ""},
+                    "stop_on_failure": {"type": "boolean", "default": True},
+                },
+                "required": ["steps"],
+            },
+            tags=["shell", "pipeline", "管道", "多步骤"],
+        ),
+        handler=wrap_handler(_handle_run_pipeline),
+    )
+
 
 async def _handle_run_terminal(params: dict, context: dict) -> dict:
     cmd = params["command"]
@@ -100,3 +138,31 @@ async def _handle_run_terminal(params: dict, context: dict) -> dict:
         return {"success": False, "error": f"命令超时 ({timeout}s)", "exit_code": -1, "translation": translation_info}
     except Exception as e:
         return {"success": False, "error": str(e), "exit_code": -1, "translation": translation_info}
+
+
+async def _handle_run_pipeline(params: dict, context: dict) -> dict:
+    """执行命令管道"""
+    from pycoder.capabilities.tools.task_pipeline import PipelineStep, TaskPipeline
+
+    steps_data = params.get("steps", [])
+    if not steps_data:
+        return {"success": False, "error": "步骤列表为空"}
+
+    steps = [
+        PipelineStep(
+            command=s.get("command", ""),
+            description=s.get("description", ""),
+            timeout=int(s.get("timeout", 60)),
+            retries=int(s.get("retries", 0)),
+            continue_on_failure=s.get("continue_on_failure", False),
+            working_dir=s.get("working_dir", ""),
+        )
+        for s in steps_data
+    ]
+
+    cwd = params.get("cwd", "")
+    stop_on_failure = params.get("stop_on_failure", True)
+
+    pipeline = TaskPipeline()
+    result = await pipeline.execute(steps, cwd=cwd, stop_on_failure=stop_on_failure)
+    return result.to_dict()

@@ -49,10 +49,13 @@ TOOL_PERMISSIONS: dict[str, TrustLevel] = {
     "tools.env.languages": RL,
     # ── 测试 ──
     "tools.testing.generate_tests": PW,
+    "tools.testing.run_tests": PW,
     "tools.testing.test_integration": PW,
     "tools.testing.test_e2e": PW,
     "tools.testing.test_performance": PW,
     "tools.testing.generate_pipeline": PW,
+    # ── 任务管道 ──
+    "tools.shell.run_pipeline": PW,
     # ── Skills 市场 ──
     "tools.marketplace.skills_search": RL,
     "tools.marketplace.skills_recommendations": RL,
