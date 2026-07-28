@@ -13,31 +13,31 @@
 
 from __future__ import annotations
 
+import importlib
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from pycoder.core.services.task_grader import TaskGrade, TaskGrader
+from pycoder.core.services.task_grader import GradeLevel, TaskGrade, TaskGrader
 from pycoder.server.services.task_persistence import (
     TaskPersistence,
     TaskState,
 )
+
+_TEST_API_KEY = "test-task-api-key-12345"
+_AUTH_HEADERS = {"X-API-Key": _TEST_API_KEY}
 
 
 # ── 辅助函数 ──────────────────────────────────────────────
 
 
 def _make_task_grade(
-    level: str = "MEDIUM",
+    level: GradeLevel = GradeLevel.MEDIUM,
     score: int = 50,
 ) -> TaskGrade:
-    """创建测试用 TaskGrade
-
-    P2-D: 修正字段名以匹配 TaskGrade 实际定义
-    （原测试使用了不存在的 max_steps/reasoning_depth/description/detected_types 字段）
-    """
+    """创建测试用 TaskGrade"""
     return TaskGrade(
         level=level,
         max_iterations=20,
@@ -80,7 +80,7 @@ def _make_task_state(
 def mock_grader() -> MagicMock:
     """创建模拟的 TaskGrader"""
     grader = MagicMock(spec=TaskGrader)
-    grader.grade.return_value = _make_task_grade()
+    grader.assess.return_value = _make_task_grade()
     return grader
 
 
@@ -115,9 +115,12 @@ def mock_persistence() -> MagicMock:
 
 @pytest.fixture
 def client_with_services(
-    mock_grader: MagicMock, mock_persistence: MagicMock
+    mock_grader: MagicMock, mock_persistence: MagicMock, monkeypatch
 ) -> TestClient:
-    """注入模拟 TaskGrader 和 TaskPersistence 的 TestClient"""
+    """注入模拟 TaskGrader 和 TaskPersistence 的 TestClient（自动设置 Auth）"""
+    monkeypatch.setenv("PYCODER_API_KEY", _TEST_API_KEY)
+    import pycoder.server.app as app_module
+    importlib.reload(app_module)
     from pycoder.server.routers import task_api
 
     # 保存原始单例
@@ -127,13 +130,13 @@ def client_with_services(
     task_api._grader = mock_grader
     task_api._persistence = mock_persistence
 
-    from pycoder.server.app import app
-
-    with TestClient(app) as c:
+    with TestClient(app_module.app) as c:
         yield c
 
     task_api._grader = orig_grader
     task_api._persistence = orig_persistence
+    monkeypatch.delenv("PYCODER_API_KEY", raising=False)
+    importlib.reload(app_module)
 
 
 # ── POST /api/task/grade 测试 ─────────────────────────────
@@ -146,24 +149,25 @@ class TestGradeTask:
         """测试成功评估任务难度"""
         resp = client_with_services.post(
             "/api/task/grade",
+            headers=_AUTH_HEADERS,
             json={"description": "实现一个完整的用户认证系统"},
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["level"] == "MEDIUM"
-        assert data["max_steps"] == 20
+        assert data["max_iterations"] == 20
         assert data["temperature"] == 0.3
         assert data["max_tokens"] == 4096
-        assert data["reasoning_depth"] == "standard"
         assert data["score"] == 50
-        assert "detected_types" in data
+        assert data["level_value"] == 2
 
     def test_grade_light_task(self, client_with_services: TestClient, mock_grader: MagicMock) -> None:
         """测试简单任务分级"""
-        mock_grader.grade.return_value = _make_task_grade(level="LIGHT", score=20)
+        mock_grader.assess.return_value = _make_task_grade(level=GradeLevel.LIGHT, score=20)
 
         resp = client_with_services.post(
             "/api/task/grade",
+            headers=_AUTH_HEADERS,
             json={"description": "写一个 hello world"},
         )
         assert resp.status_code == 200
@@ -173,10 +177,11 @@ class TestGradeTask:
 
     def test_grade_heavy_task(self, client_with_services: TestClient, mock_grader: MagicMock) -> None:
         """测试复杂任务分级"""
-        mock_grader.grade.return_value = _make_task_grade(level="HEAVY", score=85)
+        mock_grader.assess.return_value = _make_task_grade(level=GradeLevel.HEAVY, score=85)
 
         resp = client_with_services.post(
             "/api/task/grade",
+            headers=_AUTH_HEADERS,
             json={"description": "构建一个完整的分布式微服务架构"},
         )
         assert resp.status_code == 200
@@ -188,6 +193,7 @@ class TestGradeTask:
         """测试空描述返回 422"""
         resp = client_with_services.post(
             "/api/task/grade",
+            headers=_AUTH_HEADERS,
             json={"description": ""},
         )
         assert resp.status_code == 422
@@ -196,13 +202,15 @@ class TestGradeTask:
         """测试分级响应包含所有字段"""
         resp = client_with_services.post(
             "/api/task/grade",
+            headers=_AUTH_HEADERS,
             json={"description": "一个中等任务"},
         )
         assert resp.status_code == 200
         data = resp.json()
         expected_fields = [
-            "level", "max_steps", "temperature", "max_tokens",
-            "reasoning_depth", "description", "score", "detected_types",
+            "level", "level_value", "label", "max_iterations",
+            "temperature", "max_tokens", "timeout_seconds", "score",
+            "dimensions", "reasoning",
         ]
         for field in expected_fields:
             assert field in data, f"缺少字段 {field}"
@@ -218,6 +226,7 @@ class TestSaveTask:
         """测试成功保存任务"""
         resp = client_with_services.post(
             "/api/task/save",
+            headers=_AUTH_HEADERS,
             json={
                 "description": "新任务",
                 "status": "pending",
@@ -238,6 +247,7 @@ class TestSaveTask:
 
         resp = client_with_services.post(
             "/api/task/save",
+            headers=_AUTH_HEADERS,
             json={
                 "task_id": "custom-123",
                 "description": "自定义任务",
@@ -253,6 +263,7 @@ class TestSaveTask:
         """测试自动生成 task_id"""
         resp = client_with_services.post(
             "/api/task/save",
+            headers=_AUTH_HEADERS,
             json={
                 "description": "自动 ID 任务",
                 "status": "pending",
@@ -268,6 +279,7 @@ class TestSaveTask:
         """测试无效状态返回 400"""
         resp = client_with_services.post(
             "/api/task/save",
+            headers=_AUTH_HEADERS,
             json={
                 "description": "无效状态",
                 "status": "invalid_status",
@@ -275,12 +287,13 @@ class TestSaveTask:
             },
         )
         assert resp.status_code == 400
-        assert "无效状态" in resp.json()["detail"]
+        assert "无效状态" in resp.json()["error"]["message"]
 
     def test_save_task_invalid_grade(self, client_with_services: TestClient) -> None:
         """测试无效级别返回 400"""
         resp = client_with_services.post(
             "/api/task/save",
+            headers=_AUTH_HEADERS,
             json={
                 "description": "无效级别",
                 "status": "pending",
@@ -288,7 +301,7 @@ class TestSaveTask:
             },
         )
         assert resp.status_code == 400
-        assert "无效级别" in resp.json()["detail"]
+        assert "无效级别" in resp.json()["error"]["message"]
 
     def test_save_task_with_checkpoint_data(
         self, client_with_services: TestClient, mock_persistence: MagicMock
@@ -299,6 +312,7 @@ class TestSaveTask:
         )
         resp = client_with_services.post(
             "/api/task/save",
+            headers=_AUTH_HEADERS,
             json={
                 "description": "带断点任务",
                 "status": "paused",
@@ -322,7 +336,7 @@ class TestLoadTask:
 
     def test_load_task_success(self, client_with_services: TestClient) -> None:
         """测试加载存在的任务"""
-        resp = client_with_services.get("/api/task/task-001")
+        resp = client_with_services.get("/api/task/task-001", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert data["task_id"] == "task-001"
@@ -333,13 +347,13 @@ class TestLoadTask:
         """测试加载不存在的任务返回 404"""
         mock_persistence.load_task = AsyncMock(return_value=None)
 
-        resp = client_with_services.get("/api/task/nonexistent")
+        resp = client_with_services.get("/api/task/nonexistent", headers=_AUTH_HEADERS)
         assert resp.status_code == 404
-        assert "不存在" in resp.json()["detail"]
+        assert "不存在" in resp.json()["error"]["message"]
 
     def test_load_task_fields(self, client_with_services: TestClient) -> None:
         """测试加载任务包含完整字段"""
-        resp = client_with_services.get("/api/task/task-001")
+        resp = client_with_services.get("/api/task/task-001", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         expected_fields = [
@@ -360,7 +374,7 @@ class TestListTasks:
 
     def test_list_tasks_default(self, client_with_services: TestClient) -> None:
         """测试默认列出任务"""
-        resp = client_with_services.get("/api/task/list")
+        resp = client_with_services.get("/api/task/list", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert "tasks" in data
@@ -370,19 +384,19 @@ class TestListTasks:
 
     def test_list_tasks_with_status_filter(self, client_with_services: TestClient) -> None:
         """测试按状态过滤"""
-        resp = client_with_services.get("/api/task/list?status=pending")
+        resp = client_with_services.get("/api/task/list?status=pending", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert data["total"] >= 0
 
     def test_list_tasks_with_grade_filter(self, client_with_services: TestClient) -> None:
         """测试按级别过滤"""
-        resp = client_with_services.get("/api/task/list?grade=LIGHT")
+        resp = client_with_services.get("/api/task/list?grade=LIGHT", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
 
     def test_list_tasks_with_pagination(self, client_with_services: TestClient) -> None:
         """测试分页参数"""
-        resp = client_with_services.get("/api/task/list?limit=10&offset=5")
+        resp = client_with_services.get("/api/task/list?limit=10&offset=5", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert data["limit"] == 10
@@ -390,15 +404,15 @@ class TestListTasks:
 
     def test_list_tasks_invalid_status(self, client_with_services: TestClient) -> None:
         """测试无效状态过滤返回 400"""
-        resp = client_with_services.get("/api/task/list?status=invalid")
+        resp = client_with_services.get("/api/task/list?status=invalid", headers=_AUTH_HEADERS)
         assert resp.status_code == 400
-        assert "无效状态" in resp.json()["detail"]
+        assert "无效状态" in resp.json()["error"]["message"]
 
     def test_list_tasks_invalid_grade(self, client_with_services: TestClient) -> None:
         """测试无效级别过滤返回 400"""
-        resp = client_with_services.get("/api/task/list?grade=INVALID")
+        resp = client_with_services.get("/api/task/list?grade=INVALID", headers=_AUTH_HEADERS)
         assert resp.status_code == 400
-        assert "无效级别" in resp.json()["detail"]
+        assert "无效级别" in resp.json()["error"]["message"]
 
     def test_list_tasks_with_results(self, client_with_services: TestClient, mock_persistence: MagicMock) -> None:
         """测试列出有结果的任务"""
@@ -408,7 +422,7 @@ class TestListTasks:
             _make_task_state("t3", "任务3", "pending"),
         ])
 
-        resp = client_with_services.get("/api/task/list")
+        resp = client_with_services.get("/api/task/list", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert data["total"] == 3
@@ -425,6 +439,7 @@ class TestCreateCheckpoint:
         """测试成功创建断点"""
         resp = client_with_services.post(
             "/api/task/task-001/checkpoint",
+            headers=_AUTH_HEADERS,
             json={
                 "data": {"step": 3, "context": {"var": "value"}},
                 "current_step": "正在处理第3步",
@@ -443,18 +458,20 @@ class TestCreateCheckpoint:
 
         resp = client_with_services.post(
             "/api/task/nonexistent/checkpoint",
+            headers=_AUTH_HEADERS,
             json={
                 "data": {"step": 1},
                 "current_step": "step 1",
             },
         )
         assert resp.status_code == 404
-        assert "不存在" in resp.json()["detail"]
+        assert "不存在" in resp.json()["error"]["message"]
 
     def test_create_checkpoint_empty_data(self, client_with_services: TestClient) -> None:
         """测试空断点数据"""
         resp = client_with_services.post(
             "/api/task/task-001/checkpoint",
+            headers=_AUTH_HEADERS,
             json={
                 "data": {},
                 "current_step": "",
@@ -473,7 +490,7 @@ class TestResumeTask:
 
     def test_resume_task_success(self, client_with_services: TestClient) -> None:
         """测试成功恢复任务"""
-        resp = client_with_services.post("/api/task/task-001/resume")
+        resp = client_with_services.post("/api/task/task-001/resume", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert data["task_id"] == "task-001"
@@ -485,9 +502,9 @@ class TestResumeTask:
         """测试恢复不存在的任务返回 404"""
         mock_persistence.resume_from_checkpoint = AsyncMock(return_value=None)
 
-        resp = client_with_services.post("/api/task/nonexistent/resume")
+        resp = client_with_services.post("/api/task/nonexistent/resume", headers=_AUTH_HEADERS)
         assert resp.status_code == 404
-        assert "无法恢复" in resp.json()["detail"]
+        assert "无法恢复" in resp.json()["error"]["message"]
 
 
 # ── GET /api/task/stats 测试 ──────────────────────────────
@@ -498,7 +515,7 @@ class TestTaskStats:
 
     def test_get_stats_success(self, client_with_services: TestClient) -> None:
         """测试获取统计信息"""
-        resp = client_with_services.get("/api/task/stats")
+        resp = client_with_services.get("/api/task/stats", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert data["total"] == 10
@@ -519,7 +536,7 @@ class TestTaskStats:
             }
         )
 
-        resp = client_with_services.get("/api/task/stats")
+        resp = client_with_services.get("/api/task/stats", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert data["total"] == 0
@@ -527,7 +544,7 @@ class TestTaskStats:
 
     def test_get_stats_distribution(self, client_with_services: TestClient) -> None:
         """测试统计分布数据"""
-        resp = client_with_services.get("/api/task/stats")
+        resp = client_with_services.get("/api/task/stats", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert data["by_status"]["pending"] == 3

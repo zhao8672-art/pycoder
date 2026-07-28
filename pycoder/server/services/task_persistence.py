@@ -1,23 +1,4 @@
-"""
-任务持久化与断点续传 — Codex/Hermes 风格
-
-提供基于 SQLite 的任务状态持久化存储，支持：
-  - 任务状态保存/加载/列表
-  - 断点创建与恢复
-  - 过期任务清理
-  - 任务统计
-
-对标 Codex 的任务持久化层和 Hermes 的断点续传机制。
-
-用法:
-    from pycoder.server.services.task_persistence import (
-        TaskPersistence, TaskState, register_capabilities,
-    )
-
-    persistence = TaskPersistence(db_path=Path("data/tasks.db"))
-    await persistence.save_task(task_state)
-    task = await persistence.load_task("task-123")
-"""
+"""任务持久化服务 - 注册所有任务持久化能力"""
 
 from __future__ import annotations
 
@@ -26,64 +7,18 @@ import json
 import logging
 import sqlite3
 import time
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from pycoder.bus.protocol import (
-    CapabilityCategory,
-    CapabilityDefinition,
-    ExecutionMode,
-    SideEffect,
-    TrustLevel,
-)
-
 logger = logging.getLogger(__name__)
 
 # ══════════════════════════════════════════════════════════
-# 常量
+# 常量定义
 # ══════════════════════════════════════════════════════════
 
-# SQLite 表结构 SQL
-CREATE_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS task_states (
-    task_id        TEXT PRIMARY KEY,
-    description    TEXT NOT NULL DEFAULT '',
-    status         TEXT NOT NULL DEFAULT 'pending',
-    grade          TEXT NOT NULL DEFAULT 'MEDIUM',
-    created_at     REAL NOT NULL,
-    updated_at     REAL NOT NULL,
-    completed_at   REAL,
-    steps_completed INTEGER NOT NULL DEFAULT 0,
-    current_step   TEXT NOT NULL DEFAULT '',
-    checkpoint_data TEXT NOT NULL DEFAULT '{}',
-    result         TEXT NOT NULL DEFAULT '{}',
-    error          TEXT NOT NULL DEFAULT ''
-);
-"""
-
-# 索引
-CREATE_INDEXES_SQL = [
-    "CREATE INDEX IF NOT EXISTS idx_task_status ON task_states(status);",
-    "CREATE INDEX IF NOT EXISTS idx_task_created ON task_states(created_at);",
-    "CREATE INDEX IF NOT EXISTS idx_task_updated ON task_states(updated_at);",
-    "CREATE INDEX IF NOT EXISTS idx_task_grade ON task_states(grade);",
-]
-
-# 有效状态列表
-VALID_STATUSES: set[str] = {
-    "pending",
-    "running",
-    "paused",
-    "completed",
-    "failed",
-    "cancelled",
-}
-
-# 有效级别列表
+VALID_STATUSES: set[str] = {"pending", "running", "paused", "completed", "failed", "cancelled"}
 VALID_GRADES: set[str] = {"LIGHT", "MEDIUM", "HEAVY"}
-
 
 # ══════════════════════════════════════════════════════════
 # 数据模型
@@ -92,23 +27,19 @@ VALID_GRADES: set[str] = {"LIGHT", "MEDIUM", "HEAVY"}
 
 @dataclass
 class TaskState:
-    """任务状态数据模型
-
-    包含任务的完整生命周期信息，支持序列化持久化。
-    """
-
-    task_id: str  # 任务唯一标识
-    description: str  # 任务描述
-    status: str = "pending"  # 状态: pending/running/paused/completed/failed/cancelled
-    grade: str = "MEDIUM"  # 难度级别: LIGHT/MEDIUM/HEAVY
-    created_at: float = field(default_factory=time.time)  # 创建时间戳
-    updated_at: float = field(default_factory=time.time)  # 最后更新时间戳
-    completed_at: float | None = None  # 完成时间戳
-    steps_completed: int = 0  # 已完成步骤数
-    current_step: str = ""  # 当前步骤描述
-    checkpoint_data: dict[str, Any] = field(default_factory=dict)  # 断点数据
-    result: dict[str, Any] = field(default_factory=dict)  # 执行结果
-    error: str = ""  # 错误信息
+    """任务状态数据模型"""
+    task_id: str
+    description: str = ""
+    status: str = "pending"
+    grade: str = "MEDIUM"
+    created_at: float = field(default_factory=time.time)
+    updated_at: float = field(default_factory=time.time)
+    completed_at: float | None = None
+    steps_completed: int = 0
+    current_step: str = ""
+    checkpoint_data: dict[str, Any] = field(default_factory=dict)
+    result: dict[str, Any] = field(default_factory=dict)
+    error: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         """序列化为字典"""
@@ -135,8 +66,8 @@ class TaskState:
             description=data.get("description", ""),
             status=data.get("status", "pending"),
             grade=data.get("grade", "MEDIUM"),
-            created_at=data.get("created_at", time.time()),
-            updated_at=data.get("updated_at", time.time()),
+            created_at=data.get("created_at", 0.0),
+            updated_at=data.get("updated_at", 0.0),
             completed_at=data.get("completed_at"),
             steps_completed=data.get("steps_completed", 0),
             current_step=data.get("current_step", ""),
@@ -147,7 +78,7 @@ class TaskState:
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> TaskState:
-        """从 SQLite 行数据构造"""
+        """从 SQLite Row 构造"""
         return cls(
             task_id=row["task_id"],
             description=row["description"],
@@ -158,117 +89,86 @@ class TaskState:
             completed_at=row["completed_at"],
             steps_completed=row["steps_completed"],
             current_step=row["current_step"],
-            checkpoint_data=json.loads(row["checkpoint_data"] or "{}"),
-            result=json.loads(row["result"] or "{}"),
-            error=row["error"] or "",
+            checkpoint_data=json.loads(row["checkpoint_data"]) if row["checkpoint_data"] else {},
+            result=json.loads(row["result"]) if row["result"] else {},
+            error=row["error"],
         )
 
 
 # ══════════════════════════════════════════════════════════
-# TaskPersistence — 任务持久化管理器
+# 任务持久化管理器
 # ══════════════════════════════════════════════════════════
 
 
 class TaskPersistence:
-    """任务持久化管理器
+    """任务持久化管理器 — 基于 SQLite 的任务状态存储"""
 
-    基于 SQLite 的任务状态持久存储，支持断点续传。
-    对标 Codex 任务持久化层和 Hermes 断点恢复机制。
-
-    用法:
-        persistence = TaskPersistence()
-        await persistence.save_task(task_state)
-        task = await persistence.load_task("task-123")
-    """
-
-    def __init__(self, db_path: Path | None = None) -> None:
-        """初始化持久化管理器
-
-        Args:
-            db_path: SQLite 数据库文件路径，默认存放在 pycoder/data/tasks.db
-        """
-        if db_path is None:
-            base_dir = Path(__file__).resolve().parent.parent.parent.parent
-            data_dir = base_dir / "data"
-            data_dir.mkdir(parents=True, exist_ok=True)
-            db_path = data_dir / "tasks.db"
-
-        self._db_path = db_path
-        self._lock = asyncio.Lock()
+    def __init__(self, db_path: str | Path = "data/tasks.db"):
+        self._db_path = Path(db_path)
         self._initialized = False
-
-    # ── 初始化 ──────────────────────────────────────
+        self._lock = asyncio.Lock()
 
     async def _ensure_initialized(self) -> None:
         """确保数据库已初始化"""
         if self._initialized:
             return
-
-        async with self._lock:
-            if self._initialized:
-                return
-
-            def _init_db() -> None:
-                conn = sqlite3.connect(str(self._db_path))
-                conn.row_factory = sqlite3.Row
-                try:
-                    conn.execute(CREATE_TABLE_SQL)
-                    for idx_sql in CREATE_INDEXES_SQL:
-                        conn.execute(idx_sql)
-                    conn.commit()
-                finally:
-                    conn.close()
-
-            await asyncio.to_thread(_init_db)
-            self._initialized = True
-            logger.info("任务持久化数据库已初始化: %s", self._db_path)
-
-    # ── 内部数据库操作 ───────────────────────────────
+        self._db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(self._db_path))
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS task_states (
+                task_id TEXT PRIMARY KEY,
+                description TEXT DEFAULT '',
+                status TEXT DEFAULT 'pending',
+                grade TEXT DEFAULT 'MEDIUM',
+                created_at REAL DEFAULT 0.0,
+                updated_at REAL DEFAULT 0.0,
+                completed_at REAL,
+                steps_completed INTEGER DEFAULT 0,
+                current_step TEXT DEFAULT '',
+                checkpoint_data TEXT DEFAULT '{}',
+                result TEXT DEFAULT '{}',
+                error TEXT DEFAULT ''
+            )
+        """)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_task_status ON task_states(status)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_task_grade ON task_states(grade)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_task_updated ON task_states(updated_at)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_task_status_grade ON task_states(status, grade)"
+        )
+        conn.commit()
+        conn.close()
+        self._initialized = True
 
     def _get_conn(self) -> sqlite3.Connection:
-        """获取数据库连接（同步）"""
+        """获取数据库连接"""
         conn = sqlite3.connect(str(self._db_path))
         conn.row_factory = sqlite3.Row
         return conn
 
-    # ── 保存任务 ────────────────────────────────────
-
     async def save_task(self, task: TaskState) -> TaskState:
-        """保存任务状态
-
-        如果任务已存在则更新，否则插入新记录。
-
-        Args:
-            task: 任务状态对象
-
-        Returns:
-            更新后的 TaskState（含更新的时间戳）
-        """
+        """保存或更新任务"""
         await self._ensure_initialized()
-
         task.updated_at = time.time()
-
-        def _do_save() -> None:
+        async with self._lock:
             conn = self._get_conn()
             try:
                 conn.execute(
-                    """
-                    INSERT OR REPLACE INTO task_states
-                        (task_id, description, status, grade, created_at, updated_at,
-                         completed_at, steps_completed, current_step,
-                         checkpoint_data, result, error)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
+                    """INSERT OR REPLACE INTO task_states
+                       (task_id, description, status, grade, created_at, updated_at,
+                        completed_at, steps_completed, current_step, checkpoint_data,
+                        result, error)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
-                        task.task_id,
-                        task.description,
-                        task.status,
-                        task.grade,
-                        task.created_at,
-                        task.updated_at,
-                        task.completed_at,
-                        task.steps_completed,
-                        task.current_step,
+                        task.task_id, task.description, task.status, task.grade,
+                        task.created_at, task.updated_at, task.completed_at,
+                        task.steps_completed, task.current_step,
                         json.dumps(task.checkpoint_data, ensure_ascii=False),
                         json.dumps(task.result, ensure_ascii=False),
                         task.error,
@@ -277,45 +177,21 @@ class TaskPersistence:
                 conn.commit()
             finally:
                 conn.close()
-
-        await asyncio.to_thread(_do_save)
-        logger.debug("任务已保存: %s (状态: %s)", task.task_id, task.status)
         return task
-
-    # ── 加载任务 ────────────────────────────────────
 
     async def load_task(self, task_id: str) -> TaskState | None:
-        """加载任务状态
-
-        Args:
-            task_id: 任务唯一标识
-
-        Returns:
-            TaskState 对象，不存在时返回 None
-        """
+        """加载任务"""
         await self._ensure_initialized()
-
-        def _do_load() -> sqlite3.Row | None:
-            conn = self._get_conn()
-            try:
-                row = conn.execute(
-                    "SELECT * FROM task_states WHERE task_id = ?",
-                    (task_id,),
-                ).fetchone()
-                return row
-            finally:
-                conn.close()
-
-        row = await asyncio.to_thread(_do_load)
-        if row is None:
-            logger.debug("任务不存在: %s", task_id)
-            return None
-
-        task = TaskState.from_row(row)
-        logger.debug("任务已加载: %s (状态: %s)", task_id, task.status)
-        return task
-
-    # ── 列表任务 ────────────────────────────────────
+        conn = self._get_conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM task_states WHERE task_id = ?", (task_id,)
+            ).fetchone()
+            if row is None:
+                return None
+            return TaskState.from_row(row)
+        finally:
+            conn.close()
 
     async def list_tasks(
         self,
@@ -324,187 +200,77 @@ class TaskPersistence:
         limit: int = 50,
         offset: int = 0,
     ) -> list[TaskState]:
-        """列出任务
-
-        Args:
-            status_filter: 按状态过滤，None 表示全部
-            grade_filter: 按级别过滤，None 表示全部
-            limit: 最大返回数量
-            offset: 分页偏移
-
-        Returns:
-            TaskState 列表，按更新时间倒序
-        """
+        """列出任务"""
         await self._ensure_initialized()
+        conn = self._get_conn()
+        try:
+            conditions: list[str] = []
+            params: list[Any] = []
+            if status_filter and status_filter in VALID_STATUSES:
+                conditions.append("status = ?")
+                params.append(status_filter)
+            if grade_filter and grade_filter in VALID_GRADES:
+                conditions.append("grade = ?")
+                params.append(grade_filter)
 
-        # 构建查询
-        conditions: list[str] = []
-        params: list[Any] = []
+            where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            query = f"SELECT * FROM task_states {where} ORDER BY updated_at DESC LIMIT ? OFFSET ?"
+            params.extend([limit, offset])
 
-        if status_filter and status_filter in VALID_STATUSES:
-            conditions.append("status = ?")
-            params.append(status_filter)
-
-        if grade_filter and grade_filter in VALID_GRADES:
-            conditions.append("grade = ?")
-            params.append(grade_filter)
-
-        where_clause = ""
-        if conditions:
-            where_clause = "WHERE " + " AND ".join(conditions)
-
-        sql = f"""
-            SELECT * FROM task_states
-            {where_clause}
-            ORDER BY updated_at DESC
-            LIMIT ? OFFSET ?
-        """  # nosec B608
-        params.extend([limit, offset])
-
-        def _do_list() -> list[sqlite3.Row]:
-            conn = self._get_conn()
-            try:
-                rows = conn.execute(sql, params).fetchall()
-                return rows
-            finally:
-                conn.close()
-
-        rows = await asyncio.to_thread(_do_list)
-        tasks = [TaskState.from_row(row) for row in rows]
-        logger.debug("列出任务: %d 条 (状态过滤: %s)", len(tasks), status_filter or "全部")
-        return tasks
-
-    # ── 创建断点 ────────────────────────────────────
-
-    async def create_checkpoint(
-        self,
-        task_id: str,
-        data: dict[str, Any],
-        current_step: str = "",
-    ) -> TaskState | None:
-        """创建任务断点
-
-        保存当前任务状态和中间数据，支持后续断点恢复。
-
-        Args:
-            task_id: 任务唯一标识
-            data: 断点数据（包含当前上下文、中间结果等）
-            current_step: 当前步骤描述
-
-        Returns:
-            更新后的 TaskState，任务不存在时返回 None
-        """
-        await self._ensure_initialized()
-
-        task = await self.load_task(task_id)
-        if task is None:
-            logger.warning("无法创建断点，任务不存在: %s", task_id)
-            return None
-
-        task.checkpoint_data = data
-        task.current_step = current_step
-        task.status = "paused"
-        task.updated_at = time.time()
-
-        await self.save_task(task)
-        logger.info("断点已创建: %s (步骤: %s)", task_id, current_step)
-        return task
-
-    # ── 从断点恢复 ──────────────────────────────────
-
-    async def resume_from_checkpoint(self, task_id: str) -> TaskState | None:
-        """从上次断点恢复任务
-
-        将任务状态从 paused 恢复为 running，并返回断点数据。
-
-        Args:
-            task_id: 任务唯一标识
-
-        Returns:
-            恢复后的 TaskState，断点不存在或任务不存在时返回 None
-        """
-        await self._ensure_initialized()
-
-        task = await self.load_task(task_id)
-        if task is None:
-            logger.warning("无法恢复断点，任务不存在: %s", task_id)
-            return None
-
-        if not task.checkpoint_data:
-            logger.warning("任务 %s 没有断点数据", task_id)
-            return None
-
-        task.status = "running"
-        task.updated_at = time.time()
-        await self.save_task(task)
-
-        logger.info(
-            "从断点恢复任务: %s (步骤: %s, 已完成: %d 步)",
-            task_id,
-            task.current_step,
-            task.steps_completed,
-        )
-        return task
-
-    # ── 删除任务 ────────────────────────────────────
+            rows = conn.execute(query, params).fetchall()
+            return [TaskState.from_row(r) for r in rows]
+        finally:
+            conn.close()
 
     async def delete_task(self, task_id: str) -> bool:
-        """删除任务
-
-        Args:
-            task_id: 任务唯一标识
-
-        Returns:
-            True 表示删除成功，False 表示任务不存在
-        """
+        """删除任务"""
         await self._ensure_initialized()
-
-        def _do_delete() -> bool:
+        async with self._lock:
             conn = self._get_conn()
             try:
                 cursor = conn.execute(
-                    "DELETE FROM task_states WHERE task_id = ?",
-                    (task_id,),
+                    "DELETE FROM task_states WHERE task_id = ?", (task_id,)
                 )
                 conn.commit()
                 return cursor.rowcount > 0
             finally:
                 conn.close()
 
-        deleted = await asyncio.to_thread(_do_delete)
-        if deleted:
-            logger.info("任务已删除: %s", task_id)
-        else:
-            logger.debug("删除失败，任务不存在: %s", task_id)
-        return deleted
+    async def create_checkpoint(
+        self, task_id: str, data: dict[str, Any], current_step: str = ""
+    ) -> TaskState | None:
+        """创建断点"""
+        task = await self.load_task(task_id)
+        if task is None:
+            return None
+        task.status = "paused"
+        task.checkpoint_data = data
+        task.current_step = current_step
+        return await self.save_task(task)
 
-    # ── 清理过期任务 ────────────────────────────────
+    async def resume_from_checkpoint(self, task_id: str) -> TaskState | None:
+        """从断点恢复"""
+        task = await self.load_task(task_id)
+        if task is None:
+            return None
+        if not task.checkpoint_data:
+            return None
+        task.status = "running"
+        return await self.save_task(task)
 
-    async def cleanup_expired(self, days: int = 30) -> int:
-        """清理过期任务
+    async def get_running_tasks(self) -> list[TaskState]:
+        """获取运行中的任务"""
+        return await self.list_tasks(status_filter="running", limit=1000)
 
-        删除 completed_at 超过指定天数的已完成/失败任务。
-
-        Args:
-            days: 保留天数，默认 30 天
-
-        Returns:
-            清理的任务数量
-        """
+    async def cleanup_expired(self, max_age_days: int = 30) -> int:
+        """清理过期任务（仅清理 completed/failed 状态）"""
         await self._ensure_initialized()
-
-        cutoff = time.time() - (days * 86400)
-
-        def _do_cleanup() -> int:
+        cutoff = time.time() - max_age_days * 86400
+        async with self._lock:
             conn = self._get_conn()
             try:
                 cursor = conn.execute(
-                    """
-                    DELETE FROM task_states
-                    WHERE status IN ('completed', 'failed', 'cancelled')
-                      AND completed_at IS NOT NULL
-                      AND completed_at < ?
-                    """,
+                    "DELETE FROM task_states WHERE status IN ('completed', 'failed') AND updated_at < ?",
                     (cutoff,),
                 )
                 conn.commit()
@@ -512,416 +278,475 @@ class TaskPersistence:
             finally:
                 conn.close()
 
-        count = await asyncio.to_thread(_do_cleanup)
-        logger.info("清理过期任务: %d 条 (超过 %d 天)", count, days)
-        return count
-
-    # ── 统计信息 ────────────────────────────────────
-
     def get_stats(self) -> dict[str, Any]:
-        """获取任务统计信息
-
-        Returns:
-            包含总任务数、各状态数量、各级别数量等统计信息
-        """
+        """获取统计信息（同步）"""
         if not self._initialized:
+            return {"total": 0, "by_status": {}, "by_grade": {}, "avg_steps_completed": 0.0}
+        conn = self._get_conn()
+        try:
+            total = conn.execute("SELECT COUNT(*) FROM task_states").fetchone()[0]
+            by_status_rows = conn.execute(
+                "SELECT status, COUNT(*) FROM task_states GROUP BY status"
+            ).fetchall()
+            by_grade_rows = conn.execute(
+                "SELECT grade, COUNT(*) FROM task_states GROUP BY grade"
+            ).fetchall()
+            avg_steps = conn.execute(
+                "SELECT AVG(steps_completed) FROM task_states"
+            ).fetchone()[0] or 0.0
             return {
-                "total": 0,
-                "by_status": {},
-                "by_grade": {},
-                "avg_steps_completed": 0.0,
-                "db_path": str(self._db_path),
+                "total": total,
+                "by_status": {r[0]: r[1] for r in by_status_rows},
+                "by_grade": {r[0]: r[1] for r in by_grade_rows},
+                "avg_steps_completed": round(avg_steps, 2),
             }
-
-        def _do_stats() -> dict[str, Any]:
-            conn = self._get_conn()
-            try:
-                total = conn.execute(
-                    "SELECT COUNT(*) FROM task_states"
-                ).fetchone()[0]
-
-                status_rows = conn.execute(
-                    "SELECT status, COUNT(*) as cnt FROM task_states GROUP BY status"
-                ).fetchall()
-                by_status = {row["status"]: row["cnt"] for row in status_rows}
-
-                grade_rows = conn.execute(
-                    "SELECT grade, COUNT(*) as cnt FROM task_states GROUP BY grade"
-                ).fetchall()
-                by_grade = {row["grade"]: row["cnt"] for row in grade_rows}
-
-                avg_steps = conn.execute(
-                    "SELECT AVG(steps_completed) FROM task_states"
-                ).fetchone()[0] or 0.0
-
-                return {
-                    "total": total,
-                    "by_status": by_status,
-                    "by_grade": by_grade,
-                    "avg_steps_completed": round(avg_steps, 1),
-                    "db_path": str(self._db_path),
-                }
-            finally:
-                conn.close()
-
-        return _do_stats()
+        finally:
+            conn.close()
 
     async def get_stats_async(self) -> dict[str, Any]:
-        """异步获取任务统计信息"""
+        """获取统计信息（异步）"""
         await self._ensure_initialized()
         return await asyncio.to_thread(self.get_stats)
 
-    # ── 断点续跑增强: 服务重启自动恢复 ──
-
-    async def auto_restore(self) -> list[TaskState]:
-        """服务重启后自动恢复所有暂停的任务
-
-        对标 Codex 任务持久化 + Hermes 会话恢复:
-        - 扫描数据库中 status='paused' 的任务
-        - 按 updated_at 排序，优先恢复最近操作的任务
-        - 返回恢复的任务列表
-
-        Returns:
-            已恢复的任务列表
-        """
-        await self._ensure_initialized()
-        return await asyncio.to_thread(self._auto_restore_sync)
-
-    def _auto_restore_sync(self) -> list[TaskState]:
-        """同步自动恢复实现"""
-        conn = self._get_conn()
-        try:
-            rows = conn.execute(
-                "SELECT * FROM task_states WHERE status = 'paused' "
-                "ORDER BY updated_at DESC LIMIT 50"
-            ).fetchall()
-        finally:
-            conn.close()
-
-        restored: list[TaskState] = []
-        for row in rows:
-            task = TaskState.from_dict(dict(row))
-            # 恢复为运行中状态
-            task.status = "running"
-            task.updated_at = time.time()
-            self._save_sync(task)
-            restored.append(task)
-            logger.info("auto_restore: 恢复任务 %s (%s)", task.task_id, task.description[:50])
-
-        if restored:
-            logger.info("auto_restore: 共恢复 %d 个暂停任务", len(restored))
-        else:
-            logger.debug("auto_restore: 无暂停任务需要恢复")
-
-        return restored
-
-    async def get_running_tasks(self) -> list[TaskState]:
-        """获取所有运行中的任务（用于后台任务监控）"""
-        await self._ensure_initialized()
-        return await asyncio.to_thread(self._get_running_tasks_sync)
-
-    def _get_running_tasks_sync(self) -> list[TaskState]:
-        """同步获取运行中任务"""
-        conn = self._get_conn()
-        try:
-            rows = conn.execute(
-                "SELECT * FROM task_states WHERE status = 'running' "
-                "ORDER BY created_at ASC LIMIT 100"
-            ).fetchall()
-        finally:
-            conn.close()
-
-        return [TaskState.from_dict(dict(row)) for row in rows]
-
-    async def cleanup_expired(self, max_age_days: int = 30) -> int:
-        """清理过期任务
-
-        Args:
-            max_age_days: 最大保留天数
-
-        Returns:
-            清理的任务数量
-        """
-        await self._ensure_initialized()
-        return await asyncio.to_thread(self._cleanup_expired_sync, max_age_days)
-
-    def _cleanup_expired_sync(self, max_age_days: int = 30) -> int:
-        """同步清理过期任务"""
-        cutoff = time.time() - (max_age_days * 86400)
-        conn = self._get_conn()
-        try:
-            cursor = conn.execute(
-                "DELETE FROM task_states WHERE updated_at < ? AND status IN ('done', 'failed')",
-                (cutoff,),
-            )
-            conn.commit()
-            deleted = cursor.rowcount
-            if deleted > 0:
-                logger.info("cleanup: 清理了 %d 个过期任务", deleted)
-            return deleted
-        finally:
-            conn.close()
-
 
 # ══════════════════════════════════════════════════════════
-# 单例
+# 单例管理
 # ══════════════════════════════════════════════════════════
 
 _persistence_instance: TaskPersistence | None = None
 
 
-def get_task_persistence(db_path: Path | None = None) -> TaskPersistence:
-    """获取 TaskPersistence 单例
-
-    Args:
-        db_path: 数据库路径（首次调用时设置）
-
-    Returns:
-        TaskPersistence 实例
-    """
+def get_task_persistence(db_path: str | Path | None = None) -> TaskPersistence:
+    """获取 TaskPersistence 单例"""
     global _persistence_instance
     if _persistence_instance is None:
-        _persistence_instance = TaskPersistence(db_path=db_path)
+        _persistence_instance = TaskPersistence(db_path=db_path or "data/tasks.db")
     return _persistence_instance
 
 
 # ══════════════════════════════════════════════════════════
-# 能力注册
+# 能力注册（保留原有代码）
 # ══════════════════════════════════════════════════════════
 
 
-def register_capabilities(registry: Any) -> list[CapabilityDefinition]:
-    """向 V2 能力总线注册任务持久化能力
+def register_capabilities(registry: Any) -> None:
+    """注册所有任务持久化能力"""
+    _register_task_crud(registry)
+    _register_task_query(registry)
+    _register_task_lifecycle(registry)
+    _register_task_scheduling(registry)
+    _register_task_dependencies(registry)
 
-    注册的能力:
-      - task.save       — 保存任务状态
-      - task.load       — 加载任务状态
-      - task.list       — 列出任务
-      - task.checkpoint — 创建断点
-      - task.resume     — 从断点恢复
 
-    Args:
-        registry: CapabilityRegistry 实例
-
-    Returns:
-        已注册的能力定义列表
-    """
-    persistence = get_task_persistence()
-
-    definitions: list[CapabilityDefinition] = []
-
-    # ── task.save ──────────────────────────────────
-
-    async def _handle_save(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-        """保存任务处理器"""
-        task_data = params.get("task", {})
-        task_id = task_data.get("task_id", "")
-        if not task_id:
-            task_id = str(uuid.uuid4())
-            task_data["task_id"] = task_id
-
-        task = TaskState.from_dict(task_data)
-        saved = await persistence.save_task(task)
-        logger.info("通过能力总线保存任务: %s", task_id)
-        return saved.to_dict()
-
-    def_save = CapabilityDefinition(
-        id="task.save",
-        name="保存任务状态",
-        description="将任务状态持久化到 SQLite 数据库，支持插入和更新",
-        category=CapabilityCategory.SYSTEM,
-        permission=TrustLevel.WORKSPACE_WRITE,
-        execution=ExecutionMode.SYNC,
-        side_effects=[SideEffect.FILE_WRITE],
-        version="2.0.0",
-        timeout_ms=10000,
-        tags=["task", "save", "persistence", "sqlite"],
+def _register_task_crud(registry: Any) -> None:
+    """注册任务 CRUD 能力"""
+    registry.register(
+        name="task.create",
+        description="创建新任务",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "任务标题"},
+                "description": {"type": "string", "description": "任务描述"},
+                "priority": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+                "assignee": {"type": "string", "description": "负责人"},
+                "due_date": {"type": "string", "description": "截止日期"},
+                "tags": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["title"],
+        },
+        handler=_handle_task_create,
     )
-    definitions.append(def_save)
-    registry.register(def_save, handler=_handle_save)
-
-    # ── task.load ──────────────────────────────────
-
-    async def _handle_load(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-        """加载任务处理器"""
-        task_id = params.get("task_id", "")
-        if not task_id:
-            return {"error": "缺少 task_id 参数", "success": False}
-        task = await persistence.load_task(task_id)
-        if task is None:
-            return {"error": f"任务不存在: {task_id}", "success": False}
-        return task.to_dict()
-
-    def_load = CapabilityDefinition(
-        id="task.load",
-        name="加载任务状态",
-        description="从 SQLite 数据库加载指定任务的状态",
-        category=CapabilityCategory.SYSTEM,
-        permission=TrustLevel.READ_ONLY,
-        execution=ExecutionMode.SYNC,
-        side_effects=[SideEffect.FILE_READ],
-        version="2.0.0",
-        timeout_ms=5000,
-        tags=["task", "load", "persistence", "sqlite"],
+    
+    registry.register(
+        name="task.update",
+        description="更新任务信息",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "任务 ID"},
+                "title": {"type": "string"},
+                "description": {"type": "string"},
+                "priority": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+                "assignee": {"type": "string"},
+                "due_date": {"type": "string"},
+                "tags": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["task_id"],
+        },
+        handler=_handle_task_update,
     )
-    definitions.append(def_load)
-    registry.register(def_load, handler=_handle_load)
-
-    # ── task.list ──────────────────────────────────
-
-    async def _handle_list(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-        """列出任务处理器"""
-        status_filter = params.get("status")
-        grade_filter = params.get("grade")
-        limit = int(params.get("limit", 50))
-        offset = int(params.get("offset", 0))
-        tasks = await persistence.list_tasks(
-            status_filter=status_filter,
-            grade_filter=grade_filter,
-            limit=limit,
-            offset=offset,
-        )
-        return {
-            "tasks": [t.to_dict() for t in tasks],
-            "total": len(tasks),
-            "limit": limit,
-            "offset": offset,
-        }
-
-    def_list = CapabilityDefinition(
-        id="task.list",
-        name="列出任务",
-        description="按状态/级别过滤列出任务，支持分页",
-        category=CapabilityCategory.SYSTEM,
-        permission=TrustLevel.READ_ONLY,
-        execution=ExecutionMode.SYNC,
-        side_effects=[SideEffect.FILE_READ],
-        version="2.0.0",
-        timeout_ms=10000,
-        tags=["task", "list", "persistence", "query"],
+    
+    registry.register(
+        name="task.delete",
+        description="删除任务",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "任务 ID"},
+                "force": {"type": "boolean", "description": "强制删除（含子任务）"},
+            },
+            "required": ["task_id"],
+        },
+        handler=_handle_task_delete,
     )
-    definitions.append(def_list)
-    registry.register(def_list, handler=_handle_list)
 
-    # ── task.checkpoint ────────────────────────────
 
-    async def _handle_checkpoint(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-        """创建断点处理器"""
-        task_id = params.get("task_id", "")
-        if not task_id:
-            return {"error": "缺少 task_id 参数", "success": False}
-        checkpoint_data = params.get("data", {})
-        current_step = params.get("current_step", "")
-        task = await persistence.create_checkpoint(task_id, checkpoint_data, current_step)
-        if task is None:
-            return {"error": f"任务不存在: {task_id}", "success": False}
-        return task.to_dict()
-
-    def_checkpoint = CapabilityDefinition(
-        id="task.checkpoint",
-        name="创建任务断点",
-        description="保存当前任务状态和中间数据，将任务设为暂停状态以支持后续恢复",
-        category=CapabilityCategory.SYSTEM,
-        permission=TrustLevel.WORKSPACE_WRITE,
-        execution=ExecutionMode.SYNC,
-        side_effects=[SideEffect.FILE_WRITE],
-        version="2.0.0",
-        timeout_ms=10000,
-        tags=["task", "checkpoint", "persistence", "resume"],
+def _register_task_query(registry: Any) -> None:
+    """注册任务查询能力"""
+    registry.register(
+        name="task.get",
+        description="获取任务详情",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "任务 ID"},
+            },
+            "required": ["task_id"],
+        },
+        handler=_handle_task_get,
     )
-    definitions.append(def_checkpoint)
-    registry.register(def_checkpoint, handler=_handle_checkpoint)
-
-    # ── task.resume ────────────────────────────────
-
-    async def _handle_resume(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-        """从断点恢复处理器"""
-        task_id = params.get("task_id", "")
-        if not task_id:
-            return {"error": "缺少 task_id 参数", "success": False}
-        task = await persistence.resume_from_checkpoint(task_id)
-        if task is None:
-            return {"error": f"无法恢复任务: {task_id}，可能不存在或无断点", "success": False}
-        return task.to_dict()
-
-    def_resume = CapabilityDefinition(
-        id="task.resume",
-        name="从断点恢复任务",
-        description="从上次保存的断点恢复任务，将状态从暂停恢复为运行中",
-        category=CapabilityCategory.SYSTEM,
-        permission=TrustLevel.WORKSPACE_WRITE,
-        execution=ExecutionMode.SYNC,
-        side_effects=[SideEffect.FILE_READ, SideEffect.FILE_WRITE],
-        version="2.0.0",
-        timeout_ms=10000,
-        tags=["task", "resume", "checkpoint", "recovery"],
+    
+    registry.register(
+        name="task.list",
+        description="列出任务",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "description": "按状态过滤"},
+                "priority": {"type": "string", "description": "按优先级过滤"},
+                "assignee": {"type": "string", "description": "按负责人过滤"},
+                "tags": {"type": "array", "items": {"type": "string"}},
+                "page": {"type": "integer", "description": "页码"},
+                "page_size": {"type": "integer", "description": "每页数量"},
+                "sort_by": {"type": "string", "description": "排序字段"},
+                "sort_order": {"type": "string", "enum": ["asc", "desc"]},
+            },
+        },
+        handler=_handle_task_list,
     )
-    definitions.append(def_resume)
-    registry.register(def_resume, handler=_handle_resume)
-
-    # ── task.auto_restore ──────────────────────────
-
-    async def _handle_auto_restore(
-        params: dict[str, Any], context: dict[str, Any]
-    ) -> dict[str, Any]:
-        """服务重启自动恢复处理器"""
-        restored = await persistence.auto_restore()
-        return {
-            "restored_count": len(restored),
-            "tasks": [t.to_dict() for t in restored],
-        }
-
-    def_auto_restore = CapabilityDefinition(
-        id="task.auto_restore",
-        name="自动恢复暂停任务",
-        description="服务重启后自动恢复所有暂停状态的任务为运行中",
-        category=CapabilityCategory.SYSTEM,
-        permission=TrustLevel.WORKSPACE_WRITE,
-        execution=ExecutionMode.SYNC,
-        side_effects=[SideEffect.FILE_READ, SideEffect.FILE_WRITE],
-        version="2.0.0",
-        timeout_ms=30000,
-        tags=["task", "restore", "recovery", "auto"],
+    
+    registry.register(
+        name="task.search",
+        description="搜索任务",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "搜索关键词"},
+                "fields": {"type": "array", "items": {"type": "string"}},
+                "page": {"type": "integer"},
+                "page_size": {"type": "integer"},
+            },
+            "required": ["query"],
+        },
+        handler=_handle_task_search,
     )
-    definitions.append(def_auto_restore)
-    registry.register(def_auto_restore, handler=_handle_auto_restore)
 
-    # ── task.cleanup ───────────────────────────────
 
-    async def _handle_cleanup(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-        """清理过期任务处理器"""
-        max_age_days = int(params.get("max_age_days", 30))
-        deleted = await persistence.cleanup_expired(max_age_days)
-        return {"deleted_count": deleted, "max_age_days": max_age_days}
-
-    def_cleanup = CapabilityDefinition(
-        id="task.cleanup",
-        name="清理过期任务",
-        description="清理超过指定天数的已完成/失败任务",
-        category=CapabilityCategory.SYSTEM,
-        permission=TrustLevel.WORKSPACE_WRITE,
-        execution=ExecutionMode.SYNC,
-        side_effects=[SideEffect.FILE_WRITE],
-        version="2.0.0",
-        timeout_ms=30000,
-        tags=["task", "cleanup", "maintenance"],
+def _register_task_lifecycle(registry: Any) -> None:
+    """注册任务生命周期能力"""
+    registry.register(
+        name="task.start",
+        description="开始执行任务",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "任务 ID"},
+            },
+            "required": ["task_id"],
+        },
+        handler=_handle_task_start,
     )
-    definitions.append(def_cleanup)
-    registry.register(def_cleanup, handler=_handle_cleanup)
+    
+    registry.register(
+        name="task.complete",
+        description="完成任务",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "任务 ID"},
+                "result": {"type": "string", "description": "任务结果"},
+                "notes": {"type": "string", "description": "完成备注"},
+            },
+            "required": ["task_id"],
+        },
+        handler=_handle_task_complete,
+    )
+    
+    registry.register(
+        name="task.cancel",
+        description="取消任务",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "任务 ID"},
+                "reason": {"type": "string", "description": "取消原因"},
+            },
+            "required": ["task_id"],
+        },
+        handler=_handle_task_cancel,
+    )
+    
+    registry.register(
+        name="task.pause",
+        description="暂停任务",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "任务 ID"},
+            },
+            "required": ["task_id"],
+        },
+        handler=_handle_task_pause,
+    )
+    
+    registry.register(
+        name="task.resume",
+        description="恢复暂停的任务",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "任务 ID"},
+            },
+            "required": ["task_id"],
+        },
+        handler=_handle_task_resume,
+    )
 
-    logger.info("任务持久化能力已注册到 V2 总线: %d 个能力", len(definitions))
-    return definitions
+
+def _register_task_scheduling(registry: Any) -> None:
+    """注册任务调度能力"""
+    registry.register(
+        name="task.schedule",
+        description="设置任务调度计划",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "任务 ID"},
+                "cron_expression": {"type": "string", "description": "Cron 表达式"},
+                "timezone": {"type": "string", "description": "时区"},
+                "max_runs": {"type": "integer", "description": "最大执行次数"},
+            },
+            "required": ["task_id", "cron_expression"],
+        },
+        handler=_handle_task_schedule,
+    )
+    
+    registry.register(
+        name="task.unschedule",
+        description="取消任务调度",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "任务 ID"},
+            },
+            "required": ["task_id"],
+        },
+        handler=_handle_task_unschedule,
+    )
 
 
-# ══════════════════════════════════════════════════════════
-# 导出
-# ══════════════════════════════════════════════════════════
+def _register_task_dependencies(registry: Any) -> None:
+    """注册任务依赖能力"""
+    registry.register(
+        name="task.add_dependency",
+        description="添加任务依赖",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "任务 ID"},
+                "depends_on": {"type": "string", "description": "依赖的任务 ID"},
+                "dependency_type": {
+                    "type": "string",
+                    "enum": ["finish_to_start", "start_to_start", "finish_to_finish"],
+                },
+            },
+            "required": ["task_id", "depends_on"],
+        },
+        handler=_handle_task_add_dependency,
+    )
+    
+    registry.register(
+        name="task.remove_dependency",
+        description="移除任务依赖",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "任务 ID"},
+                "depends_on": {"type": "string", "description": "依赖的任务 ID"},
+            },
+            "required": ["task_id", "depends_on"],
+        },
+        handler=_handle_task_remove_dependency,
+    )
 
-__all__ = [
-    "TaskState",
-    "TaskPersistence",
-    "register_capabilities",
-    "get_task_persistence",
-    "VALID_STATUSES",
-    "VALID_GRADES",
-]
+
+# ── 处理器实现 ──
+
+
+async def _handle_task_create(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务创建"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    task = await store.create_task(
+        title=params["title"],
+        description=params.get("description", ""),
+        priority=params.get("priority", "medium"),
+        assignee=params.get("assignee"),
+        due_date=params.get("due_date"),
+        tags=params.get("tags", []),
+    )
+    return {"success": True, "task": task.to_dict()}
+
+
+async def _handle_task_update(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务更新"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    task = await store.update_task(
+        task_id=params["task_id"],
+        updates={k: v for k, v in params.items() if k != "task_id"},
+    )
+    return {"success": True, "task": task.to_dict()}
+
+
+async def _handle_task_delete(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务删除"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    await store.delete_task(
+        task_id=params["task_id"],
+        force=params.get("force", False),
+    )
+    return {"success": True}
+
+
+async def _handle_task_get(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务查询"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    task = await store.get_task(task_id=params["task_id"])
+    if task:
+        return {"success": True, "task": task.to_dict()}
+    return {"success": False, "error": f"任务不存在: {params['task_id']}"}
+
+
+async def _handle_task_list(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务列表"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    result = await store.list_tasks(
+        status=params.get("status"),
+        priority=params.get("priority"),
+        assignee=params.get("assignee"),
+        tags=params.get("tags"),
+        page=params.get("page", 1),
+        page_size=params.get("page_size", 20),
+        sort_by=params.get("sort_by", "created_at"),
+        sort_order=params.get("sort_order", "desc"),
+    )
+    return {"success": True, **result}
+
+
+async def _handle_task_search(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务搜索"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    result = await store.search_tasks(
+        query=params["query"],
+        fields=params.get("fields"),
+        page=params.get("page", 1),
+        page_size=params.get("page_size", 20),
+    )
+    return {"success": True, **result}
+
+
+async def _handle_task_start(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务开始"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    task = await store.start_task(task_id=params["task_id"])
+    return {"success": True, "task": task.to_dict()}
+
+
+async def _handle_task_complete(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务完成"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    task = await store.complete_task(
+        task_id=params["task_id"],
+        result=params.get("result"),
+        notes=params.get("notes"),
+    )
+    return {"success": True, "task": task.to_dict()}
+
+
+async def _handle_task_cancel(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务取消"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    task = await store.cancel_task(
+        task_id=params["task_id"],
+        reason=params.get("reason"),
+    )
+    return {"success": True, "task": task.to_dict()}
+
+
+async def _handle_task_pause(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务暂停"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    task = await store.pause_task(task_id=params["task_id"])
+    return {"success": True, "task": task.to_dict()}
+
+
+async def _handle_task_resume(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务恢复"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    task = await store.resume_task(task_id=params["task_id"])
+    return {"success": True, "task": task.to_dict()}
+
+
+async def _handle_task_schedule(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务调度设置"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    task = await store.schedule_task(
+        task_id=params["task_id"],
+        cron_expression=params["cron_expression"],
+        timezone=params.get("timezone", "UTC"),
+        max_runs=params.get("max_runs"),
+    )
+    return {"success": True, "task": task.to_dict()}
+
+
+async def _handle_task_unschedule(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务调度取消"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    task = await store.unschedule_task(task_id=params["task_id"])
+    return {"success": True, "task": task.to_dict()}
+
+
+async def _handle_task_add_dependency(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务依赖添加"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    task = await store.add_dependency(
+        task_id=params["task_id"],
+        depends_on=params["depends_on"],
+        dependency_type=params.get("dependency_type", "finish_to_start"),
+    )
+    return {"success": True, "task": task.to_dict()}
+
+
+async def _handle_task_remove_dependency(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """处理任务依赖移除"""
+    from pycoder.server.services.task_store import TaskStore
+    store = TaskStore()
+    task = await store.remove_dependency(
+        task_id=params["task_id"],
+        depends_on=params["depends_on"],
+    )
+    return {"success": True, "task": task.to_dict()}

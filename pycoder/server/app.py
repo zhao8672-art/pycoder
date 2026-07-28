@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging as _logging
 import os
 
@@ -922,6 +923,11 @@ async def _start_scheduler():
 
 async def _scheduled_self_scan():
     """定时自扫描任务 — V2 自进化每日检查 + 记录真实质量快照"""
+    # ✅ BUGFIX: 测试环境中跳过，避免递归 pytest
+    if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("PYCODER_TEST_MODE"):
+        _logger.debug("self_scan_skip: test environment detected")
+        return
+
     try:
         engine = get_v2_engine()
         if engine is None or engine.evolution is None:
@@ -942,7 +948,8 @@ async def _scheduled_self_scan():
                 MetricsTracker,
             )
             mt = MetricsTracker()
-            mt.run_real_quality_snapshot()
+            # ✅ BUGFIX: 使用 asyncio.to_thread 避免阻塞事件循环
+            await asyncio.to_thread(mt.run_real_quality_snapshot)
         except (ImportError, RuntimeError, ValueError, TypeError) as _e:
             _logger.debug("quality_snapshot_skip: %s", _e)
     except Exception as e:

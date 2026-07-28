@@ -26,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/sandbox", tags=["sandbox"])
 
+# 沙箱池（兼容性保留，供测试 mock 注入）
+_sandbox_pool = None
+
 
 # ── Pydantic 模型 ──────────────────────────────────────
 

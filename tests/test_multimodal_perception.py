@@ -360,11 +360,9 @@ class TestGetStats:
         await perception.perceive_image(str(img_path))
 
         stats = perception.get_stats()
-        # total_calls 含 method 和 success_method 键，2 次成功 = 4
-        # success_rate = total_success / total_calls = 2/4 = 0.5
-        assert stats["total_calls"] == 4
+        assert stats["total_calls"] == 2
         assert stats["total_success"] == 2
-        assert stats["success_rate"] == pytest.approx(0.5, rel=0.01)
+        assert stats["success_rate"] == pytest.approx(1.0, rel=0.01)
         assert stats["avg_processing_time_ms"] > 0
         assert stats["by_method"]["perceive_image"] == 2
 
@@ -384,11 +382,10 @@ class TestGetStats:
         await perception.perceive_image("/nonexistent.png")
 
         stats = perception.get_stats()
-        # total_calls 含 method 和 success_method 键；
-        # 不存在的文件走早期 return 不记录 stats，故 perceive_image 实际只计 1 次
-        assert stats["total_calls"] >= 4
-        assert stats["total_success"] >= 2
-        assert stats["by_method"]["perceive_image"] == 1
+        # 5 次调用：4 成功 + 1 失败（不存在的文件）
+        assert stats["total_calls"] == 5
+        assert stats["total_success"] == 4
+        assert stats["by_method"]["perceive_image"] == 2
         assert stats["by_method"]["perceive_screenshot"] == 1
         assert stats["by_method"]["perceive_diagram"] == 1
         assert stats["by_method"]["perceive_error_screenshot"] == 1

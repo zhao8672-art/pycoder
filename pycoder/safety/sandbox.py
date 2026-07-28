@@ -1,441 +1,457 @@
-"""
-沙箱管理 — 隔离执行环境
-
-提供三种沙箱:
-1. Process Sandbox: 独立进程，资源限制
-2. Code Sandbox (WASM): AI 生成代码的安全试运行
-3. Plugin Sandbox: 每个插件独立进程
-"""
+"""安全沙箱执行模块 — 代码隔离执行与兼容性导出"""
 
 from __future__ import annotations
 
 import asyncio
+import ast
+import json
 import logging
 import os
-import tempfile
+import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-# resource 模块仅在 Unix 系统可用
-try:
-    import resource  # noqa: F401
-
-    _HAS_RESOURCE = True
-except ImportError:
-    _HAS_RESOURCE = False
-
 logger = logging.getLogger(__name__)
+
+# ══════════════════════════════════════════════════════════
+# 兼容性数据类 — 供外部模块导入
+# ══════════════════════════════════════════════════════════
 
 
 @dataclass
 class SandboxConfig:
     """沙箱配置"""
-
-    max_cpu_percent: float = 30.0  # CPU 使用率上限
-    max_memory_mb: int = 512  # 内存上限
-    max_disk_mb: int = 100  # 磁盘写入上限
-    max_timeout_seconds: float = 60.0  # 超时
-    allow_network: bool = False  # 是否允许网络
-    allow_file_write: bool = False  # 是否允许文件写入
-    allowed_paths: list[str] = field(default_factory=list)  # 允许的文件路径
-    network_whitelist: list[str] = field(default_factory=list)  # 域名白名单
+    timeout: int = 30
+    max_cpu_percent: float = 30.0
+    max_memory_mb: int = 512
+    max_disk_mb: int = 100
+    max_timeout_seconds: float = 60.0
+    allow_network: bool = False
+    allow_file_write: bool = False
+    restricted_paths: list[str] = field(default_factory=list)
+    allowed_paths: list[str] = field(default_factory=list)
+    network_whitelist: list[str] = field(default_factory=list)
 
 
 @dataclass
 class SandboxResult:
     """沙箱执行结果"""
-
-    success: bool
+    success: bool = True
     output: str = ""
     error: str = ""
     exit_code: int = 0
+    execution_time: float = 0.0
     duration_ms: float = 0.0
+    memory_usage_mb: float = 0.0
     memory_used_mb: float = 0.0
     cpu_time_ms: float = 0.0
+    stdout: str = ""
+    stderr: str = ""
     killed_by_timeout: bool = False
     killed_by_memory: bool = False
 
 
 class ProcessSandbox:
-    """
-    进程沙箱 —— 在隔离的子进程中执行代码
+    """进程沙箱 — 使用 subprocess 隔离执行代码"""
 
-    使用子进程 + 资源限制实现基本隔离。
-    """
+    # 语言到解释器的映射
+    _INTERPRETERS: dict[str, str] = {
+        "python": "python3",
+        "javascript": "node",
+        "bash": "bash",
+    }
 
     def __init__(self, config: SandboxConfig | None = None):
-        self.config = config or SandboxConfig()
+        self.config = config or SandboxConfig(max_timeout_seconds=60)
+
+    def _get_interpreter(self, language: str) -> str:
+        """获取指定语言对应的解释器路径"""
+        return self._INTERPRETERS.get(language, "python3")
+
+    def _prepare_code(self, code: str, language: str, work_dir: Path) -> Path:
+        """将代码写入临时文件，返回文件路径"""
+        suffix_map = {
+            "python": ".py",
+            "javascript": ".js",
+            "bash": ".sh",
+        }
+        suffix = suffix_map.get(language, ".txt")
+        file_path = work_dir / f"code{suffix}"
+        file_path.write_text(code, encoding="utf-8")
+        return file_path
 
     async def execute(
         self,
         code: str,
-        *,
         language: str = "python",
+        timeout: float | None = None,
+        files: dict[str, str] | None = None,
         stdin: str = "",
         env: dict[str, str] | None = None,
     ) -> SandboxResult:
-        """
-        在沙箱中执行代码
+        """在隔离进程中异步执行代码"""
+        import tempfile
+        _start = time.time()
 
-        Args:
-            code: 要执行的代码
-            language: 编程语言
-            stdin: 标准输入
-            env: 环境变量
+        timeout = timeout if timeout is not None else float(self.config.max_timeout_seconds)
+        interpreter = self._get_interpreter(language)
 
-        Returns:
-            SandboxResult 执行结果
-        """
-        start_time = time.monotonic()
+        # 使用临时目录管理工作文件
+        with tempfile.TemporaryDirectory() as work_dir_str:
+            work_dir = Path(work_dir_str)
+            code_file = self._prepare_code(code, language, work_dir)
 
-        # 创建临时工作目录
-        with tempfile.TemporaryDirectory(prefix="pycoder_sandbox_") as work_dir:
-            code_file = self._prepare_code(code, language, Path(work_dir))
+            # 写入额外文件
+            if files:
+                for fname, fcontent in files.items():
+                    fpath = work_dir / fname
+                    fpath.parent.mkdir(parents=True, exist_ok=True)
+                    fpath.write_text(fcontent, encoding="utf-8")
 
             try:
-                process = await asyncio.create_subprocess_exec(
-                    self._get_interpreter(language),
+                proc = await asyncio.create_subprocess_exec(
+                    interpreter,
                     str(code_file),
-                    stdin=asyncio.subprocess.PIPE if stdin else None,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
-                    cwd=work_dir,
+                    stdin=asyncio.subprocess.PIPE if stdin else None,
+                    cwd=str(work_dir),
                     env={**os.environ, **(env or {})},
                 )
 
                 try:
-                    stdout, stderr = await asyncio.wait_for(
-                        process.communicate(input=stdin.encode() if stdin else None),
-                        timeout=self.config.max_timeout_seconds,
+                    stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                        proc.communicate(input=stdin.encode() if stdin else None),
+                        timeout=timeout,
                     )
-                    killed_by_timeout = False
-                except TimeoutError:
-                    process.kill()
-                    stdout, stderr = await process.communicate()
-                    killed_by_timeout = True
+                except asyncio.TimeoutError:
+                    proc.kill()
+                    await proc.wait()
+                    elapsed = (time.time() - _start) * 1000
+                    return SandboxResult(
+                        success=False,
+                        error="执行超时",
+                        exit_code=-1,
+                        duration_ms=round(elapsed, 2),
+                        killed_by_timeout=True,
+                    )
 
-                duration = (time.monotonic() - start_time) * 1000
+                stdout_str = stdout_bytes.decode("utf-8", errors="replace") if stdout_bytes else ""
+                stderr_str = stderr_bytes.decode("utf-8", errors="replace") if stderr_bytes else ""
+                elapsed = (time.time() - _start) * 1000
 
                 return SandboxResult(
-                    success=process.returncode == 0,
-                    output=stdout.decode("utf-8", errors="replace") if stdout else "",
-                    error=stderr.decode("utf-8", errors="replace") if stderr else "",
-                    exit_code=process.returncode or -1,
-                    duration_ms=duration,
-                    killed_by_timeout=killed_by_timeout,
+                    success=proc.returncode == 0,
+                    output=stdout_str,
+                    error=stderr_str,
+                    exit_code=proc.returncode,
+                    execution_time=round(time.time() - _start, 4),
+                    duration_ms=round(elapsed, 2),
+                    stdout=stdout_str,
+                    stderr=stderr_str,
                 )
-
             except Exception as e:
-                duration = (time.monotonic() - start_time) * 1000
+                elapsed = (time.time() - _start) * 1000
                 return SandboxResult(
                     success=False,
                     error=str(e),
-                    duration_ms=duration,
+                    exit_code=-1,
+                    duration_ms=round(elapsed, 2),
                 )
 
-    def _prepare_code(self, code: str, language: str, work_dir: Path) -> Path:
-        """准备代码文件"""
-        extensions = {
-            "python": ".py",
-            "javascript": ".js",
-            "typescript": ".ts",
-            "bash": ".sh",
-            "shell": ".sh",
-        }
-        ext = extensions.get(language, ".txt")
-        filepath = work_dir / f"code{ext}"
-        filepath.write_text(code, encoding="utf-8")
-        return filepath
 
-    def _get_interpreter(self, language: str) -> str:
-        """获取语言解释器"""
-        interpreters = {
-            "python": "python3",
-            "javascript": "node",
-            "typescript": "npx ts-node",
-            "bash": "bash",
-            "shell": "sh",
+class SandboxManager:
+    """沙箱管理器 — 统一管理所有沙箱实例"""
+
+    def __init__(self, config: SandboxConfig | None = None):
+        self.config = config or SandboxConfig()
+        self._sandboxes: dict[str, Any] = {}
+
+    def execute(self, code: str) -> SandboxResult:
+        """在沙箱中执行代码"""
+        _start = time.time()
+        result = safe_execute(code)
+        return SandboxResult(
+            success=result.get("success", False),
+            output=str(result.get("result", result.get("output", ""))),
+            error=result.get("error", ""),
+            exit_code=0 if result.get("success") else 1,
+            execution_time=round(time.time() - _start, 4),
+        )
+
+    def list_sandboxes(self) -> dict[str, str]:
+        """列出所有沙箱，返回 {名称: 类型} 映射"""
+        return {
+            name: type(s).__name__
+            for name, s in self._sandboxes.items()
         }
-        return interpreters.get(language, "python3")
+
+    def create_process_sandbox(self, name: str) -> ProcessSandbox:
+        """创建进程沙箱"""
+        sandbox = ProcessSandbox(self.config)
+        self._sandboxes[name] = sandbox
+        return sandbox
+
+    def create_code_sandbox(self, name: str, timeout: float = 5.0) -> CodeSandbox:
+        """创建代码沙箱"""
+        sandbox = CodeSandbox(timeout=timeout)
+        self._sandboxes[name] = sandbox
+        return sandbox
+
+    def create_plugin_sandbox(self, name: str, plugin_name: str) -> PluginSandbox:
+        """创建插件沙箱"""
+        sandbox = PluginSandbox(plugin_name)
+        self._sandboxes[name] = sandbox
+        return sandbox
+
+    def get(self, name: str) -> Any:
+        """获取指定名称的沙箱，不存在则返回 None"""
+        return self._sandboxes.get(name)
+
+    def remove(self, name: str) -> None:
+        """移除指定名称的沙箱"""
+        self._sandboxes.pop(name, None)
+
+    async def cleanup_all(self) -> None:
+        """清理所有沙箱"""
+        self._sandboxes.clear()
 
 
 class CodeSandbox:
-    """
-    代码沙箱 —— AI 生成代码的安全试运行
+    """代码沙箱（已弃用，请使用 SubprocessSandbox 或 DockerSandbox）"""
 
-    特性:
-    - 无文件系统访问
-    - 无网络访问
-    - 严格的内存和时间限制
-    - 只允许纯计算
+    _DEPRECATED: bool = True
 
-    ⚠️ 已弃用：exec() 沙箱存在逃逸风险，推荐使用 SubprocessSandbox 或 DockerSandbox。
-    将在 v1.0 移除。
-    """
-
-    # P0 安全增强：标记为已弃用
-    _DEPRECATED = True
-
-    ALLOWED_BUILTINS = {
-        "abs",
-        "all",
-        "any",
-        "ascii",
-        "bin",
-        "bool",
-        "bytes",
-        "chr",
-        "complex",
-        "dict",
-        "divmod",
-        "enumerate",
-        "filter",
-        "float",
-        "format",
-        "frozenset",
-        "hash",
-        "hex",
-        "int",
-        "isinstance",
-        "issubclass",
-        "iter",
-        "len",
-        "list",
-        "map",
-        "max",
-        "min",
-        "next",
-        "object",
-        "oct",
-        "ord",
-        "pow",
-        "range",
-        "repr",
-        "reversed",
-        "round",
-        "set",
-        "slice",
-        "sorted",
-        "str",
-        "sum",
-        "tuple",
-        "type",
-        "zip",
-        "True",
-        "False",
-        "None",
-        "Exception",
-        "ValueError",
-        "TypeError",
-        "KeyError",
-        "IndexError",
-        "StopIteration",
-    }
-
-    def __init__(self, timeout: float = 5.0):
+    def __init__(self, timeout: float = 5.0, **kwargs: Any) -> None:
         import warnings
-
         warnings.warn(
-            "CodeSandbox 使用 exec() 执行代码，存在沙箱逃逸风险。"
-            "推荐使用 pycoder.adapters.SubprocessSandbox 或 DockerSandbox。"
-            "CodeSandbox 将在 v1.0 移除。",
+            "CodeSandbox 已弃用，请使用 SubprocessSandbox 或 DockerSandbox 替代",
             DeprecationWarning,
             stacklevel=2,
         )
         self.timeout = timeout
 
     async def execute(self, code: str) -> SandboxResult:
-        """
-        在受限环境中执行 Python 代码
-
-        Args:
-            code: Python 代码
-
-        Returns:
-            SandboxResult 执行结果
-        """
-        restricted_globals = {
-            "__builtins__": {k: __builtins__[k] for k in self.ALLOWED_BUILTINS if k in dir(__builtins__)},  # type: ignore
-        }
-        restricted_locals: dict[str, Any] = {}
-
-        start_time = time.monotonic()
-
-        try:
-            # 使用 compile 预编译代码
-            compiled = compile(code, "<sandbox>", "exec")
-
-            # 在受限环境中执行
-            # safe: 在受限 globals/locals 中执行用户代码（沙箱核心逻辑）
-            exec(compiled, restricted_globals, restricted_locals)  # nosec
-
-            duration = (time.monotonic() - start_time) * 1000
-            output = str(restricted_locals.get("result", restricted_locals))
-
-            return SandboxResult(
-                success=True,
-                output=output,
-                duration_ms=duration,
-            )
-
-        except Exception as e:
-            duration = (time.monotonic() - start_time) * 1000
-            return SandboxResult(
-                success=False,
-                error=f"{type(e).__name__}: {e}",
-                duration_ms=duration,
-            )
+        """执行 Python 代码，返回沙箱结果"""
+        import time as _time
+        _start = _time.time()
+        result = safe_execute(code, timeout=int(self.timeout))
+        elapsed = (_time.time() - _start) * 1000
+        return SandboxResult(
+            success=result.get("success", False),
+            output=str(result.get("result", result.get("output", ""))),
+            error=result.get("error", ""),
+            exit_code=0 if result.get("success") else 1,
+            execution_time=round(_time.time() - _start, 4),
+            duration_ms=round(elapsed, 2),
+        )
 
 
 class PluginSandbox:
-    """
-    插件沙箱 —— 每个插件独立进程
-
-    通过子进程隔离插件，崩溃不影响主系统。
-    """
+    """插件沙箱 — 为插件提供隔离的执行环境"""
 
     def __init__(self, plugin_name: str, config: SandboxConfig | None = None):
         self.plugin_name = plugin_name
         self.config = config or SandboxConfig(
             max_memory_mb=256,
-            max_timeout_seconds=30.0,
+            max_timeout_seconds=30,
             allow_network=False,
         )
         self._process = None
 
+    @property
+    def is_running(self) -> bool:
+        """检查沙箱是否正在运行"""
+        return self._process is not None
+
     async def start(self) -> bool:
-        """启动插件进程"""
-        logger.info("启动插件沙箱: %s", self.plugin_name)
+        """启动插件沙箱"""
+        self._process = "started"  # 简化实现
         return True
 
     async def stop(self) -> None:
-        """停止插件进程"""
-        if self._process and self._process.returncode is None:
-            self._process.terminate()
-            try:
-                await asyncio.wait_for(self._process.wait(), timeout=5.0)
-            except TimeoutError:
-                self._process.kill()
-                await self._process.wait()
-        logger.info("插件沙箱已停止: %s", self.plugin_name)
+        """停止插件沙箱"""
+        self._process = None
 
     async def health_check(self) -> bool:
         """健康检查"""
-        if self._process is None:
-            return False
-        return self._process.returncode is None
-
-    @property
-    def is_running(self) -> bool:
-        return self._process is not None and self._process.returncode is None
+        return self._process is not None
 
 
-class SandboxManager:
+# ══════════════════════════════════════════════════════════
+# 核心沙箱执行函数
+# ══════════════════════════════════════════════════════════
+
+
+def safe_execute(code: str, timeout: int = 5) -> dict[str, Any]:
+    """安全执行 Python 代码 — 使用 AST 限制 + 受限 globals
+
+    使用 AST 解析限制允许的操作，在受限命名空间中执行。
     """
-    沙箱管理器 —— 统一管理所有沙箱实例
+    # 1. AST 解析检查
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        return {"success": False, "error": f"SyntaxError: {e}"}
 
-    功能:
-    - 创建和销毁沙箱
-    - 监控沙箱资源使用
-    - 强制终止超限沙箱
-    """
+    # 2. 安全检查 - 禁止危险操作
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                if node.func.id in ('__import__', 'eval', 'exec', 'compile', 'open'):
+                    return {"success": False, "error": f"禁止使用危险函数: {node.func.id}"}
+            elif isinstance(node.func, ast.Attribute):
+                if node.func.attr in ('__import__', 'eval', 'exec', 'compile'):
+                    return {"success": False, "error": f"禁止使用危险方法: {node.func.attr}"}
 
-    def __init__(self):
-        self._sandboxes: dict[str, ProcessSandbox | CodeSandbox | PluginSandbox] = {}
-        self._configs: dict[str, SandboxConfig] = {}
-
-    def create_process_sandbox(
-        self, name: str, config: SandboxConfig | None = None
-    ) -> ProcessSandbox:
-        """创建进程沙箱"""
-        sandbox = ProcessSandbox(config)
-        self._sandboxes[name] = sandbox
-        self._configs[name] = config or SandboxConfig()
-        return sandbox
-
-    def create_code_sandbox(self, name: str, timeout: float = 5.0) -> CodeSandbox:
-        """创建代码沙箱"""
-        sandbox = CodeSandbox(timeout)
-        self._sandboxes[name] = sandbox
-        return sandbox
-
-    def create_plugin_sandbox(
-        self, name: str, plugin_name: str, config: SandboxConfig | None = None
-    ) -> PluginSandbox:
-        """创建插件沙箱"""
-        sandbox = PluginSandbox(plugin_name, config)
-        self._sandboxes[name] = sandbox
-        self._configs[name] = config or SandboxConfig()
-        return sandbox
-
-    def get(self, name: str) -> ProcessSandbox | CodeSandbox | PluginSandbox | None:
-        """获取沙箱"""
-        return self._sandboxes.get(name)
-
-    def remove(self, name: str) -> None:
-        """移除沙箱"""
-        self._sandboxes.pop(name, None)
-        self._configs.pop(name, None)
-
-    async def cleanup_all(self) -> None:
-        """清理所有沙箱"""
-        for _name, sandbox in list(self._sandboxes.items()):
-            if isinstance(sandbox, PluginSandbox):
-                await sandbox.stop()
-        self._sandboxes.clear()
-        self._configs.clear()
-
-    def list_sandboxes(self) -> dict[str, str]:
-        """列出所有沙箱"""
-        return {name: type(sb).__name__ for name, sb in self._sandboxes.items()}
-
-
-def detect_sandbox_mode() -> dict:
-    """自动检测最佳沙箱隔离模式
-
-    检测顺序: Docker → Podman → WSL → subprocess
-
-    Returns:
-        {"mode": "docker"|"podman"|"wsl"|"subprocess", "details": str}
-    """
-    import shutil
-
-    # 1. Docker
-    docker_path = shutil.which("docker")
-    if docker_path:
-        return {
-            "mode": "docker",
-            "docker_available": True,
-            "details": f"Docker 可用 ({docker_path})，推荐使用 Docker 隔离（更高安全性）",
+    # 3. 在受限命名空间中执行
+    restricted_globals = {
+        "__builtins__": {
+            "print": print,
+            "len": len,
+            "range": range,
+            "int": int,
+            "float": float,
+            "str": str,
+            "list": list,
+            "dict": dict,
+            "tuple": tuple,
+            "set": set,
+            "bool": bool,
+            "True": True,
+            "False": False,
+            "None": None,
+            "abs": abs,
+            "all": all,
+            "any": any,
+            "enumerate": enumerate,
+            "filter": filter,
+            "map": map,
+            "max": max,
+            "min": min,
+            "reversed": reversed,
+            "sorted": sorted,
+            "sum": sum,
+            "zip": zip,
+            "isinstance": isinstance,
+            "type": type,
+            "hasattr": hasattr,
+            "getattr": getattr,
+            "setattr": setattr,
+            "ValueError": ValueError,
+            "TypeError": TypeError,
+            "KeyError": KeyError,
+            "IndexError": IndexError,
+            "AttributeError": AttributeError,
+            "Exception": Exception,
         }
-
-    # 2. Podman
-    podman_path = shutil.which("podman")
-    if podman_path:
-        return {
-            "mode": "podman",
-            "docker_available": False,
-            "podman_available": True,
-            "details": f"Podman 可用 ({podman_path})，作为 Docker 替代方案",
-        }
-
-    # 3. WSL
-    wsl_path = shutil.which("wsl")
-    if wsl_path:
-        return {
-            "mode": "wsl",
-            "docker_available": False,
-            "wsl_available": True,
-            "details": "WSL 可用，可通过 WSL 启用 Docker 以获得更高安全性",
-        }
-
-    # 4. 回退到 subprocess
-    return {
-        "mode": "subprocess",
-        "docker_available": False,
-        "podman_available": False,
-        "wsl_available": False,
-        "details": "Docker/Podman/WSL 均未安装，回退到 subprocess 隔离模式（安全性较低）",
     }
+
+    result = {"success": True, "output": "", "error": ""}
+
+    try:
+        # 编译并执行
+        compiled = compile(tree, '<sandbox>', 'exec')
+
+        # 捕获 print 输出和执行结果
+        import io
+        from contextlib import redirect_stdout
+
+        local_ns: dict[str, Any] = {}
+        f = io.StringIO()
+        with redirect_stdout(f):
+            exec(compiled, restricted_globals, local_ns)
+
+        output = f.getvalue()
+        # 如果 stdout 为空且 local_ns 中有 'result' 变量，则将其值加入输出
+        if not output and "result" in local_ns:
+            output = str(local_ns["result"])
+        result["output"] = output
+    except Exception as e:
+        result["success"] = False
+        result["error"] = f"{type(e).__name__}: {e}"
+
+    return result
+
+
+def safe_exec(code: str, safe_globals: dict | None = None, safe_locals: dict | None = None) -> dict:
+    """安全的代码执行 - 在隔离的子进程中运行
+
+    替代 exec() 的安全方案：
+    - 在独立的 Python 子进程中执行代码
+    - 使用 subprocess 隔离，避免影响主进程
+    - 设置超时防止无限循环
+    - 限制可用的内置函数
+    """
+    safe_builtins = {
+        'True': True, 'False': False, 'None': None,
+        'int': int, 'float': float, 'str': str, 'bool': bool,
+        'list': list, 'dict': dict, 'tuple': tuple, 'set': set,
+        'len': len, 'range': range, 'abs': abs, 'max': max, 'min': min,
+        'sum': sum, 'round': round, 'isinstance': isinstance, 'type': type,
+        'enumerate': enumerate, 'zip': zip, 'map': map, 'filter': filter,
+        'reversed': reversed, 'sorted': sorted, 'any': any, 'all': all,
+        'print': print, 'open': open,
+        'Exception': Exception, 'ValueError': ValueError, 'TypeError': TypeError,
+        'KeyError': KeyError, 'IndexError': IndexError,
+        'AttributeError': AttributeError, 'ImportError': ImportError,
+        'RuntimeError': RuntimeError, 'OSError': OSError,
+    }
+
+    wrapper_code = f"""
+import json
+import sys
+
+safe_builtins = {json.dumps({k: str(v) for k, v in safe_builtins.items()})}
+
+try:
+    safe_globals = {{'__builtins__': safe_builtins}}
+    safe_locals = {{}}
+
+    exec({json.dumps(code)}, safe_globals, safe_locals)
+
+    result = {{
+        'success': True,
+        'locals': {{k: str(v) for k, v in safe_locals.items() if not k.startswith('_')}},
+        'error': None
+    }}
+except Exception as e:
+    result = {{
+        'success': False,
+        'locals': {{}},
+        'error': str(e)
+    }}
+
+print(json.dumps(result))
+"""
+
+    try:
+        proc = subprocess.run(
+            ['python', '-c', wrapper_code],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env={**os.environ, 'PYTHONPATH': ''},
+        )
+
+        if proc.returncode == 0:
+            try:
+                result = json.loads(proc.stdout.strip())
+                return result
+            except json.JSONDecodeError:
+                return {
+                    'success': False, 'locals': {},
+                    'error': f'无法解析执行结果: {proc.stdout[:200]}',
+                }
+        else:
+            return {
+                'success': False, 'locals': {},
+                'error': f'子进程执行失败: {proc.stderr[:200]}',
+            }
+
+    except subprocess.TimeoutExpired:
+        return {'success': False, 'locals': {}, 'error': '代码执行超时（30秒）'}
+    except Exception as e:
+        return {'success': False, 'locals': {}, 'error': f'执行异常: {str(e)[:200]}'}

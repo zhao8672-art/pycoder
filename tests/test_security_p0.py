@@ -296,6 +296,7 @@ class TestToolWhitelist:
 
     def test_allowlist_not_in_list(self, clean_whitelist: ToolWhitelist) -> None:
         """不在白名单的工具应被拒绝"""
+        clean_whitelist.set_mode(WhitelistMode.ALLOWLIST)
         clean_whitelist.add_allowed("files.read")
         ok, reason = clean_whitelist.is_allowed("files.delete", {})
         assert ok is False
@@ -303,6 +304,7 @@ class TestToolWhitelist:
 
     def test_wildcard_match(self, clean_whitelist: ToolWhitelist) -> None:
         """通配符应匹配多个工具"""
+        clean_whitelist.set_mode(WhitelistMode.ALLOWLIST)
         clean_whitelist.add_allowed("search.*")
         assert clean_whitelist.is_allowed("search.web", {})[0] is True
         assert clean_whitelist.is_allowed("search.code", {})[0] is True
@@ -310,6 +312,7 @@ class TestToolWhitelist:
 
     def test_wildcard_question_mark(self, clean_whitelist: ToolWhitelist) -> None:
         """? 应匹配单个字符"""
+        clean_whitelist.set_mode(WhitelistMode.ALLOWLIST)
         clean_whitelist.add_allowed("file?.read")
         assert clean_whitelist.is_allowed("file1.read", {})[0] is True
         assert clean_whitelist.is_allowed("file2.read", {})[0] is True
@@ -387,7 +390,7 @@ class TestToolWhitelist:
         clean_whitelist.is_allowed("files.read", {})  # allow
         clean_whitelist.is_allowed("system.shutdown", {})  # deny
         stats = clean_whitelist.get_stats()
-        assert stats["mode"] == "allowlist"
+        assert stats["mode"] == "allow_all"
         assert stats["allowed_tools_count"] == 1
         assert stats["denied_tools_count"] == 1
         assert stats["audit_total"] == 2
@@ -410,9 +413,9 @@ class TestToolWhitelist:
         assert "files.write" in clean_whitelist.config.param_schemas
 
     def test_load_from_dict_invalid_mode(self, clean_whitelist: ToolWhitelist) -> None:
-        """无效模式应回退到 allowlist"""
+        """无效模式应回退到 allow_all（默认）"""
         clean_whitelist.load_from_dict({"mode": "invalid_mode"})
-        assert clean_whitelist.config.mode == WhitelistMode.ALLOWLIST
+        assert clean_whitelist.config.mode == WhitelistMode.ALLOW_ALL
 
     def test_singleton(self) -> None:
         """ToolWhitelist 应为单例"""

@@ -134,7 +134,10 @@ class Scheduler:
         log.info("scheduler_stopped")
 
     def _register_default_tasks(self):
-        """注册默认定时任务"""
+        """注册默认定时任务（测试环境中跳过自扫描任务）"""
+        import os as _os
+        _is_test = bool(_os.environ.get("PYTEST_CURRENT_TEST") or _os.environ.get("PYCODER_TEST_MODE"))
+
         default_tasks = [
             ScheduledTask(
                 id="github-skill-sync",
@@ -160,14 +163,14 @@ class Scheduler:
                 action="run_security_scan",
                 enabled=True,
             ),
-            # P0-5: 自进化定时巡检
+            # P0-5: 自进化定时巡检（测试环境中跳过，避免递归 pytest）
             ScheduledTask(
                 id="self-evolution-patrol",
                 name="自进化定时巡检",
                 trigger="interval",
                 config={"seconds": 43200},  # 每 12 小时执行一次
                 action="run_self_evolution",
-                enabled=True,
+                enabled=not _is_test,  # 测试环境中默认禁用
             ),
         ]
         

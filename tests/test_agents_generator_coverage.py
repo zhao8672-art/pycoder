@@ -210,14 +210,13 @@ class TestLoadAgentsMd:
         agents = tmp_path / "AGENTS.md"
         agents.write_text("content", encoding="utf-8")
 
-        # mock open 抛异常
-        import builtins
-        original_open = builtins.open
-        def fake_open(path, *args, **kwargs):
-            if "AGENTS.md" in str(path):
+        # mock Path.read_text 抛异常
+        original_read_text = Path.read_text
+        def fake_read_text(self, *args, **kwargs):
+            if self.name == "AGENTS.md":
                 raise OSError("perm denied")
-            return original_open(path, *args, **kwargs)
-        monkeypatch.setattr(builtins, "open", fake_open)
+            return original_read_text(self, *args, **kwargs)
+        monkeypatch.setattr(Path, "read_text", fake_read_text)
 
         result = load_agents_md(str(tmp_path))
         assert result is None

@@ -334,7 +334,18 @@ class MetricsTracker:
         """Step5: 运行真实的质量检查（ruff + py_compile），记录真实评分
 
         替代之前的硬编码虚假评分（lint_score=100, files=0 等）。
+
+        注意：测试环境中跳过子进程调用，避免递归运行 pytest。
         """
+        # ✅ BUGFIX: 测试环境中跳过，避免 pytest 递归调用
+        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("PYCODER_TEST_MODE"):
+            self._latest_quality = {
+                "lint_score": 100.0, "file_count": 0, "issue_count": 0,
+                "test_coverage": 0.0, "total_score": 100.0,
+                "source": "test_mode_skip",
+            }
+            return
+
         import subprocess as _sp
         _root = project_root or os.getcwd()
         _result = {"lint_score": 100.0, "file_count": 0, "issue_count": 0,
@@ -358,7 +369,7 @@ class MetricsTracker:
             _proc = _sp.run(
                 ["ruff", "check", os.path.join(_root, "pycoder"),
                  "--output-format=json", "--no-cache"],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True, text=True, timeout=15,
                 cwd=_root,
             )
             if _proc.stdout:
@@ -394,7 +405,7 @@ class MetricsTracker:
         try:
             _proc = _sp.run(
                 ["pytest", "--cov=pycoder", "--cov-report=term", "-q"],
-                capture_output=True, text=True, timeout=120,
+                capture_output=True, text=True, timeout=30,
                 cwd=_root,
             )
             _out = _proc.stdout + _proc.stderr

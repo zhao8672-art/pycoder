@@ -26,6 +26,8 @@ from pycoder.memory.deep_memory import (
 )
 
 
+_AUTH_HEADERS = {"X-API-Key": "test-task-api-key-12345"}
+
 # ── 辅助函数 ──────────────────────────────────────────────
 
 
@@ -127,8 +129,12 @@ def mock_system() -> MagicMock:
 
 
 @pytest.fixture
-def client_with_system(mock_system: MagicMock) -> TestClient:
-    """注入模拟 DeepMemorySystem 的 TestClient"""
+def client_with_system(mock_system: MagicMock, monkeypatch) -> TestClient:
+    """注入模拟 DeepMemorySystem 的 TestClient（自动添加认证头）"""
+    monkeypatch.setenv("PYCODER_API_KEY", _AUTH_HEADERS["X-API-Key"])
+    import importlib
+    import pycoder.server.app as app_module
+    importlib.reload(app_module)
     from pycoder.server.routers import deep_memory_api
 
     # 替换 _get_system 函数
@@ -138,8 +144,21 @@ def client_with_system(mock_system: MagicMock) -> TestClient:
     ):
         from pycoder.server.app import app
 
+        class _AuthClient:
+            """自动添加认证头的 TestClient 包装器"""
+            def __init__(self, client: TestClient):
+                self._client = client
+
+            def get(self, url: str, **kwargs):
+                kwargs.setdefault("headers", {}).update(_AUTH_HEADERS)
+                return self._client.get(url, **kwargs)
+
+            def post(self, url: str, **kwargs):
+                kwargs.setdefault("headers", {}).update(_AUTH_HEADERS)
+                return self._client.post(url, **kwargs)
+
         with TestClient(app) as c:
-            yield c
+            yield _AuthClient(c)
 
 
 # ── POST /api/memory/deep/store 测试 ──────────────────────
@@ -257,7 +276,7 @@ class TestStoreMemory:
             },
         )
         assert resp.status_code == 400
-        assert "无效的记忆层级" in resp.json()["detail"]
+        assert "无效的记忆层级" in resp.json()["error"]["message"]
 
 
 # ── POST /api/memory/deep/retrieve 测试 ───────────────────

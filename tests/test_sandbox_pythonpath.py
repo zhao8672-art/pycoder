@@ -13,22 +13,13 @@ class TestProjectRootResolution:
 
     def test_default_finds_pyproject(self, tmp_path: Path, monkeypatch) -> None:
         """默认能找到最近的 pyproject.toml 父目录."""
+        import importlib
         (tmp_path / "pyproject.toml").write_text("[project]\nname='x'", encoding="utf-8")
-        # 把 routers/code_exec.py 移到一个子目录, 模拟嵌套情况
-        nested = tmp_path / "a" / "b" / "c"
-        nested.mkdir(parents=True)
-        # 复制 code_exec.py 到 nested (这样 __file__ 在 nested 之下)
-        import shutil
-        src = Path(__file__).resolve().parent.parent / "pycoder" / "server" / "routers" / "code_exec.py"
-        if src.exists():
-            shutil.copy(src, nested / "code_exec.py")
-        # 动态执行该模块并测试 _resolve_project_root
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("ce_test", nested / "code_exec.py")
-        # 跳过完整加载 (会引发许多 import), 只测试函数
-        # 直接通过源码注入 _PROJECT_ROOT
+        # 设置环境变量后重新加载模块，确保 _PROJECT_ROOT 使用新值
         monkeypatch.setenv("PYCODER_PROJECT_ROOT", str(tmp_path))
+        # 强制重新加载模块以使用新的环境变量
         from pycoder.server.routers import code_exec
+        importlib.reload(code_exec)
         assert code_exec._PROJECT_ROOT == tmp_path.resolve()
 
     def test_env_override(self, tmp_path: Path, monkeypatch) -> None:

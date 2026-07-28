@@ -1,12 +1,11 @@
 """
-Docker 沙箱执行器 API 路由单元测试 — 覆盖 sandbox_api.py 所有端点
+沙箱 API 路由单元测试 — 覆盖 sandbox_api.py 所有端点
 
 测试范围:
-  - POST /api/sandbox/execute    — 执行代码
-  - POST /api/sandbox/command    — 执行 Shell 命令
-  - POST /api/sandbox/build-test — 构建测试
-  - GET  /api/sandbox/status     — 获取状态
-  - POST /api/sandbox/cleanup    — 清理容器
+  - GET  /api/sandbox/status       — 获取沙箱状态
+  - GET  /api/sandbox/check-docker — 检测 Docker 可用性
+  - POST /api/sandbox/execute      — 执行代码
+  - POST /api/sandbox/select       — 切换沙箱后端
 """
 
 from __future__ import annotations
@@ -16,373 +15,62 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from pycoder.safety.sandbox import SandboxResult
-from pycoder.safety.sandbox_executor import (
-    DockerNotAvailableError,
-    PoolStats,
-    SandboxMemoryError,
-    SandboxPool,
-    SandboxTimeoutError,
-)
+from pycoder.core.ports.code_sandbox import CodeExecutionResult
+
+_TEST_API_KEY = "test-task-api-key-12345"
+_AUTH_HEADERS = {"X-API-Key": _TEST_API_KEY}
 
 
 # ── 辅助函数 ──────────────────────────────────────────────
 
 
 def _make_success_result(
-    output: str = "hello world\n",
-    exit_code: int = 0,
-) -> SandboxResult:
+    stdout: str = "hello world\n",
+) -> CodeExecutionResult:
     """创建成功的沙箱执行结果"""
-    return SandboxResult(
+    return CodeExecutionResult(
         success=True,
-        output=output,
-        error="",
-        exit_code=exit_code,
-        duration_ms=15.5,
-        killed_by_timeout=False,
-        killed_by_memory=False,
-        memory_used_mb=12.3,
+        stdout=stdout,
+        stderr="",
+        execution_time=0.015,
     )
 
 
-def _make_error_result(error: str = "error occurred") -> SandboxResult:
+def _make_error_result(error_message: str = "error occurred") -> CodeExecutionResult:
     """创建失败的沙箱执行结果"""
-    return SandboxResult(
+    return CodeExecutionResult(
         success=False,
-        output="",
-        error=error,
-        exit_code=1,
-        duration_ms=10.0,
-        killed_by_timeout=False,
-        killed_by_memory=False,
-        memory_used_mb=5.0,
+        stdout="",
+        stderr=error_message,
+        error_message=error_message,
+        execution_time=0.010,
     )
 
 
-def _make_mock_executor() -> MagicMock:
-    """创建模拟的沙箱执行器"""
-    executor = MagicMock()
-    executor.execute = AsyncMock(return_value=_make_success_result())
-    executor.execute_command = AsyncMock(return_value=_make_success_result("cmd output\n"))
-    executor.build_and_test = AsyncMock(return_value=_make_success_result("test output\n"))
-    return executor
-
-
-def _make_mock_pool_stats() -> PoolStats:
-    """创建模拟的池统计信息"""
-    stats = PoolStats()
-    stats.available = 2
-    stats.in_use = 1
-    stats.total = 3
-    stats.max_containers = 10
-    stats.docker_available = True
-    return stats
+def _make_mock_info(backend: str = "subprocess", docker_available: bool = False):
+    """创建模拟的沙箱信息"""
+    info = MagicMock()
+    info.backend = backend
+    info.docker_available = docker_available
+    info.reason = "降级到 subprocess"
+    info.image = ""
+    return info
 
 
 # ── Fixtures ──────────────────────────────────────────────
 
 
 @pytest.fixture
-def mock_executor() -> MagicMock:
-    """创建模拟的沙箱执行器"""
-    return _make_mock_executor()
-
-
-@pytest.fixture
-def client_with_pool(mock_executor: MagicMock) -> TestClient:
-    """注入模拟沙箱池的 TestClient"""
-    from pycoder.server.routers import sandbox_api
-
-    # 保存原始池
-    orig_pool = sandbox_api._sandbox_pool
-
-    # 创建模拟池
-    mock_pool = MagicMock()
-
-    # 正确地模拟 async with pool.acquire() as executor
-    async def _mock_acquire(self):
-        return mock_executor
-
-    mock_pool.acquire.return_value.__aenter__ = _mock_acquire
-    mock_pool.acquire.return_value.__aexit__ = AsyncMock(return_value=None)
-    mock_pool.get_stats.return_value = _make_mock_pool_stats()
-    mock_pool.cleanup = AsyncMock(return_value=None)
-
-    sandbox_api._sandbox_pool = mock_pool
-
+def client_with_auth(monkeypatch) -> TestClient:
+    """注入认证的 TestClient"""
+    monkeypatch.setenv("PYCODER_API_KEY", _TEST_API_KEY)
+    import importlib
+    import pycoder.server.app as app_module
+    importlib.reload(app_module)
     from pycoder.server.app import app
 
     with TestClient(app) as c:
         yield c
-
-    sandbox_api._sandbox_pool = orig_pool
-
-
-# ── POST /api/sandbox/execute 测试 ────────────────────────
-
-
-class TestExecuteCode:
-    """沙箱代码执行端点"""
-
-    def test_execute_python_success(self, client_with_pool: TestClient) -> None:
-        """测试执行 Python 代码成功"""
-        resp = client_with_pool.post(
-            "/api/sandbox/execute",
-            json={
-                "code": "print('hello world')",
-                "language": "python",
-            },
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is True
-        assert "hello world" in data["output"]
-        assert data["exit_code"] == 0
-        assert data["duration_ms"] > 0
-        assert data["killed_by_timeout"] is False
-        assert data["killed_by_memory"] is False
-
-    def test_execute_with_files(self, client_with_pool: TestClient) -> None:
-        """测试带额外文件的代码执行"""
-        resp = client_with_pool.post(
-            "/api/sandbox/execute",
-            json={
-                "code": "print('hello')",
-                "language": "python",
-                "files": {"data.txt": "hello data"},
-            },
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is True
-
-    def test_execute_with_network_enabled(self, client_with_pool: TestClient) -> None:
-        """测试启用网络的代码执行"""
-        resp = client_with_pool.post(
-            "/api/sandbox/execute",
-            json={
-                "code": "print('hello')",
-                "language": "python",
-                "network_enabled": True,
-            },
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is True
-
-    def test_execute_empty_code(self, client_with_pool: TestClient) -> None:
-        """测试空代码返回 400"""
-        resp = client_with_pool.post(
-            "/api/sandbox/execute",
-            json={"code": "", "language": "python"},
-        )
-        assert resp.status_code == 400
-        assert "不能为空" in resp.json()["detail"]
-
-    def test_execute_whitespace_code(self, client_with_pool: TestClient) -> None:
-        """测试纯空白代码返回 400"""
-        resp = client_with_pool.post(
-            "/api/sandbox/execute",
-            json={"code": "   ", "language": "python"},
-        )
-        assert resp.status_code == 400
-
-    def test_execute_timeout_error(self, client_with_pool: TestClient, mock_executor: MagicMock) -> None:
-        """测试超时返回 408"""
-        mock_executor.execute = AsyncMock(side_effect=SandboxTimeoutError(30.0))
-
-        resp = client_with_pool.post(
-            "/api/sandbox/execute",
-            json={"code": "while True: pass", "language": "python"},
-        )
-        assert resp.status_code == 408
-
-    def test_execute_memory_error(self, client_with_pool: TestClient, mock_executor: MagicMock) -> None:
-        """测试内存超限返回 413"""
-        mock_executor.execute = AsyncMock(side_effect=SandboxMemoryError(1024))
-
-        resp = client_with_pool.post(
-            "/api/sandbox/execute",
-            json={"code": "big_array = [0]*10**9", "language": "python"},
-        )
-        assert resp.status_code == 413
-
-    def test_execute_docker_not_available(self, client_with_pool: TestClient, mock_executor: MagicMock) -> None:
-        """测试 Docker 不可用返回 503"""
-        mock_executor.execute = AsyncMock(
-            side_effect=DockerNotAvailableError("连接被拒绝")
-        )
-
-        resp = client_with_pool.post(
-            "/api/sandbox/execute",
-            json={"code": "print('hello')", "language": "python"},
-        )
-        assert resp.status_code == 503
-        assert "Docker" in resp.json()["detail"]
-
-    def test_execute_with_custom_timeout(self, client_with_pool: TestClient) -> None:
-        """测试自定义超时参数"""
-        resp = client_with_pool.post(
-            "/api/sandbox/execute",
-            json={
-                "code": "print('hello')",
-                "language": "python",
-                "timeout": 10.0,
-            },
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is True
-
-    def test_execute_default_language(self, client_with_pool: TestClient) -> None:
-        """测试默认语言为 python"""
-        resp = client_with_pool.post(
-            "/api/sandbox/execute",
-            json={"code": "print('hello')"},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is True
-
-
-# ── POST /api/sandbox/command 测试 ────────────────────────
-
-
-class TestExecuteCommand:
-    """沙箱命令执行端点"""
-
-    def test_execute_command_success(self, client_with_pool: TestClient) -> None:
-        """测试命令执行成功"""
-        resp = client_with_pool.post(
-            "/api/sandbox/command",
-            json={"command": "ls -la"},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is True
-        assert "cmd output" in data["output"]
-
-    def test_execute_command_with_cwd(self, client_with_pool: TestClient) -> None:
-        """测试指定工作目录的命令执行"""
-        resp = client_with_pool.post(
-            "/api/sandbox/command",
-            json={
-                "command": "ls",
-                "cwd": "/sandbox",
-            },
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is True
-
-    def test_execute_command_empty(self, client_with_pool: TestClient) -> None:
-        """测试空命令返回 400"""
-        resp = client_with_pool.post(
-            "/api/sandbox/command",
-            json={"command": ""},
-        )
-        assert resp.status_code == 400
-        assert "不能为空" in resp.json()["detail"]
-
-    def test_execute_command_timeout(self, client_with_pool: TestClient, mock_executor: MagicMock) -> None:
-        """测试命令超时"""
-        mock_executor.execute_command = AsyncMock(
-            side_effect=SandboxTimeoutError(30.0)
-        )
-
-        resp = client_with_pool.post(
-            "/api/sandbox/command",
-            json={"command": "sleep 100"},
-        )
-        assert resp.status_code == 408
-
-    def test_execute_command_docker_unavailable(self, client_with_pool: TestClient, mock_executor: MagicMock) -> None:
-        """测试 Docker 不可用"""
-        mock_executor.execute_command = AsyncMock(
-            side_effect=DockerNotAvailableError("不可用")
-        )
-
-        resp = client_with_pool.post(
-            "/api/sandbox/command",
-            json={"command": "echo hello"},
-        )
-        assert resp.status_code == 503
-
-
-# ── POST /api/sandbox/build-test 测试 ─────────────────────
-
-
-class TestBuildTest:
-    """构建测试端点"""
-
-    def test_build_test_success(self, client_with_pool: TestClient) -> None:
-        """测试构建测试成功"""
-        resp = client_with_pool.post(
-            "/api/sandbox/build-test",
-            json={
-                "project_path": "/tmp/test-project",
-                "test_command": "pytest",
-            },
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is True
-        assert "test output" in data["output"]
-
-    def test_build_test_empty_path(self, client_with_pool: TestClient) -> None:
-        """测试空项目路径返回 400"""
-        resp = client_with_pool.post(
-            "/api/sandbox/build-test",
-            json={
-                "project_path": "",
-                "test_command": "pytest",
-            },
-        )
-        assert resp.status_code == 400
-        assert "项目路径" in resp.json()["detail"]
-
-    def test_build_test_empty_command(self, client_with_pool: TestClient) -> None:
-        """测试空测试命令返回 400"""
-        resp = client_with_pool.post(
-            "/api/sandbox/build-test",
-            json={
-                "project_path": "/tmp/test-project",
-                "test_command": "",
-            },
-        )
-        assert resp.status_code == 400
-        assert "测试命令" in resp.json()["detail"]
-
-    def test_build_test_timeout(self, client_with_pool: TestClient, mock_executor: MagicMock) -> None:
-        """测试构建超时"""
-        mock_executor.build_and_test = AsyncMock(
-            side_effect=SandboxTimeoutError(60.0)
-        )
-
-        resp = client_with_pool.post(
-            "/api/sandbox/build-test",
-            json={
-                "project_path": "/tmp/test-project",
-                "test_command": "pytest",
-            },
-        )
-        assert resp.status_code == 408
-
-    def test_build_test_docker_unavailable(self, client_with_pool: TestClient, mock_executor: MagicMock) -> None:
-        """测试 Docker 不可用"""
-        mock_executor.build_and_test = AsyncMock(
-            side_effect=DockerNotAvailableError("不可用")
-        )
-
-        resp = client_with_pool.post(
-            "/api/sandbox/build-test",
-            json={
-                "project_path": "/tmp/test-project",
-                "test_command": "pytest",
-            },
-        )
-        assert resp.status_code == 503
 
 
 # ── GET /api/sandbox/status 测试 ──────────────────────────
@@ -391,51 +79,193 @@ class TestBuildTest:
 class TestGetStatus:
     """沙箱状态端点"""
 
-    def test_get_status_success(self, client_with_pool: TestClient) -> None:
+    @patch("pycoder.server.routers.sandbox_api.get_selector")
+    def test_get_status_success(self, mock_get_selector: MagicMock, client_with_auth: TestClient) -> None:
         """测试获取沙箱状态"""
-        resp = client_with_pool.get("/api/sandbox/status")
+        mock_selector = MagicMock()
+        mock_selector.select = AsyncMock(return_value=_make_mock_info())
+        mock_get_selector.return_value = mock_selector
+
+        resp = client_with_auth.get("/api/sandbox/status", headers=_AUTH_HEADERS)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "backend" in data
+        assert "docker_available" in data
+        assert "reason" in data
+
+
+# ── GET /api/sandbox/check-docker 测试 ────────────────────
+
+
+class TestCheckDocker:
+    """Docker 检测端点"""
+
+    @patch("pycoder.server.routers.sandbox_api.check_docker_available")
+    @patch("pycoder.adapters.sandbox_selector.invalidate_docker_cache")
+    def test_check_docker(
+        self, mock_invalidate: MagicMock, mock_check: AsyncMock, client_with_auth: TestClient
+    ) -> None:
+        """测试检测 Docker 可用性"""
+        mock_check.return_value = (False, "Docker 未安装")
+
+        resp = client_with_auth.get("/api/sandbox/check-docker", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
         data = resp.json()
         assert "docker_available" in data
-        assert "stats" in data
-        assert data["stats"]["max_containers"] == 10
-
-    def test_get_status_docker_unavailable(self, client_with_pool: TestClient) -> None:
-        """测试 Docker 不可用状态"""
-        from pycoder.server.routers import sandbox_api
-
-        stats = _make_mock_pool_stats()
-        stats.docker_available = False
-        sandbox_api._sandbox_pool.get_stats.return_value = stats
-
-        resp = client_with_pool.get("/api/sandbox/status")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["docker_available"] is False
+        assert "reason" in data
 
 
-# ── POST /api/sandbox/cleanup 测试 ────────────────────────
+# ── POST /api/sandbox/execute 测试 ────────────────────────
 
 
-class TestCleanup:
-    """清理端点"""
+class TestExecuteCode:
+    """沙箱代码执行端点"""
 
-    def test_cleanup_success(self, client_with_pool: TestClient) -> None:
-        """测试成功清理"""
-        resp = client_with_pool.post("/api/sandbox/cleanup")
+    def test_execute_empty_code(self, client_with_auth: TestClient) -> None:
+        """测试空代码返回 400"""
+        resp = client_with_auth.post(
+            "/api/sandbox/execute",
+            json={"code": "", "timeout": 30},
+            headers=_AUTH_HEADERS,
+        )
+        assert resp.status_code == 400
+        assert "不能为空" in resp.json()["error"]["message"]
+
+    def test_execute_whitespace_code(self, client_with_auth: TestClient) -> None:
+        """测试纯空白代码返回 400"""
+        resp = client_with_auth.post(
+            "/api/sandbox/execute",
+            json={"code": "   ", "timeout": 30},
+            headers=_AUTH_HEADERS,
+        )
+        assert resp.status_code == 400
+
+    @patch("pycoder.server.routers.sandbox_api.execute_code", new_callable=AsyncMock)
+    def test_execute_python_success(
+        self, mock_execute: AsyncMock, client_with_auth: TestClient
+    ) -> None:
+        """测试执行 Python 代码成功"""
+        mock_execute.return_value = (
+            _make_success_result("hello world\n"),
+            _make_mock_info(),
+        )
+        resp = client_with_auth.post(
+            "/api/sandbox/execute",
+            json={"code": "print('hello world')", "timeout": 30},
+            headers=_AUTH_HEADERS,
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
-        assert "已清理" in data["message"]
+        assert "hello world" in data["stdout"]
+        assert data["sandbox_backend"] == "subprocess"
 
-    def test_cleanup_error(self, client_with_pool: TestClient) -> None:
-        """测试清理失败返回 500"""
-        from pycoder.server.routers import sandbox_api
-
-        sandbox_api._sandbox_pool.cleanup = AsyncMock(
-            side_effect=Exception("清理异常")
+    @patch("pycoder.server.routers.sandbox_api.execute_code", new_callable=AsyncMock)
+    def test_execute_with_error(
+        self, mock_execute: AsyncMock, client_with_auth: TestClient
+    ) -> None:
+        """测试执行含错误代码"""
+        mock_execute.return_value = (
+            _make_error_result("NameError: name 'x' is not defined"),
+            _make_mock_info(),
         )
+        resp = client_with_auth.post(
+            "/api/sandbox/execute",
+            json={"code": "print(x)", "timeout": 30},
+            headers=_AUTH_HEADERS,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is False
 
-        resp = client_with_pool.post("/api/sandbox/cleanup")
-        assert resp.status_code == 500
-        assert "清理失败" in resp.json()["detail"]
+    @patch("pycoder.server.routers.sandbox_api.execute_code", new_callable=AsyncMock)
+    def test_execute_with_custom_timeout(
+        self, mock_execute: AsyncMock, client_with_auth: TestClient
+    ) -> None:
+        """测试自定义超时参数"""
+        mock_execute.return_value = (
+            _make_success_result("done"),
+            _make_mock_info(),
+        )
+        resp = client_with_auth.post(
+            "/api/sandbox/execute",
+            json={"code": "print('hello')", "timeout": 10},
+            headers=_AUTH_HEADERS,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+
+    @patch("pycoder.server.routers.sandbox_api.SandboxSelector")
+    def test_execute_with_prefer_docker(
+        self, mock_selector_cls: MagicMock, client_with_auth: TestClient
+    ) -> None:
+        """测试偏好 Docker 执行"""
+        mock_selector = MagicMock()
+        mock_sandbox = MagicMock()
+        mock_sandbox.execute = AsyncMock(return_value=_make_success_result("hello"))
+        mock_selector.get_sandbox = AsyncMock(return_value=(mock_sandbox, _make_mock_info()))
+        mock_selector_cls.return_value = mock_selector
+
+        resp = client_with_auth.post(
+            "/api/sandbox/execute",
+            json={"code": "print('hello')", "timeout": 30, "prefer": "docker"},
+            headers=_AUTH_HEADERS,
+        )
+        assert resp.status_code == 200
+
+
+# ── POST /api/sandbox/select 测试 ─────────────────────────
+
+
+class TestSelectBackend:
+    """沙箱后端选择端点"""
+
+    @patch("pycoder.server.routers.sandbox_api.reset_selector")
+    @patch("pycoder.server.routers.sandbox_api.SandboxSelector")
+    def test_select_subprocess(
+        self, mock_selector_cls: MagicMock, mock_reset: MagicMock, client_with_auth: TestClient
+    ) -> None:
+        """测试切换到 subprocess 后端"""
+        mock_selector = MagicMock()
+        mock_selector.select = AsyncMock(return_value=_make_mock_info("subprocess"))
+        mock_selector_cls.return_value = mock_selector
+
+        resp = client_with_auth.post(
+            "/api/sandbox/select",
+            json={"prefer": "subprocess"},
+            headers=_AUTH_HEADERS,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["backend"] == "subprocess"
+
+    @patch("pycoder.server.routers.sandbox_api.reset_selector")
+    @patch("pycoder.server.routers.sandbox_api.SandboxSelector")
+    def test_select_docker(
+        self, mock_selector_cls: MagicMock, mock_reset: MagicMock, client_with_auth: TestClient
+    ) -> None:
+        """测试切换到 docker 后端"""
+        mock_selector = MagicMock()
+        mock_selector.select = AsyncMock(return_value=_make_mock_info("docker"))
+        mock_selector_cls.return_value = mock_selector
+
+        resp = client_with_auth.post(
+            "/api/sandbox/select",
+            json={"prefer": "docker"},
+            headers=_AUTH_HEADERS,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert "backend" in data
+
+    def test_select_invalid(self, client_with_auth: TestClient) -> None:
+        """测试无效的 prefer 值返回 422"""
+        resp = client_with_auth.post(
+            "/api/sandbox/select",
+            json={"prefer": "invalid"},
+            headers=_AUTH_HEADERS,
+        )
+        assert resp.status_code == 422
