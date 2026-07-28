@@ -89,6 +89,57 @@ async def chat(req: Request):
 
 async def _chat_impl(req: ChatRequest):
     model = _resolve_model(req.model)
+    # P0-Fix: 探测模型 provider 的网络可达性。
+    # 如果用户选择的 provider 域名不可达（DNS/网络层），自动降级到下一个可用 provider。
+    # 避免前端卡在 10s+ 超时上。
+    from pycoder.providers.auth import get_model_manager, PROVIDER_DEFS
+    from pycoder.providers.registry import ALL_MODELS
+    import socket
+    from urllib.parse import urlparse
+
+    try:
+        info = ALL_MODELS.get(model)
+        if info:
+            provider = info.provider
+            api_base = info.api_base
+            parsed = urlparse(api_base)
+            host = parsed.hostname
+            port = parsed.port or 443
+            try:
+                socket.create_connection((host, port), timeout=3.0).close()
+            except (OSError, socket.gaierror, socket.timeout):
+                # 域名不可达，降级到下一个可用 provider
+                _logger.warning(
+                    "provider_unreachable_fallback from=%s host=%s",
+                    provider, host,
+                )
+                mgr = get_model_manager()
+                mgr.auto_detect()
+                available = []
+                for pname, defs in PROVIDER_DEFS.items():
+                    if pname in mgr._detected and pname != provider:
+                        try:
+                            _p_info = ALL_MODELS.get(defs["recommended_model"])
+                            if _p_info:
+                                _parsed = urlparse(_p_info.api_base)
+                                socket.create_connection(
+                                    (_parsed.hostname, _parsed.port or 443),
+                                    timeout=3.0,
+                                ).close()
+                                available.append((defs["priority"], pname, defs["recommended_model"]))
+                        except (OSError, socket.gaierror, socket.timeout):
+                            continue
+                if available:
+                    available.sort(key=lambda x: x[0])
+                    _, fallback_provider, fallback_model = available[0]
+                    _logger.info(
+                        "model_fallback from=%s to=%s",
+                        model, fallback_model,
+                    )
+                    model = fallback_model
+    except (KeyError, ValueError, OSError) as e:
+        _logger.debug("model_probing_skipped: %s", e)
+
     store = get_session_store()
     # P0-1 修复: 当 req.session_id 有值但 DB 中不存在时，自动创建新会话
     # 避免后续 add_message 触发 FOREIGN KEY constraint failed

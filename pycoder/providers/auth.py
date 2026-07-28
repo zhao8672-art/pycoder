@@ -248,6 +248,7 @@ class ModelManager:
         向模型 API 发送一个极小的请求来检查。
         """
         import httpx
+        import socket
 
         defs = PROVIDER_DEFS.get(provider)
         if not defs:
@@ -255,11 +256,26 @@ class ModelManager:
 
         try:
             api_base = ALL_MODELS[defs["recommended_model"]].api_base
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            # 1. 先做 DNS 解析检查，域名不可达时立即失败（避免长超时）
+            from urllib.parse import urlparse
+            parsed = urlparse(api_base)
+            host = parsed.hostname
+            port = parsed.port or (443 if parsed.scheme == "https" else 80)
+            try:
+                socket.create_connection((host, port), timeout=3.0).close()
+            except (OSError, socket.gaierror, socket.timeout) as e:
+                logger.warning(
+                    "api_key_validate_dns_failed provider=%s host=%s error=%s",
+                    provider, host, e,
+                )
+                return False
+
+            # 2. DNS 可达，再发实际请求（用 5s 短超时）
+            async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.post(
                     (
                         f"{api_base}/chat/completions"
-                        if provider in ("deepseek", "qwen", "openai", "openrouter")
+                        if provider in ("deepseek", "qwen", "openai", "openrouter", "agnes", "nvidia", "glm")
                         else f"{api_base}/chat/completions"
                     ),
                     headers={
