@@ -925,7 +925,8 @@ async def list_conflicts(path: str | None = None):
                 }
             )
         return {"conflicted": conflicted}
-    except Exception:
+    except Exception as e:
+        logger.debug("git_conflict_parse_failed, falling back to GitPython: %s", e)
         try:
             from git import Repo
 

@@ -97,8 +97,8 @@ def mock_gateway() -> MagicMock:
 
 
 @pytest.fixture
-def client_with_gw(mock_gateway: MagicMock) -> TestClient:
-    """注入模拟网关的 TestClient"""
+def client_with_gw(mock_gateway: MagicMock, monkeypatch) -> TestClient:
+    """注入模拟网关的 TestClient（禁用 API Key 认证方便测试）"""
     from pycoder.server.routers import gateway_api
 
     # 保存原始状态
@@ -109,6 +109,10 @@ def client_with_gw(mock_gateway: MagicMock) -> TestClient:
     gateway_api._gateway = mock_gateway
     gateway_api._initialized = True
     gateway_api._ws_clients.clear()
+
+    # 禁用 API Key 认证（测试用）
+    import pycoder.server.app as _app_module
+    monkeypatch.setattr(_app_module, "_API_KEY", "")
 
     from pycoder.server.app import app
 
@@ -247,7 +251,7 @@ class TestSendMessage:
             },
         )
         assert resp.status_code == 400
-        assert "slack" in resp.json()["detail"]
+        assert "slack" in resp.json()["error"]["message"]
 
     def test_send_message_empty_platform(self, client_with_gw: TestClient) -> None:
         """测试空平台名"""
@@ -356,7 +360,7 @@ class TestGetSession:
 
         resp = client_with_gw.get("/api/gateway/sessions/nonexistent")
         assert resp.status_code == 404
-        assert "不存在" in resp.json()["detail"]
+        assert "不存在" in resp.json()["error"]["message"]
 
     def test_get_session_no_manager(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
         """测试无会话管理器返回 404"""
@@ -364,7 +368,7 @@ class TestGetSession:
 
         resp = client_with_gw.get("/api/gateway/sessions/any-id")
         assert resp.status_code == 404
-        assert "尚未初始化" in resp.json()["detail"]
+        assert "尚未初始化" in resp.json()["error"]["message"]
 
 
 # ── POST /api/gateway/sessions/{session_id}/switch 测试 ───
@@ -394,7 +398,7 @@ class TestSwitchSession:
 
         resp = client_with_gw.post("/api/gateway/sessions/nonexistent/switch")
         assert resp.status_code == 404
-        assert "不存在" in resp.json()["detail"]
+        assert "不存在" in resp.json()["error"]["message"]
 
     def test_switch_session_no_manager(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
         """测试无会话管理器返回 404"""
@@ -402,7 +406,7 @@ class TestSwitchSession:
 
         resp = client_with_gw.post("/api/gateway/sessions/any-id/switch")
         assert resp.status_code == 404
-        assert "尚未初始化" in resp.json()["detail"]
+        assert "尚未初始化" in resp.json()["error"]["message"]
 
 
 # ── WebSocket /ws/gateway 测试 ────────────────────────────

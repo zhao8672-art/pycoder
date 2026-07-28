@@ -57,8 +57,8 @@ async def chat(req: Request):
     """P2-4: 兼容非标准 JSON 请求体，避免 422 错误"""
     try:
         body = await req.json()
-    except Exception:
-        _logger.warning("chat_invalid_json_body")
+    except (ValueError, RuntimeError) as e:
+        _logger.warning("chat_invalid_json_body: %s", e)
         return {"error": "INVALID_JSON", "message": "请求体不是有效的 JSON"}
 
     # P2-4: 手动解析，兼容字段缺失/类型不匹配

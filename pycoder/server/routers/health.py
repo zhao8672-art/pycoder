@@ -10,6 +10,7 @@ PERF-001/002 修复：将 /api/health 拆分为：
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from functools import lru_cache
 
@@ -20,6 +21,7 @@ from pycoder.python.env_detector import detect_environment
 from pycoder.server.app_lifecycle import _server_start
 from pycoder.server.session_store import get_session_store
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # ── 轻量级 /api/health 响应缓存（PERF-001 修复）──
@@ -36,7 +38,8 @@ async def _collect_health_async() -> dict:
         def _sync():
             try:
                 return get_session_store().get_stats()
-            except Exception:
+            except Exception as e:
+                logger.debug("health_db_stats_failed: %s", e)
                 return {"error": "db unavailable"}
         return await asyncio.get_event_loop().run_in_executor(None, _sync)
 

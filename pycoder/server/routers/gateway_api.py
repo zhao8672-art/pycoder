@@ -389,7 +389,8 @@ async def gateway_websocket(ws: WebSocket):
                 logger.warning("网关 WebSocket 消息处理出错: %s", e)
                 try:
                     await ws.send_json({"type": "error", "message": str(e)})
-                except Exception:
+                except Exception as exc:
+                    logger.debug("gateway_ws_send_failed: %s", exc)
                     break
 
     except (WebSocketDisconnect, RuntimeError):
@@ -419,7 +420,8 @@ async def broadcast_gateway_event(event_type: str, data: dict[str, Any]) -> None
                 "data": data,
                 "timestamp": time.time(),
             })
-        except Exception:
+        except Exception as exc:
+            logger.debug("gateway_broadcast_failed client=%s: %s", client_id, exc)
             disconnected.append(client_id)
 
     for cid in disconnected:

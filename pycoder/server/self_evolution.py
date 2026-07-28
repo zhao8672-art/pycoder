@@ -330,11 +330,11 @@ class SelfEvolutionEngine(_V2SelfEvolutionEngine):
         while self._watch_active:
             try:
                 await asyncio.sleep(self._watch_interval)
-                current_hash = self._compute_project_hash()
+                current_hash = await asyncio.to_thread(self._compute_project_hash)
                 if current_hash != self._last_watch_hash:
                     self._last_watch_hash = current_hash
                     self._stats.last_run = time.time()
-                    changes = self._check_git_changes()
+                    changes = await asyncio.to_thread(self._check_git_changes)
                     if changes:
                         log.info("watch_changes_detected count=%d", len(changes))
             except asyncio.CancelledError:

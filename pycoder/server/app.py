@@ -998,8 +998,8 @@ async def _scheduled_lifecycle_analysis():
         engine = get_lifecycle_engine()
         client = get_ossinsight_client()
 
-        # 获取所有分类的最新排名
-        collections = client.fetch_all_collections()
+        # 获取所有分类的最新排名（同步 HTTP 请求，在线程池中执行避免阻塞事件循环）
+        collections = await asyncio.to_thread(client.fetch_all_collections)
         all_items = []
         for col_id, items in collections.items():
             for item in items:

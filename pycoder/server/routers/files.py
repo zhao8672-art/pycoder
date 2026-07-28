@@ -122,7 +122,8 @@ async def switch_workspace(req: dict):
     if RECENT_WORKSPACES_FILE.exists():
         try:
             recent = json.loads(RECENT_WORKSPACES_FILE.read_text(encoding="utf-8"))
-        except Exception:
+        except (OSError, ValueError) as e:
+            logger.debug("recent_workspaces_load_failed: %s", e)
             recent = []
     # 去重
     recent = [r for r in recent if r.get("path") != str(target)]
