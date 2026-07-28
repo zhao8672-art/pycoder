@@ -5,6 +5,7 @@ import { EditorTabs } from './components/EditorTabs';
 import { MonacoEditor } from './components/MonacoEditor';
 import { AIPanel } from './components/AIPanel';
 import { StatusBar } from './components/StatusBar';
+import { ProjectStatusBar } from './components/ProjectStatusBar';
 import { DiffPreview } from './components/DiffPreview';
 import { EvolutionPanel } from './components/EvolutionPanel';
 import { CommandPalette } from './components/CommandPalette';
@@ -226,6 +227,7 @@ const AppInner: React.FC = () => {
   return (
     <div className="app-root">
       <MenuBar />
+      <ProjectStatusBar />
       <div className="app-main">
         <ActivityBar />
         {sidebarVisible && (

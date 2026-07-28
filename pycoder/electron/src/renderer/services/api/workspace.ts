@@ -8,6 +8,38 @@ import type {
 } from '../../types';
 
 export const workspaceApi = {
+  // ── 项目自动检测 ──────────────────────────────────────
+  detect: (electronPath?: string) =>
+    apiRequest<{
+      project_path: string; confidence: number; method: string;
+      name: string; indicators: string[]; suggestions: string[];
+      status: string; elapsed_ms: number;
+    }>(`/api/workspace/detect${electronPath ? `?path=${encodeURIComponent(electronPath)}` : ''}`),
+  setDetectPath: (path: string, saveDefault?: boolean) =>
+    apiRequest<{
+      project_path: string; confidence: number; method: string;
+      name: string; indicators: string[]; suggestions: string[];
+    }>('/api/workspace/detect', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, save_default: saveDefault }),
+    }),
+  status: () =>
+    apiRequest<{
+      project_path: string; project_name: string; folders: unknown[];
+      folder_count: number; has_rules: boolean; has_config: boolean;
+      indicators: string[]; is_temp: boolean;
+    }>('/api/workspace/status'),
+  getConfig: () =>
+    apiRequest<{ default_project_path: string; has_default: boolean }>('/api/workspace/config'),
+  saveConfig: (path: string) =>
+    apiRequest<{ success: boolean; path: string; message: string }>('/api/workspace/config', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    }),
+  history: () =>
+    apiRequest<{ workspaces: string[]; count: number }>('/api/workspace/history'),
+
+  // ── 原有 API ──────────────────────────────────────────
   switch: (path: string) =>
     apiRequest<WorkspaceResponse>('/api/files/workspace/switch', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

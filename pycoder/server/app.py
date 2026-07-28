@@ -298,6 +298,30 @@ async def lifespan(app: FastAPI):
     with profiler.measure("scheduler_start"):
         await _start_scheduler()
 
+    # ── 项目路径自动检测与工作区初始化 ──
+    with profiler.measure("workspace_auto_detect"):
+        try:
+            from pycoder.server.services.workspace_detector import get_workspace_detector
+            from pycoder.server.services.workspace_manager import get_workspace_manager
+
+            detector = get_workspace_detector()
+            result = detector.detect()
+            if result.confidence >= 0.4:
+                mgr = get_workspace_manager()
+                mgr.initialize(result.project_path)
+                detector.save_to_history(result.project_path)
+                _logger.info(
+                    "workspace_auto_detected path=%s method=%s confidence=%.2f",
+                    result.project_path, result.method, result.confidence,
+                )
+            else:
+                _logger.info(
+                    "workspace_auto_detect_low_confidence path=%s method=%s confidence=%.2f",
+                    result.project_path, result.method, result.confidence,
+                )
+        except Exception as e:
+            _logger.warning("workspace_auto_detect_failed error=%s", e)
+
     _logger.info("startup_profile:\n%s", profiler.format_report())
 
     yield
