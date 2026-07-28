@@ -271,7 +271,7 @@ class ModelManager:
                 return False
 
             # 2. DNS 可达，再发实际请求（用 5s 短超时）
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=5.0, headers={"User-Agent": "PyCoder/1.0"}) as client:
                 resp = await client.post(
                     (
                         f"{api_base}/chat/completions"

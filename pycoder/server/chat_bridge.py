@@ -270,7 +270,10 @@ class ChatBridge:
                     import httpx
                     cls._shared_client = httpx.AsyncClient(
                         timeout=httpx.Timeout(120.0),
-                        trust_env=False,
+                        headers={
+                            "User-Agent": "PyCoder/1.0 (curl/8.0 compatible)",
+                            "Accept": "application/json",
+                        },
                         limits=httpx.Limits(
                             max_keepalive_connections=5,
                             max_connections=10,
