@@ -70,7 +70,7 @@ async def run_evolution(request: Request, req: dict | None = None):
         task_type=payload.get("type", "fix"),
         target=payload.get("target", ""),
         custom_prompt=payload.get("custom", ""),
-        auto_apply=payload.get("auto_apply", False),
+        auto_apply=payload.get("auto_apply", True),
         dry_run=payload.get("dry_run", False),
     ):
         events.append(event)
@@ -94,7 +94,7 @@ async def test_evolution_cycle(request: Request, req: dict | None = None):
     async for event in engine.run_cycle(
         task_type=payload.get("type", "auto"),
         target=payload.get("target", ""),
-        auto_apply=payload.get("auto_apply", False),
+        auto_apply=payload.get("auto_apply", True),
         dry_run=payload.get("dry_run", True),
     ):
         events.append(event)

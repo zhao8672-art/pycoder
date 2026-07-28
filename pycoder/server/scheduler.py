@@ -198,19 +198,37 @@ class Scheduler:
                 await asyncio.sleep(60)
 
     async def _execute_task(self, task: ScheduledTask):
-        """执行单个任务"""
+        """执行单个任务
+
+        支持三种 action 格式:
+        - 简短名称: sync_github_skills / optimize_memory / run_security_scan / run_self_evolution
+        - python: 前缀: python:module.function → 动态导入并调用
+        - mcp: 前缀: mcp:tool_name → 通过 MCP 工具调用
+        """
         task.last_run = time.time()
         task.run_count += 1
-        
+
         try:
-            if task.action == "sync_github_skills":
+            action = task.action
+
+            # ── 简短名称映射 ──
+            if action == "sync_github_skills":
                 result = await self._sync_github_skills()
-            elif task.action == "optimize_memory":
+            elif action == "optimize_memory":
                 result = await self._optimize_memory()
-            elif task.action == "run_security_scan":
+            elif action == "run_security_scan":
                 result = await self._run_security_scan()
-            elif task.action == "run_self_evolution":
+            elif action == "run_self_evolution":
                 result = await self._run_self_evolution()
+
+            # ── python: 前缀 — 动态导入调用 ──
+            elif action.startswith("python:"):
+                result = await self._execute_python_action(action[7:])
+
+            # ── mcp: 前缀 — MCP 工具调用 ──
+            elif action.startswith("mcp:"):
+                result = await self._execute_mcp_action(action[4:])
+
             else:
                 result = {"success": False, "error": f"Unknown action: {task.action}"}
             
@@ -373,6 +391,53 @@ class Scheduler:
             return {"success": False, "error": f"Import error: {e}"}
         except Exception as e:
             log.error("self_evolution_patrol_error: %s", e)
+            return {"success": False, "error": str(e)}
+
+    # ── 动态 action 解析 ──────────────────────────────────
+
+    async def _execute_python_action(self, func_path: str) -> dict:
+        """动态导入并调用 Python 函数
+
+        func_path 格式: module.path.function_name
+        例如: pycoder.server.app._scheduled_self_scan
+        """
+        try:
+            module_path, func_name = func_path.rsplit(".", 1)
+            module = __import__(module_path, fromlist=[func_name])
+            func = getattr(module, func_name, None)
+            if func is None:
+                return {"success": False, "error": f"Function not found: {func_name} in {module_path}"}
+            if asyncio.iscoroutinefunction(func):
+                result = await func()
+            else:
+                result = await asyncio.to_thread(func)
+            return result if isinstance(result, dict) else {"success": True, "data": str(result)}
+        except (ImportError, AttributeError, ValueError) as e:
+            log.warning("python_action_failed path=%s error=%s", func_path, e)
+            return {"success": False, "error": f"Import error: {e}"}
+        except Exception as e:
+            log.error("python_action_error path=%s error=%s", func_path, e)
+            return {"success": False, "error": str(e)}
+
+    async def _execute_mcp_action(self, tool_name: str) -> dict:
+        """通过 MCP 工具系统调用工具
+
+        tool_name: MCP 工具名
+        例如: skills_sync_v2
+        """
+        try:
+            from pycoder.server.mcp_tools import call_builtin_tool, MCPCallResult
+
+            result: MCPCallResult = await call_builtin_tool(tool_name, {})
+            return {
+                "success": result.success,
+                "output": str(result.output)[:500] if result.output else "",
+                "error": result.error if not result.success else "",
+            }
+        except ImportError as e:
+            return {"success": False, "error": f"MCP import error: {e}"}
+        except Exception as e:
+            log.error("mcp_action_error tool=%s error=%s", tool_name, e)
             return {"success": False, "error": str(e)}
 
     # P0-3: 文件监听相关方法

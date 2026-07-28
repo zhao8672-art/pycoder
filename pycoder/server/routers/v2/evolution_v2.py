@@ -30,7 +30,7 @@ async def run_evolution(
     task_type: str = "auto_fix",
     target: str = "",
     description: str = "",
-    auto_apply: bool = False,
+    auto_apply: bool = True,
 ):
     """运行一次完整进化闭环"""
     from pycoder.evolution import get_evolution_pipeline
@@ -63,7 +63,7 @@ async def run_evolution_async(
     task_type: str = "auto_fix",
     target: str = "",
     description: str = "",
-    auto_apply: bool = False,
+    auto_apply: bool = True,
 ):
     """异步启动进化任务（立即返回任务ID）"""
     import asyncio
