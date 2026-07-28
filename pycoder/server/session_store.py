@@ -200,6 +200,41 @@ class SessionStore:
                 )
             return deleted
 
+    def cleanup_old_sessions(self, max_age_days: int = 30) -> int:
+        """清理超过指定天数未更新的旧会话（含消息级联删除）
+
+        Args:
+            max_age_days: 会话保留天数，默认 30 天
+
+        Returns:
+            删除的会话数
+        """
+        cutoff = time.time() - (max_age_days * 86400)
+        with self._connect() as conn:
+            deleted = conn.execute(
+                "DELETE FROM sessions WHERE updated_at < ?",
+                (cutoff,),
+            ).rowcount
+            if deleted:
+                conn.commit()
+                log(
+                    "cleanup_old_sessions",
+                    extra={"deleted": deleted, "max_age_days": max_age_days},
+                )
+            return deleted
+
+    def close_thread_connection(self) -> None:
+        """关闭当前线程的 SQLite 连接，防止连接泄漏
+
+        应在 FastAPI 中间件或请求结束后调用，确保线程本地连接被正确释放。
+        """
+        if hasattr(self._local, "conn") and self._local.conn:
+            try:
+                self._local.conn.close()
+            except (OSError, sqlite3.Error):
+                pass
+            self._local.conn = None
+
     # ── 会话操作 ──────────────────────────────────────────
 
     def create_session(

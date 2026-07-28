@@ -142,7 +142,9 @@ class ChatBridge:
 
     # 类级共享 httpx client（连接池复用）
     _shared_client: object | None = None
-    _client_lock = None
+    _client_lock: asyncio.Lock | None = None
+    # P1-4: NLU 引擎单例缓存（避免每次请求新建）
+    _nlu_engine: object | None = None
 
     def __init__(self):
         self.config = BridgeConfig()
@@ -259,19 +261,22 @@ class ChatBridge:
 
     @classmethod
     async def _get_client(cls) -> object:
-        """获取或创建共享 httpx client（带连接池）。"""
+        """获取或创建共享 httpx client（带连接池，锁保护）。"""
         if cls._shared_client is None:
-            import httpx
-
-            cls._shared_client = httpx.AsyncClient(
-                timeout=httpx.Timeout(120.0),
-                trust_env=False,
-                limits=httpx.Limits(
-                    max_keepalive_connections=5,
-                    max_connections=10,
-                    keepalive_expiry=60,
-                ),
-            )
+            if cls._client_lock is None:
+                cls._client_lock = asyncio.Lock()
+            async with cls._client_lock:
+                if cls._shared_client is None:  # double-check
+                    import httpx
+                    cls._shared_client = httpx.AsyncClient(
+                        timeout=httpx.Timeout(120.0),
+                        trust_env=False,
+                        limits=httpx.Limits(
+                            max_keepalive_connections=5,
+                            max_connections=10,
+                            keepalive_expiry=60,
+                        ),
+                    )
         return cls._shared_client
 
     # ════════════════════════════════════════════════════
@@ -409,10 +414,12 @@ class ChatBridge:
         if cached and (time.time() - cached[0]) < 300:  # 5 分钟 TTL
             return cached[1]
 
-        # Layer 2 & 3: 中等/复杂消息 → CompositeNLUEngine
+        # Layer 2 & 3: 中等/复杂消息 → CompositeNLUEngine（类级缓存）
         try:
             from pycoder.ai.nlu.composite_nlu import CompositeNLUEngine
-            _nlu = CompositeNLUEngine()
+            if ChatBridge._nlu_engine is None:
+                ChatBridge._nlu_engine = CompositeNLUEngine()
+            _nlu = ChatBridge._nlu_engine
             _result = await asyncio.wait_for(
                 _nlu.understand(message), timeout=2.0
             )
@@ -485,22 +492,26 @@ class ChatBridge:
         if force_tools:
             _ctx: dict = {"mode": effective_mode}
             try:
-                _cwd = os.getcwd()
-                import glob as _glob
-                _py_files = _glob.glob(
-                    f"{_cwd}/**/*.py", recursive=True,
-                ) if _cwd else []
-                _ctx["files"] = len(_py_files)
-                _ctx["domain"] = (
-                    self._nlu_cache.get("category", "")
-                    if self._nlu_cache else ""
-                )
-                _req = os.path.join(_cwd, "requirements.txt")
-                if os.path.exists(_req):
-                    with open(_req, encoding="utf-8") as _f:
-                        _ctx["dependencies"] = len(
-                            [l for l in _f if l.strip()],
-                        )
+                # P2-7: 在线程池中执行同步 glob + open，避免阻塞事件循环
+                def _build_context():
+                    _cwd = os.getcwd()
+                    import glob as _glob
+                    _py_files = _glob.glob(
+                        f"{_cwd}/**/*.py", recursive=True,
+                    ) if _cwd else []
+                    _ctx_local = {"files": len(_py_files)}
+                    _ctx_local["domain"] = (
+                        self._nlu_cache.get("category", "")
+                        if self._nlu_cache else ""
+                    )
+                    _req = os.path.join(_cwd, "requirements.txt")
+                    if os.path.exists(_req):
+                        with open(_req, encoding="utf-8") as _f:
+                            _ctx_local["dependencies"] = len(
+                                [l for l in _f if l.strip()],
+                            )
+                    return _ctx_local
+                _ctx = await asyncio.to_thread(_build_context)
             except (OSError, ValueError, RuntimeError):
                 pass
             _task_grade = grade_task_difficulty(message, context=_ctx)
@@ -780,7 +791,7 @@ class ChatBridge:
                 if round_content:
                     all_content += round_content
                 break
-            except Exception as e:
+            except (httpx.HTTPError, OSError, ValueError, json.JSONDecodeError) as e:
                 yield ChatEvent(event_type="error", content=f"请求异常: {str(e)[:300]}")
                 return
 

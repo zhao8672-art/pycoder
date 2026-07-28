@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -92,12 +93,11 @@ _SELF_KNOWLEDGE = """## 你的完整能力清单 — Ground Truth（禁止工具
 
 _DEFAULT_SYSTEM_PROMPT = (
     "你是 PyCoder，一个专业的 AI 编程助手，运行在 PyCoder IDE 中。\\n\\n"
-    f"{_SELF_KNOWLEDGE}"
     "## 核心原则\\n"
-    "1. **先信后查**：当用户询问系统有什么功能时，直接引用上表中能力清单回答。\\n"
+    "1. **先信后查**：当用户询问系统有什么功能时，直接引用能力清单回答。\\n"
     "   只有用户要求修改代码或执行操作时，才调用工具。自查功能是否存在时，**不要**额外调用 read_file/list_files 工具。\\n"
-    "2. **绝不说'不存在'**：上表列出的每一个子系统都在 pycoder/ 源码中有完整实现。\\n"
-    "   如果用户在问的功能在上表中，直接说有并指出位置。\\n"
+    "2. **绝不说'不存在'**：pycoder/ 源码中含有 31 个完整子系统实现。\\n"
+    "   如果用户问的功能存在，直接说有并指出位置。\\n"
     "3. **__init__.py = 模块存在**：pycoder/ 下每个 __init__.py 是模块标记文件。\\n"
     "   不要因为只看到 __init__.py 就报告模块'不可用'或'空壳'。\\n"
     "   具体实现在同级目录的 .py 文件中（非 __init__.py）。\\n"
@@ -227,7 +227,7 @@ def _get_api_key_for_model(model: str) -> str:
                 k = get_api_key("deepseek")
                 if k:
                     return k
-            except Exception:
+            except (RuntimeError, ValueError, AttributeError):
                 pass
             return os.environ.get("DEEPSEEK_API_KEY", "")
         return ""
@@ -621,7 +621,9 @@ async def _save_conversation_memory(
         augmentor = MemoryAugmentor()
         key = f"session_{session_id}_{int(time.time())}"
         content = f"用户: {user_message[:500]}\nAI: {ai_response[:2000]}"
-        augmentor.store(
+        # P2-8: 在线程池中执行同步 MemoryAugmentor.store()，避免阻塞事件循环
+        await asyncio.to_thread(
+            augmentor.store,
             project="pycoder",
             key=key,
             content=content,
@@ -672,21 +674,24 @@ async def _extract_error_patterns(ai_response: str, user_message: str) -> None:
         return
 
     try:
-        _conn = _sql.connect(_udb, timeout=5.0)
-        for _ef in _errors_found:
-            _conn.execute(
-                "INSERT OR REPLACE INTO error_patterns "
-                "(error_signature, error_type, fix_template, file_pattern, "
-                "success_count, fail_count, last_seen, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    _ef["signature"], _ef["type"],
-                    _ef["fix"], _ef["pattern"],
-                    1, 0, time.time(), time.time(),
-                ),
-            )
-        _conn.commit()
-        _conn.close()
+        # P2-9: 在线程池中执行同步 SQLite 写入，避免阻塞事件循环
+        def _write():
+            _conn = _sql.connect(_udb, timeout=5.0)
+            for _ef in _errors_found:
+                _conn.execute(
+                    "INSERT OR REPLACE INTO error_patterns "
+                    "(error_signature, error_type, fix_template, file_pattern, "
+                    "success_count, fail_count, last_seen, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        _ef["signature"], _ef["type"],
+                        _ef["fix"], _ef["pattern"],
+                        1, 0, time.time(), time.time(),
+                    ),
+                )
+            _conn.commit()
+            _conn.close()
+        await asyncio.to_thread(_write)
         logger.debug("error_patterns_extracted count=%d", len(_errors_found))
     except (_sql.Error, OSError, ValueError) as e:
         logger.debug("error_patterns_insert_failed: %s", e)
@@ -809,18 +814,22 @@ async def _run_chat_stream(
         import sqlite3 as _sql
         _udb = os.path.join(os.path.expanduser("~"), ".pycoder", "unified.db")
         if os.path.exists(_udb):
-            _conn = _sql.connect(_udb, timeout=5.0)
-            _rows = _conn.execute(
-                "SELECT key, content, importance, tags FROM long_term_memory "
-                "WHERE importance >= 0.7 ORDER BY importance DESC LIMIT 5"
-            ).fetchall()
+            # P1-5: 在线程池中执行同步 SQLite 查询，避免阻塞事件循环
+            def _load():
+                _conn = _sql.connect(_udb, timeout=5.0)
+                _rows = _conn.execute(
+                    "SELECT key, content, importance, tags FROM long_term_memory "
+                    "WHERE importance >= 0.7 ORDER BY importance DESC LIMIT 5"
+                ).fetchall()
+                _conn.close()
+                return _rows
+            _rows = await asyncio.to_thread(_load)
             if _rows:
                 _ctx_lines = ["\n📋 **跨会话历史参考**（高价值记忆）:"]
                 for _rk, _rc, _ri, _rt in _rows:
                     _preview = str(_rc)[:120].replace("\n", " ")
                     _ctx_lines.append(f"  - [重要度{_ri:.1f}] {_preview}")
                 bridge.config.system_prompt += "\n" + "\n".join(_ctx_lines)
-            _conn.close()
     except (OSError, sqlite3.Error, ValueError, RuntimeError, TypeError) as _e:
         logger.debug("cross_session_context_load_failed: %s", _e)
 
@@ -845,13 +854,14 @@ async def _run_chat_stream(
             store.update_session(session_id, title=title)
 
     # FIX #5: 注入工作区上下文（动态发现所有模块，不再硬编码）
-    context_prompt = _build_context_prompt(files or [])
+    # P2-6: 在线程池中执行同步文件 I/O，避免阻塞事件循环
+    context_prompt = await asyncio.to_thread(_build_context_prompt, files or [])
     if not files:
         try:
             from pycoder.server.routers.files import get_workspace_root
 
             work_dir = get_workspace_root()
-            key_files = _discover_project_modules(work_dir)  # ← 动态发现！
+            key_files = await asyncio.to_thread(_discover_project_modules, work_dir)
             found = []
             for kf in key_files:
                 p = work_dir / kf
@@ -864,13 +874,9 @@ async def _run_chat_stream(
         except (OSError, ValueError) as e:
             logger.warning("workspace_files_lookup_failed", extra={"error": str(e)})
 
-    if context_prompt:
-        bridge.add_message(
-            "user", f"参考以下文件内容回答问题：\n\n{context_prompt}\n\n用户问题: {message}"
-        )
-
-    # 保存用户消息（所有模式通用）
-    # P0-1 修复: 增加 FOREIGN KEY 约束失败的防御性恢复
+    # P1-1 修复: 先保存原始用户消息到 session_store，再注入上下文。
+    # 原实现先注入含文件上下文的 user 消息到 bridge，再保存原始消息，
+    # 导致后续轮次从 session_store 加载历史时上下文丢失。
     if not _should_skip_session:
         try:
             store.add_message(session_id, "user", message)
@@ -891,6 +897,14 @@ async def _run_chat_stream(
                     )
     else:
         logger.debug("skipped_trivial_probe msg=%.20s", message)
+
+    # P1-1 修复: 会话保存完成后，将文件上下文作为 system 消息注入 bridge。
+    # system 消息不会污染 session_store 的历史记录，但 LLM 在每轮都能看到。
+    if context_prompt:
+        bridge.add_message(
+            "system",
+            f"参考以下文件内容回答用户问题：\n\n{context_prompt}",
+        )
 
     # ── 断裂点4修复: Agent 自动路由 — 任务难度≥MEDIUM 时自动启用 Agent 团队 ──
     if not hermes and not agent_mode:

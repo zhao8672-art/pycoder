@@ -21,30 +21,56 @@ logger = logging.getLogger(__name__)
 # 跳过的工具（不暴露给 LLM）
 SKIP_TOOLS: set[str] = {"refresh_extensions", "skills_sync_v2", "system_upgrade"}
 
-# 任务类别 → 允许的工具集
+# 任务类别 → 允许的工具集（使用 V2 工具名，与 list_builtin_tools 返回一致）
+# P2-14: 工具名映射表 — V1 → V2 转换，避免 CATEGORY_TOOL_MAP 中的 V1 名
+# 与 V2 引擎返回的实际工具名不匹配导致过滤失败。
+_V1_TO_V2_TOOL_NAMES: dict[str, str] = {
+    "read_file": "file_read",
+    "write_file": "file_write",
+    "create_file": "file_write",
+    "list_files": "file_list",
+    "shell_exec": "shell_run",
+    "search_code": "search_code",  # 无变化
+    "execute_python": "execute_python",  # 无变化
+    "patch_file": "patch_file",
+    "install_package": "install_package",
+    "file_read": "file_read",
+    "file_write": "file_write",
+    "file_list": "file_list",
+    "shell_run": "shell_run",
+    "git_status": "git_status",
+    "git_add": "git_add",
+    "git_commit": "git_commit",
+    "git_diff": "git_diff",
+    "git_log": "git_log",
+    "git_push": "git_push",
+    "git_branch": "git_branch",
+    "lsp_diagnostics": "lsp_diagnostics",
+}
+
 CATEGORY_TOOL_MAP: dict[str, set[str]] = {
     "code_generation": {
-        "read_file", "write_file", "create_file",
-        "search_code", "execute_python", "list_files", "shell_exec",
+        "file_read", "file_write",
+        "search_code", "execute_python", "file_list", "shell_run",
     },
     "debugging": {
-        "read_file", "execute_python", "search_code",
-        "shell_exec", "git_diff", "git_log", "lsp_diagnostics",
+        "file_read", "execute_python", "search_code",
+        "shell_run", "git_diff", "git_log", "lsp_diagnostics",
     },
     "refactoring": {
-        "read_file", "write_file", "patch_file",
-        "search_code", "shell_exec", "git_diff",
+        "file_read", "file_write", "patch_file",
+        "search_code", "shell_run", "git_diff",
     },
     "code_review": {
-        "read_file", "search_code", "git_diff", "shell_exec",
+        "file_read", "search_code", "git_diff", "shell_run",
     },
     "testing": {
-        "read_file", "write_file", "execute_python",
-        "shell_exec", "install_package",
+        "file_read", "file_write", "execute_python",
+        "shell_run", "install_package",
     },
     "git_operations": {
         "git_status", "git_add", "git_commit",
-        "git_diff", "git_log", "git_push", "git_branch", "read_file",
+        "git_diff", "git_log", "git_push", "git_branch", "file_read",
     },
 }
 
