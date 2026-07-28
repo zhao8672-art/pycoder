@@ -330,7 +330,7 @@ class TestWsAutonomous:
                 msg = ws.receive_json()
                 # 如果能收到消息，应为 error 类型
                 assert msg.get("type") == "error"
-            except Exception:
+            except (AssertionError, ConnectionError, RuntimeError, KeyError):
                 pass
 
     def test_websocket_disconnect_handler(self, app_client, mock_pipeline, monkeypatch):

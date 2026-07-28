@@ -167,7 +167,7 @@ class EvolutionIntegration:
 
             registry = PluginRegistry()
             return [p.__name__ for p in registry.get_all()]
-        except Exception:
+        except (ImportError, AttributeError):
             return []
 
     # ══════════════════════════════════════════════════════

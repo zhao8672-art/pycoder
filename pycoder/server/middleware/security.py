@@ -107,7 +107,7 @@ class RequestBodyScannerMiddleware(BaseHTTPMiddleware):
         # 读取 body
         try:
             body_bytes = await request.body()
-        except Exception:
+        except (OSError, RuntimeError):
             return await call_next(request)
 
         if not body_bytes:
@@ -282,7 +282,7 @@ class ETagCacheMiddleware(BaseHTTPMiddleware):
                     body += chunk.encode("utf-8")
                 else:
                     body += chunk
-        except Exception:
+        except (RuntimeError, AttributeError, OSError):
             return response
 
         # 计算 ETag

@@ -101,7 +101,7 @@ class OCREngine:
             mm = get_model_manager()
             detected = mm.auto_detect()
             return bool(detected.get("openai") or detected.get("deepseek") or detected.get("agnes"))
-        except Exception:
+        except (ImportError, AttributeError, RuntimeError):
             return False
 
     async def _vision_llm_ocr(self, image) -> str:

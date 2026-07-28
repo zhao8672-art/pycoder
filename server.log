@@ -65,158 +65,168 @@ Agent 团队能力已注册（4 个能力）
 V1 工具迁移完成: 48 tools
 V2 引擎初始化完成 — 194 个能力已注册, 信任级别: FULL_AUTONOMY
 v2_engine_initialized: capabilities=194 trust=FULL_AUTONOMY
-[2m2026-07-27T05:36:29.779338Z[0m [[32m[1minfo     [0m] [1mgithub_token_detected         [0m [[0m[1m[34mpycoder[0m][0m [36mmessage[0m=[35m'GitHub Token 可用, API 配额 5000 次/小时'[0m
+[2m2026-07-28T02:18:18.059695Z[0m [[32m[1minfo     [0m] [1mgithub_token_detected         [0m [[0m[1m[34mpycoder[0m][0m [36mmessage[0m=[35m'GitHub Token 可用, API 配额 5000 次/小时'[0m
 plugin_registry_initialized: plugins=1
-[2m2026-07-27T05:36:29.793200Z[0m [[32m[1minfo     [0m] [1mscheduler_started             [0m [[0m[1m[34mpycoder[0m][0m
+[2m2026-07-28T02:18:18.076023Z[0m [[32m[1minfo     [0m] [1mscheduler_started             [0m [[0m[1m[34mpycoder[0m][0m
 scheduler_started: 11 tasks registered (skills×2, extensions×2, evo-scan, evo-fix, memory-cleanup, security-scan, skills-health, lifecycle-daily, monthly-report)
 startup_profile:
-StartupProfiler (total=2822.7ms):
+StartupProfiler (total=2772.6ms):
   subprocess_compat_install: 0.0ms
-  llm_keys_check: 0.2ms
-  recommendation_db_init: 19.6ms
-  di_container_init: 9.3ms
-  env_tools_check: 2390.7ms
-  v2_engine_init: 384.2ms
-  ports_registration: 7.8ms
-  plugin_registry_init: 0.8ms
-  scheduler_start: 10.1ms
-[2m2026-07-27T05:36:29.794376Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-refresh-09[0m
-[2m2026-07-27T05:36:29.796013Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-refresh-21[0m
-[2m2026-07-27T05:36:29.797447Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mextensions-refresh-03[0m
-[2m2026-07-27T05:36:29.798720Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mextensions-refresh-15[0m
-[2m2026-07-27T05:36:29.799945Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mself-evo-scan-daily[0m
-[2m2026-07-27T05:36:29.800988Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mself-evo-auto-fix[0m
-[2m2026-07-27T05:36:29.801825Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mmemory-auto-cleanup[0m
-[2m2026-07-27T05:36:29.802799Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35msecurity-auto-scan[0m
-[2m2026-07-27T05:36:29.803869Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-health-check[0m
-[2m2026-07-27T05:36:29.804942Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-lifecycle-daily[0m
-[2m2026-07-27T05:36:29.805975Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-monthly-report[0m
-[2m2026-07-27T05:36:29.904021Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_start            [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35mpython-tools[0m [36mquery[0m=[35m'language:python stars:>500 updated:>2023-01-01'[0m
-[2m2026-07-27T05:36:33.182039Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_success          [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35mpython-tools[0m [36mcount[0m=[35m0[0m
-[2m2026-07-27T05:36:33.182568Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_start            [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35mai-llm[0m [36mquery[0m=[35m'language:typescript language:javascript stars:>1000 topic:ai'[0m
-INFO:     127.0.0.1:2555 - "GET /api/health HTTP/1.1" 200 OK
+  llm_keys_check: 0.4ms
+  recommendation_db_init: 21.1ms
+  di_container_init: 11.3ms
+  env_tools_check: 2207.7ms
+  v2_engine_init: 492.8ms
+  ports_registration: 28.0ms
+  plugin_registry_init: 4.3ms
+  scheduler_start: 7.0ms
+[2m2026-07-28T02:18:18.076776Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-refresh-09[0m
+[2m2026-07-28T02:18:18.077513Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-refresh-21[0m
+[2m2026-07-28T02:18:18.078313Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mextensions-refresh-03[0m
+[2m2026-07-28T02:18:18.079040Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mextensions-refresh-15[0m
+[2m2026-07-28T02:18:18.079744Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mself-evo-scan-daily[0m
+[2m2026-07-28T02:18:18.080455Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mself-evo-auto-fix[0m
+[2m2026-07-28T02:18:18.081304Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mmemory-auto-cleanup[0m
+[2m2026-07-28T02:18:18.082037Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35msecurity-auto-scan[0m
+[2m2026-07-28T02:18:18.082739Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-health-check[0m
+[2m2026-07-28T02:18:18.083480Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-lifecycle-daily[0m
+[2m2026-07-28T02:18:18.084214Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-monthly-report[0m
+[2m2026-07-28T02:18:18.203439Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_start            [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35mpython-tools[0m [36mquery[0m=[35m'language:python stars:>500 updated:>2023-01-01'[0m
+[2m2026-07-28T02:18:18.687572Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_success          [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35mpython-tools[0m [36mcount[0m=[35m0[0m
+[2m2026-07-28T02:18:18.687863Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_start            [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35mai-llm[0m [36mquery[0m=[35m'language:typescript language:javascript stars:>1000 topic:ai'[0m
+[2m2026-07-28T02:18:19.399248Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_success          [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35mai-llm[0m [36mcount[0m=[35m20[0m
+[2m2026-07-28T02:18:19.399591Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_start            [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35mmcp-tools[0m [36mquery[0m=[35m'topic:mcp-server topic:llm'[0m
+[2m2026-07-28T02:18:20.123300Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_success          [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35mmcp-tools[0m [36mcount[0m=[35m20[0m
+[2m2026-07-28T02:18:20.123662Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_start            [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35magent-frameworks[0m [36mquery[0m=[35m'language:python stars:>300 topic:agent OR topic:llm-agent'[0m
+[2m2026-07-28T02:18:20.421180Z[0m [[33m[1mwarning  [0m] [1mgithub_fetch_failed           [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35magent-frameworks[0m [36mstatus[0m=[35m422[0m
+[2m2026-07-28T02:18:20.441372Z[0m [[32m[1minfo     [0m] [1mregistry_loaded               [0m [[0m[1m[34mpycoder[0m][0m [36mcount[0m=[35m62[0m
+[2m2026-07-28T02:18:20.467979Z[0m [[32m[1minfo     [0m] [1mregistry_saved                [0m [[0m[1m[34mpycoder[0m][0m [36mcount[0m=[35m62[0m
+[2m2026-07-28T02:18:20.468766Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mTrue[0m [36mtask_id[0m=[35mgithub-skill-sync[0m
+[2m2026-07-28T02:18:20.469675Z[0m [[32m[1minfo     [0m] [1mmemory_optimization_skipped   [0m [[0m[1m[34mpycoder[0m][0m [36mmessage[0m=[35m'Not implemented yet'[0m
+[2m2026-07-28T02:18:20.469948Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mTrue[0m [36mtask_id[0m=[35mmemory-optimization[0m
+[2m2026-07-28T02:18:20.470807Z[0m [[32m[1minfo     [0m] [1msecurity_scan_skipped         [0m [[0m[1m[34mpycoder[0m][0m [36mmessage[0m=[35m'Not implemented yet'[0m
+[2m2026-07-28T02:18:20.471041Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mTrue[0m [36mtask_id[0m=[35msecurity-scan[0m
+INFO:     127.0.0.1:10233 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10287 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10290 - "GET /api/health HTTP/1.1" 200 OK
 bootstrap_key provider=deepseek prefix=sk-15fb33719...90db
 bootstrap_key provider=agnes prefix=sk-scS4V3pNV...PAZ4
 bootstrap_complete providers=['deepseek', 'agnes']
-request: GET /api/models status=200 duration=3.3ms request_id=a25ec0bb
-request: GET /api/env status=200 duration=1328.9ms request_id=65b572fe
-SLOW_REQUEST: GET /api/models duration=1334.5ms status=200
-SLOW_REQUEST: GET /api/env duration=1776.2ms status=200
-request: GET /api/git/status status=200 duration=444.3ms request_id=66c2ab58
-request: GET /api/sessions status=200 duration=2.6ms request_id=ac2f55f1
-SLOW_REQUEST: GET /api/sessions duration=1803.7ms status=200
-[2m2026-07-27T05:36:36.390255Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_success          [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35mai-llm[0m [36mcount[0m=[35m20[0m
-[2m2026-07-27T05:36:36.390632Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_start            [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35mmcp-tools[0m [36mquery[0m=[35m'topic:mcp-server topic:llm'[0m
-INFO:     127.0.0.1:2555 - "GET /api/models HTTP/1.1" 200 OK
-INFO:     127.0.0.1:2553 - "GET /api/env HTTP/1.1" 200 OK
-INFO:     127.0.0.1:4441 - "GET /api/git/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:4442 - "GET /api/sessions HTTP/1.1" 200 OK
-request: GET /api/files/workspace/restore status=200 duration=1.7ms request_id=1814d541
-INFO:     127.0.0.1:4442 - "GET /api/files/workspace/restore HTTP/1.1" 200 OK
+request: GET /api/models status=200 duration=1215.5ms request_id=b4a78711
+request: GET /api/env status=200 duration=1739.6ms request_id=265bebe0
+request: GET /api/git/status status=200 duration=519.7ms request_id=e78c7bd0
+SLOW_REQUEST: GET /api/models duration=1745.6ms status=200
+request: GET /api/sessions status=200 duration=2.9ms request_id=7d87d391
+SLOW_REQUEST: GET /api/env duration=1745.9ms status=200
+SLOW_REQUEST: GET /api/git/status duration=1743.1ms status=200
+SLOW_REQUEST: GET /api/sessions duration=1743.2ms status=200
+INFO:     127.0.0.1:10290 - "GET /api/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10294 - "GET /api/env HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10295 - "GET /api/git/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10296 - "GET /api/sessions HTTP/1.1" 200 OK
+request: GET /api/files/workspace/restore status=200 duration=1.6ms request_id=cf954c5b
+INFO:     127.0.0.1:10296 - "GET /api/files/workspace/restore HTTP/1.1" 200 OK
 workspace_config_loaded path=C:\Users\Administrator\Desktop\pycode\.pycoder\pycoder.json folders=0
 workspace_config_created_default path=C:\Users\Administrator\Desktop\game\.pycoder\pycoder.json
-request: POST /api/workspace/manage/init status=200 duration=4.8ms request_id=c72c2b83
-INFO:     127.0.0.1:4442 - "POST /api/workspace/manage/init HTTP/1.1" 200 OK
-INFO:     127.0.0.1:7966 - "GET /api/health HTTP/1.1" 200 OK
-[2m2026-07-27T05:36:39.575298Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_success          [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35mmcp-tools[0m [36mcount[0m=[35m20[0m
-[2m2026-07-27T05:36:39.575765Z[0m [[32m[1minfo     [0m] [1mgithub_fetch_start            [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35magent-frameworks[0m [36mquery[0m=[35m'language:python stars:>300 topic:agent OR topic:llm-agent'[0m
-[2m2026-07-27T05:36:41.001373Z[0m [[33m[1mwarning  [0m] [1mgithub_fetch_failed           [0m [[0m[1m[34mpycoder[0m][0m [36mcategory[0m=[35magent-frameworks[0m [36mstatus[0m=[35m422[0m
-[2m2026-07-27T05:36:41.024648Z[0m [[32m[1minfo     [0m] [1mregistry_loaded               [0m [[0m[1m[34mpycoder[0m][0m [36mcount[0m=[35m62[0m
-[2m2026-07-27T05:36:41.057135Z[0m [[32m[1minfo     [0m] [1mregistry_saved                [0m [[0m[1m[34mpycoder[0m][0m [36mcount[0m=[35m62[0m
-[2m2026-07-27T05:36:41.058321Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mTrue[0m [36mtask_id[0m=[35mgithub-skill-sync[0m
-[2m2026-07-27T05:36:41.059575Z[0m [[32m[1minfo     [0m] [1mmemory_optimization_skipped   [0m [[0m[1m[34mpycoder[0m][0m [36mmessage[0m=[35m'Not implemented yet'[0m
-[2m2026-07-27T05:36:41.059916Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mTrue[0m [36mtask_id[0m=[35mmemory-optimization[0m
-[2m2026-07-27T05:36:41.061086Z[0m [[32m[1minfo     [0m] [1msecurity_scan_skipped         [0m [[0m[1m[34mpycoder[0m][0m [36mmessage[0m=[35m'Not implemented yet'[0m
-[2m2026-07-27T05:36:41.061387Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mTrue[0m [36mtask_id[0m=[35msecurity-scan[0m
-INFO:     127.0.0.1:8027 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:2518 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6552 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6791 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6941 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9215 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:1989 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:2197 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:2401 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:2774 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14743 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:10135 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:8651 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:8833 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:8994 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:8693 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9175 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:9370 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13013 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:13196 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6079 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:7826 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:7378 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:7521 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:7647 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:10084 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:14350 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:3733 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:7183 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:8215 - "GET /api/health HTTP/1.1" 200 OK
+request: POST /api/workspace/manage/init status=200 duration=4.0ms request_id=79c91889
+INFO:     127.0.0.1:10296 - "POST /api/workspace/manage/init HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10314 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14386 - "GET /api/health HTTP/1.1" 200 OK
 user_memory_not_found, creating default
 project_memory_not_found, creating default
-任务难度评估: level=LIGHT score=19.5 max_iter=7 task=给我执行报告
-任务难度评估: level=MEDIUM score=52.0 max_iter=19 task=给我执行报告
+任务难度评估: level=LIGHT score=19.5 max_iter=7 task=读取这个项目
+LLM 深度分析失败: ChatBridge.configure() got an unexpected keyword argument 'temperature'
+任务难度评估: level=MEDIUM score=52.0 max_iter=19 task=读取这个项目
 skills_loaded_from_registry count=62 path=C:\Users\Administrator\Desktop\pycode\.skills-registry-enhanced.json
-INFO:     127.0.0.1:6977 - "GET /api/health HTTP/1.1" 200 OK
-HTTP Request: POST https://apihub.agnes-ai.com/v1/chat/completions "HTTP/1.1 200 OK"
-INFO:     127.0.0.1:6355 - "GET /api/health HTTP/1.1" 200 OK
-token_usage_recorded input=37799 output=8192 session_total=45991 hourly_total=45991
-幻觉验证完成: 评分=0.0/100 | 耗时=58842.6ms | 声明=65
-[2m2026-07-27T05:53:20.542687Z[0m [[32m[1minfo     [0m] [1mxml_tool_call_detected        [0m [[0m[1m[34mpycoder[0m][0m [36margs[0m=[35m'{\'title\': \'Super Mario Bros. Ultimate\', \'style\': "\\\\n        * { margin: 0; padding: 0; box-sizing: border-box; }\\\\n        body {\\\\n            background: linear-gradient(135deg, #1a1a2e 0%, #16213e'[0m [36mtool[0m=[35mhead[0m
-whitelist_loaded path=C:\Users\Administrator\Desktop\pycode\config\tool_whitelist.yaml mode=allow_all allowed=19 denied=4
-[2m2026-07-27T05:53:20.546862Z[0m [[32m[1minfo     [0m] [1mxml_tool_call_result          [0m [[0m[1m[34mpycoder[0m][0m [36moutput_preview[0m=[35m'{\'success\': True, \'content\': "<title>Super Mario Bros. Ultimate</title>\\n<style>\\\\n        * { margin: 0; padding: 0; box-sizing: border-box; }\\\\n        body {\\\\n            background: linear-gradie'[0m [36msuccess[0m=[35mTrue[0m [36mtool[0m=[35mhead[0m
-[2m2026-07-27T05:53:20.547335Z[0m [[32m[1minfo     [0m] [1mxml_tool_call_detected        [0m [[0m[1m[34mpycoder[0m][0m [36margs[0m=[35m"{'h1': 'Super Mario Bros. Ultimate', 'p': '← → Move | SPACE Jump | SHIFT Run | P Pause'}"[0m [36mtool[0m=[35mbody[0m
-whitelist_loaded path=C:\Users\Administrator\Desktop\pycode\config\tool_whitelist.yaml mode=allow_all allowed=19 denied=4
-[2m2026-07-27T05:53:20.549989Z[0m [[32m[1minfo     [0m] [1mxml_tool_call_result          [0m [[0m[1m[34mpycoder[0m][0m [36moutput_preview[0m=[35m"{'success': True, 'content': '<h1>Super Mario Bros. Ultimate</h1>\\n<p>← → Move | SPACE Jump | SHIFT Run | P Pause</p>'}"[0m [36msuccess[0m=[35mTrue[0m [36mtool[0m=[35mbody[0m
-[2m2026-07-27T05:53:20.556404Z[0m [[31m[1merror    [0m] [1mws_v2_chat_failed             [0m [[0m[1m[34mpycoder[0m][0m [36merror[0m=[35m"Unexpected ASGI message 'websocket.send', after sending 'websocket.close'."[0m
-[2m2026-07-27T05:53:20.556840Z[0m [[31m[1merror    [0m] [1mws_v2_error                   [0m [[0m[1m[34mpycoder[0m][0m [36mextra[0m=[35m{'session_id': 'test', 'error': "Unexpected ASGI message 'websocket.send', after sending 'websocket.close'."}[0m
-INFO:     127.0.0.1:12331 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:12478 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5548 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6523 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6074 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5371 - "GET /api/health HTTP/1.1" 200 OK
-request: GET /api/models status=200 duration=2.1ms request_id=8a5839cf
-request: GET /api/env status=200 duration=1582.1ms request_id=c714ffac
-SLOW_REQUEST: GET /api/env duration=1585.9ms status=200
-request: GET /api/git/status status=200 duration=2.9ms request_id=6bf62e2c
-request: GET /api/sessions status=200 duration=2.6ms request_id=757c64cc
-INFO:     127.0.0.1:5371 - "GET /api/models HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5410 - "GET /api/env HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5411 - "GET /api/git/status HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5412 - "GET /api/sessions HTTP/1.1" 200 OK
-request: GET /api/files/workspace/restore status=200 duration=0.9ms request_id=c0f653bd
-INFO:     127.0.0.1:5412 - "GET /api/files/workspace/restore HTTP/1.1" 200 OK
-workspace_config_created_default path=C:\Users\Administrator\Desktop\game\.pycoder\pycoder.json
-request: POST /api/workspace/manage/init status=200 duration=3.2ms request_id=7baac981
-INFO:     127.0.0.1:5412 - "POST /api/workspace/manage/init HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5446 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5633 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:6283 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:2081 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:2320 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:2519 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:3682 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:5046 - "GET /api/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:3464 - "GET /api/health HTTP/1.1" 200 OK
-[2m2026-07-27T06:03:19.067282Z[0m [[32m[1minfo     [0m] [1mws_v2_stop_requested          [0m [[0m[1m[34mpycoder[0m][0m [36mextra[0m=[35m{'session_id': 'test'}[0m
-[2m2026-07-27T06:03:23.105063Z[0m [[32m[1minfo     [0m] [1mws_v2_disconnect              [0m [[0m[1m[34mpycoder[0m][0m [36mextra[0m=[35m{'session_id': 'test'}[0m
-[2m2026-07-27T06:37:20.913408Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-refresh-09[0m
-[2m2026-07-27T06:37:20.914871Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-refresh-21[0m
-[2m2026-07-27T06:37:20.915724Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mextensions-refresh-03[0m
-[2m2026-07-27T06:37:20.916523Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mextensions-refresh-15[0m
-[2m2026-07-27T06:37:20.917320Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mself-evo-scan-daily[0m
-[2m2026-07-27T06:37:20.918073Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mself-evo-auto-fix[0m
-[2m2026-07-27T06:37:20.918871Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mmemory-auto-cleanup[0m
-[2m2026-07-27T06:37:20.919643Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35msecurity-auto-scan[0m
-[2m2026-07-27T06:37:20.920468Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-health-check[0m
-[2m2026-07-27T06:37:20.921271Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-lifecycle-daily[0m
-[2m2026-07-27T06:37:20.922095Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mFalse[0m [36mtask_id[0m=[35mskills-monthly-report[0m
-[2m2026-07-27T06:37:20.922844Z[0m [[32m[1minfo     [0m] [1msecurity_scan_skipped         [0m [[0m[1m[34mpycoder[0m][0m [36mmessage[0m=[35m'Not implemented yet'[0m
-[2m2026-07-27T06:37:20.923094Z[0m [[32m[1minfo     [0m] [1mtask_executed                 [0m [[0m[1m[34mpycoder[0m][0m [36msuccess[0m=[35mTrue[0m [36mtask_id[0m=[35msecurity-scan[0m
+INFO:     127.0.0.1:14487 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14487 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13842 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1788 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1876 - "GET /api/health HTTP/1.1" 200 OK
+任务难度评估: level=LIGHT score=19.5 max_iter=7 task=不能用吗？
+INFO:     127.0.0.1:4903 - "GET /api/health HTTP/1.1" 200 OK
+request: GET /api/files/read status=200 duration=1.7ms request_id=11fdc582
+INFO:     127.0.0.1:13890 - "GET /api/files/read?path=tests%5C__init__.py HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4320 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4406 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5316 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9425 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4245 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4299 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1221 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4555 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4662 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5292 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11807 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3512 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6964 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7177 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11448 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9125 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8309 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8441 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2072 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8643 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8644 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14094 - "GET /api/health HTTP/1.1" 200 OK
+[2m2026-07-28T02:33:07.489715Z[0m [[32m[1minfo     [0m] [1mws_v2_disconnect              [0m [[0m[1m[34mpycoder[0m][0m [36mextra[0m=[35m{'session_id': '4cf4d650-dcc8-406f-bf11-55028a3916a9'}[0m
+INFO:     127.0.0.1:4602 - "GET /api/git/status HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4603 - "GET /api/git/init HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4604 - "GET /api/git/log?limit=3 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4605 - "GET /api/git/branches HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4606 - "GET /api/github/auth/status HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4607 - "DELETE /api/github/auth HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4608 - "POST /api/github/auth HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4609 - "GET /api/github/repos HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4610 - "GET /api/github/repo/torvalds/linux HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4611 - "GET /api/github/pulls/torvalds/linux?state=open HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4612 - "GET /api/github/pulls/torvalds/linux/1 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4613 - "GET /api/github/issues/torvalds/linux?state=open&per_page=3 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4614 - "POST /api/github/clone HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4616 - "POST /api/github/create-repo HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:4617 - "POST /api/github/publish HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5536 - "GET /api/git/status HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5537 - "GET /api/git/init HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5538 - "GET /api/git/log?limit=3 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5539 - "GET /api/git/branches HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5540 - "GET /api/github/auth/status HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5541 - "DELETE /api/github/auth HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5542 - "POST /api/github/auth HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5543 - "GET /api/github/repos HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5544 - "GET /api/github/repo/torvalds/linux HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5545 - "GET /api/github/pulls/torvalds/linux?state=open HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5546 - "GET /api/github/pulls/torvalds/linux/1 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5547 - "GET /api/github/issues/torvalds/linux?state=open&per_page=3 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5548 - "POST /api/github/clone HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5549 - "POST /api/github/create-repo HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5550 - "POST /api/github/publish HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13432 - "GET /api/git/status HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13433 - "GET /api/git/init HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13434 - "GET /api/git/log?limit=3 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13435 - "GET /api/git/branches HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13436 - "GET /api/github/auth/status HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13437 - "DELETE /api/github/auth HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13438 - "POST /api/github/auth HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13439 - "GET /api/github/repos HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13440 - "GET /api/github/repo/torvalds/linux HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13441 - "GET /api/github/pulls/torvalds/linux?state=open HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13442 - "GET /api/github/pulls/torvalds/linux/1 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13443 - "GET /api/github/issues/torvalds/linux?state=open&per_page=3 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13444 - "POST /api/github/clone HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13445 - "POST /api/github/create-repo HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:13446 - "POST /api/github/publish HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11720 - "GET /api/git/status HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11721 - "GET /api/git/init HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11722 - "GET /api/git/log?limit=3 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11723 - "GET /api/git/branches HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11724 - "GET /api/github/auth/status HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11725 - "DELETE /api/github/auth HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11726 - "POST /api/github/auth HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11727 - "GET /api/github/repos HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11728 - "GET /api/github/repo/torvalds/linux HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11729 - "GET /api/github/pulls/torvalds/linux?state=open HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11730 - "GET /api/github/pulls/torvalds/linux/1 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11731 - "GET /api/github/issues/torvalds/linux?state=open&per_page=3 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11732 - "POST /api/github/clone HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11733 - "POST /api/github/create-repo HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:11734 - "POST /api/github/publish HTTP/1.1" 401 Unauthorized

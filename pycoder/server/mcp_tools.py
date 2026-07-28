@@ -106,7 +106,7 @@ async def call_builtin_tool(name: str, args: dict) -> MCPCallResult:
     # 从 V2 注册表获取所有已注册能力 ID，用于反向匹配
     try:
         all_caps = {cap.id for cap in v2.registry.list_all()}
-    except Exception:
+    except (AttributeError, RuntimeError, TypeError):
         all_caps = set()
 
     # 优先尝试精确匹配候选 ID
@@ -125,7 +125,7 @@ async def call_builtin_tool(name: str, args: dict) -> MCPCallResult:
                         output=getattr(result, "data", result),
                         tool=name,
                     )
-            except Exception:
+            except (AttributeError, RuntimeError, KeyError, TypeError):
                 continue
 
     # 反向模糊匹配: 在注册表中查找包含 name 核心部分的 capability
@@ -156,7 +156,7 @@ async def call_builtin_tool(name: str, args: dict) -> MCPCallResult:
                             output=getattr(result, "data", result),
                             tool=name,
                         )
-                except Exception:
+                except (AttributeError, RuntimeError, KeyError, TypeError):
                     continue
 
     return MCPCallResult(success=False, error=f"工具 {name} 未注册", tool=name)

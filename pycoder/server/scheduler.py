@@ -160,6 +160,15 @@ class Scheduler:
                 action="run_security_scan",
                 enabled=True,
             ),
+            # P0-5: 自进化定时巡检
+            ScheduledTask(
+                id="self-evolution-patrol",
+                name="自进化定时巡检",
+                trigger="interval",
+                config={"seconds": 43200},  # 每 12 小时执行一次
+                action="run_self_evolution",
+                enabled=True,
+            ),
         ]
         
         for task in default_tasks:
@@ -200,6 +209,8 @@ class Scheduler:
                 result = await self._optimize_memory()
             elif task.action == "run_security_scan":
                 result = await self._run_security_scan()
+            elif task.action == "run_self_evolution":
+                result = await self._run_self_evolution()
             else:
                 result = {"success": False, "error": f"Unknown action: {task.action}"}
             
@@ -244,13 +255,124 @@ class Scheduler:
             return {"success": False, "error": str(e)}
 
     async def _run_security_scan(self) -> dict:
-        """运行安全扫描"""
+        """运行安全扫描（P0-5: 集成自进化引擎扫描）"""
         try:
-            # TODO: 实现安全扫描逻辑
-            log.info("security_scan_skipped", message="Not implemented yet")
-            return {"success": True, "message": "Security scan skipped (not implemented)"}
-        
+            from pycoder.capabilities.self_evo.engine import SelfEvolutionEngine
+
+            engine = SelfEvolutionEngine()
+            report = await engine.scan("pycoder", use_llm=False)
+            return {
+                "success": True,
+                "files_scanned": report.files_scanned,
+                "total_issues": report.total_issues,
+                "critical": sum(1 for i in report.issues if i.severity == "critical"),
+                "high": sum(1 for i in report.issues if i.severity == "high"),
+                "medium": sum(1 for i in report.issues if i.severity == "medium"),
+                "low": sum(1 for i in report.issues if i.severity == "low"),
+            }
+        except ImportError as e:
+            return {"success": False, "error": f"Import error: {e}"}
         except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # P0-5: 自进化定时巡检
+    async def _run_self_evolution(self) -> dict:
+        """执行自进化巡检（P0-5: 自动化分析→修复→测试→学习闭环）
+
+        巡检流程:
+        1. 扫描 pycoder/ 代码库（AST 静态分析）
+        2. 过滤严重问题（critical + high）
+        3. 调用 LLM 生成修复方案
+        4. 在隔离分支上应用修复
+        5. 运行测试验证 → 通过则提交，失败则回滚
+        6. 记录学习经验
+        """
+        try:
+            from pycoder.capabilities.self_evo.engine import SelfEvolutionEngine
+
+            log.info("self_evolution_patrol_started")
+            engine = SelfEvolutionEngine()
+
+            # 步骤 1: 扫描
+            report = await engine.scan("pycoder", use_llm=False)
+            if report.total_issues == 0:
+                log.info("self_evolution_patrol_no_issues")
+                return {
+                    "success": True,
+                    "message": "未发现任何问题",
+                    "files_scanned": report.files_scanned,
+                    "issues_found": 0,
+                }
+
+            # 步骤 2: 过滤严重问题
+            critical_issues = [
+                i for i in report.issues
+                if i.severity in ("critical", "high")
+            ]
+            if not critical_issues:
+                log.info(
+                    "self_evolution_patrol_no_critical issues=%d",
+                    report.total_issues,
+                )
+                return {
+                    "success": True,
+                    "message": f"发现 {report.total_issues} 个问题，无严重问题，跳过自动修复",
+                    "files_scanned": report.files_scanned,
+                    "issues_found": report.total_issues,
+                    "skipped": report.total_issues,
+                }
+
+            # 步骤 3-5: 尝试修复（仅前 3 个严重问题，避免大规模变更）
+            fixed_count = 0
+            failed_count = 0
+            for issue in critical_issues[:3]:
+                try:
+                    proposal = await engine.generate_fix(issue)
+                    fix_result = await engine.apply_fix(proposal)
+                    if fix_result.success and fix_result.test_passed:
+                        fixed_count += 1
+                        from pycoder.capabilities.self_evo.engine import EvolutionRecord
+                        engine.record_evolution(
+                            EvolutionRecord(
+                                action="auto_fix",
+                                issue_type=issue.issue_type,
+                                file=issue.file,
+                                success=True,
+                                fix_description=issue.title,
+                            )
+                        )
+                    else:
+                        failed_count += 1
+                except Exception as e:
+                    log.warning(
+                        "self_evolution_fix_failed file=%s error=%s",
+                        issue.file,
+                        e,
+                    )
+                    failed_count += 1
+
+            log.info(
+                "self_evolution_patrol_done fixed=%d failed=%d total=%d",
+                fixed_count,
+                failed_count,
+                len(critical_issues),
+            )
+
+            return {
+                "success": True,
+                "message": f"自进化巡检完成",
+                "files_scanned": report.files_scanned,
+                "issues_found": report.total_issues,
+                "critical_issues": len(critical_issues),
+                "fixed": fixed_count,
+                "failed": failed_count,
+            }
+
+        except ImportError as e:
+            log.warning("self_evolution_patrol_import_error: %s", e)
+            return {"success": False, "error": f"Import error: {e}"}
+        except Exception as e:
+            log.error("self_evolution_patrol_error: %s", e)
             return {"success": False, "error": str(e)}
 
     # P0-3: 文件监听相关方法

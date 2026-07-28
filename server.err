@@ -1,10 +1,61 @@
 C:\Python314\Lib\site-packages\requests\__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.4.3)/charset_normalizer (3.4.6) doesn't match a supported version!
   warnings.warn(
-INFO:     Started server process [41648]
+INFO:     Started server process [34392]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8423 (Press CTRL+C to quit)
-INFO:     127.0.0.1:2554 - "WebSocket /ws/chat/v2?api_key=AX8iZWiH7B0aK2Lh1ZdC8F_hbjvA58h6QW6CkDFI9z0" [accepted]
+INFO:     127.0.0.1:10289 - "WebSocket /ws/chat/v2?api_key=AX8iZWiH7B0aK2Lh1ZdC8F_hbjvA58h6QW6CkDFI9z0" [accepted]
 INFO:     connection open
-INFO:     127.0.0.1:5370 - "WebSocket /ws/chat/v2?api_key=AX8iZWiH7B0aK2Lh1ZdC8F_hbjvA58h6QW6CkDFI9z0" [accepted]
+INFO:     127.0.0.1:10293 - "WebSocket /ws/terminal?api_key=AX8iZWiH7B0aK2Lh1ZdC8F_hbjvA58h6QW6CkDFI9z0" [accepted]
 INFO:     connection open
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "C:\Python314\Lib\site-packages\uvicorn\protocols\websockets\websockets_sansio_impl.py", line 350, in run_asgi
+    result = await self.app(self.scope, self.receive, self.send)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\site-packages\fastapi\applications.py", line 1160, in __call__
+    await super().__call__(scope, receive, send)
+  File "C:\Python314\Lib\site-packages\starlette\applications.py", line 90, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Python314\Lib\site-packages\starlette\middleware\errors.py", line 151, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Python314\Lib\site-packages\starlette\middleware\cors.py", line 80, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Python314\Lib\site-packages\starlette\middleware\base.py", line 103, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Python314\Lib\site-packages\starlette\middleware\base.py", line 103, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Python314\Lib\site-packages\starlette\middleware\base.py", line 103, in __call__
+    await self.app(scope, receive, send)
+  [Previous line repeated 4 more times]
+  File "C:\Python314\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "C:\Python314\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Python314\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Python314\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "C:\Python314\Lib\site-packages\starlette\routing.py", line 660, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "C:\Python314\Lib\site-packages\starlette\routing.py", line 680, in app
+    await route.handle(scope, receive, send)
+  File "C:\Python314\Lib\site-packages\starlette\routing.py", line 350, in handle
+    await self.app(scope, receive, send)
+  File "C:\Python314\Lib\site-packages\fastapi\routing.py", line 156, in app
+    await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+  File "C:\Python314\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "C:\Python314\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "C:\Python314\Lib\site-packages\fastapi\routing.py", line 153, in app
+    await func(session)
+  File "C:\Python314\Lib\site-packages\fastapi\routing.py", line 760, in app
+    await dependant.call(**solved_result.values)
+  File "C:\Users\Administrator\Desktop\pycode\pycoder\server\routers\terminal.py", line 399, in terminal_ws
+    pty.close()
+    ^^^^^^^^^
+AttributeError: 'builtins.PTY' object has no attribute 'close'

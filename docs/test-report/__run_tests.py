@@ -71,7 +71,7 @@ def call_api(
         if conn:
             try:
                 conn.close()
-            except Exception:
+            except (OSError, RuntimeError):
                 pass
 
 

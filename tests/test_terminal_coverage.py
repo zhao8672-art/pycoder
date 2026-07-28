@@ -47,7 +47,7 @@ def _mock_verify_ws_auth(monkeypatch, return_value=True):
             # 复现真实行为：认证失败时关闭连接
             try:
                 await ws.close(code=1008, reason="未授权：缺少或错误的 API Key")
-            except Exception:
+            except (ConnectionError, RuntimeError, OSError):
                 pass
         return return_value
 
@@ -271,7 +271,7 @@ class TestTerminalWsSubprocessMode:
             try:
                 data = ws.receive_json()
                 assert data["type"] in ("exit", "error")
-            except Exception:
+            except (ConnectionError, RuntimeError, AssertionError):
                 pass  # 连接直接断开也可接受
 
     def test_unknown_message_type(self, client, mock_env):
@@ -670,9 +670,8 @@ class TestTerminalErrorHandling:
             # BrokenPipe 触发 break,服务器发送 exit 后关闭
             try:
                 ws.receive_json()  # exit 消息
-            except Exception:
+            except (ConnectionError, RuntimeError):
                 pass  # 连接关闭也可接受
-
     def test_cd_broken_pipe(self, client, monkeypatch):
         """cd 写入 BrokenPipeError → 连接关闭"""
         _mock_verify_ws_auth(monkeypatch, True)
@@ -687,9 +686,8 @@ class TestTerminalErrorHandling:
             ws.send_json({"type": "cd", "path": "."})
             try:
                 ws.receive_json()  # exit 消息
-            except Exception:
+            except (ConnectionError, RuntimeError):
                 pass  # 连接关闭也可接受
-
     def test_pty_close_oserror(self, client, monkeypatch):
         """PTY 模式断开时 pty.close 抛 OSError → 被捕获"""
         _mock_verify_ws_auth(monkeypatch, True)

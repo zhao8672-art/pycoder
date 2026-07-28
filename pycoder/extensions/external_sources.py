@@ -159,7 +159,7 @@ def import_external_extensions() -> dict:
     if source_health_path.exists():
         try:
             health = json.loads(source_health_path.read_text(encoding="utf-8"))
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             pass
     health["external_import"] = {
         "added": added,

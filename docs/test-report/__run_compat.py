@@ -42,7 +42,7 @@ if not API_KEY:
         try:
             data = json.loads(cfg.read_text(encoding="utf-8"))
             API_KEY = data.get("provider", {}).get("api_keys", {}).get("deepseek", "")
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             pass
 
 # 备用 Key
@@ -56,9 +56,8 @@ RESULTS_PATH = Path(__file__).parent / "test-compatibility.json"
 try:
     if LOG_PATH.exists():
         LOG_PATH.unlink()
-except Exception:
+except OSError:
     pass
-
 
 def log(msg: str) -> None:
     ts = time.strftime("%H:%M:%S")
@@ -104,9 +103,8 @@ def call_raw(
         if conn:
             try:
                 conn.close()
-            except Exception:
+            except (OSError, RuntimeError):
                 pass
-
 
 issues: list[dict[str, Any]] = []
 results: list[dict[str, Any]] = []

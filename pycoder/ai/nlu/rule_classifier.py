@@ -59,6 +59,7 @@ DOMAIN_KEYWORDS: dict[str, list[str]] = {
 
 
 # ── 任务类型关键词 ──
+# P0-4 增强: 新增 5 个高频任务类型
 
 TASK_KEYWORDS: dict[str, list[str]] = {
     "code_generation": [
@@ -98,6 +99,27 @@ TASK_KEYWORDS: dict[str, list[str]] = {
     "architecture": [
         "架构", "设计", "架构图", "architecture", "design",
         "规划", "plan", "系统设计",
+    ],
+    # P0-4 新增 5 个任务类型
+    "security_scan": [
+        "安全扫描", "漏洞", "注入", "xss", "csrf", "加密",
+        "硬编码密钥", "安全审计", "渗透", "威胁",
+    ],
+    "data_analysis": [
+        "数据", "清洗", "可视化", "统计", "图表", "报表",
+        "dataset", "csv", "excel", "json数据",
+    ],
+    "project_management": [
+        "项目管理", "任务拆分", "里程碑", "进度", "迭代",
+        "发布计划", "版本规划", "sprint", "roadmap",
+    ],
+    "debug_error": [
+        "堆栈跟踪", "stack trace", "traceback", "断点", "日志",
+        "排查", "定位", "追踪", "单步",
+    ],
+    "git_operation": [
+        "git", "commit", "branch", "merge", "rebase", "cherry-pick",
+        "pull request", "push", "冲突", "回滚", "stash",
     ],
 }
 

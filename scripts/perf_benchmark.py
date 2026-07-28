@@ -299,7 +299,7 @@ def benchmark_search() -> dict[str, float]:
             start = time.perf_counter()
             try:
                 market.search_skills(query, limit=20)
-            except Exception:
+            except (RuntimeError, ConnectionError, OSError, ValueError):
                 pass
             elapsed_ms = (time.perf_counter() - start) * 1000
             times.append(elapsed_ms)
@@ -375,7 +375,7 @@ def benchmark_api() -> dict[str, float]:
                 headers = {"X-API-Key": api_key} if api_key else {}
                 try:
                     client.request(method, path, headers=headers)
-                except Exception:
+                except (OSError, RuntimeError):
                     pass
 
                 # 测量 10 次
@@ -386,7 +386,7 @@ def benchmark_api() -> dict[str, float]:
                         if resp.status_code < 500:
                             elapsed_ms = (time.perf_counter() - start) * 1000
                             times.append(elapsed_ms)
-                    except Exception:
+                    except (OSError, RuntimeError):
                         pass
         except Exception as e:
             print(_c(C.YELLOW, f"  ⚠ {desc} 测试失败: {e}"))

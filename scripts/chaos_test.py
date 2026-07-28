@@ -564,7 +564,7 @@ async def _simulate_request(
             manager.release(conn_id)
 
         return True
-    except Exception:
+    except (RuntimeError, ConnectionError, OSError, asyncio.TimeoutError):
         return False
 
 

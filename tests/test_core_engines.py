@@ -140,7 +140,7 @@ class TestSelfEvolutionEngine:
                 events.append(event)
                 if len(events) > 5:
                     break  # 防止无限循环
-        except Exception:
+        except (RuntimeError, ValueError, StopAsyncIteration):
             pass
         # 扫描应产生事件
         assert len(events) >= 0
@@ -156,7 +156,7 @@ class TestSelfEvolutionEngine:
                 events.append(event)
                 if len(events) > 5:
                     break
-        except Exception:
+        except (RuntimeError, ValueError, StopAsyncIteration):
             pass
         assert True  # 不报错即通过
 

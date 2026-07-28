@@ -171,12 +171,12 @@ def _get_release() -> str:
     try:
         from pycoder import __version__ as v
         release = f"pycoder@{v}"
-    except Exception:
+    except ImportError:
         pass
     # 附加平台信息用于诊断
     try:
         release += f" ({platform.system()} {platform.release()})"
-    except Exception:
+    except (AttributeError, OSError):
         pass
     return release
 

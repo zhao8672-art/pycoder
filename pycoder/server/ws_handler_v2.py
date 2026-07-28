@@ -498,7 +498,7 @@ async def _handle_chat_v2(msg: dict, ws: WebSocket, session_id: str, current_mod
                     try:
                         store.add_message(session_id, "user", message)
                         store.add_message(session_id, "assistant", final_content)
-                    except Exception:
+                    except (RuntimeError, ConnectionError, OSError, AttributeError, KeyError):
                         pass
 
         # 不阻塞主循环 — 后台流 + 清理任务

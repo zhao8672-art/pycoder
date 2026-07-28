@@ -333,7 +333,7 @@ def get_tool_whitelist() -> ToolWhitelist:
             try:
                 _whitelist.load_config(str(p))
                 return _whitelist
-            except Exception:
+            except (OSError, ValueError, KeyError):
                 continue
     logger.debug("whitelist_config_not_found tried=%s", tried_paths)
     return _whitelist

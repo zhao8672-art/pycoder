@@ -48,7 +48,7 @@ if not _GITHUB_TOKEN_AVAILABLE:
             _GITHUB_TOKEN_AVAILABLE = bool(
                 _cfg.get("github_token", "") or _cfg.get("github", {}).get("token", "")
             )
-    except Exception:
+    except (json.JSONDecodeError, OSError):
         pass
 if _GITHUB_TOKEN_AVAILABLE:
     log.info("github_token_detected", message="GitHub Token 可用, API 配额 5000 次/小时")

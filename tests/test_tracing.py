@@ -40,7 +40,7 @@ def reset_singleton():
     try:
         if TracingManager._instance is not None:
             TracingManager._instance.shutdown()
-    except Exception:
+    except (RuntimeError, OSError, AttributeError):
         pass
     TracingManager._instance = None
     TracingManager._initialized = False

@@ -309,7 +309,7 @@ class SkillDatabase:
         try:
             with sqlite3.connect(str(self._db_path)) as conn:
                 return conn.execute("SELECT COUNT(*) FROM skills").fetchone()[0]
-        except Exception:
+        except sqlite3.Error:
             return 0
 
     def row_to_skill_def(self, row: sqlite3.Row) -> SkillDefinition:

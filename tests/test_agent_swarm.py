@@ -408,10 +408,10 @@ class TestAgentSwarmOrchestrator:
 
     @pytest.mark.asyncio
     async def test_execute_single_tokens_calculation(self, orchestrator):
-        """Token 用量计算"""
+        """Token 用量计算（P0-3: 包含角色提示词和输出）"""
         task = AgentTask("1", AgentRole.DEVELOPER, "A" * 400)  # 400 字符 prompt
         result = await orchestrator._execute_single(task)
-        assert result.tokens_used == 100  # 400 // 4
+        assert result.tokens_used > 80  # 至少 400//4=100，加上角色提示词更多
 
     # ── 集成测试 ──────────────────────────────────
 

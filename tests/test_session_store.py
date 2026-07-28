@@ -79,5 +79,5 @@ def test_add_message_to_invalid_session(fresh_store):
     store = fresh_store
     try:
         store.add_message("nonexistent-id", "user", "test")
-    except Exception:
+    except (KeyError, RuntimeError, AttributeError):
         pass

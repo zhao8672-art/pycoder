@@ -30,7 +30,7 @@ def _get_github_token() -> str:
         try:
             cfg = json.loads(config_path.read_text(encoding="utf-8"))
             token = cfg.get("github_token", "") or cfg.get("github", {}).get("token", "")
-        except Exception:
+        except (json.JSONDecodeError, OSError, UnicodeDecodeError, KeyError, TypeError):
             pass
     return token
 
