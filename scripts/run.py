@@ -54,6 +54,8 @@ TASKS: dict[str, str] = {
     "format": "格式化代码 (black + isort)",
     "type-check": "mypy 类型检查",
     "security": "安全扫描 (bandit + safety)",
+    "quality-gate": "本地质量门禁 (commit 前预检查: lint+format+import+security+test)",
+    "quality-gate-quick": "快速质量门禁 (仅 lint + 快速测试)",
     # 文档
     "docs": "检查 README 文档一致性",
     # 前端
@@ -153,6 +155,14 @@ def cmd_security(_args: argparse.Namespace) -> int:
     return _run([PY, "-m", "safety", "check"])
 
 
+def cmd_quality_gate(_args: argparse.Namespace) -> int:
+    return _run([PY, "scripts/quality_gate.py"])
+
+
+def cmd_quality_gate_quick(_args: argparse.Namespace) -> int:
+    return _run([PY, "scripts/quality_gate.py", "--quick"])
+
+
 def cmd_docs(_args: argparse.Namespace) -> int:
     return _run([PY, "scripts/check_readme_consistency.py"])
 
@@ -238,6 +248,8 @@ HANDLERS: dict[str, callable] = {
     "format": cmd_format,
     "type-check": cmd_type_check,
     "security": cmd_security,
+    "quality-gate": cmd_quality_gate,
+    "quality-gate-quick": cmd_quality_gate_quick,
     "docs": cmd_docs,
     "electron": cmd_electron,
     "clean": cmd_clean,

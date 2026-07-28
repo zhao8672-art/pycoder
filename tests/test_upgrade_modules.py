@@ -224,7 +224,7 @@ class TestPerformanceAdvisor:
         return PerformanceAdvisor()
 
     def test_rules_count(self) -> None:
-        assert len(PERF_RULES) >= 8
+        assert len(PERF_RULES) >= 19  # P1 扩展后达到 19 条
 
     def test_analyze_clean_code(self, advisor: PerformanceAdvisor) -> None:
         code = "x = 1 + 2\nprint(x)\n"
@@ -264,6 +264,87 @@ if x in [1, 2, 3]:
 """
         warnings = advisor.analyze_code(code)
         assert any(w.pattern == "inefficient_membership_test" for w in warnings)
+
+    def test_analyze_sync_io_in_async(self, advisor: PerformanceAdvisor) -> None:
+        """检测 async 函数中的同步 open() 调用"""
+        code = """
+async def load_data(path):
+    f = open(path)
+    return f.read()
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "sync_io_in_async" for w in warnings)
+
+    def test_analyze_sync_requests_in_async(self, advisor: PerformanceAdvisor) -> None:
+        """检测 async 函数中的 requests.get() 调用"""
+        code = """
+import requests
+async def fetch(url):
+    return requests.get(url)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "sync_io_in_async" for w in warnings)
+
+    def test_analyze_import_in_loop(self, advisor: PerformanceAdvisor) -> None:
+        code = """
+for item in items:
+    import json
+    json.loads(item)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "import_in_loop" for w in warnings)
+
+    def test_analyze_deepcopy(self, advisor: PerformanceAdvisor) -> None:
+        code = """
+import copy
+new_data = copy.deepcopy(large_object)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "deep_copy_large" for w in warnings)
+
+    def test_analyze_bare_except(self, advisor: PerformanceAdvisor) -> None:
+        code = """
+try:
+    do_something()
+except:
+    pass
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "bare_except_perf" for w in warnings)
+
+    def test_analyze_list_dict_keys(self, advisor: PerformanceAdvisor) -> None:
+        code = """
+for k in list(d.keys()):
+    print(k)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "dict_keys_to_list" for w in warnings)
+
+    def test_analyze_n_plus_1_query(self, advisor: PerformanceAdvisor) -> None:
+        code = """
+for user in users:
+    order = session.query(Order).filter(Order.user_id == user.id).first()
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "n_plus_1_query" for w in warnings)
+
+    def test_analyze_sort_then_reverse(self, advisor: PerformanceAdvisor) -> None:
+        code = """
+items.sort()
+items.reverse()
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "sort_then_reverse" for w in warnings)
+
+    def test_analyze_manual_loop_search(self, advisor: PerformanceAdvisor) -> None:
+        code = """
+for item in items:
+    if item.is_target:
+        target = item
+        break
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "manual_loop_search" for w in warnings)
 
     def test_format_warnings_empty(self, advisor: PerformanceAdvisor) -> None:
         assert advisor.format_warnings([]) == ""
