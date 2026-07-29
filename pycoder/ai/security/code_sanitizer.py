@@ -251,7 +251,7 @@ class CodeSanitizer:
                                     if node.lineno <= len(lines)
                                     else ""
                                 ),
-                                fixed_code="验证路径: from pathlib import Path; p = Path(user_input).resolve(); if not str(p).startswith(str(base_dir)): raise ValueError('非法路径')",
+                                fixed_code="验证路径: from pathlib import Path; p = Path(user_input).resolve(); if not p.is_relative_to(base_dir): raise ValueError('非法路径')",
                                 cwe_id="CWE-22",
                             )
                         )

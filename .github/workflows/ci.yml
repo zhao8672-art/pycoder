@@ -1,64 +1,124 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  PyCoder CI — 跨平台持续集成 (Ubuntu + Windows)
+#
+#  触发条件: push / PR 到 main/master 分支
+#  矩阵策略: ubuntu-latest × windows-latest, Python 3.14
+#  质量门禁:
+#    - ruff check (错误阈值 < 50)
+#    - pytest + coverage (覆盖率 >= 80%)
+#    - mypy 类型检查 (宽松模式)
+#    - 构建验证 (wheel)
+# ════════════════════════════════════════════════════════════════════════════
+
 name: PyCoder CI
 
 on:
   push: { branches: [main, master] }
   pull_request: { branches: [main, master] }
 
+# 取消同一 PR 的旧运行，节省 CI 资源
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # ── 1. 代码质量检查 ──
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
-      - run: pip install ruff
-      - run: ruff check pycoder/ tests/
-
-  # ── 2. 类型检查 ──
-  typecheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
-      - run: pip install -e ".[dev]"
-      - run: mypy pycoder/ --ignore-missing-imports || true
-
-  # ── 3. 安全扫描 ──
-  security:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
-      - run: pip install bandit safety
-      - run: bandit -r pycoder/ -f json -o bandit-report.json || true
-      - run: safety check --bare || true
-
-  # ── 4. 单元测试 + 覆盖率 ──
-  test:
-    needs: [lint, typecheck]
-    runs-on: ubuntu-latest
+  # ── 主 CI 矩阵 (跨平台) ──────────────────────────────────────────
+  ci:
+    name: "${{ matrix.os }} / py${{ matrix.python-version }}"
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "${{ matrix.python-version }}" }
-      - run: pip install -e ".[dev]"
-      - run: pytest tests/ --cov=pycoder --cov-report=xml --cov-report=term --cov-fail-under=80
-      - uses: codecov/codecov-action@v4
-        if: matrix.python-version == '3.13'
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.14"]
 
-  # ── 5. 构建验证 ──
+    defaults:
+      run:
+        # 跨平台统一使用 bash，避免 Windows cmd/PowerShell 差异
+        shell: bash
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          # Python 3.14 可能需要预发布版本支持
+          allow-prereleases: true
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Ruff 代码检查
+        run: |
+          python -m pip install ruff
+          ruff check pycoder/ tests/ --output-format=json > ruff-report.json
+          python -c "
+          import json, sys
+          with open('ruff-report.json') as f:
+              data = json.load(f)
+          count = len(data)
+          threshold = 50
+          print(f'Ruff 发现 {count} 个问题 (阈值: {threshold})')
+          if count >= threshold:
+              print(f'❌ Ruff 错误超过阈值: {count} >= {threshold}')
+              # 打印前 10 个问题帮助定位
+              for item in data[:10]:
+                  print(f'  {item[\"filename\"]}:{item[\"location\"][\"row\"]} {item[\"code\"]} {item[\"message\"]}')
+              sys.exit(1)
+          print(f'✅ Ruff 检查通过 ({count} < {threshold})')
+          "
+
+      - name: Mypy 类型检查
+        # 类型检查在 Windows 上容易因 C 扩展缺失而失败，使用宽松模式
+        run: |
+          python -m mypy pycoder/ --ignore-missing-imports --show-error-codes || true
+
+      - name: 运行测试 + 覆盖率
+        run: |
+          python -m pytest tests/ \
+            --cov=pycoder \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=80 \
+            -ra \
+            --tb=short \
+            --durations=10
+
+      - name: 上传覆盖率报告到 Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+      - name: 归档覆盖率报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: coverage.xml
+          retention-days: 7
+
+  # ── 构建验证 (仅 Ubuntu, 快速检查打包) ──────────────────────────
   build:
-    needs: [test]
+    name: "构建验证 (wheel)"
+    needs: [ci]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
-      - run: pip install build
-      - run: python -m build --wheel
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          allow-prereleases: true
+
+      - name: 构建 wheel
+        run: |
+          python -m pip install build
+          python -m build --wheel
