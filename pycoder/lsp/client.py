@@ -8,6 +8,7 @@
     - hover                  悬停提示
     - references             引用查找
     - document_symbol        文档符号
+    - diagnostics            诊断捕获 (publishDiagnostics 通知)
 
 用法:
     client = LSPClient(workspace="/path/to/project")
@@ -15,6 +16,7 @@
     await client.initialize()
     await client.did_open("main.py", "print('hello')")
     completions = await client.completion("main.py", line=1, character=0)
+    diags = client.get_diagnostics("main.py")
     await client.shutdown()
 """
 from __future__ import annotations
@@ -22,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -35,6 +38,15 @@ from pycoder.lsp.protocol import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# LSP DiagnosticSeverity 枚举值
+DIAGNOSTIC_SEVERITY = {
+    1: "error",
+    2: "warning",
+    3: "information",
+    4: "hint",
+}
 
 
 @dataclass
@@ -130,6 +142,48 @@ class DocumentSymbol:
         }
 
 
+@dataclass
+class Diagnostic:
+    """LSP 诊断信息
+
+    由服务器通过 textDocument/publishDiagnostics 通知推送，
+    或由客户端通过诊断查询接口获取。
+    """
+
+    file_path: str = ""  # 文件路径 (已转换为本地路径)
+    line: int = 0  # 起始行 (0-based)
+    character: int = 0  # 起始列 (0-based)
+    end_line: int = 0
+    end_character: int = 0
+    severity: str = "information"  # error / warning / information / hint
+    code: str = ""  # 诊断码 (如 "reportMissingImports")
+    source: str = ""  # 来源 (如 "pyright")
+    message: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "file_path": self.file_path,
+            "line": self.line,
+            "character": self.character,
+            "end_line": self.end_line,
+            "end_character": self.end_character,
+            "severity": self.severity,
+            "code": self.code,
+            "source": self.source,
+            "message": self.message,
+        }
+
+    @property
+    def is_error(self) -> bool:
+        """是否为错误级别诊断"""
+        return self.severity == "error"
+
+    @property
+    def is_warning(self) -> bool:
+        """是否为警告级别诊断"""
+        return self.severity == "warning"
+
+
 class LSPClient:
     """LSP 客户端 — 与 LSP 服务器交互
 
@@ -146,6 +200,10 @@ class LSPClient:
         self._initialized: bool = False
         self._shutdown: bool = False
         self._server_capabilities: dict[str, Any] = {}
+        # 诊断捕获: file_path → Diagnostic 列表
+        self._diagnostics: dict[str, list[Diagnostic]] = {}
+        # 诊断回调列表 (用于将诊断推送到外部消费者, 如 ContextOrchestrator)
+        self._diagnostic_handlers: list[Callable[[str, list[Diagnostic]], None]] = []
 
     # ══════════════════════════════════════════════════════
     # 生命周期管理
@@ -424,8 +482,11 @@ class LSPClient:
                     if future and not future.done():
                         future.set_result(msg)
                 elif msg.is_notification():
-                    # 服务器通知 (如 textDocument/publishDiagnostics)
-                    logger.debug("lsp_notification: %s", msg.method)
+                    # 服务器通知 — 处理 textDocument/publishDiagnostics
+                    if msg.method == "textDocument/publishDiagnostics":
+                        self._handle_publish_diagnostics(msg.params or {})
+                    else:
+                        logger.debug("lsp_notification: %s", msg.method)
                 elif msg.is_request():
                     # 服务器发起的请求 (如 workspace/configuration)
                     logger.debug("lsp_server_request: %s", msg.method)
@@ -440,6 +501,115 @@ class LSPClient:
             if not fut.done():
                 fut.set_exception(ConnectionError("LSP server closed connection"))
         self._pending.clear()
+
+    def _handle_publish_diagnostics(self, params: dict[str, Any]) -> None:
+        """处理 textDocument/publishDiagnostics 通知
+
+        将 LSP 诊断转换为本地 Diagnostic 对象并存储。
+        触发已注册的回调以通知外部消费者 (如 ContextOrchestrator)。
+        """
+        uri = params.get("uri", "")
+        if not uri:
+            return
+        file_path = self._uri_to_path(uri)
+        raw_diags = params.get("diagnostics", [])
+        diagnostics = [self._parse_diagnostic(d, file_path) for d in raw_diags]
+        # 仅保留非空诊断 (LSP 也会推送空列表表示文件已无错误)
+        self._diagnostics[file_path] = diagnostics
+        # 触发回调
+        for handler in self._diagnostic_handlers:
+            try:
+                handler(file_path, diagnostics)
+            except Exception as e:
+                logger.debug("diagnostic_handler_error: %s", e)
+
+    @staticmethod
+    def _uri_to_path(uri: str) -> str:
+        """file:// URI 转本地路径"""
+        if uri.startswith("file://"):
+            # 简单实现 — Path 处理 Windows/Unix 路径
+            return str(Path(uri[7:]).resolve()) if uri[7:7] != "/" else str(
+                Path(uri[7:]).resolve()
+            )
+        return uri
+
+    @staticmethod
+    def _parse_diagnostic(raw: dict[str, Any], file_path: str) -> Diagnostic:
+        """解析单个 LSP 诊断"""
+        rng = raw.get("range", {})
+        start = rng.get("start", {})
+        end = rng.get("end", {})
+        severity_code = raw.get("severity", 3)  # 默认 information
+        return Diagnostic(
+            file_path=file_path,
+            line=start.get("line", 0),
+            character=start.get("character", 0),
+            end_line=end.get("line", 0),
+            end_character=end.get("character", 0),
+            severity=DIAGNOSTIC_SEVERITY.get(severity_code, "information"),
+            code=str(raw.get("code", "")),
+            source=raw.get("source", ""),
+            message=raw.get("message", ""),
+        )
+
+    # ══════════════════════════════════════════════════════
+    # 诊断查询与回调
+    # ══════════════════════════════════════════════════════
+
+    def get_diagnostics(self, file_path: str = "") -> list[Diagnostic]:
+        """获取指定文件的诊断信息
+
+        Args:
+            file_path: 文件路径 (空字符串返回所有文件的诊断)
+
+        Returns:
+            诊断列表 (按行号排序)
+        """
+        if not file_path:
+            all_diags: list[Diagnostic] = []
+            for diags in self._diagnostics.values():
+                all_diags.extend(diags)
+            return sorted(all_diags, key=lambda d: (d.file_path, d.line))
+        # 标准化路径以匹配存储键
+        normalized = self._normalize_path(file_path)
+        diags = self._diagnostics.get(normalized, [])
+        return sorted(diags, key=lambda d: d.line)
+
+    def get_all_diagnostics(self) -> dict[str, list[Diagnostic]]:
+        """获取所有文件的诊断映射 (file_path → diagnostics)"""
+        return dict(self._diagnostics)
+
+    def clear_diagnostics(self, file_path: str = "") -> None:
+        """清除诊断缓存"""
+        if file_path:
+            normalized = self._normalize_path(file_path)
+            self._diagnostics.pop(normalized, None)
+        else:
+            self._diagnostics.clear()
+
+    def register_diagnostics_handler(
+        self, handler: Callable[[str, list[Diagnostic]], None]
+    ) -> None:
+        """注册诊断回调
+
+        当 LSP 服务器推送 publishDiagnostics 时, handler 会被调用。
+        handler 签名: handler(file_path: str, diagnostics: list[Diagnostic]) -> None
+        """
+        self._diagnostic_handlers.append(handler)
+
+    def unregister_diagnostics_handler(
+        self, handler: Callable[[str, list[Diagnostic]], None]
+    ) -> None:
+        """注销诊断回调"""
+        if handler in self._diagnostic_handlers:
+            self._diagnostic_handlers.remove(handler)
+
+    def _normalize_path(self, file_path: str) -> str:
+        """标准化文件路径以便匹配诊断键"""
+        try:
+            return str(Path(file_path).resolve())
+        except (OSError, ValueError):
+            return file_path
 
     # ══════════════════════════════════════════════════════
     # 工具方法

@@ -19,7 +19,7 @@
 
 | 指标 | 当前值 | 目标值 | 更新日期 |
 |------|--------|--------|----------|
-| 单元测试通过率 | 134/134 (100%) | ≥ 95% | 2026-07-29 |
+| 单元测试通过率 | 188/188 (100%) | ≥ 95% | 2026-07-29 |
 | 测试覆盖率 (核心模块) | 41% (server) / ≥80% (升级模块) | ≥ 80% 全局 | 2026-07-29 |
 | PerfAdvisor 规则数 | 31 | 40+ | 2026-07-29 |
 | 错误模式库数量 | 50+ | 80+ | 2026-07-29 |
@@ -28,9 +28,57 @@
 | CI 流水线检查项 | 5 (lint/type/security/test/build) | 6 (+docs) | 2026-07-29 |
 | Bandit HIGH 问题数 | 0 | 0 | 2026-07-29 |
 | Ruff 错误数 | ~200 (从 2184 降低 91%) | < 50 | 2026-07-29 |
-| LSP 能力数 | 6 (completion/definition/hover/references/symbol/diagnostics) | 10+ | 2026-07-29 |
+| LSP 能力数 | 7 (completion/definition/hover/references/symbol/diagnostics/context_integration) | 10+ | 2026-07-29 |
+| LSP 集成阶段 | 阶段 2 完成 (诊断→AI 提示词) | 阶段 3 (Electron Monaco) | 2026-07-29 |
 
 ## 三、迭代历史
+
+### 迭代 #5 — 2026-07-29: LSP 集成阶段 2 — 诊断注入 AI 提示词
+
+**变更内容**:
+- **LSPClient 诊断捕获能力** (`pycoder/lsp/client.py`):
+  - 新增 `Diagnostic` 数据类 (file_path/line/severity/code/source/message)
+  - 实现 `textDocument/publishDiagnostics` 通知处理 (`_handle_publish_diagnostics`)
+  - 诊断存储与查询: `get_diagnostics()` / `get_all_diagnostics()` / `clear_diagnostics()`
+  - 诊断回调注册机制: `register_diagnostics_handler()` / `unregister_diagnostics_handler()`
+  - 严重度映射常量 `DIAGNOSTIC_SEVERITY` (1=error/2=warning/3=info/4=hint)
+  - URI → 本地路径转换 (`_uri_to_path`)
+  - 回调异常隔离 (单个回调异常不影响其他回调和诊断存储)
+- **LSPContextIntegrator** (`pycoder/lsp/context_integration.py` 新增):
+  - 诊断收集 (`collect_diagnostics` / `collect_all_diagnostics`)
+  - 按严重度过滤 (默认仅 error + warning)
+  - 多维限量: `max_diagnostics_per_file` / `max_total_diagnostics` / `max_files`
+  - 严重度优先级排序 (error > warning > information > hint)
+  - AI 提示词格式化 (`format_diagnostics_for_prompt`) — 含错误统计 + 行号 + 修复建议
+  - 锚点片段生成 (`get_anchor_section`) — 带 `LSP_DIAGNOSTICS_ANCHOR` 标记便于 ContextOrchestrator 识别
+  - 统计信息 (`get_stats`) — total/errors/warnings/files_affected
+  - 优雅降级 (LSP 异常不影响主流程)
+- **DiagnosticsAggregator 升级** (`pycoder/lsp/diagnostics.py`):
+  - 新增 `LSPClient` 模式 (`scan_file_from_client` / `scan_all_from_client`)
+  - 兼容旧 `LSPManager` 模式 (`scan_file`)
+  - 自动语言推断 (基于文件扩展名, 支持 5 种语言)
+  - `AggregatedDiagnostic` 扩展字段 (code/end_line/end_column/source)
+- **ContextOrchestrator LSP 集成** (`pycoder/server/services/context_orchestrator.py`):
+  - 新增 `set_lsp_integrator()` / `set_context_files()` / `add_context_file()` / `get_lsp_diagnostics_snippet()`
+  - `process_user_message` 自动注入 LSP 诊断到 anchor
+  - 返回结果新增 `lsp_diagnostics` 字段 (独立片段) 与 `lsp_stats` 字段 (统计)
+  - 推送 `lsp_diagnostics` WS 事件 (含统计)
+  - LSP 异常隔离 (集成器失败不影响对话主流程)
+- **模块导出** (`pycoder/lsp/__init__.py`):
+  - 延迟导入 `LSPContextIntegrator` 避免循环依赖
+- **单元测试** (`tests/test_lsp_context_integration.py` 新增): 54 项测试
+  - Diagnostic 数据类 (5 项)
+  - LSPClient 诊断捕获 (13 项) — publishDiagnostics 处理/缓存/回调/异常隔离
+  - LSPContextIntegrator (20 项) — 收集/过滤/限量/格式化/锚点/统计/降级
+  - DiagnosticsAggregator LSPClient 模式 (6 项)
+  - ContextOrchestrator 端到端集成 (10 项) — set_lsp_integrator/context_files/process_user_message
+
+**测试**: 188 项全部通过 (含 54 个新 LSP 集成测试 + 134 个回归测试)
+
+**未完成项** (转入下一迭代):
+- LSP 集成阶段 3: Electron Monaco Editor 集成 (前端显示诊断)
+- 集成测试 (需安装 pyright 后端到端测试)
+- LSP 诊断 → 自进化反馈闭环 (诊断错误模式自动学习)
 
 ### 迭代 #4 — 2026-07-29: LSP 集成阶段 1 — 协议层与客户端实现
 
@@ -131,11 +179,13 @@
 ## 四、待办事项 (按优先级)
 
 ### P0 — 关键 (本周内)
-- [ ] LSP 集成阶段 2: 与 ContextBuilder 集成 (LSP 诊断 → AI 提示词)
+- [x] LSP 集成阶段 2: 与 ContextBuilder 集成 (LSP 诊断 → AI 提示词) ✓ 迭代#5 完成
 - [ ] 剩余 ~200 个 ruff 错误人工审查 (F821/F841)
 
 ### P1 — 重要 (2 周内)
-- [ ] LSP 集成阶段 3: Electron Monaco Editor 集成
+- [ ] LSP 集成阶段 3: Electron Monaco Editor 集成 (前端显示诊断)
+- [ ] LSP 诊断 → 自进化反馈闭环 (诊断错误模式自动学习)
+- [ ] LSP 集成端到端测试 (安装 pyright 后跑真实诊断)
 - [ ] PerfAdvisor 规则扩展至 40+ (添加 I/O/算法复杂度规则)
 - [ ] 错误模式库扩展至 80+ (添加框架特定错误)
 - [ ] 竞品对比报告深度分析 (Codex/Trae 最新版本功能)

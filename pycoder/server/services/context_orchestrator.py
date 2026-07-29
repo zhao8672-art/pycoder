@@ -40,12 +40,16 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING
 
 from pycoder.server.services.context_manager import ContextWindowManager
 from pycoder.server.services.context_metrics import ContextMetrics
 from pycoder.server.services.drift_detector import DriftDetector
 from pycoder.server.services.memory_augmentor import MemoryAugmentor
 from pycoder.server.services.task_tracker import TaskPhase, TaskTracker
+
+if TYPE_CHECKING:
+    from pycoder.lsp.context_integration import LSPContextIntegrator
 
 logger = logging.getLogger(__name__)
 
@@ -84,10 +88,60 @@ class ContextOrchestrator:
         self._ws_callback: Callable[[dict], Awaitable[None]] | None = None
         self._review_every_n: int = 10  # 每 N 轮触发回顾
         self._stats: dict = {"tasks_completed": 0, "tasks_failed": 0}
+        # LSP 集成器 (可选, 用于将 LSP 诊断注入 AI 提示词)
+        self._lsp_integrator: LSPContextIntegrator | None = None
+        # 当前上下文涉及的文件列表 (供 LSP 诊断扫描使用)
+        self._context_files: list[str] = []
 
     def set_ws_callback(self, cb: Callable[[dict], Awaitable[None]]) -> None:
         """注册 WebSocket 推送回调（用于实时状态推送）"""
         self._ws_callback = cb
+
+    def set_lsp_integrator(
+        self, integrator: LSPContextIntegrator | None
+    ) -> None:
+        """注册或移除 LSP 上下文集成器
+
+        集成器注册后, process_user_message 会自动将 LSP 诊断注入到 AI 提示词锚点中,
+        帮助 LLM 感知当前文件的错误与警告。
+
+        Args:
+            integrator: LSPContextIntegrator 实例 (None 表示移除集成器)
+        """
+        self._lsp_integrator = integrator
+        if integrator is not None:
+            logger.info("lsp_integrator_attached: enabled=%s", integrator.enabled)
+        else:
+            logger.info("lsp_integrator_detached")
+
+    def set_context_files(self, file_paths: list[str]) -> None:
+        """设置当前上下文涉及的文件列表
+
+        这些文件将被 LSP 集成器扫描以收集诊断信息。
+
+        Args:
+            file_paths: 文件路径列表
+        """
+        self._context_files = list(file_paths)
+
+    def add_context_file(self, file_path: str) -> None:
+        """添加单个上下文文件"""
+        if file_path not in self._context_files:
+            self._context_files.append(file_path)
+
+    def get_lsp_diagnostics_snippet(self) -> str:
+        """获取 LSP 诊断片段 (供外部调用方直接使用)
+
+        Returns:
+            LSP 诊断提示词片段 (空字符串表示无诊断或未启用集成器)
+        """
+        if self._lsp_integrator is None or not self._lsp_integrator.enabled:
+            return ""
+        # 扫描上下文文件 + 所有已缓存文件
+        snippet = self._lsp_integrator.build_diagnostics_context(
+            file_paths=self._context_files or None
+        )
+        return snippet
 
     async def _push_event(self, event: dict) -> None:
         if self._ws_callback:
@@ -153,6 +207,8 @@ class ContextOrchestrator:
                 "drift_report": DriftReport,
                 "status": dict,             # 任务状态
                 "events": list[dict],       # 需要推送的 WS 事件
+                "lsp_diagnostics": str,     # LSP 诊断片段 (新增)
+                "lsp_stats": dict,          # LSP 诊断统计 (新增)
             }
         """
         events: list[dict] = []
@@ -195,7 +251,27 @@ class ContextOrchestrator:
         if self.drift._round_count % review_every == 0 and self.drift._round_count > 0:
             review_prompt = self.drift.generate_review_prompt()
 
-        # 7. 推送状态事件
+        # 7. 收集 LSP 诊断 (注入 AI 提示词)
+        lsp_snippet = ""
+        lsp_stats: dict = {}
+        if self._lsp_integrator is not None and self._lsp_integrator.enabled:
+            try:
+                lsp_snippet = self._lsp_integrator.build_diagnostics_context(
+                    file_paths=self._context_files or None
+                )
+                lsp_stats = self._lsp_integrator.get_stats()
+                if lsp_snippet:
+                    self.metrics.record_context_injection()
+                    events.append(
+                        {
+                            "type": "lsp_diagnostics",
+                            "stats": lsp_stats,
+                        }
+                    )
+            except Exception as e:
+                logger.debug("lsp_diagnostics_collection_failed: %s", e)
+
+        # 8. 推送状态事件
         status = self.tracker.get_status()
         await self._push_event(
             {
@@ -212,6 +288,8 @@ class ContextOrchestrator:
         anchor_parts = [anchor]
         if review_prompt:
             anchor_parts.append(review_prompt)
+        if lsp_snippet:
+            anchor_parts.append(lsp_snippet)
 
         return {
             "anchor": "\n\n".join(anchor_parts),
@@ -223,6 +301,8 @@ class ContextOrchestrator:
             "drift_report": drift_report,
             "status": status,
             "events": events,
+            "lsp_diagnostics": lsp_snippet,
+            "lsp_stats": lsp_stats,
         }
 
     def add_assistant_response(self, response: str) -> None:
