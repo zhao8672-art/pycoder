@@ -32,10 +32,10 @@ let backendManager: PythonBackendManager;
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 960,
-    minHeight: 640,
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
     title: 'PyCoder IDE - Python AI 编程助手',
     backgroundColor: '#1a1b2e',
     show: true,

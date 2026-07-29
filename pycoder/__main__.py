@@ -141,6 +141,11 @@ def main():
         default="pycoder",
         help="自进化扫描路径 (默认: pycoder/)",
     )
+    parser.add_argument(
+        "--quick-start",
+        action="store_true",
+        help="快速启动模式：跳过 V2 引擎、环境工具检测等非必要初始化",
+    )
 
     args, unknown = parser.parse_known_args()
 
@@ -225,7 +230,7 @@ def main():
         from pycoder.server.app import run_server
 
         print(f"PyCoder v{__import__('pycoder').__version__} — V2 AI-Centric Engine")
-        run_server(port=args.server_port)
+        run_server(port=args.server_port, quick_start=args.quick_start)
         return
 
     # 其他参数 -> CLI 模式

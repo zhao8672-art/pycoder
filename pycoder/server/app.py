@@ -5,6 +5,9 @@ from __future__ import annotations
 import asyncio
 import logging as _logging
 import os
+import time as _app_time  # 启动耗时埋点
+
+_app_module_start = _app_time.perf_counter()
 
 # ── API 密钥认证中间件（P0-4 强制模式） ───────────────────
 #
@@ -15,20 +18,18 @@ import os
 #                                       （生产应显式设置，避免每次重启变化）
 #
 # 此修改避免生产环境因运维忘记设置环境变量而完全暴露 API。
-import secrets as _secrets
-from contextlib import asynccontextmanager
-from pathlib import Path as _Path
+import secrets as _secrets  # noqa: E402
+from contextlib import asynccontextmanager  # noqa: E402
+from pathlib import Path as _Path  # noqa: E402
 
-from fastapi import FastAPI, Request, WebSocket
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi import FastAPI, Request, WebSocket  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
 
-from pycoder import __version__
-from pycoder.server.app_lifecycle import run_server
-from pycoder.server.permission_policy import get_permission_policy
-from pycoder.server.router_groups import register_router_groups
-from pycoder.server.ws_handler import websocket_chat
-from pycoder.server.ws_handler_v2 import websocket_chat_v2
+from pycoder import __version__  # noqa: E402
+from pycoder.server.app_lifecycle import run_server  # noqa: E402
+from pycoder.server.permission_policy import get_permission_policy  # noqa: E402
+from pycoder.server.router_groups import register_router_groups  # noqa: E402
 
 _logger = _logging.getLogger("pycoder.server.app")
 
@@ -218,6 +219,11 @@ async def lifespan(app: FastAPI):
 
     profiler = get_startup_profiler()
 
+    # ── 快速启动模式：跳过非必要初始化 ──
+    _quick_start = os.environ.get("PYCODER_QUICK_START", "").strip() == "1"
+    if _quick_start:
+        _logger.info("quick_start_mode: 跳过 V2 引擎、环境工具检测、工作区检测等非必要初始化")
+
     # 阶段 0 架构升级：显式触发 subprocess 兼容补丁
     # （从 pycoder/__init__.py 的导入期副作用拆出，延迟到此处执行）
     with profiler.measure("subprocess_compat_install"):
@@ -232,123 +238,130 @@ async def lifespan(app: FastAPI):
     with profiler.measure("llm_keys_check"):
         _check_llm_keys_on_startup()
 
-    with profiler.measure("recommendation_db_init"):
-        await _init_recommendation_db()
+    if not _quick_start:
+        with profiler.measure("recommendation_db_init"):
+            await _init_recommendation_db()
 
     with profiler.measure("di_container_init"):
         _init_di_container()
 
-    # ── 环境工具检测（带超时保护，避免 semgrep 等工具检测阻塞启动）──
-    with profiler.measure("env_tools_check"):
-        try:
-            await asyncio.wait_for(
-                asyncio.to_thread(_check_environment_tools),
-                timeout=30.0,
-            )
-        except TimeoutError:
-            _logger.warning("env_tools_check_timeout: 环境工具检测超时，跳过")
-        except Exception as e:
-            _logger.warning("env_tools_check_failed: %s", e)
-
-    # ── V2 引擎初始化（带超时保护）──
-    with profiler.measure("v2_engine_init"):
-        try:
-            v2_engine = await asyncio.wait_for(
-                _init_v2_engine(),
-                timeout=60.0,
-            )
-        except TimeoutError:
-            _logger.warning("v2_engine_init_timeout: V2 引擎初始化超时，跳过")
-            v2_engine = None
-        except Exception as e:
-            _logger.error("v2_engine_init_failed: %s", e)
-            v2_engine = None
-    app.state.v2_engine = v2_engine
-
-    # ── P 层端口工厂注册（消除 D→C/P→C 违规的依赖注入） ──
-    with profiler.measure("ports_registration"):
-        try:
-            from pycoder.core.ports.engine import register_engine_getter
-
-            register_engine_getter(lambda: app.state.v2_engine)
-        except Exception as e:
-            _logger.warning("engine_port_register_failed: %s", e)
-        try:
-            from pycoder.core.ports.pipeline import register_pipeline_factory
-            from pycoder.server.services.autonomous_pipeline import AutonomousPipeline
-
-            register_pipeline_factory(AutonomousPipeline)
-        except Exception as e:
-            _logger.warning("pipeline_port_register_failed: %s", e)
-        try:
-            from pycoder.core.services.external_skills import (
-                register_roles_getter,
-                register_skills_fetcher,
-            )
-            from pycoder.server.skills_external_sources import fetch_all_external_skills
-
-            register_skills_fetcher(fetch_all_external_skills)
-            from pycoder.server.services.agent_definitions import AGENT_ROLES
-
-            register_roles_getter(lambda: AGENT_ROLES)
-        except Exception as e:
-            _logger.warning("skills_port_register_failed: %s", e)
-
-    # ── 插件注册表初始化 ──
-    with profiler.measure("plugin_registry_init"):
-        try:
-            from pycoder.plugins.base import PluginRegistry
-            from pycoder.plugins.hermes_plugin import HermesPlugin
-
-            reg = PluginRegistry()
-            reg.register(HermesPlugin())
-            global _plugin_registry
-            _plugin_registry = reg
-            _logger.info("plugin_registry_initialized: plugins=1")
-        except Exception as e:
-            _logger.warning("plugin_registry_init_failed: %s", e)
-            _plugin_registry = None
-
-    # ── 自动升级检查：恢复中断的升级 ──
-    try:
-        from pycoder.capabilities.self_evo.upgrade import check_pending_on_startup
-
-        result = check_pending_on_startup()
-        if result and result.get("status") == "pending":
-            _logger.info("auto_upgrade_pending: %s", result)
-    except ImportError:
-        pass
-
-    with profiler.measure("scheduler_start"):
-        await _start_scheduler()
-
-    # ── 项目路径自动检测与工作区初始化 ──
-    with profiler.measure("workspace_auto_detect"):
-        try:
-            from pycoder.server.services.workspace_detector import get_workspace_detector
-            from pycoder.server.services.workspace_manager import get_workspace_manager
-
-            detector = get_workspace_detector()
-            result = detector.detect()
-            if result.confidence >= 0.4:
-                mgr = get_workspace_manager()
-                mgr.initialize(result.project_path)
-                detector.save_to_history(result.project_path)
-                _logger.info(
-                    "workspace_auto_detected path=%s method=%s confidence=%.2f",
-                    result.project_path,
-                    result.method,
-                    result.confidence,
+    if not _quick_start:
+        # ── 环境工具检测（带超时保护，避免 semgrep 等工具检测阻塞启动）──
+        with profiler.measure("env_tools_check"):
+            try:
+                await asyncio.wait_for(
+                    asyncio.to_thread(_check_environment_tools),
+                    timeout=30.0,
                 )
-            else:
-                _logger.info(
-                    "workspace_auto_detect_low_confidence path=%s method=%s confidence=%.2f",
-                    result.project_path,
-                    result.method,
-                    result.confidence,
+            except TimeoutError:
+                _logger.warning("env_tools_check_timeout: 环境工具检测超时，跳过")
+            except Exception as e:
+                _logger.warning("env_tools_check_failed: %s", e)
+
+        # ── V2 引擎初始化（带超时保护）──
+        with profiler.measure("v2_engine_init"):
+            try:
+                v2_engine = await asyncio.wait_for(
+                    _init_v2_engine(),
+                    timeout=60.0,
                 )
-        except Exception as e:
-            _logger.warning("workspace_auto_detect_failed error=%s", e)
+            except TimeoutError:
+                _logger.warning("v2_engine_init_timeout: V2 引擎初始化超时，跳过")
+                v2_engine = None
+            except Exception as e:
+                _logger.error("v2_engine_init_failed: %s", e)
+                v2_engine = None
+        app.state.v2_engine = v2_engine
+
+        # ── P 层端口工厂注册（消除 D→C/P→C 违规的依赖注入） ──
+        with profiler.measure("ports_registration"):
+            try:
+                from pycoder.core.ports.engine import register_engine_getter
+
+                register_engine_getter(lambda: app.state.v2_engine)
+            except Exception as e:
+                _logger.warning("engine_port_register_failed: %s", e)
+            try:
+                from pycoder.core.ports.pipeline import register_pipeline_factory
+                from pycoder.server.services.autonomous_pipeline import AutonomousPipeline
+
+                register_pipeline_factory(AutonomousPipeline)
+            except Exception as e:
+                _logger.warning("pipeline_port_register_failed: %s", e)
+            try:
+                from pycoder.core.services.external_skills import (
+                    register_roles_getter,
+                    register_skills_fetcher,
+                )
+                from pycoder.server.skills_external_sources import fetch_all_external_skills
+
+                register_skills_fetcher(fetch_all_external_skills)
+                from pycoder.server.services.agent_definitions import AGENT_ROLES
+
+                register_roles_getter(lambda: AGENT_ROLES)
+            except Exception as e:
+                _logger.warning("skills_port_register_failed: %s", e)
+
+        # ── 插件注册表初始化 ──
+        with profiler.measure("plugin_registry_init"):
+            try:
+                from pycoder.plugins.base import PluginRegistry
+                from pycoder.plugins.hermes_plugin import HermesPlugin
+
+                reg = PluginRegistry()
+                reg.register(HermesPlugin())
+                global _plugin_registry
+                _plugin_registry = reg
+                _logger.info("plugin_registry_initialized: plugins=1")
+            except Exception as e:
+                _logger.warning("plugin_registry_init_failed: %s", e)
+                _plugin_registry = None
+
+        # ── 自动升级检查：恢复中断的升级 ──
+        try:
+            from pycoder.capabilities.self_evo.upgrade import check_pending_on_startup
+
+            result = check_pending_on_startup()
+            if result and result.get("status") == "pending":
+                _logger.info("auto_upgrade_pending: %s", result)
+        except ImportError:
+            pass
+
+        with profiler.measure("scheduler_start"):
+            await _start_scheduler()
+
+        # ── 项目路径自动检测与工作区初始化 ──
+        with profiler.measure("workspace_auto_detect"):
+            try:
+                from pycoder.server.services.workspace_detector import get_workspace_detector
+                from pycoder.server.services.workspace_manager import get_workspace_manager
+
+                detector = get_workspace_detector()
+                result = detector.detect()
+                if result.confidence >= 0.4:
+                    mgr = get_workspace_manager()
+                    mgr.initialize(result.project_path)
+                    detector.save_to_history(result.project_path)
+                    _logger.info(
+                        "workspace_auto_detected path=%s method=%s confidence=%.2f",
+                        result.project_path,
+                        result.method,
+                        result.confidence,
+                    )
+                else:
+                    _logger.info(
+                        "workspace_auto_detect_low_confidence path=%s method=%s confidence=%.2f",
+                        result.project_path,
+                        result.method,
+                        result.confidence,
+                    )
+            except Exception as e:
+                _logger.warning("workspace_auto_detect_failed error=%s", e)
+    else:
+        # 快速启动：V2 引擎和调度器跳过
+        v2_engine = None
+        app.state.v2_engine = None
+        _logger.info("quick_start: v2_engine、scheduler、workspace_detect 已跳过")
 
     _logger.info("startup_profile:\n%s", profiler.format_report())
 
@@ -595,89 +608,91 @@ app = FastAPI(
 # 加载权限策略并在启动时缓存
 _permission_policy = get_permission_policy()
 
-# ── 阶段 2 架构升级：统一错误处理中间件 ──
-# 必须在最外层（add_middleware 后注册的最后执行最早）
-# 注册统一错误处理器（FastAPI exception_handler 会在中间件之后生效）
-from pycoder.server.error_handlers import register_error_handlers  # noqa: E402
-from pycoder.server.middleware import (  # noqa: E402
-    ErrorHandlingMiddleware,
-    ETagCacheMiddleware,
-    PerformanceMonitoringMiddleware,
-    RateLimitMiddleware,
-    RequestBodyScannerMiddleware,
-    SecurityHeadersMiddleware,
-)
+# ── 阶段 2 架构升级：统一错误处理中间件 + 安全头 ──────────
+def _register_middlewares(app: FastAPI) -> None:
+    """注册所有中间件（含计时日志），收敛模块级导入到函数内。"""
+    import time as _time
+    _t0 = _time.perf_counter()
 
-register_error_handlers(app)
+    from pycoder.server.error_handlers import register_error_handlers  # noqa: E402
+    from pycoder.server.middleware import (  # noqa: E402
+        ErrorHandlingMiddleware,
+        ETagCacheMiddleware,
+        PerformanceMonitoringMiddleware,
+        RateLimitMiddleware,
+        RequestBodyScannerMiddleware,
+        SecurityHeadersMiddleware,
+    )
 
-# 中间件注册顺序（从外到内执行）：
-# 1. ErrorHandling — 捕获所有未处理异常
-# 2. SecurityHeaders — 添加 CSP/X-Frame-Options 等安全头
-# 3. PerformanceMonitoring — 慢请求检测
-# 4. ETagCache — 缓存优化
-# 5. RateLimit — 速率限制（防止滥用）
-# 6. RequestBodyScanner — 请求体 shell 注入扫描
-# 7. APIKeyMiddleware — API 认证
-# 8. CORSMiddleware — CORS 处理
-app.add_middleware(ErrorHandlingMiddleware)
-app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(PerformanceMonitoringMiddleware)
-app.add_middleware(ETagCacheMiddleware)
-app.add_middleware(RateLimitMiddleware)  # BUG-008 修复：替换原简单限流
-app.add_middleware(RequestBodyScannerMiddleware)  # BUG-005 修复
+    register_error_handlers(app)
 
-# 始终注册 API 认证中间件（内部根据 _API_KEY 是否为空决定是否生效）
-app.add_middleware(APIKeyMiddleware)
+    # 中间件注册顺序（从外到内执行）：
+    # 1. ErrorHandling — 捕获所有未处理异常
+    # 2. SecurityHeaders — 添加 CSP/X-Frame-Options 等安全头
+    # 3. PerformanceMonitoring — 慢请求检测
+    # 4. ETagCache — 缓存优化
+    # 5. RateLimit — 速率限制（防止滥用）
+    # 6. RequestBodyScanner — 请求体 shell 注入扫描
+    # 7. APIKeyMiddleware — API 认证
+    # 8. CORSMiddleware — CORS 处理
+    app.add_middleware(ErrorHandlingMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(PerformanceMonitoringMiddleware)
+    app.add_middleware(ETagCacheMiddleware)
+    app.add_middleware(RateLimitMiddleware)  # BUG-008 修复
+    app.add_middleware(RequestBodyScannerMiddleware)  # BUG-005 修复
 
-app.add_middleware(
-    CORSMiddleware,
-    # BUG-010 修复：添加通配 regex 支持任意 127.0.0.1 / localhost 端口
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
-    allow_origins=[
-        "http://localhost:8420",
-        "http://127.0.0.1:8420",
-        "http://localhost:8423",
-        "http://127.0.0.1:8423",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "app://.",  # Electron file:// schema
-        "file://",
-    ],
-    allow_credentials=True,
-    # BUG-009 修复：显式添加 HEAD/OPTIONS/PATCH 支持
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
-    allow_headers=[
-        "Content-Type",
-        "Authorization",
-        "X-API-Key",
-        "X-Request-ID",
-        "Accept",
-        "Accept-Language",
-        "Content-Language",
-        "X-Requested-With",
-    ],
-    expose_headers=[
-        "X-Request-ID",
-        "X-Response-Time",
-        "X-RateLimit-Limit",
-        "X-RateLimit-Remaining",
-        "X-RateLimit-Reset",
-        "ETag",
-        "Cache-Control",
-    ],
-    max_age=600,  # 浏览器缓存预检结果 10 分钟
-)
+    # 始终注册 API 认证中间件（内部根据 _API_KEY 是否为空决定是否生效）
+    app.add_middleware(APIKeyMiddleware)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+        allow_origins=[
+            "http://localhost:8420",
+            "http://127.0.0.1:8420",
+            "http://localhost:8423",
+            "http://127.0.0.1:8423",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "app://.",  # Electron file:// schema
+            "file://",
+        ],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
+        allow_headers=[
+            "Content-Type",
+            "Authorization",
+            "X-API-Key",
+            "X-Request-ID",
+            "Accept",
+            "Accept-Language",
+            "Content-Language",
+            "X-Requested-With",
+        ],
+        expose_headers=[
+            "X-Request-ID",
+            "X-Response-Time",
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+            "X-RateLimit-Reset",
+            "ETag",
+            "Cache-Control",
+        ],
+        max_age=600,
+    )
+
+    _elapsed = (_time.perf_counter() - _t0) * 1000
+    _logger.info("startup_timing module=middlewares elapsed_ms=%.1f", _elapsed)
+
+
+_register_middlewares(app)
 
 # ── 路由注册（阶段 1 架构升级：61 处 include_router 收敛为 1 处）──
 # 详见 pycoder.server.router_groups
 register_router_groups(app)
-
-# 注册统一错误处理器（标准错误响应格式，符合 API 规范）
-from pycoder.server.error_handlers import register_error_handlers  # noqa: E402
-
-register_error_handlers(app)
 
 
 # ── OpenAPI 元数据：安全方案 + 标签分组 ──
@@ -767,16 +782,19 @@ async def list_skills(q: str = "", limit: int = 50):
 
 @app.websocket("/ws/chat")
 async def websocket_endpoint(ws: WebSocket):
+    """V1 WebSocket 端点 — 首次访问时懒加载 ws_handler 模块"""
     if not await verify_ws_auth(ws):
         return
+    from pycoder.server.ws_handler import websocket_chat
     await websocket_chat(ws)
 
 
 @app.websocket("/ws/chat/v2")
 async def websocket_v2_endpoint(ws: WebSocket):
-    """V2 AI-Centric WebSocket 端点 — 消息流经 V2 引擎的能力总线和审计追踪"""
+    """V2 WebSocket 端点 — 首次访问时懒加载 ws_handler_v2 模块"""
     if not await verify_ws_auth(ws):
         return
+    from pycoder.server.ws_handler_v2 import websocket_chat_v2
     await websocket_chat_v2(ws)
 
 
@@ -1138,6 +1156,11 @@ async def _init_recommendation_db():
         )
     except (OSError, ImportError) as e:
         logging.getLogger("pycoder.server.app").warning("recommendation_db_init_failed: %s", e)
+
+
+# ── 模块级导入耗时统计 ──────────────────────────────────────
+_app_module_load_ms = (_app_time.perf_counter() - _app_module_start) * 1000
+_logger.info("startup_timing module=app.py total_elapsed_ms=%.1f", _app_module_load_ms)
 
 
 __all__ = ["app", "run_server", "verify_ws_auth", "get_v2_engine"]

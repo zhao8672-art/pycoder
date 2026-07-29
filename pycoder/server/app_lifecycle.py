@@ -26,10 +26,23 @@ def get_health_info(python_version: str) -> dict:
     }
 
 
-def run_server(host: str = "127.0.0.1", port: int = 8423, reload: bool = False):
-    """Start the FastAPI server via uvicorn."""
+def run_server(host: str = "127.0.0.1", port: int = 8423, reload: bool = False, quick_start: bool = False):
+    """Start the FastAPI server via uvicorn.
+
+    Args:
+        host: 绑定地址
+        port: 端口
+        reload: 是否开启热重载
+        quick_start: 快速启动模式，跳过非必要初始化（V2引擎、环境检测等）
+    """
+    # 将 quick_start 标志注入环境变量，供 lifespan 读取
+    if quick_start:
+        os.environ["PYCODER_QUICK_START"] = "1"
+        print("   ⚡ 快速启动模式：跳过 V2 引擎、环境工具检测等非必要初始化")
+
     # ── 启动时断点续传检测 ──
-    _check_upgrade_on_startup()
+    if not quick_start:
+        _check_upgrade_on_startup()
 
     import uvicorn
 

@@ -62,10 +62,12 @@ const AppInner: React.FC = () => {
   const activeTabId = useEditorStore((s) => s.activeTabId);
   const updateTabContent = useEditorStore((s) => s.updateTabContent);
 
+  const backendStatus = useBackendStore((s) => s.backendStatus);
   const setBackendStatus = useBackendStore((s) => s.setBackendStatus);
   const wsClient = useBackendStore((s) => s.wsClient);
 
   const [wsReady, setWsReady] = useState(false);
+  const [backendConnecting, setBackendConnecting] = useState(true);
 
   // ── 应用主题 ──
   useEffect(() => {
@@ -94,6 +96,7 @@ const AppInner: React.FC = () => {
       if (health?.status === 'ok') {
         healthRetries = 0;
         setBackendStatus('running');
+        setBackendConnecting(false);
 
         const [modelsRes, envRes, gitRes, sessionsRes] = await Promise.all([
           BackendAPI.models(),
@@ -226,67 +229,96 @@ const AppInner: React.FC = () => {
 
   return (
     <div className="app-root">
-      <MenuBar />
-      <ProjectStatusBar />
-      <div className="app-main">
-        <ActivityBar />
-        {sidebarVisible && (
-          <>
-            <Sidebar />
-            <Resizer direction="horizontal" onResize={handleSidebarResize} />
-          </>
-        )}
-        <div className="editor-area">
-          {openTabs.length > 0 && <EditorTabs />}
-          <div className="editor-content">
-            {browserPanelOpen ? (
-              <BrowserPanel />
-            ) : activeTab ? (
-              <MonacoEditor
-                key={activeTab.id}
-                filePath={activeTab.filePath}
-                content={activeTab.content}
-                language={activeTab.language}
-                wsClient={wsClient}
-                onCodeReplaced={(newCode: string) => updateTabContent(activeTab.id, newCode)}
-              />
-            ) : (
-              <WelcomeScreen />
-            )}
+      {backendConnecting ? (
+        <div className="app-loading">
+          <div className="loading-logo">PyCoder IDE</div>
+          <div className="loading-subtitle">Python AI 编程助手</div>
+          <div className="loading-spinner" />
+          <div className="loading-status">
+            {backendStatus === 'stopped' || backendStatus === 'starting'
+              ? '正在连接后端服务...'
+              : backendStatus === 'error' || backendStatus === 'crashed'
+                ? '后端服务异常，正在重试...'
+                : '正在初始化...'}
           </div>
-          <DiffPreview wsClient={wsClient} />
-          {layout.bottomPanelOpen && (
-            <>
-              <Resizer direction="vertical" onResize={handleBottomPanelResize} />
-              <div className="bottom-panel" style={{ height: `${layout.bottomPanelHeight}px` }}>
-                <Suspense fallback={<PanelFallback />}>
-                  {bottomPanel === 'terminal' && <TerminalPanel />}
-                  {bottomPanel === 'output' && <OutputPanel />}
-                  {bottomPanel === 'problems' && <ProblemsPanel />}
-                  {bottomPanel === 'runner' && <PythonRunnerPanel />}
-                  {bottomPanel === 'testgen' && <TestGenPanel />}
-                  {bottomPanel === 'runfix' && <RunFixPanel />}
-                  {bottomPanel === 'debug' && <DebugPanel />}
-                  {bottomPanel === 'preview' && <WebPreview />}
-                  {bottomPanel === 'images' && <ImageViewer />}
-                  {bottomPanel === 'search' && <ChatHistorySearch wsClient={wsClient} />}
-                  {bottomPanel === 'deps' && <DependencyManager />}
-                  {bottomPanel === 'theme' && <ThemeManager />}
-                </Suspense>
-              </div>
-            </>
+          {(backendStatus === 'error' || backendStatus === 'crashed') && (
+            <button
+              className="loading-retry-btn"
+              onClick={() => {
+                setBackendConnecting(true);
+                setBackendStatus('stopped');
+                window.location.reload();
+              }}
+            >
+              重新加载
+            </button>
           )}
         </div>
-        {layout.aiPanelOpen && (
-          <>
-            <Resizer direction="horizontal" onResize={handleAIPanelResize} />
-            <AIPanel wsClient={wsClient} />
-          </>
-        )}
-        {evoPanelOpen && <EvolutionPanel />}
-      </div>
-      <StatusBar />
-      <CommandPalette />
+      ) : (
+        <>
+          <MenuBar />
+          <ProjectStatusBar />
+          <div className="app-main">
+            <ActivityBar />
+            {sidebarVisible && (
+              <>
+                <Sidebar />
+                <Resizer direction="horizontal" onResize={handleSidebarResize} />
+              </>
+            )}
+            <div className="editor-area">
+              {openTabs.length > 0 && <EditorTabs />}
+              <div className="editor-content">
+                {browserPanelOpen ? (
+                  <BrowserPanel />
+                ) : activeTab ? (
+                  <MonacoEditor
+                    key={activeTab.id}
+                    filePath={activeTab.filePath}
+                    content={activeTab.content}
+                    language={activeTab.language}
+                    wsClient={wsClient}
+                    onCodeReplaced={(newCode: string) => updateTabContent(activeTab.id, newCode)}
+                  />
+                ) : (
+                  <WelcomeScreen />
+                )}
+              </div>
+              <DiffPreview wsClient={wsClient} />
+              {layout.bottomPanelOpen && (
+                <>
+                  <Resizer direction="vertical" onResize={handleBottomPanelResize} />
+                  <div className="bottom-panel" style={{ height: `${layout.bottomPanelHeight}px` }}>
+                    <Suspense fallback={<PanelFallback />}>
+                      {bottomPanel === 'terminal' && <TerminalPanel />}
+                      {bottomPanel === 'output' && <OutputPanel />}
+                      {bottomPanel === 'problems' && <ProblemsPanel />}
+                      {bottomPanel === 'runner' && <PythonRunnerPanel />}
+                      {bottomPanel === 'testgen' && <TestGenPanel />}
+                      {bottomPanel === 'runfix' && <RunFixPanel />}
+                      {bottomPanel === 'debug' && <DebugPanel />}
+                      {bottomPanel === 'preview' && <WebPreview />}
+                      {bottomPanel === 'images' && <ImageViewer />}
+                      {bottomPanel === 'search' && <ChatHistorySearch wsClient={wsClient} />}
+                      {bottomPanel === 'deps' && <DependencyManager />}
+                      {bottomPanel === 'theme' && <ThemeManager />}
+                    </Suspense>
+                  </div>
+                </>
+              )}
+            </div>
+            {layout.aiPanelOpen && (
+              <>
+                <Resizer direction="horizontal" onResize={handleAIPanelResize} />
+                <AIPanel wsClient={wsClient} />
+              </>
+            )}
+            {evoPanelOpen && <EvolutionPanel />}
+          </div>
+          <StatusBar />
+          <CommandPalette />
+        </>
+      )}
     </div>
   );
 };

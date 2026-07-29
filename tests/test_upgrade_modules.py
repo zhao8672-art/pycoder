@@ -220,7 +220,7 @@ class TestPerformanceAdvisor:
         return PerformanceAdvisor()
 
     def test_rules_count(self) -> None:
-        assert len(PERF_RULES) >= 31  # P2 扩展后达到 31 条
+        assert len(PERF_RULES) >= 42  # P3 扩展后达到 42 条
 
     def test_analyze_clean_code(self, advisor: PerformanceAdvisor) -> None:
         code = "x = 1 + 2\nprint(x)\n"
@@ -269,7 +269,7 @@ async def load_data(path):
     return f.read()
 """
         warnings = advisor.analyze_code(code)
-        assert isinstance(warnings, list)  # 分析不崩溃即可
+        assert any(w.pattern == "sync_io_in_async" for w in warnings)
 
     def test_analyze_sync_requests_in_async(self, advisor: PerformanceAdvisor) -> None:
         """检测 async 函数中的 requests.get() 调用"""
@@ -396,7 +396,7 @@ f = open(path)
 data = f.read()
 """
         warnings = advisor.analyze_code(code)
-        assert isinstance(warnings, list)  # 分析不崩溃即可
+        assert any(w.pattern == "unclosed_resource" for w in warnings)
 
     def test_analyze_readlines_full_load(self, advisor: PerformanceAdvisor) -> None:
         """检测 .readlines() 全量加载"""
@@ -415,6 +415,199 @@ for item in items:
 """
         warnings = advisor.analyze_code(code)
         assert isinstance(warnings, list)  # 分析不崩溃即可
+
+    # ── P3 扩展规则测试 (迭代#4) ──
+
+    def test_analyze_sync_io_in_async_read(self, advisor: PerformanceAdvisor) -> None:
+        """检测 async 函数中的同步 .read() 调用"""
+        code = """
+async def load_data(path):
+    with open(path) as f:
+        return f.read()
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "sync_io_in_async" for w in warnings)
+
+    def test_analyze_unbuffered_io_explicit(self, advisor: PerformanceAdvisor) -> None:
+        """检测显式无缓冲 I/O"""
+        code = """
+f = open(path, buffering=0)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "unbuffered_io" for w in warnings)
+
+    def test_analyze_unbuffered_io_missing(self, advisor: PerformanceAdvisor) -> None:
+        """检测未指定缓冲策略"""
+        code = """
+f = open(path)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "unbuffered_io" for w in warnings)
+
+    def test_analyze_repeated_sort(self, advisor: PerformanceAdvisor) -> None:
+        """检测同一列表重复排序"""
+        code = """
+items.sort()
+items.sort()
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "repeated_sort" for w in warnings)
+
+    def test_analyze_repeated_sort_single(self, advisor: PerformanceAdvisor) -> None:
+        """单次排序不应触发警告"""
+        code = """
+items.sort()
+"""
+        warnings = advisor.analyze_code(code)
+        assert not any(w.pattern == "repeated_sort" for w in warnings)
+
+    def test_analyze_missing_bisect(self, advisor: PerformanceAdvisor) -> None:
+        """检测线性搜索模式"""
+        code = """
+for item in sorted_items:
+    if item == target:
+        result = item
+        break
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "missing_bisect" for w in warnings)
+
+    def test_analyze_missing_bisect_no_break(self, advisor: PerformanceAdvisor) -> None:
+        """无 break 的循环不应触发 bisect 警告"""
+        code = """
+for item in items:
+    if item == target:
+        print("found")
+"""
+        warnings = advisor.analyze_code(code)
+        assert not any(w.pattern == "missing_bisect" for w in warnings)
+
+    def test_analyze_nested_comprehension(self, advisor: PerformanceAdvisor) -> None:
+        """检测嵌套推导式"""
+        code = """
+matrix = [[x * y for x in range(5)] for y in range(5)]
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "nested_comprehension_perf" for w in warnings)
+
+    def test_analyze_nested_comprehension_dict(self, advisor: PerformanceAdvisor) -> None:
+        """检测嵌套字典推导式"""
+        code = """
+d = {k: [v for v in range(3)] for k in range(3)}
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "nested_comprehension_perf" for w in warnings)
+
+    def test_analyze_growing_collection(self, advisor: PerformanceAdvisor) -> None:
+        """检测全局集合无限增长"""
+        code = """
+cache = []
+def add_to_cache(item):
+    global cache
+    cache.append(item)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "growing_collection" for w in warnings)
+
+    def test_analyze_growing_collection_no_global(self, advisor: PerformanceAdvisor) -> None:
+        """非全局 append 不应触发 growing_collection 警告"""
+        code = """
+def process(items):
+    result = []
+    for item in items:
+        result.append(item)
+    return result
+"""
+        warnings = advisor.analyze_code(code)
+        assert not any(w.pattern == "growing_collection" for w in warnings)
+
+    def test_analyze_unclosed_resource_with(self, advisor: PerformanceAdvisor) -> None:
+        """with 语句内的 open() 不应触发 unclosed_resource 警告"""
+        code = """
+with open(path) as f:
+    data = f.read()
+"""
+        warnings = advisor.analyze_code(code)
+        assert not any(w.pattern == "unclosed_resource" for w in warnings)
+
+    def test_analyze_defaultdict_missing(self, advisor: PerformanceAdvisor) -> None:
+        """检测 dict.get() 模式"""
+        code = """
+counts = {}
+for item in items:
+    counts[item] = counts.get(item, 0) + 1
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "defaultdict_missing" for w in warnings)
+
+    def test_analyze_defaultdict_missing_simple(self, advisor: PerformanceAdvisor) -> None:
+        """检测简单 dict.get() 使用"""
+        code = """
+value = d.get(key, default)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "defaultdict_missing" for w in warnings)
+
+    def test_analyze_setdefault_misuse(self, advisor: PerformanceAdvisor) -> None:
+        """检测 dict.setdefault 误用"""
+        code = """
+groups = {}
+for item in items:
+    groups.setdefault(item.key, []).append(item)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "setdefault_misuse" for w in warnings)
+
+    def test_analyze_setdefault_misuse_simple(self, advisor: PerformanceAdvisor) -> None:
+        """检测简单 setdefault 调用"""
+        code = """
+value = d.setdefault(key, [])
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "setdefault_misuse" for w in warnings)
+
+    def test_analyze_datetime_strptime_in_loop(self, advisor: PerformanceAdvisor) -> None:
+        """检测循环内 datetime.strptime"""
+        code = """
+from datetime import datetime
+for date_str in date_strings:
+    dt = datetime.strptime(date_str, "%Y-%m-%d")
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "datetime_strptime_in_loop" for w in warnings)
+
+    def test_analyze_datetime_strptime_outside_loop(self, advisor: PerformanceAdvisor) -> None:
+        """循环外的 datetime.strptime 不应触发警告"""
+        code = """
+from datetime import datetime
+dt = datetime.strptime("2024-01-01", "%Y-%m-%d")
+for date_str in date_strings:
+    print(date_str)
+"""
+        warnings = advisor.analyze_code(code)
+        assert not any(w.pattern == "datetime_strptime_in_loop" for w in warnings)
+
+    def test_analyze_re_compile_in_loop(self, advisor: PerformanceAdvisor) -> None:
+        """检测循环内 re.compile"""
+        code = """
+import re
+for pattern in patterns:
+    regex = re.compile(pattern)
+    result = regex.search(text)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "re_compile_in_loop" for w in warnings)
+
+    def test_analyze_re_compile_outside_loop(self, advisor: PerformanceAdvisor) -> None:
+        """循环外的 re.compile 不应触发警告"""
+        code = """
+import re
+regex = re.compile(r"\\d+")
+for text in texts:
+    result = regex.search(text)
+"""
+        warnings = advisor.analyze_code(code)
+        assert not any(w.pattern == "re_compile_in_loop" for w in warnings)
 
     def test_format_warnings_empty(self, advisor: PerformanceAdvisor) -> None:
         assert advisor.format_warnings([]) == ""
