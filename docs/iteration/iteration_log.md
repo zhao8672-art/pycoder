@@ -19,7 +19,7 @@
 
 | 指标 | 当前值 | 目标值 | 更新日期 |
 |------|--------|--------|----------|
-| 单元测试通过率 | 104/104 (100%) | ≥ 95% | 2026-07-29 |
+| 单元测试通过率 | 134/134 (100%) | ≥ 95% | 2026-07-29 |
 | 测试覆盖率 (核心模块) | 41% (server) / ≥80% (升级模块) | ≥ 80% 全局 | 2026-07-29 |
 | PerfAdvisor 规则数 | 31 | 40+ | 2026-07-29 |
 | 错误模式库数量 | 50+ | 80+ | 2026-07-29 |
@@ -28,8 +28,41 @@
 | CI 流水线检查项 | 5 (lint/type/security/test/build) | 6 (+docs) | 2026-07-29 |
 | Bandit HIGH 问题数 | 0 | 0 | 2026-07-29 |
 | Ruff 错误数 | ~200 (从 2184 降低 91%) | < 50 | 2026-07-29 |
+| LSP 能力数 | 6 (completion/definition/hover/references/symbol/diagnostics) | 10+ | 2026-07-29 |
 
 ## 三、迭代历史
+
+### 迭代 #4 — 2026-07-29: LSP 集成阶段 1 — 协议层与客户端实现
+
+**变更内容**:
+- **LSP 协议层** (`pycoder/lsp/protocol.py`):
+  - JSON-RPC 2.0 消息编解码 (Content-Length 帧格式)
+  - LSPMessage 数据类 (请求/通知/响应)
+  - 消息构造工具 (make_request/make_notification/make_response/make_error_response)
+  - 异步消息解码 (decode_message)
+  - 标准 JSON-RPC 错误码常量
+- **LSP 客户端** (`pycoder/lsp/client.py`):
+  - LSPClient 类: 完整生命周期管理 (start/initialize/shutdown/stop)
+  - 7 个 LSP 方法: did_open/did_change/did_close/completion/definition/hover/references/document_symbol
+  - 后台消息读取循环 (asyncio.Task)
+  - 请求-响应 Future 映射机制
+  - 4 个数据类: CompletionItem/Location/Hover/DocumentSymbol
+  - 优雅降级 (pyright 未安装时返回友好提示)
+- **LSP 工具能力注册** (`pycoder/capabilities/tools/lsp_tools.py`):
+  - 6 个 READ_ONLY 能力: tools.lsp.completion/definition/hover/references/document_symbol/diagnostics
+  - 工作区单例客户端管理
+  - 权限矩阵更新 (permissions.py)
+- **单元测试** (`tests/test_lsp_client.py`): 30 项测试
+  - 协议层: 消息编解码/帧格式/roundtrip
+  - 数据类: CompletionItem/Location/Hover/DocumentSymbol 转换
+  - 客户端: 配置/状态/解析方法
+
+**测试**: 134 项全部通过 (含 30 个新 LSP 测试)
+
+**未完成项** (转入下一迭代):
+- LSP 集成阶段 2: 与 ContextBuilder 集成 (将 LSP 诊断注入 AI 提示词)
+- LSP 集成阶段 3: Electron Monaco Editor 集成
+- 集成测试 (需安装 pyright 后端到端测试)
 
 ### 迭代 #3 — 2026-07-29: 格式统一 + PerfAdvisor 扩展 + LSP 调研
 
@@ -98,11 +131,11 @@
 ## 四、待办事项 (按优先级)
 
 ### P0 — 关键 (本周内)
-- [ ] LSP 集成阶段 1: pyright-langserver 基础客户端 (补全/跳转)
+- [ ] LSP 集成阶段 2: 与 ContextBuilder 集成 (LSP 诊断 → AI 提示词)
 - [ ] 剩余 ~200 个 ruff 错误人工审查 (F821/F841)
 
 ### P1 — 重要 (2 周内)
-- [ ] LSP 集成阶段 2: 完整 LSP + ContextBuilder 集成
+- [ ] LSP 集成阶段 3: Electron Monaco Editor 集成
 - [ ] PerfAdvisor 规则扩展至 40+ (添加 I/O/算法复杂度规则)
 - [ ] 错误模式库扩展至 80+ (添加框架特定错误)
 - [ ] 竞品对比报告深度分析 (Codex/Trae 最新版本功能)

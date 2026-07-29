@@ -78,6 +78,13 @@ TOOL_PERMISSIONS: dict[str, TrustLevel] = {
     "tools.marketplace.system_upgrade": SA,
     # ── Agent ──
     "tools.agent.list_configs": RL,
+    # ── LSP (语言服务器) ──
+    "tools.lsp.completion": RL,
+    "tools.lsp.definition": RL,
+    "tools.lsp.hover": RL,
+    "tools.lsp.references": RL,
+    "tools.lsp.document_symbol": RL,
+    "tools.lsp.diagnostics": RL,
 }
 
 
