@@ -466,7 +466,7 @@ class TokenEstimator:
         input_tokens += _estimate_tokens(user_message)
         if conversation_history:
             for msg in conversation_history:
-                input_tokens += estimate_tokens(str(msg.get("content", "")))
+                input_tokens += _estimate_tokens(str(msg.get("content", "")))
 
         output_tokens = int(input_tokens * expected_output_ratio)
 

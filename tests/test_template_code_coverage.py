@@ -155,8 +155,8 @@ class TestGenerateFastapiAuth:
     def test_config_content(self, tmp_path):
         generate_fastapi_auth(tmp_path)
         config_content = (tmp_path / "src" / "config.py").read_text(encoding="utf-8")
-        assert "secret_key" in config_content
-        assert "algorithm" in config_content
+        assert "SECRET_KEY" in config_content  # 变量名是大写
+        assert "algorithm" in config_content.lower()
 
     def test_env_content(self, tmp_path):
         generate_fastapi_auth(tmp_path)

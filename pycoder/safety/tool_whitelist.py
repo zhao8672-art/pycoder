@@ -48,14 +48,14 @@ import fnmatch
 import logging
 import re
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class WhitelistMode(str, Enum):
+class WhitelistMode(StrEnum):
     """白名单模式"""
 
     ALLOW_ALL = "allow_all"

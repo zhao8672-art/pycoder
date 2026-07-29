@@ -541,7 +541,7 @@ class FeedbackLoop:
                 stats.agent_stats[agent]["rating_count"] = cnt + 1
 
         # 计算 agent 平均评分
-        for agent, data in stats.agent_stats.items():
+        for _agent, data in stats.agent_stats.items():
             if data.get("rating_count", 0) > 0:
                 data["avg_rating"] = data["rating_sum"] / data["rating_count"]
 
@@ -758,7 +758,6 @@ class FeedbackLoop:
     def _adjust_tool_strategy(self, tool_efficiency: dict[str, Any]) -> dict[str, Any]:
         """根据工具效率调整策略"""
         changes: dict[str, Any] = {}
-        lr = self.weights.learning_rate
 
         success_rate = tool_efficiency.get("success_rate", 1.0)
         if success_rate < 0.7:
@@ -785,7 +784,6 @@ class FeedbackLoop:
     def _adjust_thresholds(self, confidence_analysis: dict[str, Any]) -> dict[str, Any]:
         """调整决策阈值"""
         changes: dict[str, Any] = {}
-        lr = self.weights.learning_rate
 
         high_rate = confidence_analysis.get("high_confidence_success_rate", 0.0)
         low_rate = confidence_analysis.get("low_confidence_success_rate", 0.0)

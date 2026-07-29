@@ -257,7 +257,7 @@ class MultimodalPerception:
         result = await self._perceive(image_path, "error_screenshot", self._analyzer.analyze)
         if result.success:
             error_colors = self._analyzer.detect_error_colors(image_path)
-            metadata = result.structured_data.get("metadata", {})
+            _metadata = result.structured_data.get("metadata", {})
             result.structured_data["color_analysis"] = error_colors
             result.structured_data["error_features"] = {
                 "is_error": error_colors.get("has_error_indicator", False),

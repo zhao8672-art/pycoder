@@ -500,7 +500,6 @@ class FeasibilityAnalyzer:
         Returns:
             FeasibilityReport 可行性报告
         """
-        ctx = context or {}
         intent_lower = plan.original_intent.lower()
         all_descriptions = " ".join(t.description for t in plan.tasks).lower()
         combined_text = f"{intent_lower} {all_descriptions}"

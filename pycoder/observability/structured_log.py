@@ -45,7 +45,7 @@ _span_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("log_span_id"
 _user_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("log_user_id", default="")
 _session_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("log_session_id", default="")
 _extra_vars: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar(
-    "log_extra", default={}
+    "log_extra", default=None
 )
 
 

@@ -19,13 +19,13 @@ from __future__ import annotations
 import sqlite3
 import time
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from pycoder.core.services.log import log
 
 
-class LifecycleStage(str, Enum):
+class LifecycleStage(StrEnum):
     """技能生命周期阶段"""
 
     EMERGING = "emerging"  # 新兴: 28天增速 > 50%, 社区热度快速上升

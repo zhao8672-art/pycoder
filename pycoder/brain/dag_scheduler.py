@@ -610,7 +610,7 @@ class DAGExecutor:
 
         # 组装结果
         results: dict[str, Any] = {}
-        for node, result in zip(nodes, results_list):
+        for node, result in zip(nodes, results_list, strict=False):
             if isinstance(result, Exception):
                 results[node.id] = None
             else:

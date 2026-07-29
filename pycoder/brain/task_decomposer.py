@@ -524,7 +524,7 @@ class DAGExecutor:
                 return_exceptions=True,
             )
 
-            for nid, result in zip(group, group_results):
+            for nid, result in zip(group, group_results, strict=False):
                 if isinstance(result, Exception):
                     results[nid] = {"status": "failed", "error": str(result)}
                     failed_nodes += 1

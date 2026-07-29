@@ -202,8 +202,8 @@ class TaskPipeline:
             translation = translate_to_current_platform(command)
             if translation.changed:
                 command = translation.translated
-        except Exception:
-            pass  # 翻译失败不影响执行
+        except Exception as e:
+            logger.debug("shell_translate_failed: %s", e)  # 翻译失败不影响执行
 
         timeout = min(step.timeout, self.MAX_TIMEOUT)
         last_result = StepResult(

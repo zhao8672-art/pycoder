@@ -10,7 +10,7 @@ import logging
 
 _logger = logging.getLogger("pycoder.multimodal.ocr_engine")
 
-from io import BytesIO
+from io import BytesIO  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

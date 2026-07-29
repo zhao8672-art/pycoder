@@ -114,7 +114,7 @@ class DeviationDetector:
             DeviationReport 偏差报告
         """
         self._report.deviations.clear()
-        completed_before = len(self._report.completed_task_ids)
+        len(self._report.completed_task_ids)
 
         # 分析本轮工具调用对应的任务
         touched_task_ids: set[str] = set()

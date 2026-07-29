@@ -534,7 +534,7 @@ class AdaptiveExecutor:
             if readers:
                 tasks = [self._execute_tool_with_retry(tc, bridge) for tc in readers]
                 results = await asyncio.gather(*tasks)
-                for tc, result in zip(readers, results):
+                for tc, result in zip(readers, results, strict=False):
                     ctx.tool_calls_made += 1
                     if result["success"]:
                         ctx.tool_success += 1

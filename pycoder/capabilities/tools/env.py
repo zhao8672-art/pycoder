@@ -12,7 +12,7 @@ from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, Execu
 from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 
 _logger = logging.getLogger("pycoder.capabilities.tools.env")
-from pycoder.capabilities.degradation import wrap_handler
+from pycoder.capabilities.degradation import wrap_handler  # noqa: E402
 
 _CT = CapabilityCategory.SYSTEM
 

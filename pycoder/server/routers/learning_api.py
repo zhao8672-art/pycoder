@@ -173,7 +173,7 @@ async def observe_execution(req: ObserveRequest) -> ObserveResponse:
         )
     except Exception as e:
         logger.exception("观察记录失败: task_id=%s error=%s", req.task_id, e)
-        raise HTTPException(status_code=500, detail=f"观察记录失败: {e}")
+        raise HTTPException(status_code=500, detail=f"观察记录失败: {e}") from e
 
 
 @router.post("/reflect", response_model=ReflectResponse)
@@ -210,7 +210,7 @@ async def reflect_patterns(req: ReflectRequest) -> ReflectResponse:
         return ReflectResponse(success=True, reflection=reflection)
     except Exception as e:
         logger.exception("反思分析失败: task_id=%s error=%s", task_id, e)
-        raise HTTPException(status_code=500, detail=f"反思分析失败: {e}")
+        raise HTTPException(status_code=500, detail=f"反思分析失败: {e}") from e
 
 
 @router.post("/generate-skill", response_model=GenerateSkillResponse)
@@ -232,7 +232,7 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
         )
     except Exception as e:
         logger.exception("技能生成失败: error=%s", e)
-        raise HTTPException(status_code=500, detail=f"技能生成失败: {e}")
+        raise HTTPException(status_code=500, detail=f"技能生成失败: {e}") from e
 
 
 @router.post("/apply", response_model=ApplyFeedbackResponse)
@@ -249,7 +249,7 @@ async def apply_feedback(req: ApplyFeedbackRequest) -> ApplyFeedbackResponse:
         return ApplyFeedbackResponse(success=True, feedback=feedback)
     except Exception as e:
         logger.exception("反馈应用失败: error=%s", e)
-        raise HTTPException(status_code=500, detail=f"反馈应用失败: {e}")
+        raise HTTPException(status_code=500, detail=f"反馈应用失败: {e}") from e
 
 
 @router.post("/cycle", response_model=CycleResponse)
@@ -276,7 +276,7 @@ async def run_learning_cycle(req: CycleRequest) -> CycleResponse:
         )
     except Exception as e:
         logger.exception("闭环执行失败: task_id=%s error=%s", req.task_id, e)
-        raise HTTPException(status_code=500, detail=f"闭环执行失败: {e}")
+        raise HTTPException(status_code=500, detail=f"闭环执行失败: {e}") from e
 
 
 @router.get("/stats", response_model=StatsResponse)
@@ -290,4 +290,4 @@ async def get_learning_stats() -> StatsResponse:
         return StatsResponse(success=True, stats=stats)
     except Exception as e:
         logger.exception("统计获取失败: error=%s", e)
-        raise HTTPException(status_code=500, detail=f"统计获取失败: {e}")
+        raise HTTPException(status_code=500, detail=f"统计获取失败: {e}") from e

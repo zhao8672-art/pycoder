@@ -74,6 +74,9 @@ export class PythonBackendManager extends EventEmitter {
   }
 
   private startProcess(): Promise<boolean> {
+    // 启动前清理 Electron 缓存，防止 GPU/Code Cache 锁阻止窗口启动
+    this._cleanupElectronCache();
+
     return new Promise((resolve) => {
       this.status = 'starting';
       this.emit('status-change', 'starting');
@@ -276,7 +279,7 @@ export class PythonBackendManager extends EventEmitter {
         });
       });
       req.on('error', () => resolve(false));
-      req.setTimeout(2000, () => {
+      req.setTimeout(5000, () => {  // 从 2s 延长至 5s，避免误杀后端
         req.destroy();
         resolve(false);
       });
@@ -301,6 +304,27 @@ export class PythonBackendManager extends EventEmitter {
         }
       }
     }, 30000);
+  }
+
+  /** 清理 Electron 缓存目录，防止 GPU/Code Cache 锁阻止窗口启动 */
+  private _cleanupElectronCache(): void {
+    try {
+      const fs = require('fs');
+      const os = require('os');
+      const cacheDir = path.join(os.homedir(), 'AppData', 'Roaming', 'pycoder', 'Cache');
+      if (fs.existsSync(cacheDir)) {
+        const dirs = ['GPU', 'Code Cache', 'DawnGraphiteCache', 'DawnWebGPUCache'];
+        for (const dir of dirs) {
+          const target = path.join(cacheDir, dir);
+          if (fs.existsSync(target)) {
+            try {
+              fs.rmSync(target, { recursive: true, force: true });
+              console.log(`[PyCoder Backend] Cleaned cache: ${dir}`);
+            } catch { /* 忽略单个目录清理失败 */ }
+          }
+        }
+      }
+    } catch { /* 缓存清理失败不影响启动 */ }
   }
 
   stop(): void {

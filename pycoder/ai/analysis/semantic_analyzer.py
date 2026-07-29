@@ -50,7 +50,7 @@ class SemanticAnalyzer:
         # 检查 None 比较
         for node in ast.walk(tree):
             if isinstance(node, ast.Compare):
-                for op, comparator in zip(node.ops, node.comparators):
+                for op, comparator in zip(node.ops, node.comparators, strict=False):
                     if isinstance(op, (ast.Eq, ast.NotEq)):
                         if isinstance(comparator, ast.Constant) and comparator.value is None:
                             is_eq = isinstance(op, ast.Eq)
@@ -104,7 +104,7 @@ class SemanticAnalyzer:
 
             # None 比较
             if isinstance(node, ast.Compare):
-                for op, comp in zip(node.ops, node.comparators):
+                for op, comp in zip(node.ops, node.comparators, strict=False):
                     if isinstance(op, (ast.Is, ast.IsNot)):
                         if isinstance(comp, ast.Constant) and comp.value is None:
                             if isinstance(node.left, ast.Name):
@@ -191,7 +191,7 @@ class SemanticAnalyzer:
         for node in ast.walk(tree):
             # float 的 == 比较
             if isinstance(node, ast.Compare):
-                for op, comp in zip(node.ops, node.comparators):
+                for op, comp in zip(node.ops, node.comparators, strict=False):
                     if isinstance(op, (ast.Eq, ast.NotEq)):
                         if isinstance(comp, ast.Constant) and isinstance(comp.value, float):
                             issues.append(

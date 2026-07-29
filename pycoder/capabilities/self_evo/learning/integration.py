@@ -52,32 +52,24 @@ class EvolutionIntegration:
 
         # Memory
         try:
-            from pycoder.memory import SessionMemoryEngine
-
             status.memory_available = True
         except ImportError:
             logger.debug("Memory 模块不可用")
 
         # Plugins
         try:
-            from pycoder.plugins import BasePlugin
-
             status.plugins_available = True
         except ImportError:
             logger.debug("Plugins 模块不可用")
 
         # Observability
         try:
-            from pycoder.observability.sentry import SentryIntegration
-
             status.observability_available = True
         except ImportError:
             logger.debug("Observability 模块不可用")
 
         # Safety
         try:
-            from pycoder.safety import SandboxManager
-
             status.safety_available = True
         except ImportError:
             logger.debug("Safety 模块不可用")

@@ -38,14 +38,14 @@ EVOLUTION_DB_DIR = Path.home() / ".pycoder" / "evolution"
 EVOLUTION_HISTORY_FILE = EVOLUTION_DB_DIR / "evolution_history.json"
 
 # 从拆分后的模块导入数据模型
-from pycoder.evolution.metrics import EvolutionMetrics
-from pycoder.evolution.models import (
+from pycoder.evolution.metrics import EvolutionMetrics  # noqa: E402
+from pycoder.evolution.models import (  # noqa: E402
     EvolutionConfig,
     EvolutionPhase,
     EvolutionReport,
     EvolutionTask,
 )
-from pycoder.evolution.pipeline import EvolutionPipeline
+from pycoder.evolution.pipeline import EvolutionPipeline  # noqa: E402
 
 # ══════════════════════════════════════════════════════════
 # EvolutionBrain — LLM 驱动的进化决策核心
@@ -135,7 +135,7 @@ class EvolutionBrain:
             if log_file.exists():
                 log_content = log_file.read_text(encoding="utf-8", errors="replace")
                 error_lines = [
-                    l for l in log_content.split("\n") if "ERROR" in l or "error" in l.lower()
+                    line for line in log_content.split("\n") if "ERROR" in line or "error" in line.lower()
                 ]
                 for line in error_lines[-20:]:
                     errors.append(

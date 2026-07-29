@@ -22,15 +22,15 @@ from fastapi import WebSocket, WebSocketDisconnect
 from pycoder import __version__
 
 _logger = logging.getLogger("pycoder.server.ws_handler_v2")
-from pycoder.core.services.log import log
-from pycoder.observability.tracing import traced
-from pycoder.server.chat_handler import (
+from pycoder.core.services.log import log  # noqa: E402
+from pycoder.observability.tracing import traced  # noqa: E402
+from pycoder.server.chat_handler import (  # noqa: E402
     _get_api_key_for_model,
     _get_effective_model,
 )
-from pycoder.server.hermes_engine import _execute_hermes_write
-from pycoder.server.session_share import get_session_share_manager
-from pycoder.server.session_store import get_session_store
+from pycoder.server.hermes_engine import _execute_hermes_write  # noqa: E402
+from pycoder.server.session_share import get_session_share_manager  # noqa: E402
+from pycoder.server.session_store import get_session_store  # noqa: E402
 
 # ── 取消事件表：session_id → asyncio.Event ──
 # 前端发送 {type: "stop"} 时，设置对应事件通知正在运行的流停止

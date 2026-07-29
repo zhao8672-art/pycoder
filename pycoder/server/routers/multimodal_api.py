@@ -145,7 +145,7 @@ async def vision_analyze(req: VisionRequest) -> VisionResponse:
     try:
         image_data = base64.b64decode(req.image_base64)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Base64 解码失败: {e}")
+        raise HTTPException(status_code=400, detail=f"Base64 解码失败: {e}") from e
 
     from pycoder.multimodal.vision_client import get_vision_client
 

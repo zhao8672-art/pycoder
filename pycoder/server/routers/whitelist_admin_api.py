@@ -75,11 +75,11 @@ async def set_whitelist_mode(req: WhitelistModeUpdate) -> dict:
 
     try:
         mode = WhitelistMode(req.mode)
-    except ValueError:
+    except ValueError as e:
         raise HTTPException(
             status_code=400,
             detail=f"无效的 mode: {req.mode}，允许: allow_all / deny_all / allowlist",
-        )
+        ) from e
 
     wl = get_tool_whitelist()
     wl.set_mode(mode)

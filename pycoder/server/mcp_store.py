@@ -17,7 +17,7 @@ import time
 
 _logger = logging.getLogger("pycoder.server.mcp_store")
 
-from pathlib import Path
+from pathlib import Path  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

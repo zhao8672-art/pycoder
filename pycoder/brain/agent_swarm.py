@@ -371,7 +371,7 @@ class AgentSwarmOrchestrator:
         agent_tasks: list[AgentTask] = []
 
         for task in tasks:
-            desc = task.description.lower()
+            task.description.lower()
 
             # P0-3: 使用加权关键词匹配（替代简单关键词检测）
             role, _ = AgentSwarmOrchestrator.auto_assign(task.description)

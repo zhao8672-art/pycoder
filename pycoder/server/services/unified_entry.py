@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 
 _logger = logging.getLogger("pycoder.server.services.unified_entry")
 
-from enum import Enum
+from enum import Enum  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -396,7 +396,6 @@ class UnifiedEntryAgent:
         progress_reporter.set_stages(stages, total_eta=45)
 
         # 共享上下文（插件执行结果写入这里，供后续阶段使用）
-        shared_context: dict = {}
 
         # ── 辅助函数：排放队列中的进度/插件事件 ──
         async def flush_progress():

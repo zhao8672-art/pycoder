@@ -238,13 +238,31 @@ async def lifespan(app: FastAPI):
     with profiler.measure("di_container_init"):
         _init_di_container()
 
-    # ── 环境工具检测 ──
+    # ── 环境工具检测（带超时保护，避免 semgrep 等工具检测阻塞启动）──
     with profiler.measure("env_tools_check"):
-        _check_environment_tools()
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(_check_environment_tools),
+                timeout=30.0,
+            )
+        except TimeoutError:
+            _logger.warning("env_tools_check_timeout: 环境工具检测超时，跳过")
+        except Exception as e:
+            _logger.warning("env_tools_check_failed: %s", e)
 
-    # ── V2 引擎初始化 ──
+    # ── V2 引擎初始化（带超时保护）──
     with profiler.measure("v2_engine_init"):
-        v2_engine = await _init_v2_engine()
+        try:
+            v2_engine = await asyncio.wait_for(
+                _init_v2_engine(),
+                timeout=60.0,
+            )
+        except TimeoutError:
+            _logger.warning("v2_engine_init_timeout: V2 引擎初始化超时，跳过")
+            v2_engine = None
+        except Exception as e:
+            _logger.error("v2_engine_init_failed: %s", e)
+            v2_engine = None
     app.state.v2_engine = v2_engine
 
     # ── P 层端口工厂注册（消除 D→C/P→C 违规的依赖注入） ──

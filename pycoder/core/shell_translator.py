@@ -64,6 +64,7 @@ OPERATOR_MAP: dict[str, dict[str, str]] = {
 
 # ── 简单命令名映射表（不包含参数）────────────────────────
 # 复杂映射（需要参数变换）放在 SPECIAL_RULES 中
+# 当前覆盖: 50+ 常用命令（v0.7.0 扩展）
 COMMAND_MAP: dict[str, dict[str, str]] = {
     # 列表/查找
     "ls": {"windows": "dir", "linux": "ls", "mac": "ls"},
@@ -75,6 +76,16 @@ COMMAND_MAP: dict[str, dict[str, str]] = {
     "grep": {"windows": "findstr", "linux": "grep", "mac": "grep"},
     "rg": {"windows": "findstr", "linux": "rg", "mac": "rg"},
     "which": {"windows": "where", "linux": "which", "mac": "which"},
+    "find": {
+        "windows": 'powershell -Command "Get-ChildItem -Recurse -Filter"',
+        "linux": "find",
+        "mac": "find",
+    },
+    "locate": {
+        "windows": 'powershell -Command "Get-ChildItem -Recurse -Name"',
+        "linux": "locate",
+        "mac": "mdfind",
+    },
     # 文件操作
     "cp": {"windows": "copy", "linux": "cp", "mac": "cp"},
     "mv": {"windows": "move", "linux": "mv", "mac": "mv"},
@@ -82,6 +93,36 @@ COMMAND_MAP: dict[str, dict[str, str]] = {
     "rmdir": {"windows": "rmdir", "linux": "rmdir", "mac": "rmdir"},
     "mkdir": {"windows": "mkdir", "linux": "mkdir", "mac": "mkdir"},
     "pwd": {"windows": "cd", "linux": "pwd", "mac": "pwd"},
+    "touch": {
+        "windows": 'powershell -Command "New-Item -ItemType File"',
+        "linux": "touch",
+        "mac": "touch",
+    },
+    "chmod": {
+        "windows": 'powershell -Command "icacls"',
+        "linux": "chmod",
+        "mac": "chmod",
+    },
+    "chown": {
+        "windows": 'powershell -Command "icacls /setowner"',
+        "linux": "chown",
+        "mac": "chown",
+    },
+    "ln": {
+        "windows": "mklink",
+        "linux": "ln",
+        "mac": "ln",
+    },
+    "stat": {
+        "windows": 'powershell -Command "Get-Item"',
+        "linux": "stat",
+        "mac": "stat",
+    },
+    "file": {
+        "windows": 'powershell -Command "(Get-Item $FILE).Extension"',
+        "linux": "file",
+        "mac": "file",
+    },
     # 系统信息
     "ps": {"windows": "tasklist", "linux": "ps", "mac": "ps"},
     "kill": {"windows": "taskkill", "linux": "kill", "mac": "kill"},
@@ -94,10 +135,26 @@ COMMAND_MAP: dict[str, dict[str, str]] = {
     "hostname": {"windows": "hostname", "linux": "hostname", "mac": "hostname"},
     "date": {"windows": "echo %DATE%", "linux": "date", "mac": "date"},
     "clear": {"windows": "cls", "linux": "clear", "mac": "clear"},
+    "sleep": {
+        "windows": "timeout",
+        "linux": "sleep",
+        "mac": "sleep",
+    },
+    "history": {
+        "windows": "doskey /history",
+        "linux": "history",
+        "mac": "history",
+    },
     # 网络
     "ifconfig": {"windows": "ipconfig", "linux": "ifconfig", "mac": "ifconfig"},
     "ip": {"windows": "ipconfig", "linux": "ip", "mac": "ifconfig"},
     "wget": {"windows": "curl -O", "linux": "wget", "mac": "curl -O"},
+    "curl": {"windows": "curl", "linux": "curl", "mac": "curl"},
+    "ping": {"windows": "ping", "linux": "ping", "mac": "ping"},
+    "netstat": {"windows": "netstat", "linux": "netstat", "mac": "netstat"},
+    "nslookup": {"windows": "nslookup", "linux": "nslookup", "mac": "nslookup"},
+    "ssh": {"windows": "ssh", "linux": "ssh", "mac": "ssh"},
+    "scp": {"windows": "scp", "linux": "scp", "mac": "scp"},
     # 文本处理
     "head": {
         "windows": 'powershell -Command "Get-Content $FILE -Head 10"',
@@ -116,11 +173,75 @@ COMMAND_MAP: dict[str, dict[str, str]] = {
         "mac": "uniq",
     },
     "diff": {"windows": "fc", "linux": "diff", "mac": "diff"},
+    "sed": {
+        "windows": 'powershell -Command "(Get-Content $FILE) -replace"',
+        "linux": "sed",
+        "mac": "sed",
+    },
+    "awk": {
+        "windows": 'powershell -Command "ForEach-Object"',
+        "linux": "awk",
+        "mac": "awk",
+    },
+    "sort": {
+        "windows": "sort",
+        "linux": "sort",
+        "mac": "sort",
+    },
+    "cut": {
+        "windows": 'powershell -Command "ForEach-Object { $_.Split() }"',
+        "linux": "cut",
+        "mac": "cut",
+    },
+    "tr": {
+        "windows": 'powershell -Command "ForEach-Object { $_ -replace }"',
+        "linux": "tr",
+        "mac": "tr",
+    },
+    "tee": {
+        "windows": 'powershell -Command "Tee-Object"',
+        "linux": "tee",
+        "mac": "tee",
+    },
+    "xargs": {
+        "windows": 'powershell -Command "ForEach-Object { & $_ }"',
+        "linux": "xargs",
+        "mac": "xargs",
+    },
     # 压缩
     "zip": {"windows": 'powershell -Command "Compress-Archive"', "linux": "zip", "mac": "zip"},
     "unzip": {"windows": 'powershell -Command "Expand-Archive"', "linux": "unzip", "mac": "unzip"},
+    "tar": {"windows": "tar", "linux": "tar", "mac": "tar"},
+    "gzip": {"windows": "tar -czf", "linux": "gzip", "mac": "gzip"},
+    "gunzip": {"windows": "tar -xzf", "linux": "gunzip", "mac": "gunzip"},
     # 环境
     "export": {"windows": "set", "linux": "export", "mac": "export"},
+    "env": {"windows": "set", "linux": "env", "mac": "env"},
+    "source": {
+        "windows": "call",
+        "linux": "source",
+        "mac": "source",
+    },
+    "echo": {"windows": "echo", "linux": "echo", "mac": "echo"},
+    # 包管理 / 构建工具
+    "npx": {"windows": "npx", "linux": "npx", "mac": "npx"},
+    "npm": {"windows": "npm", "linux": "npm", "mac": "npm"},
+    "node": {"windows": "node", "linux": "node", "mac": "node"},
+    "python": {"windows": "python", "linux": "python3", "mac": "python3"},
+    "python3": {"windows": "python", "linux": "python3", "mac": "python3"},
+    "pip": {"windows": "pip", "linux": "pip", "mac": "pip"},
+    "pip3": {"windows": "pip", "linux": "pip3", "mac": "pip3"},
+    "make": {"windows": "nmake", "linux": "make", "mac": "make"},
+    "systemctl": {
+        "windows": "sc",
+        "linux": "systemctl",
+        "mac": "launchctl",
+    },
+    "service": {
+        "windows": "sc",
+        "linux": "service",
+        "mac": "launchctl",
+    },
 }
 
 

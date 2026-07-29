@@ -23,7 +23,7 @@ from pathlib import Path
 
 _logger = logging.getLogger("pycoder.safety.sandbox_executor")
 
-from typing import Any
+from typing import Any  # noqa: E402
 
 # Docker SDK 可选导入
 try:
@@ -39,14 +39,14 @@ except ImportError:
     NotFound = Exception  # type: ignore
     APIError = Exception  # type: ignore
 
-from pycoder.bus.protocol import (
+from pycoder.bus.protocol import (  # noqa: E402
     CapabilityCategory,
     CapabilityDefinition,
     ExecutionMode,
     SideEffect,
     TrustLevel,
 )
-from pycoder.safety.sandbox import SandboxConfig, SandboxResult
+from pycoder.safety.sandbox import SandboxConfig, SandboxResult  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

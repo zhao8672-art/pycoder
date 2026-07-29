@@ -573,7 +573,7 @@ class ChatBridge:
                     if os.path.exists(_req):
                         with open(_req, encoding="utf-8") as _f:
                             _ctx_local["dependencies"] = len(
-                                [l for l in _f if l.strip()],
+                                [line for line in _f if line.strip()],
                             )
                     return _ctx_local
 

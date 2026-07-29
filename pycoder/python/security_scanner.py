@@ -455,7 +455,7 @@ class DependencySecurityScanner:
                                     )
                                 else:
                                     # 无版本约束的包（去掉 extras 等标记）
-                                    pkg_name = re.split(r"[\s<>=!~;\[]", line, 1)[0].strip()
+                                    pkg_name = re.split(r"[\s<>=!~;\[]", line, maxsplit=1)[0].strip()
                                     if pkg_name:
                                         result.append(
                                             {

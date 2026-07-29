@@ -199,11 +199,15 @@ def _register_phase23(app: FastAPI) -> None:
     from pycoder.lifecycle.api import router as lifecycle_router  # 项目管理闭环 API
     from pycoder.server.routers.agents_api import router as agents_router
     from pycoder.server.routers.dag_api import router as dag_router
-    from pycoder.server.routers.installer_api import router as installer_router  # P2-3 自迭代安装器 API
+    from pycoder.server.routers.installer_api import (
+        router as installer_router,  # P2-3 自迭代安装器 API
+    )
     from pycoder.server.routers.learning_api import router as learning_router
     from pycoder.server.routers.mcp_routes import router as mcp_router
     from pycoder.server.routers.media_routes import router as media_router
-    from pycoder.server.routers.multimodal_api import router as multimodal_router  # P2-2 多模态增强 API
+    from pycoder.server.routers.multimodal_api import (
+        router as multimodal_router,  # P2-2 多模态增强 API
+    )
     from pycoder.server.routers.patch_api import router as patch_router  # P2-1 自动补丁 API
     from pycoder.server.routers.report_api import router as report_router
     from pycoder.server.routers.search_api import router as search_router  # Web 搜索 API

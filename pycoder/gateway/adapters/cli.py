@@ -14,7 +14,7 @@ from typing import Any
 
 _logger = logging.getLogger("pycoder.gateway.adapters.cli")
 
-from pycoder.gateway import GatewayMessage, PlatformAdapter
+from pycoder.gateway import GatewayMessage, PlatformAdapter  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,6 @@ class CLIAdapter(PlatformAdapter):
         if self._use_rich:
             try:
                 from rich.console import Console
-                from rich.markdown import Markdown
 
                 self._console = Console()
                 self._console.print("[bold green]PyCoder CLI 网关已启动[/]")

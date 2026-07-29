@@ -339,7 +339,7 @@ class CodeSanitizer:
         策略: 在文件开头添加安全检查注释，不修改原始代码逻辑
         (实际插入由 AI 根据告警建议完成)
         """
-        lines = code.splitlines()
+        code.splitlines()
 
         # 按行号排序告警
         sorted_warnings = sorted(warnings, key=lambda w: w.line)

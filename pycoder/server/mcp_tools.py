@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 _logger = logging.getLogger("pycoder.server.mcp_tools")
-from pycoder.core.services.log import log
+from pycoder.core.services.log import log  # noqa: E402
 
 warnings.warn(
     "mcp_tools 已弃用，所有工具注册已迁移到 capabilities/tools/",

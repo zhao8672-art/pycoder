@@ -14,7 +14,7 @@ import time
 
 _logger = logging.getLogger("pycoder.ai.cache.kv_cache")
 
-from dataclasses import dataclass
+from dataclasses import dataclass  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

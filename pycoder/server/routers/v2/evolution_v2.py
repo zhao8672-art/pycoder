@@ -227,7 +227,7 @@ async def evolution_health():
     try:
         from pycoder.evolution import get_evolution_brain
 
-        brain = get_evolution_brain()
+        _brain = get_evolution_brain()
         checks["brain"] = "healthy"
     except Exception as e:
         checks["brain"] = f"error: {e}"
@@ -236,7 +236,7 @@ async def evolution_health():
     try:
         from pycoder.evolution import get_evolution_pipeline
 
-        pipeline = get_evolution_pipeline()
+        _pipeline = get_evolution_pipeline()
         checks["pipeline"] = "healthy"
     except Exception as e:
         checks["pipeline"] = f"error: {e}"
@@ -245,7 +245,7 @@ async def evolution_health():
     try:
         from pycoder.evolution import get_evolution_metrics
 
-        metrics = get_evolution_metrics()
+        _metrics = get_evolution_metrics()
         checks["metrics"] = "healthy"
     except Exception as e:
         checks["metrics"] = f"error: {e}"

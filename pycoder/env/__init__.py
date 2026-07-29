@@ -1,20 +1,32 @@
-"""环境管理模块 — 自动化工具检测与依赖安装"""
+"""
+环境能力注册模块 — 将环境检测能力注册到 V2 能力总线
+
+能力清单:
+    env.check.docker       — 检查 Docker 可用性
+    env.check.python       — 检查 Python 环境
+    env.check.node         — 检查 Node.js 环境
+    env.check.git          — 检查 Git 可用性
+    env.check.languages    — 检查多语言运行时
+    env.system.info        — 获取系统信息
+    env.system.resources   — 获取系统资源使用情况
+"""
+
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-from pycoder.env.auto_installer import AutoInstaller
-from pycoder.env.env_installer import EnvInstaller
-from pycoder.env.tool_detector import ToolDetector, ToolRequirement, ToolStatus
-
-__all__ = [
-    "ToolDetector", "ToolRequirement", "ToolStatus", "AutoInstaller",
-    "EnvInstaller", "register_capabilities",
-]
+logger = logging.getLogger(__name__)
 
 
 def register_capabilities(registry: Any) -> None:
-    """向能力总线注册环境工具检测与安装能力"""
+    """注册所有环境检测能力到 V2 能力总线"""
+    _register_env_check_capabilities(registry)
+    _register_system_capabilities(registry)
+
+
+def _register_env_check_capabilities(registry: Any) -> None:
+    """注册环境检测类能力"""
     from pycoder.bus.protocol import (
         CapabilityCategory,
         CapabilityDefinition,
@@ -23,303 +35,276 @@ def register_capabilities(registry: Any) -> None:
         TrustLevel,
     )
 
-    detector = ToolDetector()
-    installer = AutoInstaller(detector)
-
-    def _detect_tools(params: dict, ctx: dict) -> dict:
-        results = detector.detect_all()
-        return {
-            "tools": [
-                {
-                    "name": r.name, "installed": r.installed,
-                    "version": r.version, "meets_minimum": r.meets_minimum,
-                    "error": r.error,
-                }
-                for r in results
-            ],
-        }
-
-    def _check_tool(params: dict, ctx: dict) -> dict:
-        req = detector.get_tool_by_name(params["tool_name"])
-        if not req:
-            return {"error": f"工具 {params['tool_name']} 未定义"}
-        status = detector._detect_one(req)
-        return {
-            "name": status.name, "installed": status.installed,
-            "version": status.version, "meets_minimum": status.meets_minimum,
-            "error": status.error,
-        }
-
-    def _install_tool(params: dict, ctx: dict) -> dict:
-        success = installer.auto_install(params["tool_name"])
-        return {"success": success, "tool_name": params["tool_name"]}
-
-    def _get_install_guide(params: dict, ctx: dict) -> dict:
-        tool = detector.get_tool_by_name(params["tool_name"])
-        if not tool:
-            return {"error": f"工具 {params['tool_name']} 未定义"}
-        return {
-            "name": tool.name, "display_name": tool.display_name,
-            "install_guide": tool.install_guide,
-            "platform_install": tool.platform_install,
-        }
-
+    # Docker 检测
     registry.register(
         CapabilityDefinition(
-            id="env.detect_tools",
-            name="检测所有工具",
-            description="检测系统环境中所有预定义工具的可用性和版本",
+            id="env.check.docker",
+            name="检查 Docker",
+            description="检查 Docker 是否安装并可用",
             category=CapabilityCategory.SYSTEM,
             permission=TrustLevel.READ_ONLY,
             execution=ExecutionMode.SYNC,
-            side_effects=[],
-            schema={"type": "object", "properties": {}},
-            tags=["env", "detect", "tools", "检测", "工具"],
+            side_effects=[SideEffect.NONE],
+            tags=["docker", "container", "环境"],
         ),
-        handler=_detect_tools,
+        handler=_check_docker,
     )
 
+    # Python 环境检测
     registry.register(
         CapabilityDefinition(
-            id="env.check_tool",
-            name="检测指定工具",
-            description="检测指定工具的可用性和版本",
+            id="env.check.python",
+            name="检查 Python 环境",
+            description="检查 Python 版本、路径和可用包",
             category=CapabilityCategory.SYSTEM,
             permission=TrustLevel.READ_ONLY,
             execution=ExecutionMode.SYNC,
-            side_effects=[],
-            schema={
-                "type": "object",
-                "properties": {
-                    "tool_name": {"type": "string", "description": "工具名称 (git/docker/node/bandit/semgrep)"},
-                },
-                "required": ["tool_name"],
-            },
-            tags=["env", "check", "tool", "检测"],
+            side_effects=[SideEffect.NONE],
+            tags=["python", "环境"],
         ),
-        handler=_check_tool,
+        handler=_check_python,
     )
 
+    # Node.js 环境检测
     registry.register(
         CapabilityDefinition(
-            id="env.install_tool",
-            name="安装工具",
-            description="自动安装指定的系统工具",
-            category=CapabilityCategory.SYSTEM,
-            permission=TrustLevel.SYSTEM_ACCESS,
-            execution=ExecutionMode.SYNC,
-            side_effects=[SideEffect.PROCESS],
-            schema={
-                "type": "object",
-                "properties": {
-                    "tool_name": {"type": "string", "description": "工具名称"},
-                },
-                "required": ["tool_name"],
-            },
-            tags=["env", "install", "tool", "安装"],
-        ),
-        handler=_install_tool,
-    )
-
-    registry.register(
-        CapabilityDefinition(
-            id="env.get_install_guide",
-            name="获取安装指南",
-            description="获取指定工具的安装指南和平台特定命令",
+            id="env.check.node",
+            name="检查 Node.js",
+            description="检查 Node.js 是否安装并可用",
             category=CapabilityCategory.SYSTEM,
             permission=TrustLevel.READ_ONLY,
             execution=ExecutionMode.SYNC,
-            side_effects=[],
-            schema={
-                "type": "object",
-                "properties": {
-                    "tool_name": {"type": "string", "description": "工具名称"},
-                },
-                "required": ["tool_name"],
-            },
-            tags=["env", "guide", "install", "安装指南"],
+            side_effects=[SideEffect.NONE],
+            tags=["node", "javascript", "环境"],
         ),
-        handler=_get_install_guide,
+        handler=_check_node,
     )
 
-    # ── 依赖安装能力 ──────────────────────────────
-
-    env_installer = EnvInstaller()
-
-    def _auto_install_deps(params: dict, ctx: dict) -> dict:
-        """自动检测并安装项目依赖"""
-        import asyncio
-
-        loop = asyncio.new_event_loop()
-        try:
-            report = loop.run_until_complete(env_installer.auto_install())
-            return report.to_dict()
-        finally:
-            loop.close()
-
-    def _install_from_file(params: dict, ctx: dict) -> dict:
-        """从指定文件安装依赖"""
-        import asyncio
-
-        from pycoder.env.dependency import DependencySource
-
-        source_file = params["source_file"]
-        source_type_str = params.get("source_type", "auto")
-        try:
-            source_type = DependencySource(source_type_str)
-        except ValueError:
-            source_type = DependencySource.AUTO_DETECT
-
-        loop = asyncio.new_event_loop()
-        try:
-            report = loop.run_until_complete(
-                env_installer.install_from_file(source_file, source_type)
-            )
-            return report.to_dict()
-        finally:
-            loop.close()
-
-    def _check_environment(params: dict, ctx: dict) -> dict:
-        """检查环境状态（不安装）"""
-        import asyncio
-
-        from pycoder.env.dependency import DependencySource
-
-        source_file = params.get("source_file")
-        source_type_str = params.get("source_type", "auto")
-        try:
-            source_type = DependencySource(source_type_str)
-        except ValueError:
-            source_type = DependencySource.AUTO_DETECT
-
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(
-                env_installer.check_environment(source_file, source_type)
-            )
-        finally:
-            loop.close()
-
-    def _install_packages(params: dict, ctx: dict) -> dict:
-        """安装指定的包列表"""
-        import asyncio
-
-        package_specs = params.get("packages", [])
-
-        loop = asyncio.new_event_loop()
-        try:
-            report = loop.run_until_complete(
-                env_installer.install_packages(package_specs)
-            )
-            return report.to_dict()
-        finally:
-            loop.close()
-
-    def _get_last_report(params: dict, ctx: dict) -> dict:
-        """获取最后一次安装报告"""
-        report = env_installer.last_report
-        if report:
-            return report.to_dict()
-        return {"error": "暂无安装报告"}
-
+    # Git 检测
     registry.register(
         CapabilityDefinition(
-            id="env.auto_install_deps",
-            name="自动安装依赖",
-            description="自动检测项目中的依赖配置文件（requirements.txt/pyproject.toml/environment.yml），解析、安装并验证所有依赖",
-            category=CapabilityCategory.SYSTEM,
-            permission=TrustLevel.SYSTEM_ACCESS,
-            execution=ExecutionMode.SYNC,
-            side_effects=[SideEffect.PROCESS, SideEffect.NETWORK],
-            schema={"type": "object", "properties": {}},
-            tags=["env", "install", "deps", "依赖", "自动安装"],
-        ),
-        handler=_auto_install_deps,
-    )
-
-    registry.register(
-        CapabilityDefinition(
-            id="env.install_from_file",
-            name="从文件安装依赖",
-            description="从指定的依赖配置文件安装依赖",
-            category=CapabilityCategory.SYSTEM,
-            permission=TrustLevel.SYSTEM_ACCESS,
-            execution=ExecutionMode.SYNC,
-            side_effects=[SideEffect.PROCESS, SideEffect.NETWORK],
-            schema={
-                "type": "object",
-                "properties": {
-                    "source_file": {"type": "string", "description": "依赖文件路径"},
-                    "source_type": {
-                        "type": "string",
-                        "description": "文件类型: requirements.txt / pyproject.toml / environment.yml / auto",
-                        "default": "auto",
-                    },
-                },
-                "required": ["source_file"],
-            },
-            tags=["env", "install", "file", "依赖", "从文件安装"],
-        ),
-        handler=_install_from_file,
-    )
-
-    registry.register(
-        CapabilityDefinition(
-            id="env.check_environment",
-            name="检查环境状态",
-            description="检查项目的依赖安装状态，列出缺失、版本不满足和已满足的包",
+            id="env.check.git",
+            name="检查 Git",
+            description="检查 Git 是否安装并可用",
             category=CapabilityCategory.SYSTEM,
             permission=TrustLevel.READ_ONLY,
             execution=ExecutionMode.SYNC,
-            side_effects=[],
-            schema={
-                "type": "object",
-                "properties": {
-                    "source_file": {"type": "string", "description": "依赖文件路径（可选，不指定则自动检测）"},
-                    "source_type": {"type": "string", "description": "文件类型", "default": "auto"},
-                },
-            },
-            tags=["env", "check", "environment", "检查", "环境"],
+            side_effects=[SideEffect.NONE],
+            tags=["git", "vcs", "环境"],
         ),
-        handler=_check_environment,
+        handler=_check_git,
     )
 
+    # 多语言运行时检测
     registry.register(
         CapabilityDefinition(
-            id="env.install_packages",
-            name="安装指定包",
-            description="安装指定的 Python 包列表",
-            category=CapabilityCategory.SYSTEM,
-            permission=TrustLevel.SYSTEM_ACCESS,
-            execution=ExecutionMode.SYNC,
-            side_effects=[SideEffect.PROCESS, SideEffect.NETWORK],
-            schema={
-                "type": "object",
-                "properties": {
-                    "packages": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "包说明符列表，如 ['numpy>=1.21', 'pandas==1.3.0']",
-                    },
-                },
-                "required": ["packages"],
-            },
-            tags=["env", "install", "packages", "包安装"],
-        ),
-        handler=_install_packages,
-    )
-
-    registry.register(
-        CapabilityDefinition(
-            id="env.get_install_report",
-            name="获取安装报告",
-            description="获取最后一次依赖安装的详细报告",
+            id="env.check.languages",
+            name="检查多语言运行时",
+            description="检查系统中可用的编程语言运行时",
             category=CapabilityCategory.SYSTEM,
             permission=TrustLevel.READ_ONLY,
             execution=ExecutionMode.SYNC,
-            side_effects=[],
-            schema={"type": "object", "properties": {}},
-            tags=["env", "report", "install", "报告"],
+            side_effects=[SideEffect.NONE],
+            tags=["languages", "runtime", "环境"],
         ),
-        handler=_get_last_report,
+        handler=_check_languages,
     )
+
+
+def _register_system_capabilities(registry: Any) -> None:
+    """注册系统信息类能力"""
+    from pycoder.bus.protocol import (
+        CapabilityCategory,
+        CapabilityDefinition,
+        ExecutionMode,
+        SideEffect,
+        TrustLevel,
+    )
+
+    # 系统信息
+    registry.register(
+        CapabilityDefinition(
+            id="env.system.info",
+            name="系统信息",
+            description="获取操作系统、架构、主机名等系统信息",
+            category=CapabilityCategory.SYSTEM,
+            permission=TrustLevel.READ_ONLY,
+            execution=ExecutionMode.SYNC,
+            side_effects=[SideEffect.NONE],
+            tags=["system", "info", "os"],
+        ),
+        handler=_get_system_info,
+    )
+
+    # 系统资源
+    registry.register(
+        CapabilityDefinition(
+            id="env.system.resources",
+            name="系统资源",
+            description="获取 CPU、内存、磁盘等系统资源使用情况",
+            category=CapabilityCategory.SYSTEM,
+            permission=TrustLevel.READ_ONLY,
+            execution=ExecutionMode.SYNC,
+            side_effects=[SideEffect.NONE],
+            tags=["resources", "cpu", "memory", "disk"],
+        ),
+        handler=_get_system_resources,
+    )
+
+
+# ── 处理器实现 ────────────────────────────
+
+
+async def _check_docker(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """检查 Docker 可用性"""
+    try:
+        import subprocess
+
+        result = subprocess.run(
+            ["docker", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            version = result.stdout.strip()
+            return {"available": True, "version": version}
+        return {"available": False, "reason": "Docker 命令返回非零退出码"}
+    except FileNotFoundError:
+        return {"available": False, "reason": "Docker 未安装"}
+    except subprocess.TimeoutExpired:
+        return {"available": False, "reason": "Docker 命令超时"}
+    except Exception as e:
+        return {"available": False, "reason": str(e)}
+
+
+async def _check_python(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """检查 Python 环境"""
+    import sys
+    import platform
+
+    return {
+        "version": sys.version,
+        "executable": sys.executable,
+        "platform": platform.platform(),
+        "architecture": platform.machine(),
+        "packages": len(sys.modules),
+    }
+
+
+async def _check_node(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """检查 Node.js 环境"""
+    try:
+        import subprocess
+
+        result = subprocess.run(
+            ["node", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return {"available": True, "version": result.stdout.strip()}
+        return {"available": False, "reason": "Node.js 命令返回非零退出码"}
+    except FileNotFoundError:
+        return {"available": False, "reason": "Node.js 未安装"}
+    except Exception as e:
+        return {"available": False, "reason": str(e)}
+
+
+async def _check_git(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """检查 Git 环境"""
+    try:
+        import subprocess
+
+        result = subprocess.run(
+            ["git", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return {"available": True, "version": result.stdout.strip()}
+        return {"available": False, "reason": "Git 命令返回非零退出码"}
+    except FileNotFoundError:
+        return {"available": False, "reason": "Git 未安装"}
+    except Exception as e:
+        return {"available": False, "reason": str(e)}
+
+
+async def _check_languages(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """检查多语言运行时"""
+    import subprocess
+
+    languages = {}
+    checks = {
+        "python": ["python3", "--version"],
+        "node": ["node", "--version"],
+        "java": ["java", "-version"],
+        "go": ["go", "version"],
+        "rust": ["rustc", "--version"],
+    }
+
+    for lang, cmd in checks.items():
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                languages[lang] = result.stdout.strip() or result.stderr.strip()
+            else:
+                languages[lang] = None
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            languages[lang] = None
+
+    return {"available_languages": [k for k, v in languages.items() if v], "versions": languages}
+
+
+async def _get_system_info(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """获取系统信息"""
+    import platform
+    import os
+
+    return {
+        "os": platform.system(),
+        "os_version": platform.version(),
+        "architecture": platform.machine(),
+        "hostname": platform.node(),
+        "platform": platform.platform(),
+        "processor": platform.processor(),
+        "python_version": platform.python_version(),
+        "cwd": os.getcwd(),
+        "pid": os.getpid(),
+    }
+
+
+async def _get_system_resources(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """获取系统资源使用情况"""
+    import os
+    import psutil
+
+    cpu_percent = psutil.cpu_percent(interval=0.1)
+    memory = psutil.virtual_memory()
+    disk = psutil.disk_usage("/")
+
+    return {
+        "cpu": {
+            "percent": cpu_percent,
+            "count": psutil.cpu_count(),
+            "count_logical": psutil.cpu_count(logical=True),
+        },
+        "memory": {
+            "total": memory.total,
+            "available": memory.available,
+            "percent": memory.percent,
+            "used": memory.used,
+        },
+        "disk": {
+            "total": disk.total,
+            "used": disk.used,
+            "free": disk.free,
+            "percent": disk.percent,
+        },
+        "process": {
+            "pid": os.getpid(),
+            "memory_mb": psutil.Process().memory_info().rss / 1024 / 1024,
+        },
+    }

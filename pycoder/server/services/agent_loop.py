@@ -20,6 +20,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
+from pycoder.ai.diagnostic_auto_fix import DiagnosticAutoFixer, get_diagnostic_fixer
 from pycoder.brain.context_enhancer import ContextEnhancer, get_context_enhancer
 from pycoder.brain.feedback_loop import FeedbackLoop, get_feedback_loop
 from pycoder.brain.intelligent_router import (
@@ -53,6 +54,7 @@ class UnifiedAgentLoop:
         feedback: FeedbackLoop | None = None,
         context_enhancer: ContextEnhancer | None = None,
         enable_intelligent_routing: bool = False,
+        diagnostic_fixer: DiagnosticAutoFixer | None = None,
     ):
         self.strategy = strategy
         self.workspace = workspace
@@ -65,6 +67,9 @@ class UnifiedAgentLoop:
         self._context_enhancer = context_enhancer or get_context_enhancer()
         self._enable_intelligent_routing = enable_intelligent_routing
         self._last_signal: Any = None  # V2: 最近一次执行的信号，用于用户评分关联
+
+        # V2.1: 诊断自动修复器 (Phase 2.2)
+        self._diagnostic_fixer = diagnostic_fixer or get_diagnostic_fixer()
 
     async def chat_stream(
         self,
@@ -262,6 +267,21 @@ class UnifiedAgentLoop:
                     '可以同时调多个: {"tool_calls": [{"name": "A", '
                     '"params": {}}, {"name": "B", "params": {}}]}'
                 )
+
+            # V2.1: 注入 LSP 诊断到 prompt (Phase 2.2)
+            # 仅在 iteration > 1 且有写入文件时注入诊断
+            if iteration > 1 and written_files:
+                try:
+                    diag_prompt = self._diagnostic_fixer.get_diagnostics_prompt()
+                    if diag_prompt:
+                        prompt = (
+                            f"{prompt}\n\n---\n"
+                            f"## 代码诊断反馈\n"
+                            f"{diag_prompt}\n"
+                            f"请优先修复上述错误，然后继续完成任务。"
+                        )
+                except Exception as e:
+                    logger.debug("diagnostic_inject_failed: %s", e)
             # 每3步添加反思提示
             if strategy.enable_rumination and iteration > 1 and iteration % 3 == 0:
                 self._rumination_count += 1
@@ -363,6 +383,13 @@ class UnifiedAgentLoop:
                         fblock["path"],
                         e,
                     )
+
+            # 4.5. 追踪写入的文件 → 诊断自动修复 (Phase 2.2)
+            if written_files:
+                try:
+                    self._diagnostic_fixer.track_files(written_files)
+                except Exception as e:
+                    logger.debug("diagnostic_track_failed: %s", e)
 
             # 5. 处理工具调用
             if not parsed.tool_calls:

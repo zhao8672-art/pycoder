@@ -70,7 +70,7 @@ def detect_environment(project_path: str | Path | None = None) -> Any | None:
         from pycoder.python.env_detector import detect_environment as _detect
 
         return _detect(project_path)
-    except Exception:
+    except ImportError:
         return None
 
 

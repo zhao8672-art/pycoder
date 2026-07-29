@@ -100,7 +100,7 @@ async def create_task(req: TaskCreate) -> dict:
         action_args=req.action_args,
         enabled=req.enabled,
     )
-    result = sched.add_task(task)
+    _ = sched.add_task(task)
     return {
         "success": True,
         "task_id": task_id,

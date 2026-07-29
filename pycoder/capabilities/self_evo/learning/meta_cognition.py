@@ -154,22 +154,16 @@ class MetaCognition:
             components["learning_engine"] = f"degraded: {e}"
 
         try:
-            from pycoder.memory import SessionMemoryEngine
-
             components["memory"] = "healthy"
         except ImportError:
             components["memory"] = "unavailable"
 
         try:
-            from pycoder.safety import SandboxManager
-
             components["sandbox"] = "healthy"
         except ImportError:
             components["sandbox"] = "unavailable"
 
         try:
-            from pycoder.multimodal.vision_client import VisionClient
-
             components["multimodal"] = "healthy"
         except ImportError:
             components["multimodal"] = "unavailable"

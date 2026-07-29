@@ -31,16 +31,12 @@ from .tracing import (
     get_current_trace_id,
     get_tracer,
     get_tracing_manager,
+    span,
+    traced,
 )
 from .tracing import is_available as tracing_is_available
 from .tracing import is_enabled as tracing_is_enabled
-from .tracing import (
-    span,
-)
 from .tracing import status as tracing_status
-from .tracing import (
-    traced,
-)
 
 __all__ = [
     # Sentry

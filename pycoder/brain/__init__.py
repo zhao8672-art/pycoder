@@ -125,14 +125,12 @@ from pycoder.brain.shared_state import (
 # 14 角色 Agent 团队
 from pycoder.brain.specialized_agents import (
     AgentProfile,
-)
-from pycoder.brain.specialized_agents import AgentRole as SpecializedAgentRole
-from pycoder.brain.specialized_agents import (
     SpecializedAgentTeam,
     Team,
     TeamTask,
     get_agent_team,
 )
+from pycoder.brain.specialized_agents import AgentRole as SpecializedAgentRole
 from pycoder.brain.task_planner import ExecutionPlan, Task, TaskPlanner
 from pycoder.brain.tool_planner import (
     ToolPlan,

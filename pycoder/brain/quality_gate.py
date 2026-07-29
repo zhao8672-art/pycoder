@@ -364,7 +364,7 @@ class QualityGate:
     def get_stats(self) -> dict[str, Any]:
         """获取门禁统计"""
         return {
-            "levels": [l.value for l in GateLevel],
+            "levels": [level.value for level in GateLevel],
             "pass_threshold": self.PASS_THRESHOLD,
             "hard_reject_threshold": self.HARD_REJECT_THRESHOLD,
             "weights": dict(self.WEIGHTS),

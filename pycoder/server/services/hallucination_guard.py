@@ -1788,7 +1788,7 @@ class HallucinationGuard:
                 recommendations.append(f"  → {issue}")
 
         # ── 类别特定建议 ──
-        category_counts = Counter(c.claim_type for c in trace.claims)
+        _category_counts = Counter(c.claim_type for c in trace.claims)
         failed_api = sum(1 for c in trace.claims if c.claim_type == "api" and c.verified is False)
         if failed_api > 0:
             recommendations.append(

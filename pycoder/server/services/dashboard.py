@@ -230,7 +230,7 @@ class DashboardBuilder:
                 timeout=5,
             )
             if r.returncode == 0:
-                lines = [l for l in r.stdout.split("\n") if l.strip()]
+                lines = [line for line in r.stdout.split("\n") if line.strip()]
                 return f"{len(lines)} 个变更"
         except (OSError, subprocess.TimeoutExpired):
             pass
