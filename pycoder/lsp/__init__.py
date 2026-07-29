@@ -14,15 +14,19 @@ __all__ = [
     "DiagnosticsAggregator",
     "AggregatedDiagnostic",
     "LSPContextIntegrator",
+    "LSPFeedbackCollector",
     "register_capabilities",
 ]
 
 
 def __getattr__(name: str) -> Any:
-    """延迟导入 LSPContextIntegrator 以避免循环依赖"""
+    """延迟导入 LSPContextIntegrator / LSPFeedbackCollector 以避免循环依赖"""
     if name == "LSPContextIntegrator":
         from pycoder.lsp.context_integration import LSPContextIntegrator
         return LSPContextIntegrator
+    if name == "LSPFeedbackCollector":
+        from pycoder.lsp.feedback_collector import LSPFeedbackCollector
+        return LSPFeedbackCollector
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 

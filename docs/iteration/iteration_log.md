@@ -19,7 +19,7 @@
 
 | 指标 | 当前值 | 目标值 | 更新日期 |
 |------|--------|--------|----------|
-| 单元测试通过率 | 188/188 (100%) | ≥ 95% | 2026-07-29 |
+| 单元测试通过率 | 229/229 (100%) | ≥ 95% | 2026-07-29 |
 | 测试覆盖率 (核心模块) | 41% (server) / ≥80% (升级模块) | ≥ 80% 全局 | 2026-07-29 |
 | PerfAdvisor 规则数 | 31 | 40+ | 2026-07-29 |
 | 错误模式库数量 | 50+ | 80+ | 2026-07-29 |
@@ -28,10 +28,57 @@
 | CI 流水线检查项 | 5 (lint/type/security/test/build) | 6 (+docs) | 2026-07-29 |
 | Bandit HIGH 问题数 | 0 | 0 | 2026-07-29 |
 | Ruff 错误数 | ~200 (从 2184 降低 91%) | < 50 | 2026-07-29 |
-| LSP 能力数 | 7 (completion/definition/hover/references/symbol/diagnostics/context_integration) | 10+ | 2026-07-29 |
-| LSP 集成阶段 | 阶段 2 完成 (诊断→AI 提示词) | 阶段 3 (Electron Monaco) | 2026-07-29 |
+| LSP 能力数 | 8 (+feedback_collector 自进化闭环) | 10+ | 2026-07-29 |
+| LSP 集成阶段 | 阶段 2 完成 + 自进化闭环 (诊断→反馈→学习) | 阶段 3 (Electron Monaco) | 2026-07-29 |
+| 自进化反馈闭环 | LSP 诊断接入 FeedbackLoop (信号采集+学习报告) | 完整闭环 (含策略调整) | 2026-07-29 |
 
 ## 三、迭代历史
+
+### 迭代 #6 — 2026-07-29: LSP 诊断 → 自进化反馈闭环
+
+**变更内容**:
+- **FeedbackSignal 扩展** (`pycoder/capabilities/self_evo/learning/feedback_loop.py`):
+  - 新增 LSP 字段: `lsp_error_codes` / `lsp_source` / `lsp_error_count` / `lsp_warning_count` / `lsp_files_affected`
+  - `signal_type` 支持 "lsp" 值 (向后兼容 implicit/explicit)
+  - `_signal_to_dict` / `_load_signals` 同步支持新字段 (序列化与持久化)
+- **FeedbackLoop LSP 集成** (`feedback_loop.py`):
+  - 新增 `collect_from_lsp_diagnostics(task_id, diagnostics, lsp_source)` — 诊断聚合为 FeedbackSignal
+  - 质量评分算法: 错误 -5 分/个, 警告 -2 分/个 (最低 0)
+  - 结果判定: 有错误=failure, 仅警告=partial, 无=success
+  - 主错误类型自动提取 (Counter.most_common)
+  - 新增 `get_lsp_feedback_stats()` — LSP 反馈统计 (top 错误码/平均错误数/来源分布)
+- **LSPFeedbackCollector** (`pycoder/lsp/feedback_collector.py` 新增):
+  - 桥接 LSPClient 诊断回调与 FeedbackLoop 反馈闭环
+  - 任务生命周期: `start(task_id)` / `stop()` (自动 flush 剩余诊断)
+  - 诊断缓冲聚合: 按文件累积, 支持空列表清除 (LSP 语义)
+  - 自动 flush: 双触发机制 (时间间隔 + 数量阈值)
+  - 手动 flush: 显式推送聚合诊断到 FeedbackLoop
+  - 错误模式学习报告 (`get_learning_report`): 高频错误码 Top 10 + 修复建议
+  - 内置 17 个 pyright 错误码 → 修复建议映射表
+  - 兼容 ERROR_PATTERN_DB 查询 (双重建议源)
+  - 优雅降级: LSPClient/FeedbackLoop 异常隔离
+  - 历史记录保留最近 100 次 flush 统计
+- **模块导出** (`pycoder/lsp/__init__.py`):
+  - 延迟导入 `LSPFeedbackCollector` 避免循环依赖
+- **单元测试** (`tests/test_lsp_feedback_collector.py` 新增): 41 项测试
+  - FeedbackSignal LSP 字段 (3 项)
+  - FeedbackLoop LSP 集成 (7 项) — collect/stats/质量评分/文件统计
+  - 采集器初始化 (3 项) — 默认值/启用/异常隔离
+  - 采集器生命周期 (3 项) — start/stop/自动 flush
+  - 采集器缓冲 (4 项) — add/清除/stats/reset
+  - 采集器 flush (6 项) — 空/推送/清空/历史/异常/统计
+  - 采集器自动 flush (3 项) — 阈值/间隔/禁用
+  - 错误模式学习报告 (7 项) — 空/有错误/建议/Top/查询
+  - LSPClient 集成 (2 项) — 回调接收/清除传播
+  - 端到端集成 (3 项) — 完整管道/学习报告
+  - 隔离 fixture: `isolated_feedback_loop` 避免全局信号文件污染
+
+**测试**: 229 项全部通过 (含 41 个新 LSP 反馈闭环测试 + 188 个回归测试)
+
+**未完成项** (转入下一迭代):
+- LSP 集成阶段 3: Electron Monaco Editor 集成 (前端显示诊断)
+- LSP 集成端到端测试 (安装 pyright 后跑真实诊断)
+- 自进化策略调整闭环 (LSP 反馈 → 自动调整代码生成策略)
 
 ### 迭代 #5 — 2026-07-29: LSP 集成阶段 2 — 诊断注入 AI 提示词
 
@@ -184,8 +231,9 @@
 
 ### P1 — 重要 (2 周内)
 - [ ] LSP 集成阶段 3: Electron Monaco Editor 集成 (前端显示诊断)
-- [ ] LSP 诊断 → 自进化反馈闭环 (诊断错误模式自动学习)
+- [x] LSP 诊断 → 自进化反馈闭环 (诊断错误模式自动学习) ✓ 迭代#6 完成
 - [ ] LSP 集成端到端测试 (安装 pyright 后跑真实诊断)
+- [ ] 自进化策略调整闭环 (LSP 反馈 → 自动调整代码生成策略)
 - [ ] PerfAdvisor 规则扩展至 40+ (添加 I/O/算法复杂度规则)
 - [ ] 错误模式库扩展至 80+ (添加框架特定错误)
 - [ ] 竞品对比报告深度分析 (Codex/Trae 最新版本功能)

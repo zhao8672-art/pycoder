@@ -45,7 +45,7 @@ class FeedbackSignal:
     """单次反馈信号"""
 
     task_id: str = ""
-    signal_type: str = ""  # implicit | explicit
+    signal_type: str = ""  # implicit | explicit | lsp
     outcome: str = ""  # success | failure | partial
     quality_score: float = 0.0
     test_passed: bool = False
@@ -58,6 +58,12 @@ class FeedbackSignal:
     model_used: str = ""
     error_type: str = ""
     timestamp: float = field(default_factory=time.time)
+    # LSP 诊断相关字段 (迭代#6 新增, 向后兼容默认空值)
+    lsp_error_codes: list[str] = field(default_factory=list)  # 如 ["reportMissingImports"]
+    lsp_source: str = ""  # 如 "pyright"
+    lsp_error_count: int = 0  # 错误级别诊断数
+    lsp_warning_count: int = 0  # 警告级别诊断数
+    lsp_files_affected: int = 0  # 受影响文件数
 
 
 @dataclass
@@ -160,6 +166,135 @@ class FeedbackLoop:
             duration_ms=report.duration_seconds * 1000,
             agent_role="team",
         )
+
+    def collect_from_lsp_diagnostics(
+        self,
+        task_id: str,
+        diagnostics: list,
+        lsp_source: str = "pyright",
+    ) -> None:
+        """从 LSP 诊断列表收集反馈信号 (迭代#6 新增)
+
+        将 LSP 诊断转化为隐式反馈信号, 用于自进化系统学习错误模式。
+
+        Args:
+            task_id: 关联的任务 ID
+            diagnostics: Diagnostic 对象列表 (来自 pycoder.lsp.client)
+            lsp_source: LSP 服务器来源标识 (如 "pyright")
+        """
+        if not diagnostics:
+            return
+
+        # 聚合诊断
+        error_codes: list[str] = []
+        error_count = 0
+        warning_count = 0
+        files_affected: set[str] = set()
+
+        for d in diagnostics:
+            if hasattr(d, "file_path") and d.file_path:
+                files_affected.add(d.file_path)
+            if hasattr(d, "severity"):
+                if d.severity == "error":
+                    error_count += 1
+                elif d.severity == "warning":
+                    warning_count += 1
+            if hasattr(d, "code") and d.code:
+                error_codes.append(d.code)
+
+        # 质量评分: 每个错误扣 5 分, 每个警告扣 2 分, 最低 0
+        quality_score = max(0.0, 100.0 - error_count * 5 - warning_count * 2)
+
+        # 结果判定: 有错误则为 failure, 仅警告则为 partial
+        if error_count > 0:
+            outcome = "failure"
+        elif warning_count > 0:
+            outcome = "partial"
+        else:
+            outcome = "success"
+
+        # 主错误类型取出现次数最多的 code
+        error_type = ""
+        if error_codes:
+            from collections import Counter
+
+            error_type = Counter(error_codes).most_common(1)[0][0]
+
+        signal = FeedbackSignal(
+            task_id=task_id,
+            signal_type="lsp",
+            outcome=outcome,
+            quality_score=quality_score,
+            test_passed=error_count == 0,
+            agent_role="lsp_monitor",
+            error_type=error_type,
+            lsp_error_codes=error_codes,
+            lsp_source=lsp_source,
+            lsp_error_count=error_count,
+            lsp_warning_count=warning_count,
+            lsp_files_affected=len(files_affected),
+        )
+        self._signals.append(signal)
+
+        # 只保留最近 500 条
+        if len(self._signals) > 500:
+            self._signals = self._signals[-500:]
+            self._save_signals()
+
+        self._append_signal(signal)
+
+        # 定期触发自适应调整
+        if len(self._signals) % 50 == 0:
+            self._adjust()
+
+    def get_lsp_feedback_stats(self) -> dict:
+        """获取 LSP 反馈统计 (迭代#6 新增)
+
+        Returns:
+            {
+                "total_lsp_signals": int,
+                "recent_lsp_signals": int,
+                "top_error_codes": [(code, count), ...],  # 最近 100 条
+                "avg_error_count": float,
+                "avg_warning_count": float,
+                "files_affected_total": int,
+                "lsp_sources": {source: count},
+            }
+        """
+        from collections import Counter
+
+        lsp_signals = [s for s in self._signals if s.signal_type == "lsp"]
+        if not lsp_signals:
+            return {
+                "total_lsp_signals": 0,
+                "recent_lsp_signals": 0,
+                "top_error_codes": [],
+                "avg_error_count": 0.0,
+                "avg_warning_count": 0.0,
+                "files_affected_total": 0,
+                "lsp_sources": {},
+            }
+
+        recent_lsp = lsp_signals[-100:]
+        all_codes: list[str] = []
+        for s in recent_lsp:
+            all_codes.extend(s.lsp_error_codes)
+
+        sources_counter: Counter[str] = Counter(
+            s.lsp_source for s in recent_lsp if s.lsp_source
+        )
+
+        return {
+            "total_lsp_signals": len(lsp_signals),
+            "recent_lsp_signals": len(recent_lsp),
+            "top_error_codes": Counter(all_codes).most_common(10),
+            "avg_error_count": sum(s.lsp_error_count for s in recent_lsp)
+            / len(recent_lsp),
+            "avg_warning_count": sum(s.lsp_warning_count for s in recent_lsp)
+            / len(recent_lsp),
+            "files_affected_total": sum(s.lsp_files_affected for s in recent_lsp),
+            "lsp_sources": dict(sources_counter),
+        }
 
     # ─── 自适应调整 ───
 
@@ -338,6 +473,11 @@ class FeedbackLoop:
                             model_used=data.get("model_used", ""),
                             error_type=data.get("error_type", ""),
                             timestamp=data.get("timestamp", 0.0),
+                            lsp_error_codes=data.get("lsp_error_codes", []),
+                            lsp_source=data.get("lsp_source", ""),
+                            lsp_error_count=data.get("lsp_error_count", 0),
+                            lsp_warning_count=data.get("lsp_warning_count", 0),
+                            lsp_files_affected=data.get("lsp_files_affected", 0),
                         )
                     )
                 except (json.JSONDecodeError, TypeError):
@@ -383,6 +523,11 @@ class FeedbackLoop:
             "model_used": s.model_used,
             "error_type": s.error_type,
             "timestamp": s.timestamp,
+            "lsp_error_codes": s.lsp_error_codes,
+            "lsp_source": s.lsp_source,
+            "lsp_error_count": s.lsp_error_count,
+            "lsp_warning_count": s.lsp_warning_count,
+            "lsp_files_affected": s.lsp_files_affected,
         }
 
     def _load_config(self) -> AdaptiveConfig:
