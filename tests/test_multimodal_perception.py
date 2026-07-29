@@ -16,15 +16,13 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from PIL import Image
 
 from pycoder.server.services.multimodal_perception import (
-    MultimodalPerception,
     ImageAnalyzer,
+    MultimodalPerception,
     PerceptionResult,
 )
-
 
 # ──────────────────────────────────────────────
 # 辅助函数
@@ -64,9 +62,9 @@ def _create_diagram_image() -> Path:
     img = Image.new("RGB", (400, 300), color=(255, 255, 255))
     # 绘制几个彩色矩形模拟框图组件
     for x0, y0, x1, y1, color in [
-        (50, 50, 150, 120, (100, 149, 237)),   # 蓝色块
-        (250, 50, 350, 120, (60, 179, 113)),    # 绿色块
-        (50, 180, 150, 250, (255, 165, 0)),     # 橙色块
+        (50, 50, 150, 120, (100, 149, 237)),  # 蓝色块
+        (250, 50, 350, 120, (60, 179, 113)),  # 绿色块
+        (50, 180, 150, 250, (255, 165, 0)),  # 橙色块
         (250, 180, 350, 250, (147, 112, 219)),  # 紫色块
     ]:
         for x in range(x0, x1):

@@ -6,13 +6,11 @@
 - 静态方法: generate_evolution_token, _validate_evolution_token, clear_evolution_token
 - 内部方法: _scan_file_ast, _parse_fix_response, _template_fix, _is_protected, _path_to_module
 """
+
 from __future__ import annotations
 
-import asyncio
-import json
-import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -27,7 +25,6 @@ from pycoder.capabilities.self_evo.engine import (
     SelfEvolutionEngine,
     _build_evolution_report,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 数据模型测试
@@ -84,9 +81,7 @@ class TestScanReport:
 
     def test_with_issues(self):
         """带问题列表测试"""
-        issue = CodeIssue(
-            file="a.py", line=1, severity="low", issue_type="style", title="过长函数"
-        )
+        issue = CodeIssue(file="a.py", line=1, severity="low", issue_type="style", title="过长函数")
         report = ScanReport(
             path="pycoder",
             files_scanned=5,
@@ -117,9 +112,7 @@ class TestFixProposal:
 
     def test_with_code(self):
         """带代码内容测试"""
-        issue = CodeIssue(
-            file="x.py", line=1, severity="high", issue_type="bug", title="裸 except"
-        )
+        issue = CodeIssue(file="x.py", line=1, severity="high", issue_type="bug", title="裸 except")
         proposal = FixProposal(
             issue=issue,
             action="replace",
@@ -139,9 +132,7 @@ class TestFixResult:
 
     def test_success_result(self):
         """成功结果测试"""
-        issue = CodeIssue(
-            file="x.py", line=1, severity="high", issue_type="bug", title="测试问题"
-        )
+        issue = CodeIssue(file="x.py", line=1, severity="high", issue_type="bug", title="测试问题")
         proposal = FixProposal(issue=issue, action="replace", file_path="x.py")
         result = FixResult(
             proposal=proposal,
@@ -158,9 +149,7 @@ class TestFixResult:
 
     def test_failure_result(self):
         """失败结果测试"""
-        issue = CodeIssue(
-            file="x.py", line=1, severity="high", issue_type="bug", title="测试问题"
-        )
+        issue = CodeIssue(file="x.py", line=1, severity="high", issue_type="bug", title="测试问题")
         proposal = FixProposal(issue=issue, action="replace", file_path="x.py")
         result = FixResult(
             proposal=proposal,
@@ -402,6 +391,7 @@ class TestScanFileAst:
     def test_detect_bare_except(self, engine_no_llm: SelfEvolutionEngine, py_file: Path):
         """检测裸 except"""
         import ast
+
         source = "try:\n    pass\nexcept:\n    pass\n"
         tree = ast.parse(source)
         issues = engine_no_llm._scan_file_ast(tree, py_file, source)
@@ -410,6 +400,7 @@ class TestScanFileAst:
     def test_detect_mutable_default(self, engine_no_llm: SelfEvolutionEngine, py_file: Path):
         """检测可变默认参数"""
         import ast
+
         source = "def foo(x=[]):\n    pass\n"
         tree = ast.parse(source)
         issues = engine_no_llm._scan_file_ast(tree, py_file, source)
@@ -418,6 +409,7 @@ class TestScanFileAst:
     def test_detect_eval(self, engine_no_llm: SelfEvolutionEngine, py_file: Path):
         """检测 eval 危险函数"""
         import ast
+
         source = "eval('1+1')\n"
         tree = ast.parse(source)
         issues = engine_no_llm._scan_file_ast(tree, py_file, source)
@@ -426,6 +418,7 @@ class TestScanFileAst:
     def test_detect_hardcoded_key(self, engine_no_llm: SelfEvolutionEngine, py_file: Path):
         """检测硬编码密钥"""
         import ast
+
         source = 'api_key = "sk-123456789abcdef"\n'
         tree = ast.parse(source)
         issues = engine_no_llm._scan_file_ast(tree, py_file, source)
@@ -434,6 +427,7 @@ class TestScanFileAst:
     def test_clean_code_no_issues(self, engine_no_llm: SelfEvolutionEngine, py_file: Path):
         """干净代码无问题"""
         import ast
+
         source = "def foo(x: int) -> int:\n    return x + 1\n"
         tree = ast.parse(source)
         issues = engine_no_llm._scan_file_ast(tree, py_file, source)
@@ -470,7 +464,9 @@ class TestScan:
         test_file = engine_no_llm._project_root / "pycoder" / "test.py"
         test_file.write_text("x = 1\ny = 2\n", encoding="utf-8")
 
-        report = await engine_no_llm.scan(str(engine_no_llm._project_root / "pycoder"), use_llm=False)
+        report = await engine_no_llm.scan(
+            str(engine_no_llm._project_root / "pycoder"), use_llm=False
+        )
         assert isinstance(report, ScanReport)
         assert report.files_scanned >= 1
         assert report.duration_seconds >= 0
@@ -481,7 +477,9 @@ class TestScan:
         test_file = engine_no_llm._project_root / "pycoder" / "bad.py"
         test_file.write_text("def broken(\n", encoding="utf-8")
 
-        report = await engine_no_llm.scan(str(engine_no_llm._project_root / "pycoder"), use_llm=False)
+        report = await engine_no_llm.scan(
+            str(engine_no_llm._project_root / "pycoder"), use_llm=False
+        )
         assert any("语法错误" in i.title for i in report.issues)
 
     @pytest.mark.asyncio
@@ -511,7 +509,9 @@ class TestScan:
         pycache.mkdir()
         (pycache / "cached.py").write_text("x=1\n", encoding="utf-8")
 
-        report = await engine_no_llm.scan(str(engine_no_llm._project_root / "pycoder"), use_llm=False)
+        report = await engine_no_llm.scan(
+            str(engine_no_llm._project_root / "pycoder"), use_llm=False
+        )
         # __pycache__ 中的文件应被跳过
         assert all("__pycache__" not in i.file for i in report.issues)
 
@@ -584,9 +584,7 @@ class TestApplyFix:
     @pytest.mark.asyncio
     async def test_apply_fix_protected_file(self, engine_no_llm: SelfEvolutionEngine):
         """受保护文件拒绝修复测试"""
-        issue = CodeIssue(
-            file=".env", line=1, severity="high", issue_type="bug", title="测试"
-        )
+        issue = CodeIssue(file=".env", line=1, severity="high", issue_type="bug", title="测试")
         proposal = FixProposal(issue=issue, action="replace", file_path=".env")
         result = await engine_no_llm.apply_fix(proposal)
         assert result.success is False
@@ -601,9 +599,7 @@ class TestApplyFix:
         monkeypatch.setattr(
             engine_no_llm, "_get_modified_in_session", lambda: ["a.py", "b.py", "c.py"]
         )
-        issue = CodeIssue(
-            file="test.py", line=1, severity="high", issue_type="bug", title="测试"
-        )
+        issue = CodeIssue(file="test.py", line=1, severity="high", issue_type="bug", title="测试")
         proposal = FixProposal(issue=issue, action="replace", file_path="test.py")
         result = await engine_no_llm.apply_fix(proposal)
         assert result.success is False
@@ -615,9 +611,7 @@ class TestParseFixResponse:
 
     def test_parse_diff_format(self, engine_no_llm: SelfEvolutionEngine):
         """解析 diff 格式测试"""
-        issue = CodeIssue(
-            file="test.py", line=1, severity="high", issue_type="bug", title="测试"
-        )
+        issue = CodeIssue(file="test.py", line=1, severity="high", issue_type="bug", title="测试")
         response = """```diff
 --- a/test.py
 +++ b/test.py
@@ -630,9 +624,7 @@ class TestParseFixResponse:
 
     def test_parse_python_code_block(self, engine_no_llm: SelfEvolutionEngine):
         """解析 Python 代码块测试"""
-        issue = CodeIssue(
-            file="test.py", line=1, severity="high", issue_type="bug", title="测试"
-        )
+        issue = CodeIssue(file="test.py", line=1, severity="high", issue_type="bug", title="测试")
         response = """```python
 def fixed():
     pass
@@ -642,9 +634,7 @@ def fixed():
 
     def test_parse_without_code_block(self, engine_no_llm: SelfEvolutionEngine):
         """无代码块响应测试"""
-        issue = CodeIssue(
-            file="test.py", line=1, severity="high", issue_type="bug", title="测试"
-        )
+        issue = CodeIssue(file="test.py", line=1, severity="high", issue_type="bug", title="测试")
         response = "需要手动修复此问题"
         proposal = engine_no_llm._parse_fix_response(response, issue)
         assert isinstance(proposal, FixProposal)
@@ -701,14 +691,10 @@ class TestGetStats:
     def test_stats_with_records(self, engine_no_llm: SelfEvolutionEngine):
         """有记录统计测试"""
         engine_no_llm.record_evolution(
-            EvolutionRecord(
-                action="fix", issue_type="bug", file="a.py", success=True
-            )
+            EvolutionRecord(action="fix", issue_type="bug", file="a.py", success=True)
         )
         engine_no_llm.record_evolution(
-            EvolutionRecord(
-                action="fix", issue_type="security", file="b.py", success=False
-            )
+            EvolutionRecord(action="fix", issue_type="security", file="b.py", success=False)
         )
         stats = engine_no_llm.get_stats()
         assert stats["total_evolutions"] == 2

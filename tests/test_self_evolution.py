@@ -10,18 +10,12 @@
 
 from __future__ import annotations
 
-import json
-import tempfile
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
 
 from pycoder.capabilities.self_evo.learning import (
     EvolutionIntegration,
     IntegrationStatus,
-    LearningEngine,
     MetaCognition,
     PolicyManager,
     RefactoringEngine,
@@ -32,7 +26,6 @@ from pycoder.capabilities.self_evo.learning import (
     get_policy_manager,
     get_refactoring_engine,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # RefactoringEngine 测试
@@ -74,6 +67,7 @@ class TestRefactoringEngine:
         engine = RefactoringEngine()
         source = """def hello():\n    print("hello")\n"""
         import ast
+
         tree = ast.parse(source)
         metrics = engine._compute_metrics(tree, "test.py", source)
         assert metrics.lines > 0
@@ -84,6 +78,7 @@ class TestRefactoringEngine:
         from pycoder.capabilities.self_evo.learning.refactoring_engine import (
             RefactorSuggestion,
         )
+
         engine = RefactoringEngine()
         suggestion = RefactorSuggestion(
             file="nonexistent.py",
@@ -102,6 +97,7 @@ class TestRefactoringEngine:
         from pycoder.capabilities.self_evo.learning.refactoring_engine import (
             RefactorSuggestion,
         )
+
         engine = RefactoringEngine()
         suggestion = RefactorSuggestion(
             file="nonexistent.py",

@@ -1,4 +1,5 @@
 """P2-3: 自我迭代安装器 单元测试"""
+
 from __future__ import annotations
 
 import shutil
@@ -21,13 +22,13 @@ def test_security_validator_safe_code():
     from pycoder.python.self_iterating_installer import SecurityValidator
 
     validator = SecurityValidator()
-    code = '''
+    code = """
 def add(a, b):
     return a + b
 
 def greet(name):
     return f"Hello, {name}"
-'''
+"""
     result = validator.check(code)
     assert result.is_safe
     assert result.risk_level == "low"
@@ -39,11 +40,11 @@ def test_security_validator_os_system_blocked():
     from pycoder.python.self_iterating_installer import SecurityValidator
 
     validator = SecurityValidator()
-    code = '''
+    code = """
 import os
 def bad():
     os.system("rm -rf /")
-'''
+"""
     result = validator.check(code)
     assert not result.is_safe
     assert result.risk_level == "critical"
@@ -55,10 +56,10 @@ def test_security_validator_eval_blocked():
     from pycoder.python.self_iterating_installer import SecurityValidator
 
     validator = SecurityValidator()
-    code = '''
+    code = """
 def bad():
     eval("malicious code")
-'''
+"""
     result = validator.check(code)
     assert not result.is_safe
     assert result.risk_level == "critical"
@@ -69,11 +70,11 @@ def test_security_validator_subprocess_blocked():
     from pycoder.python.self_iterating_installer import SecurityValidator
 
     validator = SecurityValidator()
-    code = '''
+    code = """
 from subprocess import Popen
 def bad():
     Popen(["rm", "-rf", "/"])
-'''
+"""
     result = validator.check(code)
     assert not result.is_safe
     assert result.risk_level == "critical"
@@ -84,11 +85,11 @@ def test_security_validator_import_os_warning():
     from pycoder.python.self_iterating_installer import SecurityValidator
 
     validator = SecurityValidator()
-    code = '''
+    code = """
 import os
 def safe():
     return os.getcwd()  # 安全的只读操作
-'''
+"""
     result = validator.check(code)
     # 应有警告（medium risk）但 is_safe 可能仍为 True
     assert result.risk_level in ("low", "medium")
@@ -112,12 +113,12 @@ def test_install_safe_module(temp_install_dir):
     from pycoder.python.self_iterating_installer import SelfIteratingInstaller
 
     installer = SelfIteratingInstaller(install_dir=temp_install_dir)
-    code = '''
+    code = """
 def hello(name):
     return f"Hello, {name}"
 
 CONST = 42
-'''
+"""
     result = installer.install_from_code(
         name="test_safe_module",
         code=code,
@@ -135,11 +136,11 @@ def test_install_unsafe_module_blocked(temp_install_dir):
     from pycoder.python.self_iterating_installer import SelfIteratingInstaller
 
     installer = SelfIteratingInstaller(install_dir=temp_install_dir)
-    code = '''
+    code = """
 import os
 def bad():
     os.system("echo hacked")
-'''
+"""
     result = installer.install_from_code(name="bad_module", code=code)
     assert not result.success
     assert "安全" in result.error
@@ -153,9 +154,7 @@ def test_install_skip_security(temp_install_dir):
 
     installer = SelfIteratingInstaller(install_dir=temp_install_dir)
     code = "import os\nos.system('echo hi')"
-    result = installer.install_from_code(
-        name="debug_module", code=code, skip_security=True
-    )
+    result = installer.install_from_code(name="debug_module", code=code, skip_security=True)
     assert result.success
 
 
@@ -164,10 +163,10 @@ def test_load_installed_module(temp_install_dir):
     from pycoder.python.self_iterating_installer import SelfIteratingInstaller
 
     installer = SelfIteratingInstaller(install_dir=temp_install_dir)
-    code = '''
+    code = """
 def add(a, b):
     return a + b
-'''
+"""
     installer.install_from_code(name="calc_module", code=code, auto_reload=False)
 
     # 手动加载
@@ -186,11 +185,11 @@ def test_auto_reload_on_install(temp_install_dir):
     from pycoder.python.self_iterating_installer import SelfIteratingInstaller
 
     installer = SelfIteratingInstaller(install_dir=temp_install_dir)
-    code = '''
+    code = """
 VALUE = 100
 def get_value():
     return VALUE
-'''
+"""
     installer.install_from_code(name="auto_mod", code=code, auto_reload=True)
 
     loaded = installer.get_loaded()
@@ -202,9 +201,7 @@ def test_reload_module(temp_install_dir):
     from pycoder.python.self_iterating_installer import SelfIteratingInstaller
 
     installer = SelfIteratingInstaller(install_dir=temp_install_dir)
-    installer.install_from_code(
-        name="reload_test", code="VALUE = 1", auto_reload=True
-    )
+    installer.install_from_code(name="reload_test", code="VALUE = 1", auto_reload=True)
 
     # 验证初始加载
     import sys
@@ -289,9 +286,7 @@ def test_list_installed(temp_install_dir):
 
     installer = SelfIteratingInstaller(install_dir=temp_install_dir)
     for i in range(3):
-        installer.install_from_code(
-            name=f"mod_{i}", code=f"VALUE = {i}", auto_reload=False
-        )
+        installer.install_from_code(name=f"mod_{i}", code=f"VALUE = {i}", auto_reload=False)
 
     modules = installer.list_installed()
     assert len(modules) == 3
@@ -321,9 +316,7 @@ def test_metadata_persistence(temp_install_dir):
     from pycoder.python.self_iterating_installer import SelfIteratingInstaller
 
     installer1 = SelfIteratingInstaller(install_dir=temp_install_dir)
-    installer1.install_from_code(
-        name="persistent", code="DATA = 'persistent'", auto_reload=False
-    )
+    installer1.install_from_code(name="persistent", code="DATA = 'persistent'", auto_reload=False)
 
     # 重新创建 installer 实例（模拟重启）
     installer2 = SelfIteratingInstaller(install_dir=temp_install_dir)

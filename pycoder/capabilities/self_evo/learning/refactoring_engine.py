@@ -32,7 +32,7 @@ import ast
 import logging
 import subprocess
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -148,8 +148,7 @@ class RefactoringEngine:
         funcs_with_docs = sum(
             1
             for n in ast.walk(tree)
-            if isinstance(n, ast.FunctionDef)
-            and ast.get_docstring(n) is not None
+            if isinstance(n, ast.FunctionDef) and ast.get_docstring(n) is not None
         )
         doc_coverage = funcs_with_docs / max(functions, 1) * 100
 
@@ -190,7 +189,7 @@ class RefactoringEngine:
                                 severity="high",
                                 category="complexity",
                                 title=f"函数 '{node.name}' 圈复杂度 {func_complexity}",
-                                description=f"建议拆分为多个小函数，每个函数职责单一",
+                                description="建议拆分为多个小函数，每个函数职责单一",
                                 rationale="高复杂度函数难以测试和维护",
                                 risk_level="medium",
                             )

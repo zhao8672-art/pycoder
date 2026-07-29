@@ -14,10 +14,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from collections.abc import Awaitable
-from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +149,7 @@ class AutoFixer:
     def _check_syntax(self, file_path: Path) -> tuple[bool, str]:
         """Python 语法检查"""
         import ast
+
         try:
             source = file_path.read_text(encoding="utf-8", errors="replace")
             ast.parse(source)
@@ -161,7 +161,8 @@ class AutoFixer:
         """检查模块能否被 Python 导入"""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "python", "-c",
+                "python",
+                "-c",
                 f"import ast; ast.parse(open({str(file_path)!r}).read())",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -192,7 +193,11 @@ class AutoFixer:
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "pytest", test_target, "-x", "--tb=short", "-q",
+                "pytest",
+                test_target,
+                "-x",
+                "--tb=short",
+                "-q",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(self._root),
@@ -228,18 +233,23 @@ class AutoFixer:
             if fixed and fixed.strip() and fixed != current:
                 # 验证修复后语法
                 import ast
+
                 try:
                     ast.parse(fixed)
                 except SyntaxError as e:
                     logger.warning(
                         "autofix_llm_returned_bad_syntax file=%s attempt=%d error=%s",
-                        file_path.name, attempt, e,
+                        file_path.name,
+                        attempt,
+                        e,
                     )
                     return False
                 file_path.write_text(fixed, encoding="utf-8")
                 logger.info(
                     "autofix_applied file=%s type=%s attempt=%d",
-                    file_path.name, error_type, attempt,
+                    file_path.name,
+                    error_type,
+                    attempt,
                 )
                 return True
         except Exception as e:

@@ -67,6 +67,7 @@ async def run_evolution_async(
 ):
     """异步启动进化任务（立即返回任务ID）"""
     import asyncio
+
     from pycoder.evolution import get_evolution_pipeline
 
     pipeline = get_evolution_pipeline()
@@ -93,7 +94,7 @@ async def run_evolution_async(
 @router.get("/status")
 async def get_evolution_status():
     """获取进化引擎状态"""
-    from pycoder.evolution import get_evolution_pipeline, get_evolution_metrics
+    from pycoder.evolution import get_evolution_metrics, get_evolution_pipeline
 
     pipeline = get_evolution_pipeline()
     metrics = get_evolution_metrics()
@@ -112,7 +113,7 @@ async def get_evolution_status():
 @router.get("/report")
 async def get_evolution_report():
     """获取进化报告"""
-    from pycoder.evolution import get_evolution_pipeline, get_evolution_metrics
+    from pycoder.evolution import get_evolution_metrics, get_evolution_pipeline
 
     pipeline = get_evolution_pipeline()
     metrics = get_evolution_metrics()
@@ -187,10 +188,16 @@ async def update_evolution_config(config: dict):
 
     brain = get_evolution_brain()
     allowed_keys = [
-        "auto_apply", "max_files_per_run", "max_llm_tokens",
-        "llm_model", "safety_strict", "test_timeout_seconds",
-        "evolution_interval_seconds", "cost_budget_daily_usd",
-        "min_grade_threshold", "max_retries",
+        "auto_apply",
+        "max_files_per_run",
+        "max_llm_tokens",
+        "llm_model",
+        "safety_strict",
+        "test_timeout_seconds",
+        "evolution_interval_seconds",
+        "cost_budget_daily_usd",
+        "min_grade_threshold",
+        "max_retries",
     ]
 
     updated = {}
@@ -219,6 +226,7 @@ async def evolution_health():
     # 检查 EvolutionBrain
     try:
         from pycoder.evolution import get_evolution_brain
+
         brain = get_evolution_brain()
         checks["brain"] = "healthy"
     except Exception as e:
@@ -227,6 +235,7 @@ async def evolution_health():
     # 检查 EvolutionPipeline
     try:
         from pycoder.evolution import get_evolution_pipeline
+
         pipeline = get_evolution_pipeline()
         checks["pipeline"] = "healthy"
     except Exception as e:
@@ -235,6 +244,7 @@ async def evolution_health():
     # 检查 EvolutionMetrics
     try:
         from pycoder.evolution import get_evolution_metrics
+
         metrics = get_evolution_metrics()
         checks["metrics"] = "healthy"
     except Exception as e:

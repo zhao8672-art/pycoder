@@ -7,14 +7,13 @@
 - _scan_files_rule_based (api / docker / readme / 语法错误)
 - _verify_item (file / function / class / api / test / manual)
 """
+
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator
 from unittest.mock import MagicMock
-
-import pytest
 
 from pycoder.server.chat_bridge import ChatEvent
 from pycoder.server.services.acceptance_engine import (
@@ -22,7 +21,6 @@ from pycoder.server.services.acceptance_engine import (
     AcceptanceItem,
     AcceptanceReport,
 )
-
 
 # ── 辅助：构造 mock ChatBridge ───────────────────────────
 
@@ -54,8 +52,13 @@ class TestAcceptanceItem:
 
     def test_to_dict(self):
         item = AcceptanceItem(
-            id="ac-1", description="d", check_type="function",
-            target="t", expected="e", actual="a", passed=True,
+            id="ac-1",
+            description="d",
+            check_type="function",
+            target="t",
+            expected="e",
+            actual="a",
+            passed=True,
         )
         d = item.to_dict()
         assert d["id"] == "ac-1"
@@ -80,8 +83,12 @@ class TestAcceptanceReport:
 
     def test_to_dict(self):
         report = AcceptanceReport(
-            passed=False, pass_count=1, fail_count=2, score=33.3,
-            summary="s", suggestions=["s1"],
+            passed=False,
+            pass_count=1,
+            fail_count=2,
+            score=33.3,
+            summary="s",
+            suggestions=["s1"],
         )
         report.items.append(AcceptanceItem(id="i1"))
         d = report.to_dict()
@@ -103,8 +110,7 @@ class TestRun:
         (tmp_path / "app.py").write_text("print('hi')", encoding="utf-8")
         (tmp_path / "README.md").write_text("# R", encoding="utf-8")
         engine = AcceptanceEngine(tmp_path)
-        report = await engine.run("build an api 接口 with 文档 and docker",
-                                   ["app.py", "README.md"])
+        report = await engine.run("build an api 接口 with 文档 and docker", ["app.py", "README.md"])
         # 规则应生成 api / readme / docker 检查项
         assert isinstance(report, AcceptanceReport)
         # app.py 存在 → 通过
@@ -120,14 +126,18 @@ class TestRun:
 
     async def test_run_with_bridge_success(self, tmp_path: Path):
         (tmp_path / "app.py").write_text("def foo():\n    pass\n", encoding="utf-8")
-        llm_response = json.dumps({
-            "items": [{
-                "description": "应有 foo 函数",
-                "check_type": "function",
-                "target": "app.py",
-                "expected": "foo 存在",
-            }]
-        })
+        llm_response = json.dumps(
+            {
+                "items": [
+                    {
+                        "description": "应有 foo 函数",
+                        "check_type": "function",
+                        "target": "app.py",
+                        "expected": "foo 存在",
+                    }
+                ]
+            }
+        )
         bridge = make_mock_bridge([ChatEvent(event_type="done", content=llm_response)])
         engine = AcceptanceEngine(tmp_path, chat_bridge=bridge)
         report = await engine.run("task", ["app.py"])
@@ -138,22 +148,35 @@ class TestRun:
     async def test_run_with_bridge_token_stream(self, tmp_path: Path):
         (tmp_path / "app.py").write_text("print('x')\n", encoding="utf-8")
         # token 流分片返回 JSON
-        full = json.dumps({"items": [{"description": "LLM 项", "check_type": "file",
-                                       "target": "app.py", "expected": "存在"}]})
+        full = json.dumps(
+            {
+                "items": [
+                    {
+                        "description": "LLM 项",
+                        "check_type": "file",
+                        "target": "app.py",
+                        "expected": "存在",
+                    }
+                ]
+            }
+        )
         # 拆成两段 token + 一个 done
-        bridge = make_mock_bridge([
-            ChatEvent(event_type="token", content=full[:10]),
-            ChatEvent(event_type="token", content=full[10:]),
-            ChatEvent(event_type="done", content=full),
-        ])
+        bridge = make_mock_bridge(
+            [
+                ChatEvent(event_type="token", content=full[:10]),
+                ChatEvent(event_type="token", content=full[10:]),
+                ChatEvent(event_type="done", content=full),
+            ]
+        )
         engine = AcceptanceEngine(tmp_path, chat_bridge=bridge)
         report = await engine.run("task", ["app.py"])
         assert any(i.description == "LLM 项" for i in report.items)
 
     async def test_run_with_bridge_code_fence(self, tmp_path: Path):
         (tmp_path / "app.py").write_text("print('x')\n", encoding="utf-8")
-        inner = json.dumps({"items": [{"description": "fenced", "check_type": "file",
-                                        "target": "app.py"}]})
+        inner = json.dumps(
+            {"items": [{"description": "fenced", "check_type": "file", "target": "app.py"}]}
+        )
         fenced = f"```json\n{inner}\n```"
         bridge = make_mock_bridge([ChatEvent(event_type="done", content=fenced)])
         engine = AcceptanceEngine(tmp_path, chat_bridge=bridge)
@@ -179,18 +202,19 @@ class TestRun:
     async def test_run_with_test_results_failure(self, tmp_path: Path):
         engine = AcceptanceEngine(tmp_path)
         report = await engine.run(
-            "task", [],
+            "task",
+            [],
             test_results={"total_passed": 3, "total_failed": 1},
         )
         # 有失败测试 → 应附加一个未通过项
-        assert any("测试通过率" in i.description and i.passed is False
-                   for i in report.items)
+        assert any("测试通过率" in i.description and i.passed is False for i in report.items)
         assert report.passed is False
 
     async def test_run_with_test_results_no_failure(self, tmp_path: Path):
         engine = AcceptanceEngine(tmp_path)
         report = await engine.run(
-            "task", [],
+            "task",
+            [],
             test_results={"total_passed": 5, "total_failed": 0},
         )
         # 没有失败测试 → 不附加项
@@ -227,9 +251,7 @@ class TestGenerateAcceptanceCriteria:
         assert result == []
 
     async def test_configures_bridge(self, tmp_path: Path):
-        bridge = make_mock_bridge([
-            ChatEvent(event_type="done", content=json.dumps({"items": []}))
-        ])
+        bridge = make_mock_bridge([ChatEvent(event_type="done", content=json.dumps({"items": []}))])
         engine = AcceptanceEngine(tmp_path, chat_bridge=bridge)
         await engine._generate_acceptance_criteria("task", ["a.py"])
         bridge.configure.assert_called_once_with(model="deepseek-chat")
@@ -238,10 +260,14 @@ class TestGenerateAcceptanceCriteria:
         assert bridge.config.temperature == 0.3
 
     async def test_items_get_sequential_ids(self, tmp_path: Path):
-        resp = json.dumps({"items": [
-            {"description": "a", "check_type": "file"},
-            {"description": "b", "check_type": "file"},
-        ]})
+        resp = json.dumps(
+            {
+                "items": [
+                    {"description": "a", "check_type": "file"},
+                    {"description": "b", "check_type": "file"},
+                ]
+            }
+        )
         bridge = make_mock_bridge([ChatEvent(event_type="done", content=resp)])
         engine = AcceptanceEngine(tmp_path, chat_bridge=bridge)
         items = await engine._generate_acceptance_criteria("t", ["f"])
@@ -249,9 +275,7 @@ class TestGenerateAcceptanceCriteria:
         assert items[1].id == "ac-2"
 
     async def test_empty_items_list(self, tmp_path: Path):
-        bridge = make_mock_bridge([
-            ChatEvent(event_type="done", content=json.dumps({"items": []}))
-        ])
+        bridge = make_mock_bridge([ChatEvent(event_type="done", content=json.dumps({"items": []}))])
         engine = AcceptanceEngine(tmp_path, chat_bridge=bridge)
         items = await engine._generate_acceptance_criteria("t", ["f"])
         assert items == []
@@ -329,9 +353,7 @@ class TestVerifyItem:
         assert item.actual == "不存在"
 
     def test_function_found(self, tmp_path: Path):
-        (tmp_path / "app.py").write_text(
-            "def my_func():\n    pass\n", encoding="utf-8"
-        )
+        (tmp_path / "app.py").write_text("def my_func():\n    pass\n", encoding="utf-8")
         engine = AcceptanceEngine(tmp_path)
         # 注意: target 是文件路径，函数名匹配 item.target
         # 源码: item.passed = item.target in funcs — 这里 target 同时用作文件名和函数名
@@ -369,18 +391,14 @@ class TestVerifyItem:
         assert item.actual == "解析失败"
 
     def test_class_found(self, tmp_path: Path):
-        (tmp_path / "MyClass").write_text(
-            "class MyClass:\n    pass\n", encoding="utf-8"
-        )
+        (tmp_path / "MyClass").write_text("class MyClass:\n    pass\n", encoding="utf-8")
         engine = AcceptanceEngine(tmp_path)
         item = AcceptanceItem(check_type="class", target="MyClass")
         engine._verify_item(item, ["MyClass"])
         assert item.passed is True
 
     def test_class_not_found(self, tmp_path: Path):
-        (tmp_path / "MyClass").write_text(
-            "class Other:\n    pass\n", encoding="utf-8"
-        )
+        (tmp_path / "MyClass").write_text("class Other:\n    pass\n", encoding="utf-8")
         engine = AcceptanceEngine(tmp_path)
         item = AcceptanceItem(check_type="class", target="MyClass")
         engine._verify_item(item, ["MyClass"])

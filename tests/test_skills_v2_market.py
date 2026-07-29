@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
-import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -111,8 +110,7 @@ def _rebuild_fts_index(mp: SkillMarketplace) -> None:
         rows = conn.execute("SELECT id, name, description, tags FROM skills").fetchall()
         for row in rows:
             conn.execute(
-                "INSERT INTO skills_fts(skill_id, name, description, tags) "
-                "VALUES (?, ?, ?, ?)",
+                "INSERT INTO skills_fts(skill_id, name, description, tags) " "VALUES (?, ?, ?, ?)",
                 (row[0], row[1], row[2], row[3]),
             )
         conn.commit()
@@ -389,7 +387,9 @@ class TestInstallSkillWithDeps:
     """递归依赖安装测试"""
 
     @pytest.mark.asyncio
-    async def test_install_recursive_installs_all_deps(self, clean_marketplace: SkillMarketplace) -> None:
+    async def test_install_recursive_installs_all_deps(
+        self, clean_marketplace: SkillMarketplace
+    ) -> None:
         """A 依赖 B，B 依赖 C → 安装 A 应自动安装 B 和 C"""
         mp = clean_marketplace
         _register_skill(mp, skill_id="rec-c", name="C")
@@ -404,7 +404,9 @@ class TestInstallSkillWithDeps:
         assert set(result["dependencies_installed"]) == {"rec-b", "rec-c"}
 
     @pytest.mark.asyncio
-    async def test_install_without_dependencies_flag(self, clean_marketplace: SkillMarketplace) -> None:
+    async def test_install_without_dependencies_flag(
+        self, clean_marketplace: SkillMarketplace
+    ) -> None:
         """install_dependencies=False → 只装目标技能，不装依赖"""
         mp = clean_marketplace
         _register_skill(mp, skill_id="nodep-c", name="C")
@@ -424,7 +426,9 @@ class TestInstallSkillWithDeps:
         assert row_b["installed_at"] == ""
 
     @pytest.mark.asyncio
-    async def test_install_already_installed_returns_skip(self, marketplace: SkillMarketplace) -> None:
+    async def test_install_already_installed_returns_skip(
+        self, marketplace: SkillMarketplace
+    ) -> None:
         """已安装的技能应返回 skip 动作"""
         _register_skill(marketplace, skill_id="v2-already")
         await marketplace.install_skill("v2-already")
@@ -447,7 +451,9 @@ class TestInstallSkillWithDeps:
         mp = clean_marketplace
         # A 依赖 [B_ok, C_missing]，C_missing 不存在
         _register_skill(mp, skill_id="rb-ok", name="B-OK")
-        _register_skill(mp, skill_id="rb-target", name="Target", dependencies=["rb-ok", "rb-missing"])
+        _register_skill(
+            mp, skill_id="rb-target", name="Target", dependencies=["rb-ok", "rb-missing"]
+        )
 
         result = await mp.install_skill("rb-target", install_dependencies=True)
         assert result["success"] is False
@@ -551,21 +557,15 @@ class TestRateSkill:
         _register_skill(marketplace, skill_id="v2-concurrent")
 
         def _rate(user_id: str) -> dict[str, Any]:
-            return asyncio.run(
-                marketplace.rate_skill("v2-concurrent", 5, user_id=user_id)
-            )
+            return asyncio.run(marketplace.rate_skill("v2-concurrent", 5, user_id=user_id))
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            futures = [
-                executor.submit(_rate, f"conc-user-{i}") for i in range(10)
-            ]
+            futures = [executor.submit(_rate, f"conc-user-{i}") for i in range(10)]
             results = [f.result(timeout=30) for f in futures]
 
         # 所有评分应成功
         successful = [r for r in results if r.get("success")]
-        assert len(successful) == 10, (
-            f"并发评分应有 10 个成功，实际 {len(successful)}: {results}"
-        )
+        assert len(successful) == 10, f"并发评分应有 10 个成功，实际 {len(successful)}: {results}"
 
         # 验证数据库中 rating_count == 10
         with sqlite3.connect(str(marketplace._db_path)) as conn:
@@ -640,12 +640,8 @@ class TestGetReviews:
 
         # 手动设置 helpful_count
         with sqlite3.connect(str(marketplace._db_path)) as conn:
-            conn.execute(
-                "UPDATE skill_reviews SET helpful_count = 10 WHERE user_id = 'h2'"
-            )
-            conn.execute(
-                "UPDATE skill_reviews SET helpful_count = 1 WHERE user_id = 'h1'"
-            )
+            conn.execute("UPDATE skill_reviews SET helpful_count = 10 WHERE user_id = 'h2'")
+            conn.execute("UPDATE skill_reviews SET helpful_count = 1 WHERE user_id = 'h1'")
             conn.commit()
 
         result = await marketplace.get_reviews("v2-reviews-h", sort_by="helpful")
@@ -682,19 +678,13 @@ class TestGetReviews:
         """评论分页"""
         _register_skill(marketplace, skill_id="v2-reviews-page")
         for i in range(8):
-            await marketplace.submit_review(
-                "v2-reviews-page", 5, f"评{i}", user_id=f"p{i}"
-            )
+            await marketplace.submit_review("v2-reviews-page", 5, f"评{i}", user_id=f"p{i}")
 
-        result = await marketplace.get_reviews(
-            "v2-reviews-page", limit=3, offset=0
-        )
+        result = await marketplace.get_reviews("v2-reviews-page", limit=3, offset=0)
         assert result["total"] == 8
         assert len(result["reviews"]) == 3
 
-        result2 = await marketplace.get_reviews(
-            "v2-reviews-page", limit=3, offset=3
-        )
+        result2 = await marketplace.get_reviews("v2-reviews-page", limit=3, offset=3)
         assert len(result2["reviews"]) == 3
         # 两页不应有重复
         ids_page1 = {r["user_id"] for r in result["reviews"]}
@@ -793,12 +783,8 @@ class TestSearchSkillsV2:
         sd2 = _register_skill(mp, skill_id="v2-dl-high", name="High")
         # 直接更新 install_count
         with sqlite3.connect(str(mp._db_path)) as conn:
-            conn.execute(
-                "UPDATE skills SET install_count = 100 WHERE id = 'v2-dl-high'"
-            )
-            conn.execute(
-                "UPDATE skills SET install_count = 1 WHERE id = 'v2-dl-low'"
-            )
+            conn.execute("UPDATE skills SET install_count = 100 WHERE id = 'v2-dl-high'")
+            conn.execute("UPDATE skills SET install_count = 1 WHERE id = 'v2-dl-low'")
             conn.commit()
 
         result = await mp.search_skills_v2(min_downloads=50)
@@ -828,13 +814,15 @@ class TestSearchSkillsV2:
         mp = clean_marketplace
         # 技能 1：有更新（local != remote）
         _register_skill(
-            mp, skill_id="v2-upd-yes", name="HasUpdate",
-            local_version="1.0.0", remote_version="1.1.0"
+            mp,
+            skill_id="v2-upd-yes",
+            name="HasUpdate",
+            local_version="1.0.0",
+            remote_version="1.1.0",
         )
         # 技能 2：无更新（版本相同）
         _register_skill(
-            mp, skill_id="v2-upd-no", name="NoUpdate",
-            local_version="1.0.0", remote_version="1.0.0"
+            mp, skill_id="v2-upd-no", name="NoUpdate", local_version="1.0.0", remote_version="1.0.0"
         )
 
         result = await mp.search_skills_v2(has_update_only=True)
@@ -918,9 +906,7 @@ class TestSearchSkillsV2:
         await mp.rate_skill("v2-combo-match", 5, user_id="u1")
         await mp.rate_skill("v2-combo-low", 2, user_id="u1")
 
-        result = await mp.search_skills_v2(
-            min_rating=4.0, category="quality", verified_only=True
-        )
+        result = await mp.search_skills_v2(min_rating=4.0, category="quality", verified_only=True)
         ids = {s["id"] for s in result["skills"]}
         assert "v2-combo-match" in ids
         assert "v2-combo-low" not in ids
@@ -942,9 +928,7 @@ class TestSearchSkillsV2:
         assert names.index("Bravo") < names.index("Charlie")
 
     @pytest.mark.asyncio
-    async def test_search_v2_sort_by_downloads(
-        self, clean_marketplace: SkillMarketplace
-    ) -> None:
+    async def test_search_v2_sort_by_downloads(self, clean_marketplace: SkillMarketplace) -> None:
         """按下载量降序排序"""
         mp = clean_marketplace
         _register_skill(mp, skill_id="v2-sd-low", name="Low")
@@ -974,7 +958,9 @@ class TestSearchSkillsV2:
     ) -> None:
         """FTS5 不可用时应降级 LIKE 搜索"""
         mp = clean_marketplace
-        _register_skill(mp, skill_id="v2-fts-fb", name="FallbackTest", description="unique-term-xyz")
+        _register_skill(
+            mp, skill_id="v2-fts-fb", name="FallbackTest", description="unique-term-xyz"
+        )
 
         # 删除 FTS5 表，强制降级
         with sqlite3.connect(str(mp._db_path)) as conn:
@@ -1038,9 +1024,7 @@ class TestFtsSearch:
         assert result is not None
         assert result == []
 
-    def test_fts_search_unavailable_returns_none(
-        self, clean_marketplace: SkillMarketplace
-    ) -> None:
+    def test_fts_search_unavailable_returns_none(self, clean_marketplace: SkillMarketplace) -> None:
         """FTS5 表不存在时应返回 None（降级信号）"""
         mp = clean_marketplace
         _register_skill(mp, skill_id="v2-fts-none", name="Test")
@@ -1069,9 +1053,7 @@ class TestTokenizeForFts:
         assert "review" in tokens
         assert "python" in tokens
 
-    def test_tokenize_with_jieba_available(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_tokenize_with_jieba_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """jieba 可用时应使用 jieba 分词"""
         import sys
         from unittest.mock import MagicMock
@@ -1235,9 +1217,7 @@ class TestAddVersion:
         assert "已存在" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_add_version_updates_remote_version(
-        self, marketplace: SkillMarketplace
-    ) -> None:
+    async def test_add_version_updates_remote_version(self, marketplace: SkillMarketplace) -> None:
         """添加版本应同步更新 skills.remote_version"""
         _register_skill(marketplace, skill_id="v2-ver-remote", version="1.0.0")
         await marketplace.add_version("v2-ver-remote", "1.2.0")
@@ -1259,9 +1239,7 @@ class TestInstallTasks:
     """异步安装任务测试"""
 
     @pytest.mark.asyncio
-    async def test_create_install_task_success(
-        self, clean_marketplace: SkillMarketplace
-    ) -> None:
+    async def test_create_install_task_success(self, clean_marketplace: SkillMarketplace) -> None:
         """创建安装任务应成功执行并标记为 done"""
         mp = clean_marketplace
         _register_skill(mp, skill_id="v2-task")
@@ -1299,8 +1277,10 @@ class TestInstallTasks:
         mp = clean_marketplace
         _register_skill(mp, skill_id="task-rb-ok", name="OK")
         _register_skill(
-            mp, skill_id="task-rb-target", name="Target",
-            dependencies=["task-rb-ok", "task-rb-missing"]
+            mp,
+            skill_id="task-rb-target",
+            name="Target",
+            dependencies=["task-rb-ok", "task-rb-missing"],
         )
 
         result = await mp.create_install_task("task-rb-target")
@@ -1310,9 +1290,7 @@ class TestInstallTasks:
         # 已装的依赖 task-rb-ok 应被回滚
         with sqlite3.connect(str(mp._db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT installed_at FROM skills WHERE id = 'task-rb-ok'"
-            ).fetchone()
+            row = conn.execute("SELECT installed_at FROM skills WHERE id = 'task-rb-ok'").fetchone()
         assert row["installed_at"] == ""
 
     @pytest.mark.asyncio
@@ -1322,12 +1300,8 @@ class TestInstallTasks:
         """install_dependencies=False → 任务只装目标技能"""
         mp = clean_marketplace
         _register_skill(mp, skill_id="task-nd-c", name="C")
-        _register_skill(
-            mp, skill_id="task-nd-b", name="B", dependencies=["task-nd-c"]
-        )
-        _register_skill(
-            mp, skill_id="task-nd-a", name="A", dependencies=["task-nd-b"]
-        )
+        _register_skill(mp, skill_id="task-nd-b", name="B", dependencies=["task-nd-c"])
+        _register_skill(mp, skill_id="task-nd-a", name="A", dependencies=["task-nd-b"])
 
         result = await mp.create_install_task("task-nd-a", install_dependencies=False)
         task = await mp.get_install_task(result["task_id"])
@@ -1337,9 +1311,7 @@ class TestInstallTasks:
         # 依赖不应被安装
         with sqlite3.connect(str(mp._db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT installed_at FROM skills WHERE id = 'task-nd-b'"
-            ).fetchone()
+            row = conn.execute("SELECT installed_at FROM skills WHERE id = 'task-nd-b'").fetchone()
         assert row["installed_at"] == ""
 
     @pytest.mark.asyncio
@@ -1431,25 +1403,17 @@ class TestCheckUpdates:
         assert result["count"] == 0
 
     @pytest.mark.asyncio
-    async def test_check_updates_for_all_skills(
-        self, clean_marketplace: SkillMarketplace
-    ) -> None:
+    async def test_check_updates_for_all_skills(self, clean_marketplace: SkillMarketplace) -> None:
         """检查所有已安装技能的更新"""
         mp = clean_marketplace
         # 有更新
-        _register_skill(
-            mp, skill_id="v2-cu-all1", local_version="1.0.0", remote_version="2.0.0"
-        )
+        _register_skill(mp, skill_id="v2-cu-all1", local_version="1.0.0", remote_version="2.0.0")
         await mp.install_skill("v2-cu-all1", install_dependencies=False)
         # 无更新
-        _register_skill(
-            mp, skill_id="v2-cu-all2", local_version="1.0.0", remote_version="1.0.0"
-        )
+        _register_skill(mp, skill_id="v2-cu-all2", local_version="1.0.0", remote_version="1.0.0")
         await mp.install_skill("v2-cu-all2", install_dependencies=False)
         # 未安装
-        _register_skill(
-            mp, skill_id="v2-cu-all3", local_version="1.0.0", remote_version="2.0.0"
-        )
+        _register_skill(mp, skill_id="v2-cu-all3", local_version="1.0.0", remote_version="2.0.0")
 
         result = await mp.check_updates()
         ids = {u["skill_id"] for u in result["updates"]}
@@ -1470,8 +1434,11 @@ class TestUpdateSkillVersion:
     async def test_update_skill_version_success(self, marketplace: SkillMarketplace) -> None:
         """成功更新到 remote_version"""
         _register_skill(
-            marketplace, skill_id="v2-uv-ok", version="1.0.0",
-            local_version="1.0.0", remote_version="1.1.0"
+            marketplace,
+            skill_id="v2-uv-ok",
+            version="1.0.0",
+            local_version="1.0.0",
+            remote_version="1.1.0",
         )
         await marketplace.install_skill("v2-uv-ok", install_dependencies=False)
         result = await marketplace.update_skill_version("v2-uv-ok")
@@ -1489,13 +1456,14 @@ class TestUpdateSkillVersion:
         assert row["version"] == "1.1.0"
 
     @pytest.mark.asyncio
-    async def test_update_skill_version_already_latest(
-        self, marketplace: SkillMarketplace
-    ) -> None:
+    async def test_update_skill_version_already_latest(self, marketplace: SkillMarketplace) -> None:
         """已是最新版本应返回 skip"""
         _register_skill(
-            marketplace, skill_id="v2-uv-latest", version="1.0.0",
-            local_version="1.0.0", remote_version="1.0.0"
+            marketplace,
+            skill_id="v2-uv-latest",
+            version="1.0.0",
+            local_version="1.0.0",
+            remote_version="1.0.0",
         )
         await marketplace.install_skill("v2-uv-latest", install_dependencies=False)
         result = await marketplace.update_skill_version("v2-uv-latest")
@@ -1503,9 +1471,7 @@ class TestUpdateSkillVersion:
         assert result["action"] == "skip"
 
     @pytest.mark.asyncio
-    async def test_update_skill_version_not_installed(
-        self, marketplace: SkillMarketplace
-    ) -> None:
+    async def test_update_skill_version_not_installed(self, marketplace: SkillMarketplace) -> None:
         """未安装的技能应失败"""
         _register_skill(marketplace, skill_id="v2-uv-ni", remote_version="1.1.0")
         result = await marketplace.update_skill_version("v2-uv-ni")
@@ -1540,20 +1506,16 @@ class TestUpdateAll:
     """批量更新测试"""
 
     @pytest.mark.asyncio
-    async def test_update_all_updates_multiple(
-        self, clean_marketplace: SkillMarketplace
-    ) -> None:
+    async def test_update_all_updates_multiple(self, clean_marketplace: SkillMarketplace) -> None:
         """批量更新所有有可用更新的技能"""
         mp = clean_marketplace
         # 两个有更新的技能
         _register_skill(
-            mp, skill_id="v2-ua-1", version="1.0.0",
-            local_version="1.0.0", remote_version="2.0.0"
+            mp, skill_id="v2-ua-1", version="1.0.0", local_version="1.0.0", remote_version="2.0.0"
         )
         await mp.install_skill("v2-ua-1", install_dependencies=False)
         _register_skill(
-            mp, skill_id="v2-ua-2", version="1.0.0",
-            local_version="1.0.0", remote_version="3.0.0"
+            mp, skill_id="v2-ua-2", version="1.0.0", local_version="1.0.0", remote_version="3.0.0"
         )
         await mp.install_skill("v2-ua-2", install_dependencies=False)
 
@@ -1567,8 +1529,11 @@ class TestUpdateAll:
         """无可用更新时 update_all 应返回空列表"""
         mp = clean_marketplace
         _register_skill(
-            mp, skill_id="v2-ua-none", version="1.0.0",
-            local_version="1.0.0", remote_version="1.0.0"
+            mp,
+            skill_id="v2-ua-none",
+            version="1.0.0",
+            local_version="1.0.0",
+            remote_version="1.0.0",
         )
         await mp.install_skill("v2-ua-none", install_dependencies=False)
 
@@ -1585,8 +1550,11 @@ class TestUpdateAll:
         mp = clean_marketplace
         # 技能有更新
         _register_skill(
-            mp, skill_id="v2-ua-skip", version="1.0.0",
-            local_version="1.0.0", remote_version="2.0.0"
+            mp,
+            skill_id="v2-ua-skip",
+            version="1.0.0",
+            local_version="1.0.0",
+            remote_version="2.0.0",
         )
         await mp.install_skill("v2-ua-skip", install_dependencies=False)
         # 先手动更新一次
@@ -1605,9 +1573,7 @@ class TestFavorites:
     """收藏功能测试"""
 
     @pytest.mark.asyncio
-    async def test_toggle_favorite_add_then_remove(
-        self, marketplace: SkillMarketplace
-    ) -> None:
+    async def test_toggle_favorite_add_then_remove(self, marketplace: SkillMarketplace) -> None:
         """收藏后再调用应取消收藏"""
         _register_skill(marketplace, skill_id="v2-fav")
 
@@ -1647,9 +1613,7 @@ class TestFavorites:
         assert result["skills"] == []
 
     @pytest.mark.asyncio
-    async def test_toggle_favorite_user_isolation(
-        self, marketplace: SkillMarketplace
-    ) -> None:
+    async def test_toggle_favorite_user_isolation(self, marketplace: SkillMarketplace) -> None:
         """不同用户的收藏应相互隔离"""
         _register_skill(marketplace, skill_id="v2-fav-iso")
         await marketplace.toggle_favorite("v2-fav-iso", user_id="userX")
@@ -1674,9 +1638,7 @@ class TestListCategories:
     """分类列表测试"""
 
     @pytest.mark.asyncio
-    async def test_list_categories_with_counts(
-        self, clean_marketplace: SkillMarketplace
-    ) -> None:
+    async def test_list_categories_with_counts(self, clean_marketplace: SkillMarketplace) -> None:
         """分类列表应包含计数"""
         mp = clean_marketplace
         _register_skill(mp, skill_id="v2-cat1-a", name="A", category="alpha")
@@ -1700,31 +1662,55 @@ class TestListCategories:
 class TestRowToDict:
     """V2 字段对齐测试"""
 
-    def test_row_to_dict_includes_all_frontend_fields(
-        self, marketplace: SkillMarketplace
-    ) -> None:
+    def test_row_to_dict_includes_all_frontend_fields(self, marketplace: SkillMarketplace) -> None:
         """_row_to_dict 应包含前端期望的所有字段"""
         _register_skill(
-            marketplace, skill_id="v2-rtd", name="RTD",
-            version="1.0.0", stars=42, verified=True, publisher="Pub",
-            local_version="1.0.0", remote_version="1.0.0",
+            marketplace,
+            skill_id="v2-rtd",
+            name="RTD",
+            version="1.0.0",
+            stars=42,
+            verified=True,
+            publisher="Pub",
+            local_version="1.0.0",
+            remote_version="1.0.0",
         )
 
         with sqlite3.connect(str(marketplace._db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT * FROM skills WHERE id = ?", ("v2-rtd",)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM skills WHERE id = ?", ("v2-rtd",)).fetchone()
         result = marketplace._row_to_dict(row)
 
         # 前端期望的所有字段
         required_fields = [
-            "id", "name", "version", "description", "author", "category",
-            "tags", "dependencies", "install_count", "rating", "rating_count",
-            "created_at", "updated_at", "is_builtin", "installed",
-            "publisher", "verified", "source_url", "homepage_url", "license",
-            "icon_url", "local_version", "remote_version", "stars",
-            "downloads", "has_update", "installs", "ratings_count",
+            "id",
+            "name",
+            "version",
+            "description",
+            "author",
+            "category",
+            "tags",
+            "dependencies",
+            "install_count",
+            "rating",
+            "rating_count",
+            "created_at",
+            "updated_at",
+            "is_builtin",
+            "installed",
+            "publisher",
+            "verified",
+            "source_url",
+            "homepage_url",
+            "license",
+            "icon_url",
+            "local_version",
+            "remote_version",
+            "stars",
+            "downloads",
+            "has_update",
+            "installs",
+            "ratings_count",
         ]
         for field in required_fields:
             assert field in result, f"_row_to_dict 缺少字段: {field}"
@@ -1744,9 +1730,7 @@ class TestRowToDict:
         )
         with sqlite3.connect(str(marketplace._db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT * FROM skills WHERE id = ?", ("v2-rtd-up",)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM skills WHERE id = ?", ("v2-rtd-up",)).fetchone()
         result = marketplace._row_to_dict(row)
         assert result["has_update"] is True
 
@@ -1757,37 +1741,25 @@ class TestRowToDict:
         )
         with sqlite3.connect(str(marketplace._db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT * FROM skills WHERE id = ?", ("v2-rtd-same",)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM skills WHERE id = ?", ("v2-rtd-same",)).fetchone()
         result = marketplace._row_to_dict(row)
         assert result["has_update"] is False
 
     def test_row_to_dict_has_update_false_when_empty(self, marketplace: SkillMarketplace) -> None:
         """local_version 或 remote_version 为空 → has_update=False"""
-        _register_skill(
-            marketplace, skill_id="v2-rtd-empty", local_version="", remote_version=""
-        )
+        _register_skill(marketplace, skill_id="v2-rtd-empty", local_version="", remote_version="")
         with sqlite3.connect(str(marketplace._db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT * FROM skills WHERE id = ?", ("v2-rtd-empty",)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM skills WHERE id = ?", ("v2-rtd-empty",)).fetchone()
         result = marketplace._row_to_dict(row)
         assert result["has_update"] is False
 
-    def test_row_to_dict_publisher_fallback_to_author(
-        self, marketplace: SkillMarketplace
-    ) -> None:
+    def test_row_to_dict_publisher_fallback_to_author(self, marketplace: SkillMarketplace) -> None:
         """publisher 为空时应回退到 author"""
-        _register_skill(
-            marketplace, skill_id="v2-rtd-fb", author="AuthorName", publisher=""
-        )
+        _register_skill(marketplace, skill_id="v2-rtd-fb", author="AuthorName", publisher="")
         with sqlite3.connect(str(marketplace._db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT * FROM skills WHERE id = ?", ("v2-rtd-fb",)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM skills WHERE id = ?", ("v2-rtd-fb",)).fetchone()
         result = marketplace._row_to_dict(row)
         assert result["publisher"] == "AuthorName"
 
@@ -1854,9 +1826,7 @@ class TestRegisterSkill:
         # 验证数据库中是新的 name
         with sqlite3.connect(str(mp._db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT name FROM skills WHERE id = ?", ("reg-dup",)
-            ).fetchone()
+            row = conn.execute("SELECT name FROM skills WHERE id = ?", ("reg-dup",)).fetchone()
         assert row["name"] == "Second"
 
 
@@ -2023,9 +1993,7 @@ class TestListSkills:
 class TestGetStats:
     """市场统计测试"""
 
-    def test_get_stats_returns_required_fields(
-        self, clean_marketplace: SkillMarketplace
-    ) -> None:
+    def test_get_stats_returns_required_fields(self, clean_marketplace: SkillMarketplace) -> None:
         """get_stats 应返回所有统计字段"""
         mp = clean_marketplace
         _register_skill(mp, skill_id="gs-1", name="X1", category="alpha")
@@ -2129,16 +2097,12 @@ class TestModuleLevelFunctions:
         assert "skills" in result
 
     @pytest.mark.asyncio
-    async def test_handle_v1_skills_market_search(
-        self, marketplace: SkillMarketplace
-    ) -> None:
+    async def test_handle_v1_skills_market_search(self, marketplace: SkillMarketplace) -> None:
         """_handle_v1_skills_market action=search"""
         from pycoder.skills import _handle_v1_skills_market
 
         _register_skill(marketplace, skill_id="hv-search", name="HVSearch")
-        result = await _handle_v1_skills_market(
-            {"action": "search", "query": "HVSearch"}, {}
-        )
+        result = await _handle_v1_skills_market({"action": "search", "query": "HVSearch"}, {})
         assert "skills" in result
 
     @pytest.mark.asyncio
@@ -2160,14 +2124,10 @@ class TestModuleLevelFunctions:
 
         mp = clean_marketplace
         _register_skill(mp, skill_id="hv-install", name="HVInstall")
-        result = await _handle_v1_skills_market(
-            {"action": "install", "skill_id": "hv-install"}, {}
-        )
+        result = await _handle_v1_skills_market({"action": "install", "skill_id": "hv-install"}, {})
         assert result["success"] is True
 
-    def test_register_capabilities_registers_all_capabilities(
-        self, temp_skills_dir: Path
-    ) -> None:
+    def test_register_capabilities_registers_all_capabilities(self, temp_skills_dir: Path) -> None:
         """register_capabilities 应注册所有能力"""
         from unittest.mock import MagicMock
 
@@ -2199,16 +2159,12 @@ class TestSkillDefinition:
 
     def test_has_update_true(self) -> None:
         """local != remote → has_update=True"""
-        sd = SkillDefinition(
-            id="x", name="X", local_version="1.0.0", remote_version="1.1.0"
-        )
+        sd = SkillDefinition(id="x", name="X", local_version="1.0.0", remote_version="1.1.0")
         assert sd.has_update is True
 
     def test_has_update_false_when_same(self) -> None:
         """local == remote → has_update=False"""
-        sd = SkillDefinition(
-            id="x", name="X", local_version="1.0.0", remote_version="1.0.0"
-        )
+        sd = SkillDefinition(id="x", name="X", local_version="1.0.0", remote_version="1.0.0")
         assert sd.has_update is False
 
     def test_has_update_false_when_empty(self) -> None:
@@ -2221,13 +2177,27 @@ class TestSkillDefinition:
     def test_to_dict_includes_all_fields(self) -> None:
         """to_dict 应包含所有 V2 字段"""
         sd = SkillDefinition(
-            id="x", name="X", version="1.0.0", stars=42, verified=True,
-            publisher="Pub", local_version="1.0.0", remote_version="1.1.0",
+            id="x",
+            name="X",
+            version="1.0.0",
+            stars=42,
+            verified=True,
+            publisher="Pub",
+            local_version="1.0.0",
+            remote_version="1.1.0",
         )
         d = sd.to_dict()
         for field in [
-            "id", "name", "version", "publisher", "verified", "stars",
-            "local_version", "remote_version", "has_update", "downloads",
+            "id",
+            "name",
+            "version",
+            "publisher",
+            "verified",
+            "stars",
+            "local_version",
+            "remote_version",
+            "has_update",
+            "downloads",
         ]:
             assert field in d
         assert d["has_update"] is True

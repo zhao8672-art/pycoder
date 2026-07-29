@@ -11,8 +11,6 @@
 
 from __future__ import annotations
 
-import asyncio
-import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -29,7 +27,6 @@ from pycoder.capabilities.self_evo.learning.self_optimizer import (
     UsageReport,
     get_self_optimizer,
 )
-
 
 # ════════════════════════════════════════════════════════════
 # 数据模型测试
@@ -190,9 +187,7 @@ class TestSelfHealerStaticScan:
 
     def test_scan_detects_mixed_indent(self, tmp_path: Path) -> None:
         """检测混合缩进"""
-        (tmp_path / "mixed.py").write_text(
-            "def f():\n\tpass\n    x = 1\n", encoding="utf-8"
-        )
+        (tmp_path / "mixed.py").write_text("def f():\n\tpass\n    x = 1\n", encoding="utf-8")
 
         healer = SelfHealer(project_root=tmp_path)
         issues = healer._static_scan("")

@@ -12,12 +12,8 @@ skills_market_mcp_v2.py 模块单元测试 — 覆盖率目标 ≥80%
 
 from __future__ import annotations
 
-import asyncio
-from typing import Any
-
 import pytest
 
-from pycoder.server import skills_market_mcp_v2 as mcp_v2
 from pycoder.server.skills_market_mcp_v2 import (
     SKILLS_MARKET_TOOLS_V2,
     call_skills_tool_v2,
@@ -32,8 +28,8 @@ from pycoder.server.skills_market_mcp_v2 import (
     handle_skills_trending_v2,
 )
 
-
 # ── Mock 市场对象 ──
+
 
 class FakeMarket:
     """模拟 EnhancedSkillsMarketManager 的可控行为"""
@@ -83,7 +79,6 @@ def fake_market(monkeypatch):
     """注入 FakeMarket 替换 get_enhanced_market"""
     market = FakeMarket()
     # 模块内 handler 通过局部 import 获取 get_enhanced_market
-    import pycoder.server.skills_market_mcp_v2 as mod
     monkeypatch.setattr(
         "pycoder.server.skills_market_v2.get_enhanced_market",
         lambda: market,
@@ -93,6 +88,7 @@ def fake_market(monkeypatch):
 
 
 # ── handle_skills_search_v2 ──
+
 
 async def test_handle_search_default_args(fake_market):
     """handle_skills_search_v2 默认参数"""
@@ -105,16 +101,24 @@ async def test_handle_search_default_args(fake_market):
     assert result["limit"] == 20
     # 验证调用参数
     assert fake_market.search_kwargs == {
-        "query": "", "category": "", "tags": [],
-        "sort_by": "quality", "limit": 20, "offset": 0,
+        "query": "",
+        "category": "",
+        "tags": [],
+        "sort_by": "quality",
+        "limit": 20,
+        "offset": 0,
     }
 
 
 async def test_handle_search_with_args(fake_market):
     """handle_skills_search_v2 接收参数透传"""
     args = {
-        "query": "pytest", "category": "code", "tags": ["t1"],
-        "sort_by": "stars", "limit": 5, "offset": 10,
+        "query": "pytest",
+        "category": "code",
+        "tags": ["t1"],
+        "sort_by": "stars",
+        "limit": 5,
+        "offset": 10,
     }
     result = await handle_skills_search_v2(args)
     assert result["success"] is True
@@ -141,6 +145,7 @@ async def test_handle_search_missing_keys(fake_market):
 
 # ── handle_skills_recommendations_v2 ──
 
+
 async def test_handle_recommendations_default(fake_market):
     result = await handle_skills_recommendations_v2({})
     assert result["success"] is True
@@ -157,8 +162,10 @@ async def test_handle_recommendations_with_category(fake_market):
 
 async def test_handle_recommendations_exception(fake_market, monkeypatch):
     """get_recommendations 抛异常时返回 success=False"""
+
     def boom(category="", limit=10):
         raise ValueError("no recs")
+
     monkeypatch.setattr(fake_market, "get_recommendations", boom)
     result = await handle_skills_recommendations_v2({})
     assert result["success"] is False
@@ -166,6 +173,7 @@ async def test_handle_recommendations_exception(fake_market, monkeypatch):
 
 
 # ── handle_skills_trending_v2 ──
+
 
 async def test_handle_trending_default(fake_market):
     result = await handle_skills_trending_v2({})
@@ -180,13 +188,16 @@ async def test_handle_trending_with_limit(fake_market):
 
 
 async def test_handle_trending_exception(fake_market, monkeypatch):
-    monkeypatch.setattr(fake_market, "get_trending", lambda limit=20: (_ for _ in ()).throw(RuntimeError("err")))
+    monkeypatch.setattr(
+        fake_market, "get_trending", lambda limit=20: (_ for _ in ()).throw(RuntimeError("err"))
+    )
     result = await handle_skills_trending_v2({})
     assert result["success"] is False
     assert "err" in result["error"]
 
 
 # ── handle_skills_detail_v2 ──
+
 
 async def test_handle_detail_missing_skill_id(fake_market):
     """handle_skills_detail_v2 缺少 skill_id 返回错误"""
@@ -209,13 +220,16 @@ async def test_handle_detail_not_found(fake_market):
 
 
 async def test_handle_detail_exception(fake_market, monkeypatch):
-    monkeypatch.setattr(fake_market, "get_skill_detail", lambda sid: (_ for _ in ()).throw(ValueError("db")))
+    monkeypatch.setattr(
+        fake_market, "get_skill_detail", lambda sid: (_ for _ in ()).throw(ValueError("db"))
+    )
     result = await handle_skills_detail_v2({"skill_id": "s1"})
     assert result["success"] is False
     assert "db" in result["error"]
 
 
 # ── handle_skills_rate_v2 ──
+
 
 async def test_handle_rate_missing_skill_id(fake_market):
     result = await handle_skills_rate_v2({})
@@ -233,9 +247,13 @@ async def test_handle_rate_invalid_rating(fake_market):
 
 
 async def test_handle_rate_success(fake_market):
-    result = await handle_skills_rate_v2({
-        "skill_id": "s1", "rating": 4, "review": "good",
-    })
+    result = await handle_skills_rate_v2(
+        {
+            "skill_id": "s1",
+            "rating": 4,
+            "review": "good",
+        }
+    )
     assert result["success"] is True
     assert result["skill_id"] == "s1"
     assert result["rating"] == 4
@@ -253,6 +271,7 @@ async def test_handle_rate_default_rating(fake_market):
 async def test_handle_rate_exception(fake_market, monkeypatch):
     def boom(sid, r, rv):
         raise RuntimeError("db error")
+
     monkeypatch.setattr(fake_market, "rate_skill", boom)
     result = await handle_skills_rate_v2({"skill_id": "s1", "rating": 3})
     assert result["success"] is False
@@ -260,6 +279,7 @@ async def test_handle_rate_exception(fake_market, monkeypatch):
 
 
 # ── handle_skills_stats_v2 ──
+
 
 async def test_handle_stats_success(fake_market):
     result = await handle_skills_stats_v2({})
@@ -275,6 +295,7 @@ async def test_handle_stats_exception(fake_market, monkeypatch):
 
 # ── handle_skills_sync_v2 ──
 
+
 async def test_handle_sync_success(fake_market):
     result = await handle_skills_sync_v2({})
     assert result["success"] is True
@@ -286,6 +307,7 @@ async def test_handle_sync_success(fake_market):
 async def test_handle_sync_exception(fake_market, monkeypatch):
     async def boom():
         raise RuntimeError("network")
+
     monkeypatch.setattr(fake_market, "sync_from_all_sources", boom)
     result = await handle_skills_sync_v2({})
     assert result["success"] is False
@@ -293,6 +315,7 @@ async def test_handle_sync_exception(fake_market, monkeypatch):
 
 
 # ── handle_skills_categories_v2 ──
+
 
 async def test_handle_categories_success(fake_market):
     result = await handle_skills_categories_v2({})
@@ -302,19 +325,27 @@ async def test_handle_categories_success(fake_market):
 
 
 async def test_handle_categories_exception(fake_market, monkeypatch):
-    monkeypatch.setattr(fake_market, "get_categories", lambda: (_ for _ in ()).throw(RuntimeError("err")))
+    monkeypatch.setattr(
+        fake_market, "get_categories", lambda: (_ for _ in ()).throw(RuntimeError("err"))
+    )
     result = await handle_skills_categories_v2({})
     assert result["success"] is False
 
 
 # ── SKILLS_MARKET_TOOLS_V2 ──
 
+
 def test_tools_dict_contains_all_handlers():
     """SKILLS_MARKET_TOOLS_V2 包含 8 个工具定义"""
     expected = {
-        "skills_search_v2", "skills_recommendations_v2", "skills_trending_v2",
-        "skills_detail_v2", "skills_rate_v2", "skills_stats_v2",
-        "skills_sync_v2", "skills_categories_v2",
+        "skills_search_v2",
+        "skills_recommendations_v2",
+        "skills_trending_v2",
+        "skills_detail_v2",
+        "skills_rate_v2",
+        "skills_stats_v2",
+        "skills_sync_v2",
+        "skills_categories_v2",
     }
     assert expected.issubset(SKILLS_MARKET_TOOLS_V2.keys())
 
@@ -334,6 +365,7 @@ def test_each_tool_has_required_fields():
 
 
 # ── call_skills_tool_v2 ──
+
 
 async def test_call_tool_unknown(fake_market):
     """调用未知工具返回错误"""
@@ -357,11 +389,11 @@ async def test_call_tool_dispatch_categories(fake_market):
 
 async def test_call_tool_handler_exception_returns_error(fake_market, monkeypatch):
     """handler 自身抛出未捕获异常时, call_skills_tool_v2 返回 success=False"""
+
     async def boom(args):
         raise RuntimeError("handler boom")
-    monkeypatch.setitem(
-        SKILLS_MARKET_TOOLS_V2["skills_categories_v2"], "handler", boom
-    )
+
+    monkeypatch.setitem(SKILLS_MARKET_TOOLS_V2["skills_categories_v2"], "handler", boom)
     result = await call_skills_tool_v2("skills_categories_v2", {})
     assert result["success"] is False
     assert "工具执行失败" in result["error"]

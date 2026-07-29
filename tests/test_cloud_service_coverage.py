@@ -9,6 +9,7 @@
 - get_cloud_service 单例
 每个测试使用独立 tmp DB，互不干扰。
 """
+
 from __future__ import annotations
 
 import time
@@ -17,14 +18,13 @@ import pytest
 
 from pycoder.server.services import cloud_service as cs_module
 from pycoder.server.services.cloud_service import (
+    ApiKeyPool,
     CloudService,
     CloudUser,
-    ApiKeyPool,
     base64_decode,
     base64_encode,
     get_cloud_service,
 )
-
 
 # ── 工具函数 ───────────────────────────────────────────
 
@@ -177,11 +177,13 @@ class TestVerifyToken:
 
     def test_expired_token(self, service):
         # 手动构造过期 token
-        import json
-        import hmac
         import hashlib
+        import hmac
+        import json
+
         payload = {
-            "uid": "u1", "un": "alice",
+            "uid": "u1",
+            "un": "alice",
             "iat": time.time() - 100,
             "exp": time.time() - 10,  # 已过期
         }
@@ -197,8 +199,9 @@ class TestVerifyToken:
 
     def test_token_with_invalid_payload(self, service):
         # 签名正确但 payload 不是合法 JSON
-        import hmac
         import hashlib
+        import hmac
+
         payload_b64 = base64_encode("not json at all")
         sig = hmac.new(
             cs_module.JWT_SECRET_KEY.encode(),
@@ -226,12 +229,15 @@ class TestGetUserInfo:
 
     def test_user_not_found(self, service):
         # 构造一个有效签名但用户不存在的 token
-        import json
-        import hmac
         import hashlib
+        import hmac
+        import json
+
         payload = {
-            "uid": "nonexistent", "un": "ghost",
-            "iat": time.time(), "exp": time.time() + 3600,
+            "uid": "nonexistent",
+            "un": "ghost",
+            "iat": time.time(),
+            "exp": time.time() + 3600,
         }
         payload_b64 = base64_encode(json.dumps(payload))
         sig = hmac.new(

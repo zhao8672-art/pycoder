@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-import json
-import os
-import sys
-import time
-import sqlite3
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -189,7 +183,11 @@ class TestSelfEvolutionEngineGenerateFix:
 
         engine = SelfEvolutionEngine()
         issue = CodeIssue(
-            file="test.py", line=5, severity="high", issue_type="bug", title="裸 except 吞掉所有异常",
+            file="test.py",
+            line=5,
+            severity="high",
+            issue_type="bug",
+            title="裸 except 吞掉所有异常",
         )
         proposal = engine._template_fix(issue)
         assert proposal.old_code == "except:"
@@ -201,7 +199,10 @@ class TestSelfEvolutionEngineGenerateFix:
 
         engine = SelfEvolutionEngine()
         issue = CodeIssue(
-            file="test.py", line=3, severity="medium", issue_type="bug",
+            file="test.py",
+            line=3,
+            severity="medium",
+            issue_type="bug",
             title="函数 'foo' 使用了可变默认参数",
         )
         proposal = engine._template_fix(issue)
@@ -213,8 +214,12 @@ class TestSelfEvolutionEngineGenerateFix:
 
         engine = SelfEvolutionEngine()
         issue = CodeIssue(
-            file="test.py", line=1, severity="low", issue_type="style",
-            title="未知问题", suggestion="手动修复",
+            file="test.py",
+            line=1,
+            severity="low",
+            issue_type="style",
+            title="未知问题",
+            suggestion="手动修复",
         )
         proposal = engine._template_fix(issue)
         assert "手动修复" in proposal.reasoning
@@ -277,7 +282,9 @@ class TestSelfEvolutionEngineApplyFix:
 
         engine = SelfEvolutionEngine()
         # 模拟已修改 3 个文件
-        with patch.object(engine, "_get_modified_in_session", return_value=["a.py", "b.py", "c.py"]):
+        with patch.object(
+            engine, "_get_modified_in_session", return_value=["a.py", "b.py", "c.py"]
+        ):
             issue = CodeIssue(file="d.py", line=1, severity="high", issue_type="bug", title="test")
             proposal = FixProposal(issue=issue, action="replace", file_path="d.py")
             result = await engine.apply_fix(proposal)
@@ -333,8 +340,9 @@ class TestSelfEvolutionEngineEvolutionToken:
 
         # 临时修改令牌目录
         with patch.object(SelfEvolutionEngine, "_EVOLUTION_TOKEN_DIR", tmp_path):
-            with patch.object(SelfEvolutionEngine, "_EVOLUTION_TOKEN_FILE",
-                              tmp_path / "token.json"):
+            with patch.object(
+                SelfEvolutionEngine, "_EVOLUTION_TOKEN_FILE", tmp_path / "token.json"
+            ):
                 token = SelfEvolutionEngine.generate_evolution_token(["test.py"])
                 assert len(token) == 16
                 assert (tmp_path / "token.json").exists()
@@ -401,5 +409,3 @@ class TestSelfEvolutionEngineTaskManagement:
         engine = SelfEvolutionEngine()
         result = engine.get_task("nonexistent")
         assert result is None
-
-

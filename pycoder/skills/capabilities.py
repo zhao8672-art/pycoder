@@ -171,11 +171,10 @@ def register_capabilities(registry: Any) -> None:
 # ── 能力处理器 ──────────────────────────────────────
 
 
-async def _handle_search_skills(
-    params: dict[str, Any], context: dict[str, Any]
-) -> dict[str, Any]:
+async def _handle_search_skills(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理技能搜索"""
     from pycoder.skills import get_marketplace
+
     marketplace = get_marketplace()
     return await marketplace.search_skills(
         query=params.get("query", ""),
@@ -184,20 +183,18 @@ async def _handle_search_skills(
     )
 
 
-async def _handle_install_skill(
-    params: dict[str, Any], context: dict[str, Any]
-) -> dict[str, Any]:
+async def _handle_install_skill(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理技能安装"""
     from pycoder.skills import get_marketplace
+
     marketplace = get_marketplace()
     return await marketplace.install_skill(params["skill_id"])
 
 
-async def _handle_list_skills(
-    params: dict[str, Any], context: dict[str, Any]
-) -> dict[str, Any]:
+async def _handle_list_skills(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理技能列表"""
     from pycoder.skills import get_marketplace
+
     marketplace = get_marketplace()
     return await marketplace.list_skills(
         category=params.get("category", ""),
@@ -206,20 +203,18 @@ async def _handle_list_skills(
     )
 
 
-async def _handle_get_skill(
-    params: dict[str, Any], context: dict[str, Any]
-) -> dict[str, Any]:
+async def _handle_get_skill(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理获取技能详情"""
     from pycoder.skills import get_marketplace
+
     marketplace = get_marketplace()
     return await marketplace.get_skill(params["skill_id"])
 
 
-async def _handle_get_stats(
-    params: dict[str, Any], context: dict[str, Any]
-) -> dict[str, Any]:
+async def _handle_get_stats(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理获取市场统计"""
     from pycoder.skills import get_marketplace
+
     marketplace = get_marketplace()
     return marketplace.get_stats()
 
@@ -229,6 +224,7 @@ async def _handle_v1_skills_market(
 ) -> dict[str, Any]:
     """V1 兼容：skills_market 多合一调度"""
     from pycoder.skills import get_marketplace
+
     action = params.get("action", "list")
     marketplace = get_marketplace()
 

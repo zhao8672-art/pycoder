@@ -12,21 +12,17 @@ scaffold.py 模块单元测试 — 覆盖率目标 >=95%
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
-from pycoder.python import scaffold as sc_mod
 from pycoder.python.scaffold import (
-    TemplateFile,
-    ProjectTemplate,
     BUILTIN_TEMPLATES,
-    list_templates,
-    get_template,
+    ProjectTemplate,
+    TemplateFile,
     find_template_by_description,
+    get_template,
+    list_templates,
     scaffold_project,
 )
-
 
 # ── TemplateFile / ProjectTemplate 数据类 ──────────────────
 

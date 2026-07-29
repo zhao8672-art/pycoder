@@ -1,4 +1,5 @@
 """阶段 3 验证：性能监控中间件"""
+
 from __future__ import annotations
 
 import time
@@ -47,6 +48,7 @@ def test_health_path_skipped(client):
 def test_slow_request_logged(caplog):
     """慢请求会记录 WARNING 日志"""
     import logging
+
     app = FastAPI()
     app.add_middleware(PerformanceMonitoringMiddleware)
 

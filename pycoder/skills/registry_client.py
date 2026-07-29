@@ -21,8 +21,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 import httpx
 
@@ -193,9 +194,7 @@ class RegistryClient:
 
         raise RuntimeError(f"Registry 请求失败: {url} - {last_err}")
 
-    async def fetch_all(
-        self, progress: ProgressCallback | None = None
-    ) -> list[RegistrySkill]:
+    async def fetch_all(self, progress: ProgressCallback | None = None) -> list[RegistrySkill]:
         """拉取索引和所有技能详情
 
         Args:
@@ -215,9 +214,7 @@ class RegistryClient:
             if not skill_id:
                 continue
             if progress:
-                await progress(
-                    i, total, f"📥 拉取 {skill_id} ({i + 1}/{total})"
-                )
+                await progress(i, total, f"📥 拉取 {skill_id} ({i + 1}/{total})")
             try:
                 detail = await self.fetch_skill(skill_id)
                 # 合并索引和详情（详情优先）

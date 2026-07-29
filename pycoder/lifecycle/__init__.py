@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from pycoder.lifecycle.adapters import create_default_phases
 from pycoder.lifecycle.context import (
     PhaseArtifact,
     PhaseRecord,
@@ -36,7 +37,6 @@ from pycoder.lifecycle.phases import (
     PhaseStrategy,
     get_progress,
 )
-from pycoder.lifecycle.adapters import create_default_phases
 
 logger = logging.getLogger(__name__)
 

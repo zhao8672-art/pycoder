@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-import json
-import os
-import sys
-import time
-import sqlite3
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -56,7 +50,13 @@ class TestMemoryBank:
         """MEMORY_FILES 应包含预期的记忆文件键"""
         from pycoder.server.memory_bank import MemoryBank
 
-        expected_keys = ["project_brief", "architecture", "tech_context", "active_context", "progress"]
+        expected_keys = [
+            "project_brief",
+            "architecture",
+            "tech_context",
+            "active_context",
+            "progress",
+        ]
         for key in expected_keys:
             assert key in MemoryBank.MEMORY_FILES
 
@@ -64,7 +64,12 @@ class TestMemoryBank:
         """LOAD_ORDER 应按正确的优先级排序"""
         from pycoder.server.memory_bank import MemoryBank
 
-        assert MemoryBank.LOAD_ORDER == ["project_brief", "architecture", "tech_context", "active_context"]
+        assert MemoryBank.LOAD_ORDER == [
+            "project_brief",
+            "architecture",
+            "tech_context",
+            "active_context",
+        ]
 
     # ── 上下文加载 ──
 
@@ -280,5 +285,3 @@ class TestMemoryBankSingleton:
         reset_memory_bank()
         mb2 = get_memory_bank(workspace=tmp_path)
         assert mb1 is not mb2
-
-

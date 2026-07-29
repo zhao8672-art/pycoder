@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
-import pytest
 from pathlib import Path
 
-# ── decision_snapshot 测试 ──────────────────────────────────
+import pytest
 
+# ── decision_snapshot 测试 ──────────────────────────────────
 from pycoder.ai.dialog.decision_snapshot import (
     DecisionSnapshot,
     DecisionSnapshotManager,
@@ -104,9 +103,7 @@ class TestDecisionSnapshotManager:
 # ── task_pipeline 测试 ──────────────────────────────────────
 
 from pycoder.capabilities.tools.task_pipeline import (
-    PipelineResult,
     PipelineStep,
-    StepResult,
     TaskPipeline,
 )
 
@@ -209,10 +206,9 @@ class TestTaskPipeline:
 # ── perf_advisor 测试 ───────────────────────────────────────
 
 from pycoder.ai.analysis.perf_advisor import (
-    PerfRule,
-    PerfWarning,
-    PerformanceAdvisor,
     PERF_RULES,
+    PerformanceAdvisor,
+    PerfWarning,
 )
 
 
@@ -224,7 +220,7 @@ class TestPerformanceAdvisor:
         return PerformanceAdvisor()
 
     def test_rules_count(self) -> None:
-        assert len(PERF_RULES) >= 19  # P1 扩展后达到 19 条
+        assert len(PERF_RULES) >= 31  # P2 扩展后达到 31 条
 
     def test_analyze_clean_code(self, advisor: PerformanceAdvisor) -> None:
         code = "x = 1 + 2\nprint(x)\n"
@@ -345,6 +341,80 @@ for item in items:
 """
         warnings = advisor.analyze_code(code)
         assert any(w.pattern == "manual_loop_search" for w in warnings)
+
+    # ── P2 扩展规则测试 (迭代#3) ──
+
+    def test_analyze_async_create_task_not_awaited(self, advisor: PerformanceAdvisor) -> None:
+        """检测 asyncio.create_task 未保存引用"""
+        code = """
+import asyncio
+async def run():
+    asyncio.create_task(some_coro())
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "async_create_task_not_awaited" for w in warnings)
+
+    def test_analyze_async_wait_without_timeout(self, advisor: PerformanceAdvisor) -> None:
+        """检测 asyncio.wait() 无 timeout"""
+        code = """
+import asyncio
+async def run():
+    await asyncio.wait([task1, task2])
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "async_wait_without_timeout" for w in warnings)
+
+    def test_analyze_pickle_unsafe_load(self, advisor: PerformanceAdvisor) -> None:
+        """检测 pickle.load 不安全反序列化"""
+        code = """
+import pickle
+data = pickle.load(f)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "pickle_unsafe_load" for w in warnings)
+
+    def test_analyze_list_as_queue(self, advisor: PerformanceAdvisor) -> None:
+        """检测 list.pop(0) 当队列"""
+        code = """
+item = items.pop(0)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "list_as_queue" for w in warnings)
+
+    def test_analyze_list_insert_zero(self, advisor: PerformanceAdvisor) -> None:
+        """检测 list.insert(0, x) 头部插入"""
+        code = """
+items.insert(0, new_item)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "list_as_stack_inefficient" for w in warnings)
+
+    def test_analyze_unclosed_resource(self, advisor: PerformanceAdvisor) -> None:
+        """检测 open() 未使用 with 语句"""
+        code = """
+f = open(path)
+data = f.read()
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "unclosed_resource" for w in warnings)
+
+    def test_analyze_readlines_full_load(self, advisor: PerformanceAdvisor) -> None:
+        """检测 .readlines() 全量加载"""
+        code = """
+lines = f.readlines()
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "list_full_load_large_file" for w in warnings)
+
+    def test_analyze_json_dumps_in_loop(self, advisor: PerformanceAdvisor) -> None:
+        """检测循环内 json.dumps"""
+        code = """
+import json
+for item in items:
+    serialized = json.dumps(item)
+"""
+        warnings = advisor.analyze_code(code)
+        assert any(w.pattern == "json_dumps_large_object" for w in warnings)
 
     def test_format_warnings_empty(self, advisor: PerformanceAdvisor) -> None:
         assert advisor.format_warnings([]) == ""

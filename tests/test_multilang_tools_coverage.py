@@ -7,6 +7,7 @@
 测试策略：mock execute_multilang / list_available / LANG_CONFIG 模块级名称，
 避免触发真实的编译器检测。
 """
+
 from __future__ import annotations
 
 import pytest
@@ -73,9 +74,7 @@ class TestExecuteMultilang:
             return {"success": True}
 
         monkeypatch.setattr(multilang_mod, "execute_multilang", fake_exec)
-        await captured_handlers["execute_multilang"](
-            {"language": "go", "code": "x", "timeout": 60}
-        )
+        await captured_handlers["execute_multilang"]({"language": "go", "code": "x", "timeout": 60})
         assert captured["timeout"] == 60
 
     async def test_execute_failure(self, captured_handlers, monkeypatch):
@@ -89,9 +88,7 @@ class TestExecuteMultilang:
         assert result["success"] is False
         assert "compile error" in result["error"]
 
-    async def test_execute_delegates_returned_dict_intact(
-        self, captured_handlers, monkeypatch
-    ):
+    async def test_execute_delegates_returned_dict_intact(self, captured_handlers, monkeypatch):
         """handler 应直接返回 execute_multilang 的结果，不做修改"""
         expected = {"success": True, "language": "bash", "stdout": "ok", "exit_code": 0}
 
@@ -139,8 +136,6 @@ class TestListLanguages:
     async def test_list_count_matches_languages(self, captured_handlers, monkeypatch):
         langs = ["python", "javascript", "go", "rust"]
         monkeypatch.setattr(multilang_mod, "list_available", lambda: list(langs))
-        monkeypatch.setattr(
-            multilang_mod, "LANG_CONFIG", {k: {} for k in langs}
-        )
+        monkeypatch.setattr(multilang_mod, "LANG_CONFIG", {k: {} for k in langs})
         result = await captured_handlers["list_languages"]({})
         assert result["count"] == len(result["languages"])

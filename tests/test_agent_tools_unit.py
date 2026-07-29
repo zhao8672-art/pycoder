@@ -14,21 +14,20 @@
 
 目标覆盖率：72% → 90%+
 """
+
 from __future__ import annotations
 
-import asyncio
 import subprocess
 import warnings
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
 from pycoder.server.services.agent_tools import (
-    DEFAULT_TOOL_TIMEOUT,
-    UNIFIED_ALLOWED_COMMANDS,
     _SKIP_DIRS,
     _SKIP_SUFFIXES,
+    DEFAULT_TOOL_TIMEOUT,
+    UNIFIED_ALLOWED_COMMANDS,
     _tool_git_diff,
     _tool_list_files,
     _tool_read_file,
@@ -40,7 +39,6 @@ from pycoder.server.services.agent_tools import (
     parse_tool_calls,
     parse_tool_calls_legacy_xml,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 配置常量
@@ -92,9 +90,7 @@ class TestExecuteAgentToolDispatch:
     async def test_read_file_dispatch(self, tmp_path):
         """read_file 分发到 _tool_read_file"""
         (tmp_path / "test.py").write_text("print('hi')", encoding="utf-8")
-        result = await execute_agent_tool(
-            "read_file", {"path": "test.py"}, tmp_path
-        )
+        result = await execute_agent_tool("read_file", {"path": "test.py"}, tmp_path)
         assert result == "print('hi')"
 
     @pytest.mark.asyncio
@@ -112,9 +108,7 @@ class TestExecuteAgentToolDispatch:
     async def test_search_code_dispatch(self, tmp_path):
         """search_code 分发到 _tool_search_code"""
         (tmp_path / "app.py").write_text("def foo():\n    pass\n", encoding="utf-8")
-        result = await execute_agent_tool(
-            "search_code", {"query": "foo"}, tmp_path
-        )
+        result = await execute_agent_tool("search_code", {"query": "foo"}, tmp_path)
         assert "foo" in result
 
     @pytest.mark.asyncio
@@ -133,26 +127,20 @@ class TestExecuteAgentToolDispatch:
         """list_files 分发到 _tool_list_files"""
         (tmp_path / "file1.txt").write_text("a", encoding="utf-8")
         (tmp_path / "subdir").mkdir()
-        result = await execute_agent_tool(
-            "list_files", {"path": "."}, tmp_path
-        )
+        result = await execute_agent_tool("list_files", {"path": "."}, tmp_path)
         assert "file1.txt" in result
 
     @pytest.mark.asyncio
     async def test_git_diff_dispatch(self, tmp_path):
         """git_diff 分发到 _tool_git_diff（无 git 时返回空/错误信息）"""
-        result = await execute_agent_tool(
-            "git_diff", {}, tmp_path
-        )
+        result = await execute_agent_tool("git_diff", {}, tmp_path)
         # 无 git 仓库时 subprocess 会返回错误信息或"无变更"
         assert isinstance(result, str)
 
     @pytest.mark.asyncio
     async def test_unknown_tool_returns_error(self, tmp_path):
         """未知工具返回错误字符串"""
-        result = await execute_agent_tool(
-            "nonexistent_tool", {}, tmp_path
-        )
+        result = await execute_agent_tool("nonexistent_tool", {}, tmp_path)
         assert "执行失败" in result
         assert "nonexistent_tool" in result
 
@@ -164,11 +152,10 @@ class TestExecuteAgentToolPackageTools:
     async def test_install_package_dispatch(self, tmp_path, monkeypatch):
         """install_package 分发到 auto_installer.agent_install_package"""
         import pycoder.server.services.auto_installer as ai
+
         mock_fn = AsyncMock(return_value="✅ 已安装 requests")
         monkeypatch.setattr(ai, "agent_install_package", mock_fn)
-        result = await execute_agent_tool(
-            "install_package", {"name": "requests"}, tmp_path
-        )
+        result = await execute_agent_tool("install_package", {"name": "requests"}, tmp_path)
         assert result == "✅ 已安装 requests"
         mock_fn.assert_awaited_once_with({"name": "requests"})
 
@@ -176,11 +163,10 @@ class TestExecuteAgentToolPackageTools:
     async def test_search_package_dispatch(self, tmp_path, monkeypatch):
         """search_package 分发到 auto_installer.agent_search_package"""
         import pycoder.server.services.auto_installer as ai
+
         mock_fn = AsyncMock(return_value="未找到匹配结果")
         monkeypatch.setattr(ai, "agent_search_package", mock_fn)
-        result = await execute_agent_tool(
-            "search_package", {"query": "json"}, tmp_path
-        )
+        result = await execute_agent_tool("search_package", {"query": "json"}, tmp_path)
         assert result == "未找到匹配结果"
         mock_fn.assert_awaited_once_with({"query": "json"})
 
@@ -188,22 +174,20 @@ class TestExecuteAgentToolPackageTools:
     async def test_ensure_tool_dispatch(self, tmp_path, monkeypatch):
         """ensure_tool 分发到 auto_installer.agent_ensure_tool"""
         import pycoder.server.services.auto_installer as ai
+
         mock_fn = AsyncMock(return_value="✅ python 已就绪")
         monkeypatch.setattr(ai, "agent_ensure_tool", mock_fn)
-        result = await execute_agent_tool(
-            "ensure_tool", {"name": "python"}, tmp_path
-        )
+        result = await execute_agent_tool("ensure_tool", {"name": "python"}, tmp_path)
         assert result == "✅ python 已就绪"
 
     @pytest.mark.asyncio
     async def test_install_deps_dispatch(self, tmp_path, monkeypatch):
         """install_deps 分发到 auto_installer.agent_install_deps"""
         import pycoder.server.services.auto_installer as ai
+
         mock_fn = AsyncMock(return_value="没有缺失的依赖")
         monkeypatch.setattr(ai, "agent_install_deps", mock_fn)
-        result = await execute_agent_tool(
-            "install_deps", {"file": "app.py"}, tmp_path
-        )
+        result = await execute_agent_tool("install_deps", {"file": "app.py"}, tmp_path)
         assert result == "没有缺失的依赖"
 
 
@@ -219,9 +203,7 @@ class TestExecuteAgentToolExceptionHandling:
             raise subprocess.TimeoutExpired(cmd="python", timeout=1)
 
         monkeypatch.setattr(agent_tools, "_tool_run_command", raise_timeout)
-        result = await execute_agent_tool(
-            "run_command", {"command": "python"}, tmp_path, timeout=1
-        )
+        result = await execute_agent_tool("run_command", {"command": "python"}, tmp_path, timeout=1)
         assert "超时" in result
 
     @pytest.mark.asyncio
@@ -233,9 +215,7 @@ class TestExecuteAgentToolExceptionHandling:
             raise RuntimeError("boom")
 
         monkeypatch.setattr(agent_tools, "_tool_read_file", raise_runtime)
-        result = await execute_agent_tool(
-            "read_file", {"path": "x.py"}, tmp_path
-        )
+        result = await execute_agent_tool("read_file", {"path": "x.py"}, tmp_path)
         assert "执行失败" in result
         assert "boom" in result
 
@@ -244,7 +224,9 @@ class TestExecuteAgentToolExceptionHandling:
         """allowed_commands=None 时使用默认白名单"""
         # 通过执行白名单外命令验证（返回"不在白名单"错误）
         result = await execute_agent_tool(
-            "run_command", {"command": "rm -rf /"}, tmp_path,
+            "run_command",
+            {"command": "rm -rf /"},
+            tmp_path,
             allowed_commands=["python"],
         )
         assert "不在白名单" in result
@@ -300,9 +282,7 @@ class TestToolWriteFile:
 
     def test_writes_new_file(self, tmp_path):
         """写入新文件"""
-        result = _tool_write_file(
-            {"path": "new.py", "content": "x = 1\n"}, tmp_path
-        )
+        result = _tool_write_file({"path": "new.py", "content": "x = 1\n"}, tmp_path)
         assert "已写入" in result
         assert (tmp_path / "new.py").read_text(encoding="utf-8") == "x = 1\n"
 
@@ -314,25 +294,19 @@ class TestToolWriteFile:
 
     def test_path_traversal_blocked(self, tmp_path):
         """路径越界被拒绝"""
-        result = _tool_write_file(
-            {"path": "../escape.txt", "content": "x"}, tmp_path
-        )
+        result = _tool_write_file({"path": "../escape.txt", "content": "x"}, tmp_path)
         assert result == "❌ 路径越界"
         assert not (tmp_path.parent / "escape.txt").exists()
 
     def test_creates_parent_directories(self, tmp_path):
         """自动创建父目录"""
-        result = _tool_write_file(
-            {"path": "sub/dir/file.py", "content": "x"}, tmp_path
-        )
+        result = _tool_write_file({"path": "sub/dir/file.py", "content": "x"}, tmp_path)
         assert "已写入" in result
         assert (tmp_path / "sub" / "dir" / "file.py").exists()
 
     def test_non_string_content_coerced(self, tmp_path):
         """非字符串 content 被转为字符串"""
-        result = _tool_write_file(
-            {"path": "num.txt", "content": 12345}, tmp_path
-        )
+        result = _tool_write_file({"path": "num.txt", "content": 12345}, tmp_path)
         assert "已写入" in result
         assert (tmp_path / "num.txt").read_text(encoding="utf-8") == "12345"
 
@@ -345,9 +319,7 @@ class TestToolWriteFile:
     def test_content_length_in_result(self, tmp_path):
         """返回信息包含字符数"""
         content = "hello world"
-        result = _tool_write_file(
-            {"path": "f.txt", "content": content}, tmp_path
-        )
+        result = _tool_write_file({"path": "f.txt", "content": content}, tmp_path)
         assert str(len(content)) in result
 
 
@@ -361,9 +333,7 @@ class TestToolSearchCode:
 
     def test_finds_matching_line(self, tmp_path):
         """找到匹配行"""
-        (tmp_path / "app.py").write_text(
-            "def hello():\n    return 'world'\n", encoding="utf-8"
-        )
+        (tmp_path / "app.py").write_text("def hello():\n    return 'world'\n", encoding="utf-8")
         result = _tool_search_code({"query": "hello"}, tmp_path)
         assert "hello" in result
         assert "app.py" in result
@@ -378,9 +348,7 @@ class TestToolSearchCode:
         """file_type 过滤后缀"""
         (tmp_path / "a.py").write_text("target_line\n", encoding="utf-8")
         (tmp_path / "b.txt").write_text("target_line\n", encoding="utf-8")
-        result = _tool_search_code(
-            {"query": "target_line", "file_type": ".py"}, tmp_path
-        )
+        result = _tool_search_code({"query": "target_line", "file_type": ".py"}, tmp_path)
         assert "a.py" in result
         assert "b.txt" not in result
 
@@ -407,9 +375,7 @@ class TestToolSearchCode:
         """搜索结果最多 20 条"""
         # 创建 25 个文件，每个都包含目标关键词
         for i in range(25):
-            (tmp_path / f"f{i}.py").write_text(
-                f"target_unique_kw line{i}\n", encoding="utf-8"
-            )
+            (tmp_path / f"f{i}.py").write_text(f"target_unique_kw line{i}\n", encoding="utf-8")
         result = _tool_search_code({"query": "target_unique_kw"}, tmp_path)
         # 计算结果行数（每条匹配一行）
         lines = [l for l in result.splitlines() if l.strip()]
@@ -461,9 +427,7 @@ class TestToolRunCommand:
 
     def test_empty_command_handled(self, tmp_path):
         """空命令安全处理（base_cmd 为空，不在白名单）"""
-        result = _tool_run_command(
-            {"command": ""}, tmp_path, ["python"], timeout=5
-        )
+        result = _tool_run_command({"command": ""}, tmp_path, ["python"], timeout=5)
         assert "不在白名单" in result
 
     def test_includes_stderr_in_output(self, tmp_path):
@@ -624,18 +588,21 @@ class TestToolGitDiff:
         subprocess.run(["git", "init"], capture_output=True, cwd=str(tmp_path))
         subprocess.run(
             ["git", "config", "user.email", "test@test.com"],
-            capture_output=True, cwd=str(tmp_path),
+            capture_output=True,
+            cwd=str(tmp_path),
         )
         subprocess.run(
             ["git", "config", "user.name", "Test"],
-            capture_output=True, cwd=str(tmp_path),
+            capture_output=True,
+            cwd=str(tmp_path),
         )
         # 创建并提交文件
         (tmp_path / "app.py").write_text("x = 1\n", encoding="utf-8")
         subprocess.run(["git", "add", "app.py"], capture_output=True, cwd=str(tmp_path))
         subprocess.run(
             ["git", "commit", "-m", "init"],
-            capture_output=True, cwd=str(tmp_path),
+            capture_output=True,
+            cwd=str(tmp_path),
         )
         # 修改文件
         (tmp_path / "app.py").write_text("x = 2\n", encoding="utf-8")
@@ -691,7 +658,9 @@ class TestParseToolCalls:
 
     def test_bare_json_object_parsed(self):
         """裸 JSON 对象被解析"""
-        text = '{"tool_calls": [{"name": "write_file", "params": {"path": "x.py", "content": "x"}}]}'
+        text = (
+            '{"tool_calls": [{"name": "write_file", "params": {"path": "x.py", "content": "x"}}]}'
+        )
         result = parse_tool_calls(text)
         assert len(result) == 1
         assert result[0]["name"] == "write_file"
@@ -815,6 +784,7 @@ class TestTryParseJsonCalls:
     def test_valid_json_with_tool_calls(self):
         """有效 JSON 含 tool_calls"""
         import json
+
         json_str = '{"tool_calls": [{"name": "x", "params": {}}]}'
         result = _try_parse_json_calls(json_str, json)
         assert len(result) == 1
@@ -823,18 +793,21 @@ class TestTryParseJsonCalls:
     def test_invalid_json_returns_empty(self):
         """无效 JSON 返回空"""
         import json
+
         result = _try_parse_json_calls("{not json}", json)
         assert result == []
 
     def test_non_dict_data_returns_empty(self):
         """非 dict 数据返回空"""
         import json
+
         result = _try_parse_json_calls("[1, 2, 3]", json)
         assert result == []
 
     def test_single_call_wrapped(self):
         """单个工具调用被包装为列表"""
         import json
+
         json_str = '{"name": "ls", "params": {}}'
         result = _try_parse_json_calls(json_str, json)
         assert len(result) == 1
@@ -843,6 +816,7 @@ class TestTryParseJsonCalls:
     def test_schema_validation_failure_returns_empty(self):
         """Schema 校验失败返回空"""
         import json
+
         # tool_calls 不是数组
         result = _try_parse_json_calls('{"tool_calls": "x"}', json)
         assert result == []
@@ -850,10 +824,9 @@ class TestTryParseJsonCalls:
     def test_call_missing_required_field_returns_empty(self):
         """工具调用缺少必填字段返回空"""
         import json
+
         # 缺少 params
-        result = _try_parse_json_calls(
-            '{"tool_calls": [{"name": "x"}]}', json
-        )
+        result = _try_parse_json_calls('{"tool_calls": [{"name": "x"}]}', json)
         assert result == []
 
 

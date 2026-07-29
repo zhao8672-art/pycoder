@@ -2,12 +2,12 @@
 
 提供标准化的错误响应格式，符合 api_path_specification.md 规范
 """
+
 from __future__ import annotations
 
 import logging
-import traceback
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import FastAPI, Request, status
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 # 标准错误码
 class ErrorCode:
     """标准错误码常量"""
+
     # 4xx 客户端错误
     BAD_REQUEST = "BAD_REQUEST"
     UNAUTHORIZED = "UNAUTHORIZED"
@@ -48,7 +49,7 @@ class ErrorCode:
 
 def _now_iso() -> str:
     """返回 ISO 格式时间戳"""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def make_error_response(
@@ -95,9 +96,7 @@ def make_success_response(
     }
 
 
-async def http_exception_handler(
-    request: Request, exc: StarletteHTTPException
-) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """处理 HTTPException"""
     # 映射 HTTP 状态码到错误码
     code_map = {
@@ -141,9 +140,7 @@ async def validation_exception_handler(
     )
 
 
-async def generic_exception_handler(
-    request: Request, exc: Exception
-) -> JSONResponse:
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """处理未捕获的异常"""
     logger.exception(
         "unhandled_exception path=%s method=%s",

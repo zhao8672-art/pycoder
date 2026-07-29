@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 
@@ -202,7 +201,9 @@ CONTRACTS: list[ModuleContract] = [
         dependencies=["pycoder.core", "pycoder.bus", "pycoder.config", "pycoder.utils"],
         public_api=["register_editor_capabilities", "register_system_capabilities"],
         capabilities=[
-            "editor.code.read", "editor.code.write", "system.shell.execute",
+            "editor.code.read",
+            "editor.code.write",
+            "system.shell.execute",
         ],
         invariants=["不依赖 pycoder.server"],
     ),
@@ -227,11 +228,23 @@ CONTRACTS: list[ModuleContract] = [
         name="server",
         layer=Layer.COMPOSITE,
         dependencies=[
-            "pycoder.core", "pycoder.bus", "pycoder.config", "pycoder.utils",
-            "pycoder.ai", "pycoder.brain", "pycoder.memory", "pycoder.evolution",
-            "pycoder.skills", "pycoder.extensions", "pycoder.capabilities",
-            "pycoder.lifecycle", "pycoder.gateway", "pycoder.providers",
-            "pycoder.prompts", "pycoder.safety", "pycoder.observability",
+            "pycoder.core",
+            "pycoder.bus",
+            "pycoder.config",
+            "pycoder.utils",
+            "pycoder.ai",
+            "pycoder.brain",
+            "pycoder.memory",
+            "pycoder.evolution",
+            "pycoder.skills",
+            "pycoder.extensions",
+            "pycoder.capabilities",
+            "pycoder.lifecycle",
+            "pycoder.gateway",
+            "pycoder.providers",
+            "pycoder.prompts",
+            "pycoder.safety",
+            "pycoder.observability",
         ],
         public_api=["app", "create_app"],
         invariants=["作为应用入口，可依赖所有 P 和 D 层模块"],

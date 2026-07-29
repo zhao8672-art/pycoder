@@ -5,6 +5,7 @@
 - P3-11: requirements.txt 与 requirements.in 一致
 - P3-12: README 数字与实际测试函数数匹配
 """
+
 from __future__ import annotations
 
 import re
@@ -44,8 +45,9 @@ class TestCrossPlatformScript:
         if not hook.exists():
             pytest.skip("post-commit 钩子未创建")
         content = hook.read_text(encoding="utf-8")
-        assert content.startswith("#!/bin/bash") or content.startswith("#!/usr/bin/env bash"), \
-            "post-commit 缺少 bash shebang"
+        assert content.startswith("#!/bin/bash") or content.startswith(
+            "#!/usr/bin/env bash"
+        ), "post-commit 缺少 bash shebang"
 
     def test_post_commit_hook_no_windows_only(self):
         """post-commit 钩子不应使用 Windows-only 命令."""
@@ -116,8 +118,9 @@ class TestReadmeConsistency:
             test_funcs += len(re.findall(r"^\s*(?:async\s+)?def\s+test_", content, re.MULTILINE))
 
         claimed = int(m.group(1))
-        assert test_funcs >= claimed * 0.9, \
-            f"README 声明 {claimed}+ 测试, 实际仅 {test_funcs} 个测试函数"
+        assert (
+            test_funcs >= claimed * 0.9
+        ), f"README 声明 {claimed}+ 测试, 实际仅 {test_funcs} 个测试函数"
 
     def test_readme_no_buggy_m_m_pattern(self):
         """README 不应在主示例中使用 'python -m pycoder -m' (短选项说明块除外)."""
@@ -159,8 +162,9 @@ class TestDependencyGroups:
         """pyproject.toml 必须定义所有 4 个可选组."""
         content = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         for group in ["dev", "help", "browser", "playwright"]:
-            assert f"{group} =" in content or f"{group}=[" in content, \
-                f"pyproject.toml 应定义可选组: {group}"
+            assert (
+                f"{group} =" in content or f"{group}=[" in content
+            ), f"pyproject.toml 应定义可选组: {group}"
 
     def test_all_referenced_requirements_files_exist(self):
         """requirements-all.txt 引用的文件必须全部存在."""
@@ -185,17 +189,17 @@ class TestEntryPoints:
         content = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         # 匹配 entry = "module:function" 形式
         entries = re.findall(r'(\w+(?:-\w+)?)\s*=\s*"([\w.]+):(\w+)"', content)
-        for name, module, func in entries:
+        for name, module, _func in entries:
             # 跳过非 pycoder 模块
             if not module.startswith("pycoder"):
                 continue
             # module 形如 "pycoder.__main__" / "pycoder.server.app" / "pycoder.cli.x"
             # 实际文件位于 ROOT/pycoder/<rel_path>.py 或 ROOT/pycoder/<rel_path>/__init__.py
-            rel = module[len("pycoder."):] if module.startswith("pycoder.") else module
+            rel = module[len("pycoder.") :] if module.startswith("pycoder.") else module
             rel_path = rel.replace(".", "/")
             candidates = [
-                ROOT / "pycoder" / (rel_path + ".py"),       # 单文件模块
-                ROOT / "pycoder" / rel_path / "__init__.py", # 包
+                ROOT / "pycoder" / (rel_path + ".py"),  # 单文件模块
+                ROOT / "pycoder" / rel_path / "__init__.py",  # 包
             ]
             if not any(c.exists() for c in candidates):
                 pytest.fail(f"入口 {name}: 模块 {module} 不存在")
@@ -220,8 +224,9 @@ class TestWindowsWrappers:
         """检查 .ps1 语法."""
         content = (ROOT / "scripts" / "pycoder.ps1").read_text(encoding="utf-8")
         # 应有 [CmdletBinding()] 或 param(...)
-        assert "[CmdletBinding()]" in content or "param(" in content, \
-            ".ps1 缺少 CmdletBinding 或 param 声明"
+        assert (
+            "[CmdletBinding()]" in content or "param(" in content
+        ), ".ps1 缺少 CmdletBinding 或 param 声明"
         # 应设置 UTF-8
         assert "PYTHONUTF8" in content, ".ps1 未设置 PYTHONUTF8"
 
@@ -235,6 +240,7 @@ class TestTaskRunner:
     def test_run_py_list_runs(self):
         """run.py --list 应能正常输出."""
         import os
+
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
         env["PYTHONUTF8"] = "1"
@@ -267,6 +273,7 @@ class TestConsistencyScript:
         """一致性检查脚本应返回 0 (全部通过)."""
         # 强制 UTF-8 避免 Windows GBK 解码失败
         import os
+
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
         env["PYTHONUTF8"] = "1"
@@ -295,14 +302,17 @@ class TestPyprojectToolBlocks:
     def pyproject(self) -> str:
         return (ROOT / "pyproject.toml").read_text(encoding="utf-8", errors="ignore")
 
-    @pytest.mark.parametrize("block", [
-        "tool.pytest.ini_options",
-        "tool.coverage.run",
-        "tool.coverage.report",
-        "tool.ruff",
-        "tool.black",
-        "tool.mypy",
-    ])
+    @pytest.mark.parametrize(
+        "block",
+        [
+            "tool.pytest.ini_options",
+            "tool.coverage.run",
+            "tool.coverage.report",
+            "tool.ruff",
+            "tool.black",
+            "tool.mypy",
+        ],
+    )
     def test_required_tool_block_exists(self, pyproject, block):
         """每个必须的工具块都应存在."""
         assert f"[{block}]" in pyproject, f"pyproject.toml 缺少 [{block}] 配置块"
@@ -316,7 +326,8 @@ class TestPyprojectToolBlocks:
         # 行首匹配 (避免被头部文档注释中的 [tool.pytest.ini_options] 字符串误匹配)
         block = re.search(
             r"^\[tool\.pytest\.ini_options\]\s*\n(.*?)(?=^\[|\Z)",
-            pyproject, re.DOTALL | re.MULTILINE,
+            pyproject,
+            re.DOTALL | re.MULTILINE,
         )
         assert block is not None
         assert "markers" in block.group(1), "应定义 markers"
@@ -326,14 +337,16 @@ class TestPyprojectToolBlocks:
         """coverage 应启用 branch 模式."""
         assert re.search(
             r"\[tool\.coverage\.run\].*?branch\s*=\s*true",
-            pyproject, re.DOTALL,
+            pyproject,
+            re.DOTALL,
         ), "coverage 应启用 branch 模式"
 
     def test_coverage_has_fail_under(self, pyproject):
         """coverage 应设置 fail_under 阈值."""
         assert re.search(
             r"\[tool\.coverage\.report\].*?fail_under\s*=\s*\d+",
-            pyproject, re.DOTALL,
+            pyproject,
+            re.DOTALL,
         ), "coverage 应设置 fail_under 阈值"
 
 
@@ -350,8 +363,9 @@ class TestCriticalDependencyPinning:
     def test_critical_dep_pinned(self, requirements_in, dep):
         """关键依赖应使用 ~=/>=/<= 等版本约束, 避免裸依赖."""
         pattern = rf"^{re.escape(dep)}\s*[><=~!]+"
-        assert re.search(pattern, requirements_in, re.MULTILINE), \
-            f"{dep} 应锁定兼容版本, 当前为裸依赖"
+        assert re.search(
+            pattern, requirements_in, re.MULTILINE
+        ), f"{dep} 应锁定兼容版本, 当前为裸依赖"
 
 
 class TestRootScripts:
@@ -388,9 +402,9 @@ class TestCriticalDepsInRequirements:
     def test_dep_in_requirements(self, requirements, dep):
         # pip-compile 规范化包名为小写, 所以 Pillow → pillow 也要匹配
         dep_lower = dep.lower()
-        assert (re.search(rf"^{re.escape(dep)}[><=~!\[]", requirements, re.MULTILINE)
-                or re.search(rf"^{re.escape(dep_lower)}==", requirements, re.MULTILINE)), \
-            f"requirements.txt 缺失 {dep}"
+        assert re.search(rf"^{re.escape(dep)}[><=~!\[]", requirements, re.MULTILINE) or re.search(
+            rf"^{re.escape(dep_lower)}==", requirements, re.MULTILINE
+        ), f"requirements.txt 缺失 {dep}"
 
 
 class TestSentryIntegration:
@@ -418,6 +432,7 @@ class TestSentryIntegration:
     def test_sentry_status_does_not_crash(self):
         """sentry.status() 不应抛错 (未配置 DSN 时返回安全字典)."""
         from pycoder.observability import sentry as sentry_mod
+
         result = sentry_mod.status()
         assert isinstance(result, dict)
         assert "available" in result
@@ -430,21 +445,21 @@ class TestReadmeCapabilities:
     def test_readme_has_capabilities_section(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8", errors="ignore")
         # 应有"已具备的核心能力"或"核心能力"章节
-        assert "已具备的核心能力" in readme or "核心能力" in readme, \
-            "README 应有'已具备的核心能力'章节"
+        assert (
+            "已具备的核心能力" in readme or "核心能力" in readme
+        ), "README 应有'已具备的核心能力'章节"
 
     def test_readme_documents_sentry(self):
         """README 应提到 Sentry 集成能力."""
         readme = (ROOT / "README.md").read_text(encoding="utf-8", errors="ignore")
-        assert "Sentry" in readme or "sentry" in readme.lower(), \
-            "README 应提到 Sentry 集成"
+        assert "Sentry" in readme or "sentry" in readme.lower(), "README 应提到 Sentry 集成"
 
     def test_readme_documents_memory(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8", errors="ignore")
-        assert "持久化记忆" in readme or "memory" in readme.lower(), \
-            "README 应提到持久化记忆能力"
+        assert "持久化记忆" in readme or "memory" in readme.lower(), "README 应提到持久化记忆能力"
 
     def test_readme_documents_sandbox(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8", errors="ignore")
-        assert "沙箱" in readme or "Sandbox" in readme or "sandbox" in readme.lower(), \
-            "README 应提到代码沙箱能力"
+        assert (
+            "沙箱" in readme or "Sandbox" in readme or "sandbox" in readme.lower()
+        ), "README 应提到代码沙箱能力"

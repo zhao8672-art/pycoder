@@ -16,12 +16,10 @@
   - mock ChatBridge 与 get_workspace_root
   - 用 async def + async for 遍历 execute() 事件流
 """
+
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock
-
-import pytest
 
 from pycoder.server.services.team import team_coordinator as tc_mod
 from pycoder.server.services.team.team_coordinator import (
@@ -30,18 +28,26 @@ from pycoder.server.services.team.team_coordinator import (
     get_coordinator,
 )
 
-
 # ── 辅助: 构造 AgentTask / AgentRole ────────────────────
 
+
 def _make_agent_task(
-    tid="t1", title="任务1", description="描述1",
-    role="developer", deps=None, deliverables=None,
+    tid="t1",
+    title="任务1",
+    description="描述1",
+    role="developer",
+    deps=None,
+    deliverables=None,
 ):
     """构造一个 AgentTask"""
     from pycoder.server.services.agent_definitions import AgentTask
+
     return AgentTask(
-        id=tid, title=title, description=description,
-        assigned_role=role, depends_on=deps or [],
+        id=tid,
+        title=title,
+        description=description,
+        assigned_role=role,
+        depends_on=deps or [],
         deliverables=deliverables or ["out.py"],
     )
 
@@ -49,9 +55,14 @@ def _make_agent_task(
 def _make_agent_role(role_id="developer", name="开发者", model="deepseek-chat"):
     """构造一个 AgentRole"""
     from pycoder.server.services.agent_definitions import AgentRole
+
     return AgentRole(
-        id=role_id, name=name, description="编码实现",
-        system_prompt="sys", tools=[], model=model,
+        id=role_id,
+        name=name,
+        description="编码实现",
+        system_prompt="sys",
+        tools=[],
+        model=model,
     )
 
 
@@ -66,8 +77,10 @@ def _make_mock_bridge():
     bridge.config.enable_thinking = True
     bridge.config.enable_cache = True
     bridge.close = MagicMock(return_value=None)
+
     async def close_async():
         return None
+
     bridge.close = close_async
     return bridge
 
@@ -75,6 +88,7 @@ def _make_mock_bridge():
 # ══════════════════════════════════════════════════════════
 # TeamCoordinator.__init__ / list_runs / get_run 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestTeamCoordinatorInit:
     def test_init_defaults(self):
@@ -124,6 +138,7 @@ class TestTeamCoordinatorInit:
 # TeamCoordinator.execute 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestExecute:
     """execute — 异步生成器工作流"""
 
@@ -143,6 +158,7 @@ class TestExecute:
         # mock decompose_task → 返回单个任务
         async def fake_decompose(request, bridge):
             return [_make_agent_task()]
+
         monkeypatch.setattr(tc_mod, "decompose_task", fake_decompose)
 
         # mock AGENT_ROLES
@@ -152,19 +168,23 @@ class TestExecute:
         # mock _execute_agent_with_files → 返回字符串
         async def fake_exec_with_files(bridge, role, task, existing_results=None, work_dir=None):
             return "agent output code"
+
         # 注意：execute() 内部用 from ... import，需要 patch 该模块属性
         import pycoder.server.services.team.agent_tool_loop as atl_mod
+
         monkeypatch.setattr(atl_mod, "_execute_agent_with_files", fake_exec_with_files)
 
         # mock _agent_tool_loop（修复阶段使用）
         async def fake_tool_loop(bridge, prompt, ws, max_iterations=10):
             return "fixed code", []
+
         monkeypatch.setattr(atl_mod, "_agent_tool_loop", fake_tool_loop)
         monkeypatch.setattr(atl_mod, "AGENT_SYSTEM_PROMPT", "prompt {role_name}")
 
         # mock reviews.run_review_loop → 返回 (无 issues, 1 轮)
         async def fake_review_loop(bridge, results, fix_executor, max_rounds=3):
             return [], 1
+
         monkeypatch.setattr(c.reviews, "run_review_loop", fake_review_loop)
 
         # mock ExecutionReport
@@ -176,6 +196,7 @@ class TestExecute:
         fake_report.add_error = MagicMock()
         fake_report.add_retry = MagicMock()
         import pycoder.server.services.team.team_coordinator as tc
+
         monkeypatch.setattr(tc, "ExecutionReport", lambda **kwargs: fake_report)
 
         events = []
@@ -208,6 +229,7 @@ class TestExecute:
 
         async def raise_decompose(request, bridge):
             raise RuntimeError("decompose failed")
+
         monkeypatch.setattr(tc_mod, "decompose_task", raise_decompose)
 
         events = []
@@ -233,6 +255,7 @@ class TestExecute:
 
         async def fake_decompose(request, bridge):
             return [_make_agent_task(role="unknown_role")]
+
         monkeypatch.setattr(tc_mod, "decompose_task", fake_decompose)
 
         # AGENT_ROLES 不含 unknown_role → 触发 _executor 的 not role 分支
@@ -241,6 +264,7 @@ class TestExecute:
         # mock reviews
         async def fake_review_loop(bridge, results, fix_executor, max_rounds=3):
             return [], 1
+
         monkeypatch.setattr(c.reviews, "run_review_loop", fake_review_loop)
 
         # mock ExecutionReport
@@ -279,6 +303,7 @@ class TestExecute:
 
         async def fake_decompose(request, bridge):
             return [_make_agent_task(role="developer")]
+
         monkeypatch.setattr(tc_mod, "decompose_task", fake_decompose)
 
         monkeypatch.setattr(tc_mod, "AGENT_ROLES", {"developer": _make_agent_role()})
@@ -286,11 +311,14 @@ class TestExecute:
         # mock _execute_agent_with_files → 抛异常
         async def raise_exec(bridge, role, task, existing_results=None, work_dir=None):
             raise RuntimeError("agent crashed")
+
         import pycoder.server.services.team.agent_tool_loop as atl_mod
+
         monkeypatch.setattr(atl_mod, "_execute_agent_with_files", raise_exec)
 
         async def fake_review_loop(bridge, results, fix_executor, max_rounds=3):
             return [], 1
+
         monkeypatch.setattr(c.reviews, "run_review_loop", fake_review_loop)
 
         fake_report = MagicMock()
@@ -323,29 +351,35 @@ class TestExecute:
 
         async def fake_decompose(request, bridge):
             return [_make_agent_task(role="developer", tid="t1")]
+
         monkeypatch.setattr(tc_mod, "decompose_task", fake_decompose)
 
         monkeypatch.setattr(tc_mod, "AGENT_ROLES", {"developer": _make_agent_role()})
 
         async def fake_exec(bridge, role, task, existing_results=None, work_dir=None):
             return "agent code"
+
         import pycoder.server.services.team.agent_tool_loop as atl_mod
+
         monkeypatch.setattr(atl_mod, "_execute_agent_with_files", fake_exec)
 
         # mock _agent_tool_loop 用于 _fix_executor（修复阶段）
         async def fake_tool_loop(bridge, prompt, ws, max_iterations=10):
             return "fixed code", []
+
         monkeypatch.setattr(atl_mod, "_agent_tool_loop", fake_tool_loop)
         monkeypatch.setattr(atl_mod, "AGENT_SYSTEM_PROMPT", "prompt {role_name}")
 
         # mock reviews.run_review_loop → 调用 fix_executor 触发 _fix_executor 分支
         issues = [{"severity": "high", "description": "bug", "task_id": "t1"}]
+
         async def fake_review_loop(bridge, results, fix_executor, max_rounds=3):
             # 实际调用 fix_executor 以触发 _fix_executor 函数
-            for tid in set(i["task_id"] for i in issues):
+            for tid in {i["task_id"] for i in issues}:
                 if tid in results:
                     await fix_executor(tid, "feedback")
             return issues, 2
+
         monkeypatch.setattr(c.reviews, "run_review_loop", fake_review_loop)
 
         fake_report = MagicMock()
@@ -382,16 +416,20 @@ class TestExecute:
 
         async def fake_decompose(request, bridge):
             return [_make_agent_task(role="developer", tid="t1")]
+
         monkeypatch.setattr(tc_mod, "decompose_task", fake_decompose)
         monkeypatch.setattr(tc_mod, "AGENT_ROLES", {"developer": _make_agent_role()})
 
         async def fake_exec(bridge, role, task, existing_results=None, work_dir=None):
             return "agent code"
+
         import pycoder.server.services.team.agent_tool_loop as atl_mod
+
         monkeypatch.setattr(atl_mod, "_execute_agent_with_files", fake_exec)
 
         async def fake_tool_loop(bridge, prompt, ws, max_iterations=10):
             return "fixed", []
+
         monkeypatch.setattr(atl_mod, "_agent_tool_loop", fake_tool_loop)
         monkeypatch.setattr(atl_mod, "AGENT_SYSTEM_PROMPT", "prompt {role_name}")
 
@@ -400,6 +438,7 @@ class TestExecute:
             # 传入不存在的 task_id → _fix_executor 返回 ""
             await fix_executor("nonexistent-task", "feedback")
             return [], 1
+
         monkeypatch.setattr(c.reviews, "run_review_loop", fake_review_loop)
 
         fake_report = MagicMock()
@@ -429,16 +468,20 @@ class TestExecute:
 
         async def fake_decompose(request, bridge):
             return [_make_agent_task(role="developer", title="任务X")]
+
         monkeypatch.setattr(tc_mod, "decompose_task", fake_decompose)
         monkeypatch.setattr(tc_mod, "AGENT_ROLES", {"developer": _make_agent_role()})
 
         async def fake_exec(bridge, role, task, existing_results=None, work_dir=None):
             return "agent code"
+
         import pycoder.server.services.team.agent_tool_loop as atl_mod
+
         monkeypatch.setattr(atl_mod, "_execute_agent_with_files", fake_exec)
 
         async def fake_review_loop(bridge, results, fix_executor, max_rounds=3):
             return [], 1
+
         monkeypatch.setattr(c.reviews, "run_review_loop", fake_review_loop)
 
         fake_report = MagicMock()
@@ -473,6 +516,7 @@ class TestExecute:
         # 任务分配到 developer 角色
         async def fake_decompose(request, bridge):
             return [_make_agent_task(role="developer", tid="t1")]
+
         monkeypatch.setattr(tc_mod, "decompose_task", fake_decompose)
 
         # 但 AGENT_ROLES 不含 developer → _fix_executor 找不到 role
@@ -480,7 +524,9 @@ class TestExecute:
 
         async def fake_exec(bridge, role, task, existing_results=None, work_dir=None):
             return "agent code"
+
         import pycoder.server.services.team.agent_tool_loop as atl_mod
+
         monkeypatch.setattr(atl_mod, "_execute_agent_with_files", fake_exec)
 
         async def fake_review_loop(bridge, results, fix_executor, max_rounds=3):
@@ -488,6 +534,7 @@ class TestExecute:
             if "t1" in results:
                 await fix_executor("t1", "feedback")
             return [], 1
+
         monkeypatch.setattr(c.reviews, "run_review_loop", fake_review_loop)
 
         fake_report = MagicMock()
@@ -517,6 +564,7 @@ class TestExecute:
 
         async def fake_decompose(request, bridge):
             return [_make_agent_task(role="developer", tid="t1")]
+
         monkeypatch.setattr(tc_mod, "decompose_task", fake_decompose)
         monkeypatch.setattr(tc_mod, "AGENT_ROLES", {"developer": _make_agent_role()})
 
@@ -528,7 +576,8 @@ class TestExecute:
         def fake_job_to_task(job):
             if job.task_id not in shared_tasks:
                 shared_tasks[job.task_id] = _make_agent_task(
-                    role="developer", tid=job.task_id,
+                    role="developer",
+                    tid=job.task_id,
                 )
             return shared_tasks[job.task_id]
 
@@ -538,11 +587,14 @@ class TestExecute:
         async def fake_exec(bridge, role, task, existing_results=None, work_dir=None):
             task._files_written = ["file1.py", "file2.py"]
             return "agent code"
+
         import pycoder.server.services.team.agent_tool_loop as atl_mod
+
         monkeypatch.setattr(atl_mod, "_execute_agent_with_files", fake_exec)
 
         async def fake_review_loop(bridge, results, fix_executor, max_rounds=3):
             return [], 1
+
         monkeypatch.setattr(c.reviews, "run_review_loop", fake_review_loop)
 
         fake_report = MagicMock()
@@ -577,17 +629,21 @@ class TestExecute:
 
         async def fake_decompose(request, bridge):
             return [_make_agent_task(role="developer")]
+
         monkeypatch.setattr(tc_mod, "decompose_task", fake_decompose)
         monkeypatch.setattr(tc_mod, "AGENT_ROLES", {"developer": _make_agent_role()})
 
         async def fake_exec(bridge, role, task, existing_results=None, work_dir=None):
             # 模拟写入文件
             return "code with files"
+
         import pycoder.server.services.team.agent_tool_loop as atl_mod
+
         monkeypatch.setattr(atl_mod, "_execute_agent_with_files", fake_exec)
 
         async def fake_review_loop(bridge, results, fix_executor, max_rounds=3):
             return [], 1
+
         monkeypatch.setattr(c.reviews, "run_review_loop", fake_review_loop)
 
         fake_report = MagicMock()
@@ -615,11 +671,15 @@ class TestExecute:
 # _job_to_agent_task 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestJobToAgentTask:
     def test_converts_job_to_agent_task(self):
         from pycoder.server.services.team.job_orchestrator import Job
+
         job = Job(
-            task_id="t1", title="Title", description="Desc",
+            task_id="t1",
+            title="Title",
+            description="Desc",
             assigned_role="developer",
             depends_on=["t0"],
             deliverables=["out.py"],
@@ -635,8 +695,11 @@ class TestJobToAgentTask:
     def test_empty_lists_copied_not_shared(self):
         """depends_on / deliverables 应被复制为独立 list"""
         from pycoder.server.services.team.job_orchestrator import Job
+
         job = Job(
-            task_id="t1", title="T", description="D",
+            task_id="t1",
+            title="T",
+            description="D",
             assigned_role="r",
             depends_on=["a"],
             deliverables=["b"],
@@ -649,6 +712,7 @@ class TestJobToAgentTask:
 # ══════════════════════════════════════════════════════════
 # get_coordinator 单例测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestGetCoordinator:
     def test_returns_singleton(self, monkeypatch):

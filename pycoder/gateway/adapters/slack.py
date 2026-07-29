@@ -55,9 +55,11 @@ class SlackAdapter(PlatformAdapter):
     async def start(self) -> None:
         """启动 Slack 适配器"""
         self._running = True
-        logger.info("Slack 适配器已启动 (token=%s..., socket_mode=%s)",
-                    self._bot_token[:8] if self._bot_token else "N/A",
-                    self._use_socket_mode)
+        logger.info(
+            "Slack 适配器已启动 (token=%s..., socket_mode=%s)",
+            self._bot_token[:8] if self._bot_token else "N/A",
+            self._use_socket_mode,
+        )
 
         if self._bot_token and self._use_socket_mode and self._app_token:
             self._socket_task = asyncio.create_task(self._socket_mode_loop())

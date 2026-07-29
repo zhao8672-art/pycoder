@@ -30,6 +30,7 @@
     if not bp.try_acquire(connection_id):
         return error("too_many_inflight")
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -92,7 +93,9 @@ class LLMConcurrencyLimiter:
                 self._total_acquired += 1
             logger.debug(
                 "llm_limiter_acquired active=%d/%d total=%d",
-                self._active, self._max, self._total_acquired,
+                self._active,
+                self._max,
+                self._total_acquired,
             )
 
         class _Ctx:

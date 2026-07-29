@@ -10,10 +10,9 @@ from pathlib import Path
 from typing import Any
 
 from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, ExecutionMode, SideEffect
-from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 from pycoder.capabilities.degradation import wrap_handler
+from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 from pycoder.core.shell_translator import (
-    detect_platform,
     translate_to_current_platform,
 )
 
@@ -135,7 +134,12 @@ async def _handle_run_terminal(params: dict, context: dict) -> dict:
             "translation": translation_info,
         }
     except sp.TimeoutExpired:
-        return {"success": False, "error": f"命令超时 ({timeout}s)", "exit_code": -1, "translation": translation_info}
+        return {
+            "success": False,
+            "error": f"命令超时 ({timeout}s)",
+            "exit_code": -1,
+            "translation": translation_info,
+        }
     except Exception as e:
         return {"success": False, "error": str(e), "exit_code": -1, "translation": translation_info}
 

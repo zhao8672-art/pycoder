@@ -1,12 +1,7 @@
 from __future__ import annotations
 
 import json
-import os
-import sys
-import time
-import sqlite3
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -201,9 +196,7 @@ class TestExtensionSandbox:
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
 
         sandbox = ExtensionSandbox("test.ext")
         result = sandbox.load_manifest()
@@ -269,9 +262,7 @@ class TestExtensionSandbox:
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -287,11 +278,9 @@ class TestExtensionSandbox:
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
-            '''
+            """
 name = "Test"
 version = "1.0.0"
 activated = False
@@ -300,7 +289,7 @@ def activate(api):
     global activated
     activated = True
     api.info("activated")
-''',
+""",
             encoding="utf-8",
         )
 
@@ -314,9 +303,7 @@ def activate(api):
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -333,11 +320,9 @@ def activate(api):
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
-            '''
+            """
 name = "Test"
 version = "1.0.0"
 
@@ -346,7 +331,7 @@ def my_func():
 
 def another_func(x):
     return x * 2
-''',
+""",
             encoding="utf-8",
         )
 
@@ -364,17 +349,15 @@ def another_func(x):
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
-            '''
+            """
 name = "Test"
 version = "1.0.0"
 
 def greet(name="World"):
     return f"Hello, {name}!"
-''',
+""",
             encoding="utf-8",
         )
 
@@ -390,9 +373,7 @@ def greet(name="World"):
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -410,9 +391,7 @@ def greet(name="World"):
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -468,9 +447,7 @@ class TestExtensionHostManager:
         ext_dir = tmp_path / "test.ext"
         ext_dir.mkdir()
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (ext_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (ext_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (ext_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -491,9 +468,7 @@ class TestExtensionHostManager:
         ext_dir = tmp_path / "test.ext"
         ext_dir.mkdir()
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (ext_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (ext_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (ext_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -513,9 +488,7 @@ class TestExtensionHostManager:
         ext_dir = tmp_path / "test.ext"
         ext_dir.mkdir()
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (ext_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (ext_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (ext_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -538,9 +511,7 @@ class TestExtensionHostManager:
             ext_dir = tmp_path / ext_id.replace("/", "_")
             ext_dir.mkdir()
             manifest = {"id": ext_id, "name": ext_id, "version": "1.0.0"}
-            (ext_dir / "manifest.json").write_text(
-                json.dumps(manifest), encoding="utf-8"
-            )
+            (ext_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
             (ext_dir / "extension.py").write_text(
                 f'name = "{ext_id}"\nversion = "1.0.0"\n',
                 encoding="utf-8",
@@ -636,5 +607,3 @@ class TestExtensionHostManager:
         installed = [{"enabled": True}]  # 无 id 字段
         results = await host.activate_all(installed)
         assert results == {}
-
-

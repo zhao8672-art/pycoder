@@ -80,6 +80,7 @@ async def execute_image_analyze(file_path: str) -> dict:
         with open(file_path, "rb") as f:
             data = f.read()
         from pycoder.multimodal.image_analyzer import ImageAnalyzer
+
         analyzer = ImageAnalyzer()
         result = await analyzer.analyze(data)
         return {"success": True, **result}
@@ -93,6 +94,7 @@ async def execute_image_ocr(file_path: str) -> dict:
         with open(file_path, "rb") as f:
             data = f.read()
         from pycoder.multimodal.ocr_engine import get_ocr_engine
+
         ocr = get_ocr_engine()
         text = await ocr.extract_text(data)
         return {
@@ -110,6 +112,7 @@ async def execute_screenshot_code(file_path: str) -> dict:
         with open(file_path, "rb") as f:
             data = f.read()
         from pycoder.multimodal.ocr_engine import get_ocr_engine
+
         ocr = get_ocr_engine()
         result = await ocr.detect_code_screenshot(data)
         return {"success": True, **result}
@@ -123,6 +126,7 @@ async def execute_image_vision(file_path: str, prompt: str = "描述这张图片
         with open(file_path, "rb") as f:
             data = f.read()
         from pycoder.multimodal.vision_client import get_vision_client
+
         client = get_vision_client()
         analysis = await client.analyze(data, prompt)
         return {"success": True, "analysis": analysis[:5000]}

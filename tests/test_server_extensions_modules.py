@@ -1,4 +1,4 @@
-"""综合单元测试: pycoder/server/log.py, app_lifecycle.py, 
+"""综合单元测试: pycoder/server/log.py, app_lifecycle.py,
    pycoder/extensions/packaging.py, contributions.py, host.py, manager.py(未覆盖部分)
 
 覆盖范围:
@@ -19,13 +19,11 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
-import os
 import sys
 import zipfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -41,7 +39,6 @@ class TestLogModule:
         """get_logger 返回一个有效的日志对象"""
         # 确保 structlog 可用
         monkeypatch.setattr("pycoder.core.services.log._has_structlog", True)
-        import structlog
 
         from pycoder.core.services.log import get_logger
 
@@ -73,10 +70,9 @@ class TestLogModule:
 
     def test_get_logger_fallback_no_structlog(self, monkeypatch):
         """没有 structlog 时降级使用标准 logging"""
-        import logging
-
         # 模拟 structlog 导入失败：在模块导入前阻止 structlog
         import builtins
+        import logging
 
         original_import = builtins.__import__
 
@@ -99,9 +95,8 @@ class TestLogModule:
 
     def test_get_logger_none_name_fallback(self, monkeypatch):
         """get_logger(None) 降级时返回标准 logger"""
-        import logging
-
         import builtins
+        import logging
 
         original_import = builtins.__import__
 
@@ -555,9 +550,7 @@ class TestPack:
             "description": "A test",
             "author": "test",
         }
-        (src / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (src / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (src / "extension.py").write_text("# test", encoding="utf-8")
 
         output = pack(str(src))
@@ -578,9 +571,7 @@ class TestPack:
             "description": "A test",
             "author": "test",
         }
-        (ext_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (ext_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (ext_dir / "extension.py").write_text("# test", encoding="utf-8")
 
         output = pack(str(src))
@@ -600,9 +591,7 @@ class TestPack:
             "description": "A test",
             "author": "test",
         }
-        (src / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (src / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (src / "extension.py").write_text("# test", encoding="utf-8")
 
         custom_out = tmp_path / "custom.python-ext"
@@ -678,9 +667,8 @@ class TestPackInstalled:
 
     def test_pack_installed_not_found(self, tmp_path, monkeypatch):
         """扩展未安装时抛出 FileNotFoundError"""
-        from pycoder.extensions.packaging import pack_installed
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import pack_installed
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -693,9 +681,8 @@ class TestScaffold:
 
     def test_scaffold_creates_directory(self, tmp_path, monkeypatch):
         """scaffold 创建扩展目录"""
-        from pycoder.extensions.packaging import scaffold
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import scaffold
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -705,9 +692,8 @@ class TestScaffold:
 
     def test_scaffold_creates_manifest(self, tmp_path, monkeypatch):
         """scaffold 创建 manifest.json"""
-        from pycoder.extensions.packaging import scaffold
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import scaffold
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -721,9 +707,8 @@ class TestScaffold:
 
     def test_scaffold_creates_extension_py(self, tmp_path, monkeypatch):
         """scaffold 创建 extension.py"""
-        from pycoder.extensions.packaging import scaffold
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import scaffold
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -737,9 +722,8 @@ class TestScaffold:
 
     def test_scaffold_creates_readme(self, tmp_path, monkeypatch):
         """scaffold 创建 README.md"""
-        from pycoder.extensions.packaging import scaffold
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import scaffold
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -752,9 +736,8 @@ class TestScaffold:
 
     def test_scaffold_default_description(self, tmp_path, monkeypatch):
         """scaffold 默认描述"""
-        from pycoder.extensions.packaging import scaffold
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import scaffold
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -765,9 +748,8 @@ class TestScaffold:
 
     def test_scaffold_default_author(self, tmp_path, monkeypatch):
         """scaffold 默认作者"""
-        from pycoder.extensions.packaging import scaffold
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import scaffold
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -1421,7 +1403,6 @@ class TestGlobalRegistries:
         """unregister_extension_contributions 清除扩展贡献"""
         from pycoder.extensions.contributions import (
             get_command_registry,
-            get_settings_registry,
             register_extension_contributions,
             unregister_extension_contributions,
         )
@@ -1642,9 +1623,7 @@ class TestExtensionSandbox:
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
 
         sandbox = ExtensionSandbox("test.ext")
         result = sandbox.load_manifest()
@@ -1710,9 +1689,7 @@ class TestExtensionSandbox:
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -1728,11 +1705,9 @@ class TestExtensionSandbox:
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
-            '''
+            """
 name = "Test"
 version = "1.0.0"
 activated = False
@@ -1741,7 +1716,7 @@ def activate(api):
     global activated
     activated = True
     api.info("activated")
-''',
+""",
             encoding="utf-8",
         )
 
@@ -1755,9 +1730,7 @@ def activate(api):
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -1774,11 +1747,9 @@ def activate(api):
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
-            '''
+            """
 name = "Test"
 version = "1.0.0"
 
@@ -1787,7 +1758,7 @@ def my_func():
 
 def another_func(x):
     return x * 2
-''',
+""",
             encoding="utf-8",
         )
 
@@ -1805,17 +1776,15 @@ def another_func(x):
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
-            '''
+            """
 name = "Test"
 version = "1.0.0"
 
 def greet(name="World"):
     return f"Hello, {name}!"
-''',
+""",
             encoding="utf-8",
         )
 
@@ -1831,9 +1800,7 @@ def greet(name="World"):
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -1851,9 +1818,7 @@ def greet(name="World"):
         from pycoder.extensions.host import ExtensionSandbox
 
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (sandbox_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (sandbox_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (sandbox_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -1909,9 +1874,7 @@ class TestExtensionHostManager:
         ext_dir = tmp_path / "test.ext"
         ext_dir.mkdir()
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (ext_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (ext_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (ext_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -1932,9 +1895,7 @@ class TestExtensionHostManager:
         ext_dir = tmp_path / "test.ext"
         ext_dir.mkdir()
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (ext_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (ext_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (ext_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -1954,9 +1915,7 @@ class TestExtensionHostManager:
         ext_dir = tmp_path / "test.ext"
         ext_dir.mkdir()
         manifest = {"id": "test.ext", "name": "Test", "version": "1.0.0"}
-        (ext_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (ext_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (ext_dir / "extension.py").write_text(
             'name = "Test"\nversion = "1.0.0"\n',
             encoding="utf-8",
@@ -1979,9 +1938,7 @@ class TestExtensionHostManager:
             ext_dir = tmp_path / ext_id.replace("/", "_")
             ext_dir.mkdir()
             manifest = {"id": ext_id, "name": ext_id, "version": "1.0.0"}
-            (ext_dir / "manifest.json").write_text(
-                json.dumps(manifest), encoding="utf-8"
-            )
+            (ext_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
             (ext_dir / "extension.py").write_text(
                 f'name = "{ext_id}"\nversion = "1.0.0"\n',
                 encoding="utf-8",
@@ -2141,7 +2098,6 @@ class TestManagerAdditional:
     @pytest.mark.asyncio
     async def test_install_npm_extension_success(self, em, ext_dir, monkeypatch):
         """npm 扩展安装 — 通过 mock _install_npm 内部方法验证"""
-        import pycoder.extensions.manager as mgr
 
         # 直接 mock _install_npm 方法，避免复杂的子进程模拟
         async def mock_install_npm(ext_id, ext_data):
@@ -2169,6 +2125,7 @@ class TestManagerAdditional:
     @pytest.mark.asyncio
     async def test_install_npm_extension_failure(self, em, ext_dir, monkeypatch):
         """npm 扩展安装失败"""
+
         async def mock_install_npm(ext_id, ext_data):
             return False
 
@@ -2212,6 +2169,7 @@ class TestManagerAdditional:
     @pytest.mark.asyncio
     async def test_install_pypi_extension_success(self, em, ext_dir, monkeypatch):
         """PyPI 扩展安装 — 通过 mock _install_pypi 内部方法验证"""
+
         async def mock_install_pypi(ext_id, ext_data):
             target = ext_dir / ext_id.replace("/", "_")
             target.mkdir(parents=True, exist_ok=True)
@@ -2237,6 +2195,7 @@ class TestManagerAdditional:
     @pytest.mark.asyncio
     async def test_install_pypi_extension_failure(self, em, ext_dir, monkeypatch):
         """PyPI 扩展安装失败"""
+
         async def mock_install_pypi(ext_id, ext_data):
             return False
 
@@ -2280,6 +2239,7 @@ class TestManagerAdditional:
     @pytest.mark.asyncio
     async def test_install_ovsx_prefix(self, em, ext_dir, monkeypatch):
         """ovsx. 前缀触发 vsix 安装 — mock _install_vsix"""
+
         async def mock_install_vsix(ext_id, ext_data):
             target = ext_dir / ext_id.replace("/", "_")
             target.mkdir(parents=True, exist_ok=True)
@@ -2306,6 +2266,7 @@ class TestManagerAdditional:
     @pytest.mark.asyncio
     async def test_install_vsix_download_fail(self, em, ext_dir, monkeypatch):
         """vsix 安装失败 — mock _install_vsix 返回 False"""
+
         async def mock_install_vsix(ext_id, ext_data):
             return False
 
@@ -2448,9 +2409,7 @@ class TestManagerAdditional:
 
         cfg_dir = ext_dir / "test_ext"
         cfg_dir.mkdir()
-        (cfg_dir / "config.json").write_text(
-            json.dumps({"a": 1, "b": 2}), encoding="utf-8"
-        )
+        (cfg_dir / "config.json").write_text(json.dumps({"a": 1, "b": 2}), encoding="utf-8")
 
         result = em.get_config("test_ext")
         assert result == {"a": 1, "b": 2}
@@ -2462,9 +2421,7 @@ class TestManagerAdditional:
 
         cfg_dir = ext_dir / "test_ext"
         cfg_dir.mkdir()
-        (cfg_dir / "config.json").write_text(
-            json.dumps({"only": "this"}), encoding="utf-8"
-        )
+        (cfg_dir / "config.json").write_text(json.dumps({"only": "this"}), encoding="utf-8")
 
         result = em.get_config("test_ext", "missing", "fallback")
         assert result == "fallback"
@@ -2509,7 +2466,7 @@ class TestManagerAdditional:
             async def wait(self):
                 self._call_count += 1
                 if self._call_count == 1:
-                    raise asyncio.TimeoutError()
+                    raise TimeoutError()
                 return 0
 
             def kill(self):
@@ -2543,7 +2500,7 @@ class TestManagerAdditional:
             async def wait(self):
                 self._call_count += 1
                 if self._call_count == 1:
-                    raise asyncio.TimeoutError()
+                    raise TimeoutError()
                 return 0
 
             def kill(self):
@@ -2578,7 +2535,7 @@ class TestManagerAdditional:
             async def wait(self):
                 self._call_count += 1
                 if self._call_count == 1:
-                    raise asyncio.TimeoutError()
+                    raise TimeoutError()
                 return 0
 
             def kill(self):
@@ -2599,8 +2556,8 @@ class TestManagerAdditional:
 
     def test__safe_extract_archive_tar(self, tmp_path):
         """安全解压 tar 归档"""
-        import tarfile
         import io
+        import tarfile
 
         from pycoder.extensions.manager import _safe_extract_archive
 
@@ -2621,8 +2578,8 @@ class TestManagerAdditional:
 
     def test__safe_extract_archive_tar_path_traversal(self, tmp_path):
         """检测 tar 路径穿越攻击"""
-        import tarfile
         import io
+        import tarfile
 
         from pycoder.extensions.manager import _safe_extract_archive
 
@@ -2644,7 +2601,6 @@ class TestManagerAdditional:
     def test__safe_extract_archive_zip(self, tmp_path):
         """安全解压 zip 归档"""
         import zipfile
-        import io
 
         from pycoder.extensions.manager import _safe_extract_archive
 

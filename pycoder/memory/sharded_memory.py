@@ -26,6 +26,7 @@
     store.put("user_pref_1", {"theme": "dark"})
     val = store.get("user_pref_1")  # 首次从磁盘加载，后续走 LRU
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -93,9 +94,7 @@ class ShardedMemory:
         # 索引: key -> 所在分片号（避免每次都重新 hash）
         self._key_to_shard: dict[str, int] = {}
         # 分片级写锁（避免并发写同一分片）
-        self._shard_locks: list[threading.Lock] = [
-            threading.Lock() for _ in range(shard_count)
-        ]
+        self._shard_locks: list[threading.Lock] = [threading.Lock() for _ in range(shard_count)]
         # 全局读锁（保护 cache 和 index）
         self._global_lock = threading.RLock()
 
@@ -136,7 +135,9 @@ class ShardedMemory:
 
         logger.debug(
             "sharded_put key=%s shard=%d cache_size=%d",
-            key, shard_id, len(self._cache),
+            key,
+            shard_id,
+            len(self._cache),
         )
 
     def get(self, key: str) -> Any | None:
@@ -318,7 +319,8 @@ class ShardedMemory:
                 except (json.JSONDecodeError, KeyError) as e:
                     logger.warning(
                         "sharded_load_corrupt_line shard=%d error=%s",
-                        shard_id, e,
+                        shard_id,
+                        e,
                     )
             return data
         except OSError as e:

@@ -12,7 +12,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -21,10 +20,10 @@ import pytest
 
 from pycoder.extensions import manager as mgr
 
-
 # ══════════════════════════════════════════════════════════
 # Fixtures
 # ══════════════════════════════════════════════════════════
+
 
 @pytest.fixture
 def ext_dir(tmp_path, monkeypatch):
@@ -43,6 +42,7 @@ def em(ext_dir):
 
 class _MockProc:
     """模拟 asyncio.subprocess.Process"""
+
     def __init__(self, returncode=0, on_create=None):
         self.returncode = returncode
         self._on_create = on_create
@@ -99,6 +99,7 @@ def mock_async_subprocess_fail(monkeypatch):
 # __init__ / _load_installed
 # ══════════════════════════════════════════════════════════
 
+
 def test_init_creates_dir(tmp_path, monkeypatch):
     d = tmp_path / "new_exts"
     monkeypatch.setattr(mgr, "EXTENSIONS_DIR", d)
@@ -108,9 +109,14 @@ def test_init_creates_dir(tmp_path, monkeypatch):
 
 
 def test_init_loads_installed(ext_dir):
-    (ext_dir / "installed.json").write_text(json.dumps({
-        "ext1": {"name": "Ext1", "enabled": True, "path": "/x"},
-    }), encoding="utf-8")
+    (ext_dir / "installed.json").write_text(
+        json.dumps(
+            {
+                "ext1": {"name": "Ext1", "enabled": True, "path": "/x"},
+            }
+        ),
+        encoding="utf-8",
+    )
     m = mgr.ExtensionManager()
     assert "ext1" in m._installed
     assert m.is_installed("ext1")
@@ -130,6 +136,7 @@ def test_init_no_installed_file(ext_dir):
 # ══════════════════════════════════════════════════════════
 # install — 种子包
 # ══════════════════════════════════════════════════════════
+
 
 @pytest.mark.asyncio
 async def test_install_seed_package(em, ext_dir):
@@ -194,6 +201,7 @@ async def test_install_already_installed_returns_false(em):
 # install — GitHub/GitLab 扩展
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_install_github_extension(em, ext_dir, mock_async_subprocess):
     """git clone 成功"""
@@ -235,6 +243,7 @@ async def test_install_gitlab_extension(em, ext_dir, mock_async_subprocess):
 # install — 安全校验
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_install_unsafe_url_raises_permission_error(em):
     ext_data = {"name": "Bad", "url": "https://evil.com/malware"}
@@ -271,6 +280,7 @@ async def test_install_no_url_not_seed_returns_false(em):
 # enable / disable / is_enabled
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_enable(em):
     await em.install("pycoder.gitlens", {"name": "GitLens"})
@@ -302,6 +312,7 @@ def test_is_enabled_default_true(em):
 # update
 # ══════════════════════════════════════════════════════════
 
+
 def test_update_not_installed(em):
     assert em.update("nonexistent") is False
 
@@ -320,7 +331,9 @@ def test_update_github_pull_success(em, ext_dir, mock_subprocess):
     target.mkdir()
     (target / ".git").mkdir()
     em._installed["user/myext"] = {
-        "name": "MyExt", "path": str(target), "enabled": True,
+        "name": "MyExt",
+        "path": str(target),
+        "enabled": True,
     }
     r = MagicMock()
     r.returncode = 0
@@ -376,6 +389,7 @@ def test_update_github_oserror(em, ext_dir, mock_subprocess):
 # ══════════════════════════════════════════════════════════
 # get_config / set_config
 # ══════════════════════════════════════════════════════════
+
 
 def test_get_config_not_installed(em):
     assert em.get_config("nope", "key", "default") == "default"
@@ -451,6 +465,7 @@ async def test_set_config_corrupted_existing(em, ext_dir):
 # uninstall
 # ══════════════════════════════════════════════════════════
 
+
 def test_uninstall_not_installed(em):
     assert em.uninstall("nope") is False
 
@@ -483,6 +498,7 @@ def test_uninstall_path_not_exists(em, ext_dir):
 # get_installed / is_installed
 # ══════════════════════════════════════════════════════════
 
+
 def test_get_installed_empty(em):
     assert em.get_installed() == []
 
@@ -506,6 +522,7 @@ async def test_is_installed(em):
 # _save / _load_installed 往返
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_save_and_reload(em, ext_dir):
     await em.install("pycoder.gitlens", {"name": "GitLens"})
@@ -526,8 +543,9 @@ async def test_save_writes_json(em, ext_dir):
 # _SEED_PACKAGES 完整性
 # ══════════════════════════════════════════════════════════
 
+
 def test_seed_packages_have_code():
-    for ext_id, pkg in mgr._SEED_PACKAGES.items():
+    for _ext_id, pkg in mgr._SEED_PACKAGES.items():
         assert "manifest" in pkg
         assert "code" in pkg
         assert "extension.py" in pkg["code"]

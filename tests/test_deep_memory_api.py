@@ -25,7 +25,6 @@ from pycoder.memory.deep_memory import (
     reset_deep_memory,
 )
 
-
 _AUTH_HEADERS = {"X-API-Key": "test-task-api-key-12345"}
 
 # ── 辅助函数 ──────────────────────────────────────────────
@@ -97,9 +96,7 @@ def mock_system() -> MagicMock:
     system = MagicMock(spec=DeepMemorySystem)
 
     # store
-    system.store = AsyncMock(
-        return_value=_make_memory_entry("mem-new", level=3, key="new_key")
-    )
+    system.store = AsyncMock(return_value=_make_memory_entry("mem-new", level=3, key="new_key"))
 
     # retrieve
     system.retrieve = AsyncMock(return_value=_make_memory_context(3))
@@ -121,9 +118,7 @@ def mock_system() -> MagicMock:
     system.deep_search = AsyncMock(return_value=_make_memory_context(5))
 
     # cleanup
-    system.cleanup = AsyncMock(
-        return_value={1: 0, 2: 5, 3: 10, 4: 2}
-    )
+    system.cleanup = AsyncMock(return_value={1: 0, 2: 5, 3: 10, 4: 2})
 
     return system
 
@@ -133,9 +128,10 @@ def client_with_system(mock_system: MagicMock, monkeypatch) -> TestClient:
     """注入模拟 DeepMemorySystem 的 TestClient（自动添加认证头）"""
     monkeypatch.setenv("PYCODER_API_KEY", _AUTH_HEADERS["X-API-Key"])
     import importlib
+
     import pycoder.server.app as app_module
+
     importlib.reload(app_module)
-    from pycoder.server.routers import deep_memory_api
 
     # 替换 _get_system 函数
     with patch(
@@ -146,6 +142,7 @@ def client_with_system(mock_system: MagicMock, monkeypatch) -> TestClient:
 
         class _AuthClient:
             """自动添加认证头的 TestClient 包装器"""
+
             def __init__(self, client: TestClient):
                 self._client = client
 
@@ -261,11 +258,11 @@ class TestStoreMemory:
         )
         assert resp.status_code == 422
 
-    def test_store_value_error(self, client_with_system: TestClient, mock_system: MagicMock) -> None:
+    def test_store_value_error(
+        self, client_with_system: TestClient, mock_system: MagicMock
+    ) -> None:
         """测试存储值错误返回 400"""
-        mock_system.store = AsyncMock(
-            side_effect=ValueError("无效的记忆层级: 99")
-        )
+        mock_system.store = AsyncMock(side_effect=ValueError("无效的记忆层级: 99"))
 
         resp = client_with_system.post(
             "/api/memory/deep/store",
@@ -431,7 +428,9 @@ class TestMemoryStats:
         assert "chroma_available" in data
         assert data["chroma_available"] is True
 
-    def test_get_stats_zero_entries(self, client_with_system: TestClient, mock_system: MagicMock) -> None:
+    def test_get_stats_zero_entries(
+        self, client_with_system: TestClient, mock_system: MagicMock
+    ) -> None:
         """测试零条目统计"""
         mock_system.get_stats = MagicMock(
             return_value=MemoryStats(

@@ -24,7 +24,6 @@ from pycoder.gateway import (
     PlatformAdapter,
 )
 
-
 # ── 辅助函数 ──────────────────────────────────────────────
 
 
@@ -112,6 +111,7 @@ def client_with_gw(mock_gateway: MagicMock, monkeypatch) -> TestClient:
 
     # 禁用 API Key 认证（测试用）
     import pycoder.server.app as _app_module
+
     monkeypatch.setattr(_app_module, "_API_KEY", "")
 
     from pycoder.server.app import app
@@ -130,7 +130,9 @@ def client_with_gw(mock_gateway: MagicMock, monkeypatch) -> TestClient:
 class TestListPlatforms:
     """列出平台端点"""
 
-    def test_list_platforms_success(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_list_platforms_success(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试列出已注册平台"""
         mock_adapter = _MockAdapter("telegram")
         mock_adapter._running = True
@@ -144,7 +146,9 @@ class TestListPlatforms:
         assert "telegram" in platforms
         assert "discord" in platforms
 
-    def test_list_platforms_empty(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_list_platforms_empty(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试无已注册平台"""
         mock_gateway.available_platforms = []
 
@@ -154,7 +158,9 @@ class TestListPlatforms:
         data = resp.json()
         assert data == []
 
-    def test_list_platforms_with_status(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_list_platforms_with_status(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试平台状态信息"""
         running_adapter = _MockAdapter("telegram")
         running_adapter._running = True
@@ -179,7 +185,9 @@ class TestListPlatforms:
             elif p["name"] == "discord":
                 assert p["status"] == "stopped"
 
-    def test_list_platforms_get_all_adapters_error(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_list_platforms_get_all_adapters_error(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试获取适配器列表出错时不影响已注册平台"""
         mock_gateway.available_platforms = ["telegram"]
         mock_adapter = _MockAdapter("telegram")
@@ -202,7 +210,9 @@ class TestListPlatforms:
 class TestSendMessage:
     """发送消息端点"""
 
-    def test_send_message_success(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_send_message_success(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试成功发送消息"""
         mock_gateway.send_message = AsyncMock(return_value=True)
 
@@ -221,7 +231,9 @@ class TestSendMessage:
         assert data["target"] == "user_123"
         assert "已发送" in data["message"]
 
-    def test_send_message_failure(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_send_message_failure(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试发送失败"""
         mock_gateway.send_message = AsyncMock(return_value=False)
 
@@ -238,7 +250,9 @@ class TestSendMessage:
         assert data["success"] is False
         assert "失败" in data["message"]
 
-    def test_send_message_unavailable_platform(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_send_message_unavailable_platform(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试发送到不可用平台返回 400"""
         mock_gateway.available_platforms = ["telegram"]
 
@@ -284,7 +298,9 @@ class TestSendMessage:
 class TestListSessions:
     """列出会话端点"""
 
-    def test_list_sessions_success(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_list_sessions_success(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试列出活跃会话"""
         session = _make_mock_session("sess-001", "telegram", "user-001")
         sm = _make_mock_session_manager({("telegram", "user-001"): session})
@@ -309,7 +325,9 @@ class TestListSessions:
         assert data["total"] == 0
         assert data["sessions"] == []
 
-    def test_list_sessions_no_manager(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_list_sessions_no_manager(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试无会话管理器时返回空列表"""
         mock_gateway._session_manager = None
 
@@ -319,7 +337,9 @@ class TestListSessions:
         assert data["total"] == 0
         assert data["sessions"] == []
 
-    def test_list_sessions_with_active(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_list_sessions_with_active(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试活跃会话标记"""
         session = _make_mock_session("active-sess", "cli", "cli_user")
         sm = _make_mock_session_manager({("cli", "cli_user"): session})
@@ -353,7 +373,9 @@ class TestGetSession:
         assert data["user_id"] == "user-001"
         assert "messages" in data
 
-    def test_get_session_not_found(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_get_session_not_found(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试获取不存在的会话返回 404"""
         sm = _make_mock_session_manager({})
         mock_gateway._session_manager = sm
@@ -362,7 +384,9 @@ class TestGetSession:
         assert resp.status_code == 404
         assert "不存在" in resp.json()["error"]["message"]
 
-    def test_get_session_no_manager(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_get_session_no_manager(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试无会话管理器返回 404"""
         mock_gateway._session_manager = None
 
@@ -377,7 +401,9 @@ class TestGetSession:
 class TestSwitchSession:
     """切换会话端点"""
 
-    def test_switch_session_success(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_switch_session_success(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试成功切换会话"""
         session = _make_mock_session("sess-001", "telegram", "user-001")
         sm = _make_mock_session_manager({("telegram", "user-001"): session})
@@ -391,7 +417,9 @@ class TestSwitchSession:
         assert data["platform"] == "telegram"
         assert data["user_id"] == "user-001"
 
-    def test_switch_session_not_found(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_switch_session_not_found(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试切换不存在的会话返回 404"""
         sm = _make_mock_session_manager({})
         mock_gateway._session_manager = sm
@@ -400,7 +428,9 @@ class TestSwitchSession:
         assert resp.status_code == 404
         assert "不存在" in resp.json()["error"]["message"]
 
-    def test_switch_session_no_manager(self, client_with_gw: TestClient, mock_gateway: MagicMock) -> None:
+    def test_switch_session_no_manager(
+        self, client_with_gw: TestClient, mock_gateway: MagicMock
+    ) -> None:
         """测试无会话管理器返回 404"""
         mock_gateway._session_manager = None
 
@@ -551,11 +581,10 @@ class TestGatewayWebSocket:
         gateway_api._ws_clients["test_client"] = mock_ws
 
         async def _run() -> None:
-            await gateway_api.broadcast_gateway_event(
-                "test_event", {"key": "value"}
-            )
+            await gateway_api.broadcast_gateway_event("test_event", {"key": "value"})
 
         import asyncio
+
         asyncio.run(_run())
 
         mock_ws.send_json.assert_called_once()
@@ -578,6 +607,7 @@ class TestGatewayWebSocket:
             await gateway_api.broadcast_gateway_event("event", {})
 
         import asyncio
+
         asyncio.run(_run())
 
         # 断开的客户端应被移除

@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 """深度测试 Skills Market 功能"""
+
 import asyncio
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from pycoder.server.skills_market import get_skills_market, SkillsMarketManager
+from pycoder.server.skills_market import SkillsMarketManager, get_skills_market
 from pycoder.server.skills_updater import get_skills_fetcher
 
 
@@ -25,10 +26,10 @@ async def test_fetcher():
     fetcher = get_skills_fetcher()
     result = await fetcher.fetch_all_sources()
     print(f"✓ 总技能数: {result.get('total_skills', 0)}")
-    for source in result.get('sources', []):
-        status = "✓" if source.get('success') else "✗"
+    for source in result.get("sources", []):
+        status = "✓" if source.get("success") else "✗"
         print(f"    {status} {source['source']}: {source.get('count', '失败')}")
-    assert result.get('success', False), "爬虫数据源获取失败"
+    assert result.get("success", False), "爬虫数据源获取失败"
 
 
 def test_list_search():
@@ -39,7 +40,7 @@ def test_list_search():
 
     result = manager.list_skills(sort_by="stars", limit=5)
     print("✓ Top 5 技能 (按星数):")
-    for s in result.get('skills', [])[:5]:
+    for s in result.get("skills", [])[:5]:
         print(f"    - {s['name']} (⭐{s['stars']})")
 
     search_result = manager.list_skills(search="test", limit=3)
@@ -62,7 +63,7 @@ def test_install():
     print(f"  尝试安装: {skill.name}")
 
     result = manager.install_skill(skill.id)
-    assert result.get('success'), f"安装失败: {result.get('error')}"
+    assert result.get("success"), f"安装失败: {result.get('error')}"
     print(f"✓ 安装成功: {result['method']}")
     if manager._is_installed(skill):
         print("✓ 验证安装: 技能已在本地")
@@ -79,7 +80,7 @@ def test_rating():
 
     skill = skills[0]
     result = manager.rate_skill(skill.id, rating=4, review="很有用!")
-    assert result.get('success'), "评分失败"
+    assert result.get("success"), "评分失败"
     print(f"✓ 评分成功: {result['new_rating']} ⭐")
 
 
@@ -125,11 +126,11 @@ def test_errors():
     manager._load_local()
 
     result = manager.install_skill("nonexistent-xyz")
-    if not result.get('success'):
+    if not result.get("success"):
         print("✓ 正确处理不存在的技能")
 
     result = manager.rate_skill("test", rating=10)
-    if not result.get('success'):
+    if not result.get("success"):
         print("✓ 正确处理无效评分")
 
 

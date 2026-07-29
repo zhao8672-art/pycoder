@@ -22,19 +22,19 @@
     - monkeypatch _PIPELINE_DIR / _RUN_HISTORY_DIR 到 tmp_path 隔离文件系统
     - mock call_builtin_tool 返回 MCPCallResult
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pycoder.server.routers import pipeline as pipe_mod
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -83,7 +83,8 @@ class TestHelpers:
         """文件存在 → 返回 dict"""
         data = {"name": "p1", "steps": [], "description": "d"}
         (pipeline_dir / "p1.json").write_text(
-            json.dumps(data), encoding="utf-8",
+            json.dumps(data),
+            encoding="utf-8",
         )
         loaded = pipe_mod._load_pipeline("p1")
         assert loaded == data
@@ -153,27 +154,38 @@ class TestHelpers:
 class TestSavePipeline:
     def test_empty_name(self, app_client):
         """空名 → 400"""
-        resp = app_client.post("/api/pipeline/save", json={
-            "name": "  ", "steps": [{"tool": "t"}],
-        })
+        resp = app_client.post(
+            "/api/pipeline/save",
+            json={
+                "name": "  ",
+                "steps": [{"tool": "t"}],
+            },
+        )
         assert resp.status_code == 400
         assert "名称不能为空" in resp.json()["detail"]
 
     def test_no_steps(self, app_client):
         """无步骤 → 400"""
-        resp = app_client.post("/api/pipeline/save", json={
-            "name": "p", "steps": [],
-        })
+        resp = app_client.post(
+            "/api/pipeline/save",
+            json={
+                "name": "p",
+                "steps": [],
+            },
+        )
         assert resp.status_code == 400
         assert "至少需要一个步骤" in resp.json()["detail"]
 
     def test_success(self, app_client, pipeline_dir):
         """正常保存"""
-        resp = app_client.post("/api/pipeline/save", json={
-            "name": "p1",
-            "description": "测试",
-            "steps": [{"tool": "t1", "args": {}, "description": "第一步"}],
-        })
+        resp = app_client.post(
+            "/api/pipeline/save",
+            json={
+                "name": "p1",
+                "description": "测试",
+                "steps": [{"tool": "t1", "args": {}, "description": "第一步"}],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -203,15 +215,26 @@ class TestRunPipeline:
     def test_run_by_name_success(self, app_client, pipeline_dir):
         """按 name 加载已保存的流水线并执行"""
         # 先保存一个流水线
-        (pipeline_dir / "saved.json").write_text(json.dumps({
-            "name": "saved",
-            "steps": [{"tool": "t1", "args": {}}],
-        }), encoding="utf-8")
+        (pipeline_dir / "saved.json").write_text(
+            json.dumps(
+                {
+                    "name": "saved",
+                    "steps": [{"tool": "t1", "args": {}}],
+                }
+            ),
+            encoding="utf-8",
+        )
 
-        with patch.object(pipe_mod, "call_builtin_tool",
-                          new=AsyncMock(return_value=_make_result(
-                              success=True, output={"result": "ok"},
-                          ))):
+        with patch.object(
+            pipe_mod,
+            "call_builtin_tool",
+            new=AsyncMock(
+                return_value=_make_result(
+                    success=True,
+                    output={"result": "ok"},
+                )
+            ),
+        ):
             resp = app_client.post("/api/pipeline/run", json={"name": "saved"})
         assert resp.status_code == 200
         data = resp.json()
@@ -222,16 +245,25 @@ class TestRunPipeline:
 
     def test_run_inline_steps_success(self, app_client):
         """inline steps 模式"""
-        with patch.object(pipe_mod, "call_builtin_tool",
-                          new=AsyncMock(return_value=_make_result(
-                              success=True, output="done",
-                          ))):
-            resp = app_client.post("/api/pipeline/run", json={
-                "steps": [
-                    {"tool": "t1", "args": {"x": 1}},
-                    {"tool": "t2", "args": {"y": "{step_1.output.value}"}},
-                ],
-            })
+        with patch.object(
+            pipe_mod,
+            "call_builtin_tool",
+            new=AsyncMock(
+                return_value=_make_result(
+                    success=True,
+                    output="done",
+                )
+            ),
+        ):
+            resp = app_client.post(
+                "/api/pipeline/run",
+                json={
+                    "steps": [
+                        {"tool": "t1", "args": {"x": 1}},
+                        {"tool": "t2", "args": {"y": "{step_1.output.value}"}},
+                    ],
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -245,12 +277,15 @@ class TestRunPipeline:
         ]
         mock_call = AsyncMock(side_effect=side_effects)
         with patch.object(pipe_mod, "call_builtin_tool", new=mock_call):
-            resp = app_client.post("/api/pipeline/run", json={
-                "steps": [
-                    {"tool": "t1", "args": {}, "skip_on_fail": True},
-                    {"tool": "t2", "args": {}},
-                ],
-            })
+            resp = app_client.post(
+                "/api/pipeline/run",
+                json={
+                    "steps": [
+                        {"tool": "t1", "args": {}, "skip_on_fail": True},
+                        {"tool": "t2", "args": {}},
+                    ],
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True  # 整体仍成功
@@ -259,16 +294,25 @@ class TestRunPipeline:
 
     def test_step_failure_no_skip(self, app_client):
         """步骤失败 + skip_on_fail=False → 整体失败"""
-        with patch.object(pipe_mod, "call_builtin_tool",
-                          new=AsyncMock(return_value=_make_result(
-                              success=False, error="fatal",
-                          ))):
-            resp = app_client.post("/api/pipeline/run", json={
-                "steps": [
-                    {"tool": "t1", "args": {}, "skip_on_fail": False},
-                    {"tool": "t2", "args": {}},
-                ],
-            })
+        with patch.object(
+            pipe_mod,
+            "call_builtin_tool",
+            new=AsyncMock(
+                return_value=_make_result(
+                    success=False,
+                    error="fatal",
+                )
+            ),
+        ):
+            resp = app_client.post(
+                "/api/pipeline/run",
+                json={
+                    "steps": [
+                        {"tool": "t1", "args": {}, "skip_on_fail": False},
+                        {"tool": "t2", "args": {}},
+                    ],
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
@@ -279,12 +323,15 @@ class TestRunPipeline:
         """步骤抛异常 + skip_on_fail=True → 继续"""
         mock_call = AsyncMock(side_effect=RuntimeError("network"))
         with patch.object(pipe_mod, "call_builtin_tool", new=mock_call):
-            resp = app_client.post("/api/pipeline/run", json={
-                "steps": [
-                    {"tool": "t1", "args": {}, "skip_on_fail": True},
-                    {"tool": "t2", "args": {}},
-                ],
-            })
+            resp = app_client.post(
+                "/api/pipeline/run",
+                json={
+                    "steps": [
+                        {"tool": "t1", "args": {}, "skip_on_fail": True},
+                        {"tool": "t2", "args": {}},
+                    ],
+                },
+            )
         # 第一步异常被跳过；第二步还会被调用，但因 mock side_effect 持续抛
         # 所以第二步也会失败；为简化测试，断言整体响应
         assert resp.status_code == 200
@@ -293,12 +340,15 @@ class TestRunPipeline:
         """步骤抛异常 + 不跳过 → 整体失败"""
         mock_call = AsyncMock(side_effect=RuntimeError("boom"))
         with patch.object(pipe_mod, "call_builtin_tool", new=mock_call):
-            resp = app_client.post("/api/pipeline/run", json={
-                "steps": [
-                    {"tool": "t1", "args": {}},
-                    {"tool": "t2", "args": {}},
-                ],
-            })
+            resp = app_client.post(
+                "/api/pipeline/run",
+                json={
+                    "steps": [
+                        {"tool": "t1", "args": {}},
+                        {"tool": "t2", "args": {}},
+                    ],
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
@@ -309,13 +359,22 @@ class TestRunPipeline:
 
     def test_run_history_saved(self, app_client, history_dir):
         """执行后应保存历史文件"""
-        with patch.object(pipe_mod, "call_builtin_tool",
-                          new=AsyncMock(return_value=_make_result(
-                              success=True, output="ok",
-                          ))):
-            app_client.post("/api/pipeline/run", json={
-                "steps": [{"tool": "t1", "args": {}}],
-            })
+        with patch.object(
+            pipe_mod,
+            "call_builtin_tool",
+            new=AsyncMock(
+                return_value=_make_result(
+                    success=True,
+                    output="ok",
+                )
+            ),
+        ):
+            app_client.post(
+                "/api/pipeline/run",
+                json={
+                    "steps": [{"tool": "t1", "args": {}}],
+                },
+            )
         # 历史目录应有 1 个文件
         files = list(history_dir.glob("*.json"))
         assert len(files) == 1
@@ -337,14 +396,28 @@ class TestListPipelines:
 
     def test_with_pipelines(self, app_client, pipeline_dir):
         """有多个流水线 → 列出"""
-        (pipeline_dir / "a.json").write_text(json.dumps({
-            "name": "a", "description": "first",
-            "steps": [{"tool": "t"}], "updated_at": 100,
-        }), encoding="utf-8")
-        (pipeline_dir / "b.json").write_text(json.dumps({
-            "name": "b", "description": "second",
-            "steps": [{"tool": "t"}, {"tool": "t"}], "updated_at": 200,
-        }), encoding="utf-8")
+        (pipeline_dir / "a.json").write_text(
+            json.dumps(
+                {
+                    "name": "a",
+                    "description": "first",
+                    "steps": [{"tool": "t"}],
+                    "updated_at": 100,
+                }
+            ),
+            encoding="utf-8",
+        )
+        (pipeline_dir / "b.json").write_text(
+            json.dumps(
+                {
+                    "name": "b",
+                    "description": "second",
+                    "steps": [{"tool": "t"}, {"tool": "t"}],
+                    "updated_at": 200,
+                }
+            ),
+            encoding="utf-8",
+        )
         resp = app_client.get("/api/pipeline/list")
         assert resp.status_code == 200
         data = resp.json()

@@ -36,7 +36,6 @@ ITERATION_PROMPTS = {
 
 请输出完整的实现代码，包含适当的注释和错误处理。
 """,
-
     "review": """\
 审查以下 {language} 代码的质量:
 
@@ -55,7 +54,6 @@ ITERATION_PROMPTS = {
 
 输出问题列表（按严重程度排序）。
 """,
-
     "improve": """\
 基于以下审查意见改进代码:
 
@@ -158,11 +156,13 @@ class IterativeGenerator:
                 response = await self._call_llm(prompt, request.max_tokens, 0.2)
                 current_code = self._extract_code(response)
 
-            full_history.append({
-                "iteration": iteration,
-                "code": current_code,
-                "duration_ms": round((time.time() - iteration_start) * 1000, 1),
-            })
+            full_history.append(
+                {
+                    "iteration": iteration,
+                    "code": current_code,
+                    "duration_ms": round((time.time() - iteration_start) * 1000, 1),
+                }
+            )
 
         final_code = current_code if current_code.strip() else final_code
         if not final_code.strip():
@@ -181,14 +181,13 @@ class IterativeGenerator:
             confidence=0.85 if passes else 0.6,
         )
 
-    async def _call_llm(
-        self, prompt: str, max_tokens: int, temperature: float
-    ) -> str:
+    async def _call_llm(self, prompt: str, max_tokens: int, temperature: float) -> str:
         """调用 LLM"""
         try:
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.chat_bridge")
-            ChatBridge = getattr(_mod, "ChatBridge")
+            ChatBridge = _mod.ChatBridge
 
             bridge = ChatBridge()
             bridge.configure(

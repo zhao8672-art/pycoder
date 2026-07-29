@@ -7,6 +7,7 @@ P1-3 修复后应全部替换为具体异常类型 + 日志记录。
 - ``except Exception as e:`` + log.xxx(...)（明确记录日志）
 - WebSocket / API 边界层保留 catch-all（但必须 send error 给客户端）
 """
+
 from __future__ import annotations
 
 import re
@@ -14,16 +15,15 @@ from pathlib import Path
 
 import pytest
 
-
 # 匹配 ``except Exception:`` 后紧跟 ``pass``（中间可有空白）
 BARE_EXCEPT_PASS_PATTERN = re.compile(
-    r'except\s+Exception\s*:\s*\n\s*pass',
+    r"except\s+Exception\s*:\s*\n\s*pass",
     re.MULTILINE,
 )
 
 # 匹配 ``except Exception as e:`` 后紧跟 ``pass``（中间可有空白）
 EXCEPT_AS_PASS_PATTERN = re.compile(
-    r'except\s+Exception\s+as\s+\w+\s*:\s*\n\s*pass',
+    r"except\s+Exception\s+as\s+\w+\s*:\s*\n\s*pass",
     re.MULTILINE,
 )
 
@@ -66,12 +66,13 @@ def test_self_evolution_specific_lines_fixed():
     content = Path("pycoder/capabilities/self_evo/engine.py").read_text(encoding="utf-8")
 
     # V2 引擎中的具体异常处理
-    assert "except (OSError, UnicodeDecodeError)" in content, \
-        "_collect_snapshot file read 应使用具体异常"
-    assert "except FileNotFoundError" in content, \
-        "_run_ruff 应使用具体异常"
-    assert "except (json.JSONDecodeError, OSError)" in content, \
-        "_validate_evolution_token 应使用具体异常"
+    assert (
+        "except (OSError, UnicodeDecodeError)" in content
+    ), "_collect_snapshot file read 应使用具体异常"
+    assert "except FileNotFoundError" in content, "_run_ruff 应使用具体异常"
+    assert (
+        "except (json.JSONDecodeError, OSError)" in content
+    ), "_validate_evolution_token 应使用具体异常"
 
 
 def test_chat_handler_specific_lines_fixed():

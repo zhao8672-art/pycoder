@@ -6,12 +6,12 @@
     3. RateLimitMiddleware: 增强版速率限制（按路径分级）
     4. RequestBodyScannerMiddleware: 请求体 shell 注入扫描 (BUG-005)
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 import logging
-import re
 import time
 from collections import defaultdict
 from typing import Any
@@ -150,9 +150,7 @@ class RequestBodyScannerMiddleware(BaseHTTPMiddleware):
             else:
                 # 路径遍历检测
                 if ".." in value and (
-                    "/../" in value
-                    or value.startswith("../")
-                    or value.startswith("..\\")
+                    "/../" in value or value.startswith("../") or value.startswith("..\\")
                 ):
                     threats.append(
                         {
@@ -221,9 +219,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         "base-uri 'self'; "
         "form-action 'self'"
     )
-    _PERMISSIONS_POLICY = (
-        "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
-    )
+    _PERMISSIONS_POLICY = "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
 
     async def dispatch(self, request: Request, call_next: Any) -> Any:
         response = await call_next(request)
@@ -294,10 +290,7 @@ class ETagCacheMiddleware(BaseHTTPMiddleware):
         if if_none_match:
             # 提取所有 etag 值（去引号、忽略 W/ 弱验证前缀）
             client_tags = [t.strip() for t in if_none_match.split(",")]
-            client_tags = [
-                t[2:] if t.startswith("W/") else t
-                for t in client_tags
-            ]
+            client_tags = [t[2:] if t.startswith("W/") else t for t in client_tags]
             client_tags = [t.strip('"') for t in client_tags]
             if "*" in client_tags or etag in client_tags:
                 # 返回 304 Not Modified

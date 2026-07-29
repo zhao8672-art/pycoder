@@ -6,11 +6,11 @@
 - C3: 密码时序攻击
 - C4: API Key 日志泄露
 """
+
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -25,9 +25,9 @@ class TestSandboxNoImportBuiltin:
         sandbox_path = PROJECT_ROOT / "pycoder" / "server" / "routers" / "code_exec.py"
         content = sandbox_path.read_text(encoding="utf-8")
         # 提取 _SANDBOX_RUNNER 定义部分
-        assert "'__import__': __import__" not in content, (
-            "_safe_builtins 仍包含 __import__，沙箱可逃逸导致 RCE"
-        )
+        assert (
+            "'__import__': __import__" not in content
+        ), "_safe_builtins 仍包含 __import__，沙箱可逃逸导致 RCE"
 
     def test_sandbox_runner_imports_before_builtins(self):
         """沙箱 runner 的 import 应在 _safe_builtins 定义之前执行，
@@ -39,7 +39,7 @@ class TestSandboxNoImportBuiltin:
         # 验证 _SANDBOX_RUNNER 开头有 import 语句
         runner_start = content.find("_SANDBOX_RUNNER =")
         assert runner_start != -1
-        runner_section = content[runner_start:runner_start + 500]
+        runner_section = content[runner_start : runner_start + 500]
         assert "import sys" in runner_section
 
 
@@ -133,9 +133,7 @@ class TestWebSocketAuth:
         for f in ws_files:
             path = PROJECT_ROOT / f
             content = path.read_text(encoding="utf-8")
-            assert "verify_ws_auth" in content, (
-                f"{f} 中的 WebSocket 端点未调用 verify_ws_auth"
-            )
+            assert "verify_ws_auth" in content, f"{f} 中的 WebSocket 端点未调用 verify_ws_auth"
 
 
 class TestPasswordTimingSafe:
@@ -148,13 +146,11 @@ class TestPasswordTimingSafe:
         # 提取 verify_password 函数体
         func_start = content.find("def verify_password")
         assert func_start != -1
-        func_body = content[func_start:func_start + 500]
-        assert "compare_digest" in func_body, (
-            "verify_password 应使用 hmac.compare_digest 防止时序攻击"
-        )
-        assert "new_key == original_key" not in func_body, (
-            "verify_password 不应使用 == 比较密码"
-        )
+        func_body = content[func_start : func_start + 500]
+        assert (
+            "compare_digest" in func_body
+        ), "verify_password 应使用 hmac.compare_digest 防止时序攻击"
+        assert "new_key == original_key" not in func_body, "verify_password 不应使用 == 比较密码"
 
     def test_verify_password_correct(self):
         """正确密码应验证通过"""
@@ -187,7 +183,7 @@ class TestAPIKeyLogMasking:
         # 查找自动生成 key 的日志语句
         auto_gen_start = content.find("已自动生成临时 API Key")
         assert auto_gen_start != -1
-        log_section = content[auto_gen_start - 200:auto_gen_start + 200]
+        log_section = content[auto_gen_start - 200 : auto_gen_start + 200]
         # 不应直接用 _API_KEY 作为日志参数
         assert "_masked" in log_section, "日志应使用脱敏后的 _masked 而非 _API_KEY"
 

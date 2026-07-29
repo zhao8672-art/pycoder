@@ -6,4 +6,5 @@
     - routers/skills_lifecycle_api.py
     - routers/skills_marketplace_api.py
 """
+
 from __future__ import annotations

@@ -3,9 +3,9 @@
 目标: 行覆盖率 >= 80%
 覆盖端点: POST /api/format
 """
+
 from __future__ import annotations
 
-import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -59,7 +59,9 @@ class TestFormatCode:
         """isort 格式化成功"""
         with patch.object(format_api.subprocess, "run") as mock_run:
             mock_run.return_value = _make_completed_process(returncode=0)
-            resp = client.post("/api/format", json={"code": "import os\nimport sys", "style": "isort"})
+            resp = client.post(
+                "/api/format", json={"code": "import os\nimport sys", "style": "isort"}
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True

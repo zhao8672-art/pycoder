@@ -28,42 +28,44 @@ from pycoder.core.services.log import log
 class LifecycleStage(str, Enum):
     """技能生命周期阶段"""
 
-    EMERGING = "emerging"      # 新兴: 28天增速 > 50%, 社区热度快速上升
-    GROWING = "growing"        # 增长: 增速 20-50%, 稳定上升
-    MATURE = "mature"          # 成熟: 增速 < 20%, 已广泛采用
-    DECLINING = "declining"    # 衰退: 增速为负
-    STABLE = "stable"          # 稳定: 长期保持, 少量波动
-    UNKNOWN = "unknown"        # 数据不足
+    EMERGING = "emerging"  # 新兴: 28天增速 > 50%, 社区热度快速上升
+    GROWING = "growing"  # 增长: 增速 20-50%, 稳定上升
+    MATURE = "mature"  # 成熟: 增速 < 20%, 已广泛采用
+    DECLINING = "declining"  # 衰退: 增速为负
+    STABLE = "stable"  # 稳定: 长期保持, 少量波动
+    UNKNOWN = "unknown"  # 数据不足
 
 
 @dataclass
 class SkillSnapshot:
     """技能在某个时间点的快照"""
+
     skill_id: str
     skill_name: str
     category: str
-    stars_28d: int          # 28天新增 star
-    stars_total: int         # 总 star
-    stars_rate: float        # 28天增速 (小数, 如 0.35)
-    source: str              # 数据源
-    timestamp: float         # 快照时间
+    stars_28d: int  # 28天新增 star
+    stars_total: int  # 总 star
+    stars_rate: float  # 28天增速 (小数, 如 0.35)
+    source: str  # 数据源
+    timestamp: float  # 快照时间
 
 
 @dataclass
 class SkillTrend:
     """技能趋势分析结果"""
+
     skill_id: str
     skill_name: str
     category: str
     stage: LifecycleStage
     stars_28d: int
     stars_total: int
-    growth_rate_28d: float      # 28天增长率
-    growth_rate_prev: float     # 前28天增长率 (对比用)
-    momentum: float             # 动量: 当前增速 - 前一期增速
-    weeks_on_rise: int          # 持续上升周数
-    peak_rank: int | None       # 历史最高排名
-    current_rank: int           # 当前排名
+    growth_rate_28d: float  # 28天增长率
+    growth_rate_prev: float  # 前28天增长率 (对比用)
+    momentum: float  # 动量: 当前增速 - 前一期增速
+    weeks_on_rise: int  # 持续上升周数
+    peak_rank: int | None  # 历史最高排名
+    current_rank: int  # 当前排名
     source: str
 
     def to_dict(self) -> dict:
@@ -89,70 +91,70 @@ class SkillTrend:
 # 字段: 技术名称 → [2024采用率%, 2025采用率%]
 SO_SURVEY_ADOPTION: dict[str, list[float]] = {
     # 编程语言
-    "JavaScript":       [62.3, 60.4],
-    "Python":           [45.4, 51.0],
-    "TypeScript":       [38.9, 42.2],
-    "HTML/CSS":         [55.1, 52.8],
-    "SQL":              [51.5, 48.9],
-    "Java":             [30.6, 28.9],
-    "Bash/Shell":       [29.2, 27.1],
-    "C#":               [27.2, 25.6],
-    "C++":              [20.8, 21.0],
-    "C":                [19.2, 18.5],
-    "Go":               [14.2, 15.8],
-    "Rust":             [7.2, 9.3],
-    "Kotlin":           [6.5, 7.1],
-    "Ruby":             [5.9, 5.2],
-    "PHP":              [18.4, 15.8],
-    "Swift":            [4.8, 5.0],
-    "R":                [4.3, 3.8],
-    "Dart":             [3.5, 4.2],
-    "Lua":              [2.8, 3.5],
-    "Zig":              [0.5, 1.2],
+    "JavaScript": [62.3, 60.4],
+    "Python": [45.4, 51.0],
+    "TypeScript": [38.9, 42.2],
+    "HTML/CSS": [55.1, 52.8],
+    "SQL": [51.5, 48.9],
+    "Java": [30.6, 28.9],
+    "Bash/Shell": [29.2, 27.1],
+    "C#": [27.2, 25.6],
+    "C++": [20.8, 21.0],
+    "C": [19.2, 18.5],
+    "Go": [14.2, 15.8],
+    "Rust": [7.2, 9.3],
+    "Kotlin": [6.5, 7.1],
+    "Ruby": [5.9, 5.2],
+    "PHP": [18.4, 15.8],
+    "Swift": [4.8, 5.0],
+    "R": [4.3, 3.8],
+    "Dart": [3.5, 4.2],
+    "Lua": [2.8, 3.5],
+    "Zig": [0.5, 1.2],
     # Web 框架
-    "Node.js":          [42.7, 40.8],
-    "React":            [40.6, 42.5],
-    "jQuery":           [24.1, 19.5],
-    "Express":          [22.0, 20.2],
-    "Next.js":          [13.5, 17.2],
-    "Vue.js":           [15.2, 14.9],
-    "Django":           [12.8, 13.5],
-    "Angular":          [16.7, 14.3],
-    "FastAPI":          [7.2, 11.0],
-    "Spring Boot":      [9.8, 9.5],
-    "Flask":            [10.5, 9.8],
-    "ASP.NET":          [8.2, 7.5],
-    "Svelte":           [3.2, 5.1],
-    "Solid.js":         [0.8, 1.5],
+    "Node.js": [42.7, 40.8],
+    "React": [40.6, 42.5],
+    "jQuery": [24.1, 19.5],
+    "Express": [22.0, 20.2],
+    "Next.js": [13.5, 17.2],
+    "Vue.js": [15.2, 14.9],
+    "Django": [12.8, 13.5],
+    "Angular": [16.7, 14.3],
+    "FastAPI": [7.2, 11.0],
+    "Spring Boot": [9.8, 9.5],
+    "Flask": [10.5, 9.8],
+    "ASP.NET": [8.2, 7.5],
+    "Svelte": [3.2, 5.1],
+    "Solid.js": [0.8, 1.5],
     # AI/ML
-    "TensorFlow":       [12.8, 11.2],
-    "PyTorch":          [8.5, 12.1],
-    "OpenAI API":       [5.2, 9.8],
-    "LangChain":        [2.1, 5.5],
-    "HuggingFace":      [3.5, 6.2],
-    "Scikit-learn":     [12.1, 11.5],
-    "Pandas":           [15.2, 14.8],
+    "TensorFlow": [12.8, 11.2],
+    "PyTorch": [8.5, 12.1],
+    "OpenAI API": [5.2, 9.8],
+    "LangChain": [2.1, 5.5],
+    "HuggingFace": [3.5, 6.2],
+    "Scikit-learn": [12.1, 11.5],
+    "Pandas": [15.2, 14.8],
     # 数据库
-    "PostgreSQL":       [36.0, 40.2],
-    "MySQL":            [37.5, 35.8],
-    "SQLite":           [31.2, 33.5],
-    "MongoDB":          [24.5, 22.8],
-    "Redis":            [17.8, 18.5],
-    "Elasticsearch":    [10.5, 9.2],
-    "DuckDB":           [0.8, 3.5],
+    "PostgreSQL": [36.0, 40.2],
+    "MySQL": [37.5, 35.8],
+    "SQLite": [31.2, 33.5],
+    "MongoDB": [24.5, 22.8],
+    "Redis": [17.8, 18.5],
+    "Elasticsearch": [10.5, 9.2],
+    "DuckDB": [0.8, 3.5],
     # 云/DevOps
-    "Docker":           [34.8, 36.2],
-    "Kubernetes":       [21.2, 22.5],
-    "AWS":              [44.2, 42.5],
-    "Azure":            [27.5, 28.2],
-    "GitHub Actions":   [18.5, 22.8],
-    "Terraform":        [12.5, 14.2],
+    "Docker": [34.8, 36.2],
+    "Kubernetes": [21.2, 22.5],
+    "AWS": [44.2, 42.5],
+    "Azure": [27.5, 28.2],
+    "GitHub Actions": [18.5, 22.8],
+    "Terraform": [12.5, 14.2],
     # 工具
-    "VS Code":          [73.7, 75.2],
-    "Git":              [93.5, 92.8],
-    "Copilot":          [18.2, 32.1],
-    "ChatGPT":          [22.5, 38.2],
-    "Claude":           [3.2, 12.5],
+    "VS Code": [73.7, 75.2],
+    "Git": [93.5, 92.8],
+    "Copilot": [18.2, 32.1],
+    "ChatGPT": [22.5, 38.2],
+    "Claude": [3.2, 12.5],
 }
 
 
@@ -160,22 +162,84 @@ def classify_so_technology(name: str) -> str:
     """将 SO 技术名映射到 ONET 分类"""
     text = name.lower()
     map_to_onet = {
-        "programming-language": ["javascript", "python", "typescript", "java",
-                                 "c#", "c++", "go", "rust", "kotlin", "ruby",
-                                 "php", "swift", "dart", "lua", "zig", "r",
-                                 "bash", "shell", "html", "css", "sql"],
-        "ai-ml": ["tensorflow", "pytorch", "openai", "langchain", "huggingface",
-                  "scikit-learn", "pandas", "chatgpt", "claude", "copilot",
-                  "llm", "ml", "machine learning", "deep learning"],
-        "web": ["react", "vue", "angular", "svelte", "next.js", "node.js",
-                "express", "django", "flask", "fastapi", "jquery", "solid.js",
-                "spring", "asp.net"],
-        "database": ["postgresql", "mysql", "sqlite", "mongodb", "redis",
-                     "elasticsearch", "duckdb", "cassandra", "mariadb"],
-        "devops": ["docker", "kubernetes", "aws", "azure", "github actions",
-                   "terraform", "ansible", "jenkins", "ci/cd"],
-        "testing": ["jest", "pytest", "cypress", "playwright", "selenium",
-                    "mocha", "vitest"],
+        "programming-language": [
+            "javascript",
+            "python",
+            "typescript",
+            "java",
+            "c#",
+            "c++",
+            "go",
+            "rust",
+            "kotlin",
+            "ruby",
+            "php",
+            "swift",
+            "dart",
+            "lua",
+            "zig",
+            "r",
+            "bash",
+            "shell",
+            "html",
+            "css",
+            "sql",
+        ],
+        "ai-ml": [
+            "tensorflow",
+            "pytorch",
+            "openai",
+            "langchain",
+            "huggingface",
+            "scikit-learn",
+            "pandas",
+            "chatgpt",
+            "claude",
+            "copilot",
+            "llm",
+            "ml",
+            "machine learning",
+            "deep learning",
+        ],
+        "web": [
+            "react",
+            "vue",
+            "angular",
+            "svelte",
+            "next.js",
+            "node.js",
+            "express",
+            "django",
+            "flask",
+            "fastapi",
+            "jquery",
+            "solid.js",
+            "spring",
+            "asp.net",
+        ],
+        "database": [
+            "postgresql",
+            "mysql",
+            "sqlite",
+            "mongodb",
+            "redis",
+            "elasticsearch",
+            "duckdb",
+            "cassandra",
+            "mariadb",
+        ],
+        "devops": [
+            "docker",
+            "kubernetes",
+            "aws",
+            "azure",
+            "github actions",
+            "terraform",
+            "ansible",
+            "jenkins",
+            "ci/cd",
+        ],
+        "testing": ["jest", "pytest", "cypress", "playwright", "selenium", "mocha", "vitest"],
         "mcp-tools": ["vscode", "copilot", "git", "chatgpt", "claude"],
     }
     for category, keywords in map_to_onet.items():
@@ -262,9 +326,16 @@ class SkillLifecycleEngine:
                 "(skill_id, skill_name, category, stars_28d, stars_total, "
                 " stars_rate, source, timestamp) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (snapshot.skill_id, snapshot.skill_name, snapshot.category,
-                 snapshot.stars_28d, snapshot.stars_total,
-                 snapshot.stars_rate, snapshot.source, snapshot.timestamp),
+                (
+                    snapshot.skill_id,
+                    snapshot.skill_name,
+                    snapshot.category,
+                    snapshot.stars_28d,
+                    snapshot.stars_total,
+                    snapshot.stars_rate,
+                    snapshot.source,
+                    snapshot.timestamp,
+                ),
             )
             conn.commit()
             conn.close()
@@ -283,9 +354,16 @@ class SkillLifecycleEngine:
                     "(skill_id, skill_name, category, stars_28d, stars_total, "
                     " stars_rate, source, timestamp) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (s.skill_id, s.skill_name, s.category,
-                     s.stars_28d, s.stars_total,
-                     s.stars_rate, s.source, s.timestamp or now),
+                    (
+                        s.skill_id,
+                        s.skill_name,
+                        s.category,
+                        s.stars_28d,
+                        s.stars_total,
+                        s.stars_rate,
+                        s.source,
+                        s.timestamp or now,
+                    ),
                 )
             conn.commit()
             conn.close()
@@ -381,16 +459,18 @@ class SkillLifecycleEngine:
             stars_total = item.get("stars_total", 0) or 1
             stars_rate = stars_28d / max(stars_total, 1)
 
-            snapshots.append(SkillSnapshot(
-                skill_id=item["id"],
-                skill_name=item.get("name", ""),
-                category=item.get("category", ""),
-                stars_28d=stars_28d,
-                stars_total=stars_total,
-                stars_rate=stars_rate,
-                source=source,
-                timestamp=now,
-            ))
+            snapshots.append(
+                SkillSnapshot(
+                    skill_id=item["id"],
+                    skill_name=item.get("name", ""),
+                    category=item.get("category", ""),
+                    stars_28d=stars_28d,
+                    stars_total=stars_total,
+                    stars_rate=stars_rate,
+                    source=source,
+                    timestamp=now,
+                )
+            )
         self.save_snapshots_batch(snapshots)
 
         # 分析趋势
@@ -416,21 +496,23 @@ class SkillLifecycleEngine:
 
             stage = self.classify_stage(stars_rate, momentum)
 
-            trends.append(SkillTrend(
-                skill_id=sid,
-                skill_name=item.get("name", ""),
-                category=item.get("category", ""),
-                stage=stage,
-                stars_28d=latest.stars_28d,
-                stars_total=latest.stars_total,
-                growth_rate_28d=stars_rate,
-                growth_rate_prev=prev_rate,
-                momentum=momentum,
-                weeks_on_rise=weeks_on_rise,
-                peak_rank=None,
-                current_rank=i + 1,
-                source=source,
-            ))
+            trends.append(
+                SkillTrend(
+                    skill_id=sid,
+                    skill_name=item.get("name", ""),
+                    category=item.get("category", ""),
+                    stage=stage,
+                    stars_28d=latest.stars_28d,
+                    stars_total=latest.stars_total,
+                    growth_rate_28d=stars_rate,
+                    growth_rate_prev=prev_rate,
+                    momentum=momentum,
+                    weeks_on_rise=weeks_on_rise,
+                    peak_rank=None,
+                    current_rank=i + 1,
+                    source=source,
+                )
+            )
 
         return trends
 
@@ -447,9 +529,19 @@ class SkillLifecycleEngine:
                     " growth_rate_prev, momentum, weeks_on_rise, current_rank, "
                     " last_updated, source) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (t.skill_id, t.skill_name, t.category, t.stage.value,
-                     t.growth_rate_28d, t.growth_rate_prev, t.momentum,
-                     t.weeks_on_rise, t.current_rank, now, t.source),
+                    (
+                        t.skill_id,
+                        t.skill_name,
+                        t.category,
+                        t.stage.value,
+                        t.growth_rate_28d,
+                        t.growth_rate_prev,
+                        t.momentum,
+                        t.weeks_on_rise,
+                        t.current_rank,
+                        now,
+                        t.source,
+                    ),
                 )
             conn.commit()
             conn.close()
@@ -515,10 +607,9 @@ class SkillLifecycleEngine:
                     "growth_rate": r[3],
                     "category": r[4],
                     "stage": (
-                        "emerging" if r[3] > 0.3 else
-                        "growing" if r[3] > 0.1 else
-                        "declining" if r[3] < -0.05 else
-                        "mature"
+                        "emerging"
+                        if r[3] > 0.3
+                        else "growing" if r[3] > 0.1 else "declining" if r[3] < -0.05 else "mature"
                     ),
                 }
                 for r in rows

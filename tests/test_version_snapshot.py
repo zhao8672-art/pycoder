@@ -14,10 +14,9 @@
 
 from __future__ import annotations
 
-import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -29,7 +28,6 @@ from pycoder.server.services.version_snapshot import (
     VersionSnapshot,
     get_snapshot_manager,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # FileDiff 测试
@@ -367,9 +365,7 @@ class TestSnapshotManager:
         assert "test.py" in result.files_restored
 
     @pytest.mark.asyncio
-    async def test_rollback_with_restore_targets(
-        self, manager_with_files: SnapshotManager
-    ) -> None:
+    async def test_rollback_with_restore_targets(self, manager_with_files: SnapshotManager) -> None:
         """指定恢复目标文件回滚"""
         with patch.object(
             manager_with_files,
@@ -388,9 +384,7 @@ class TestSnapshotManager:
                 ):
                     snapshot = await manager_with_files.create_snapshot("v1")
 
-        result = await manager_with_files.rollback(
-            snapshot.id, restore_targets=["test.py"]
-        )
+        result = await manager_with_files.rollback(snapshot.id, restore_targets=["test.py"])
         assert result.success is True
         assert "test.py" in result.files_restored
         assert "utils.py" not in result.files_restored
@@ -509,9 +503,7 @@ class TestSnapshotManager:
             id="snap-2", parent_id=None, created_at=2.0, label="v2", files=[fd2]
         )
 
-        with patch.object(
-            manager, "_load_snapshot", side_effect=[snap1, snap2]
-        ):
+        with patch.object(manager, "_load_snapshot", side_effect=[snap1, snap2]):
             diffs = manager.get_diff("snap-1", "snap-2")
             changes = {d["path"]: d["change"] for d in diffs}
             assert changes.get("a.py") == "removed"
@@ -545,9 +537,7 @@ class TestSnapshotManager:
             assert not f.startswith("__pycache__")
             assert not f.startswith(".pycoder_")
 
-    def test_collect_tracked_files_ignores_patterns(
-        self, temp_workspace: Path
-    ) -> None:
+    def test_collect_tracked_files_ignores_patterns(self, temp_workspace: Path) -> None:
         """验证忽略规则"""
         (temp_workspace / "node_modules").mkdir(exist_ok=True)
         (temp_workspace / "node_modules" / "lib.js").write_text("// lib")
@@ -690,6 +680,7 @@ class TestGetSnapshotManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             # 重置全局单例以便测试
             import pycoder.server.services.version_snapshot as vs
+
             vs._default_snapshot_manager = None
 
             manager = get_snapshot_manager(tmpdir)
@@ -699,6 +690,7 @@ class TestGetSnapshotManager:
         """多次调用返回同一实例"""
         with tempfile.TemporaryDirectory() as tmpdir:
             import pycoder.server.services.version_snapshot as vs
+
             vs._default_snapshot_manager = None
 
             m1 = get_snapshot_manager(tmpdir)
@@ -708,6 +700,7 @@ class TestGetSnapshotManager:
     def test_uses_cwd_when_no_workspace(self) -> None:
         """无工作区时使用当前目录"""
         import pycoder.server.services.version_snapshot as vs
+
         vs._default_snapshot_manager = None
 
         with patch("os.getcwd", return_value=str(Path.cwd())):

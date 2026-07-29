@@ -9,15 +9,14 @@
   - mock verify_ws_auth, subprocess.Popen, winpty
   - 测试 Windows subprocess 模式 + pywinpty 模式 + Unix pty 模式
 """
+
 from __future__ import annotations
 
-import asyncio
-import io
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pycoder.server.routers import terminal
@@ -42,6 +41,7 @@ def _mock_verify_ws_auth(monkeypatch, return_value=True):
     真实 verify_ws_auth 在认证失败时会调用 ``ws.close()``，mock 也需
     复现该行为，否则终端 WS 端点 ``return`` 后连接悬空导致 TestClient 挂起。
     """
+
     async def mock_auth(ws):
         if not return_value:
             # 复现真实行为：认证失败时关闭连接
@@ -222,7 +222,11 @@ class TestTerminalWsSubprocessMode:
 
     def test_cd_invalid_path(self, client, mock_env, monkeypatch):
         """cd 到不存在的路径"""
-        monkeypatch.setattr(terminal, "WORKSPACE_ROOT", __import__("pathlib").Path("/nonexistent_root_12345").resolve())
+        monkeypatch.setattr(
+            terminal,
+            "WORKSPACE_ROOT",
+            __import__("pathlib").Path("/nonexistent_root_12345").resolve(),
+        )
         with client.websocket_connect("/ws/terminal") as ws:
             ws.receive_json()  # connected
             ws.send_json({"type": "cd", "path": "/nonexistent_path_67890"})
@@ -409,7 +413,8 @@ class TestTerminalWsErrors:
         monkeypatch.setattr(terminal, "_is_windows", lambda: True)
         monkeypatch.setattr(terminal, "_has_winpty", lambda: False)
         monkeypatch.setattr(
-            terminal.subprocess, "Popen",
+            terminal.subprocess,
+            "Popen",
             MagicMock(side_effect=OSError("spawn failed")),
         )
         with client.websocket_connect("/ws/terminal") as ws:
@@ -450,13 +455,17 @@ class TestTerminalWsUnixPtyMode:
 
         # mock os 相关函数（部分 Unix-only，raising=False 允许在 Windows 注入）
         mock_fd_pair = (999, 998)
-        monkeypatch.setattr(terminal.os, "openpty", MagicMock(return_value=mock_fd_pair), raising=False)
+        monkeypatch.setattr(
+            terminal.os, "openpty", MagicMock(return_value=mock_fd_pair), raising=False
+        )
         monkeypatch.setattr(terminal.os, "close", MagicMock())
         monkeypatch.setattr(terminal.os, "setsid", MagicMock(), raising=False)  # Unix-only
         monkeypatch.setattr(terminal.os, "read", MagicMock(return_value=b""))  # reader 退出
         monkeypatch.setattr(terminal.os, "write", MagicMock())
         monkeypatch.setattr(terminal.os, "killpg", MagicMock(), raising=False)  # Unix-only
-        monkeypatch.setattr(terminal.os, "getpgid", MagicMock(return_value=12345), raising=False)  # Unix-only
+        monkeypatch.setattr(
+            terminal.os, "getpgid", MagicMock(return_value=12345), raising=False
+        )  # Unix-only
 
         process = _make_mock_process()
         # preexec_fn 参数在 Unix 模式下使用,需要 mock
@@ -672,6 +681,7 @@ class TestTerminalErrorHandling:
                 ws.receive_json()  # exit 消息
             except (ConnectionError, RuntimeError):
                 pass  # 连接关闭也可接受
+
     def test_cd_broken_pipe(self, client, monkeypatch):
         """cd 写入 BrokenPipeError → 连接关闭"""
         _mock_verify_ws_auth(monkeypatch, True)
@@ -688,6 +698,7 @@ class TestTerminalErrorHandling:
                 ws.receive_json()  # exit 消息
             except (ConnectionError, RuntimeError):
                 pass  # 连接关闭也可接受
+
     def test_pty_close_oserror(self, client, monkeypatch):
         """PTY 模式断开时 pty.close 抛 OSError → 被捕获"""
         _mock_verify_ws_auth(monkeypatch, True)
@@ -736,7 +747,9 @@ class TestTerminalErrorHandling:
         monkeypatch.setattr(terminal, "_is_windows", lambda: False)
 
         mock_fd_pair = (999, 998)
-        monkeypatch.setattr(terminal.os, "openpty", MagicMock(return_value=mock_fd_pair), raising=False)
+        monkeypatch.setattr(
+            terminal.os, "openpty", MagicMock(return_value=mock_fd_pair), raising=False
+        )
         monkeypatch.setattr(terminal.os, "close", MagicMock())
         monkeypatch.setattr(terminal.os, "setsid", MagicMock(), raising=False)
         monkeypatch.setattr(terminal.os, "read", MagicMock(return_value=b""))
@@ -764,7 +777,9 @@ class TestTerminalErrorHandling:
         monkeypatch.setattr(terminal, "_is_windows", lambda: False)
 
         mock_fd_pair = (999, 998)
-        monkeypatch.setattr(terminal.os, "openpty", MagicMock(return_value=mock_fd_pair), raising=False)
+        monkeypatch.setattr(
+            terminal.os, "openpty", MagicMock(return_value=mock_fd_pair), raising=False
+        )
         # os.close 第一次(slave_fd)正常,第二次(master_fd)抛异常
         close_count = [0]
 

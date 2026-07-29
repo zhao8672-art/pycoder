@@ -303,9 +303,7 @@ class MessageGateway:
             try:
                 response = await self._message_router.route_message(gateway_msg)
                 if response:
-                    await self.send_message(
-                        gateway_msg.platform, gateway_msg.user_id, response
-                    )
+                    await self.send_message(gateway_msg.platform, gateway_msg.user_id, response)
             except Exception as e:
                 logger.error("消息路由处理失败: %s", e)
 

@@ -6,10 +6,7 @@ V2 核心模块测试 — 总线、安全、能力、引擎
 
 import asyncio
 import os
-import sys
 from pathlib import Path
-
-import pytest
 
 # ── 总线测试 ───────────────────────────────
 
@@ -18,11 +15,13 @@ class TestCapabilityRegistry:
     """能力注册表测试"""
 
     def test_register_and_list(self):
-        from pycoder.bus.registry import CapabilityRegistry
         from pycoder.bus.protocol import (
-            CapabilityCategory, CapabilityDefinition,
-            ExecutionMode, SideEffect, TrustLevel,
+            CapabilityCategory,
+            CapabilityDefinition,
+            SideEffect,
+            TrustLevel,
         )
+        from pycoder.bus.registry import CapabilityRegistry
 
         registry = CapabilityRegistry()
         assert registry.count == 0
@@ -46,18 +45,22 @@ class TestCapabilityRegistry:
         assert registry.get("test.read").name == "测试读取"
 
     def test_search_by_keyword(self):
-        from pycoder.bus.registry import CapabilityRegistry
         from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, TrustLevel
+        from pycoder.bus.registry import CapabilityRegistry
 
         registry = CapabilityRegistry()
 
         for i, kw in enumerate(["读取文件", "写入文件", "Git提交", "执行命令"]):
-            registry.register(CapabilityDefinition(
-                id=f"test.{i}", name=kw, description=f"测试{i}",
-                category=CapabilityCategory.EDITOR,
-                permission=TrustLevel.READ_ONLY,
-                tags=["测试"],
-            ))
+            registry.register(
+                CapabilityDefinition(
+                    id=f"test.{i}",
+                    name=kw,
+                    description=f"测试{i}",
+                    category=CapabilityCategory.EDITOR,
+                    permission=TrustLevel.READ_ONLY,
+                    tags=["测试"],
+                )
+            )
 
         results = registry.search("读取")
         assert len(results) >= 1
@@ -68,25 +71,33 @@ class TestCapabilityRegistry:
         assert any("git" in r.name.lower() for r in results)
 
     def test_search_by_description(self):
-        from pycoder.bus.registry import CapabilityRegistry
         from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, TrustLevel
+        from pycoder.bus.registry import CapabilityRegistry
 
         registry = CapabilityRegistry()
 
-        registry.register(CapabilityDefinition(
-            id="editor.code.write", name="写入代码文件",
-            description="将内容写入指定路径的文件",
-            category=CapabilityCategory.EDITOR,
-            permission=TrustLevel.WORKSPACE_WRITE,
-            tags=["write", "写入", "文件"],
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="editor.code.write",
+                name="写入代码文件",
+                description="将内容写入指定路径的文件",
+                category=CapabilityCategory.EDITOR,
+                permission=TrustLevel.WORKSPACE_WRITE,
+                tags=["write", "写入", "文件"],
+            )
+        )
 
         results = registry.search_by_description("我想修改一个文件")
         assert len(results) >= 1
 
     def test_async_call(self):
+        from pycoder.bus.protocol import (
+            CapabilityCall,
+            CapabilityCategory,
+            CapabilityDefinition,
+            TrustLevel,
+        )
         from pycoder.bus.registry import CapabilityRegistry
-        from pycoder.bus.protocol import CapabilityCall, CapabilityCategory, CapabilityDefinition, TrustLevel
 
         registry = CapabilityRegistry()
 
@@ -104,20 +115,24 @@ class TestCapabilityRegistry:
             handler=handler,
         )
 
-        result = asyncio.run(registry.call(
-            CapabilityCall(capability_id="test.double", params={"value": 21}),
-        ))
+        result = asyncio.run(
+            registry.call(
+                CapabilityCall(capability_id="test.double", params={"value": 21}),
+            )
+        )
         assert result.success
         assert result.data["result"] == 42
 
     def test_call_nonexistent(self):
-        from pycoder.bus.registry import CapabilityRegistry
         from pycoder.bus.protocol import CapabilityCall
+        from pycoder.bus.registry import CapabilityRegistry
 
         registry = CapabilityRegistry()
-        result = asyncio.run(registry.call(
-            CapabilityCall(capability_id="nonexistent.capability", params={}),
-        ))
+        result = asyncio.run(
+            registry.call(
+                CapabilityCall(capability_id="nonexistent.capability", params={}),
+            )
+        )
         assert not result.success
         assert result.error_code == "CAPABILITY_NOT_FOUND"
 
@@ -126,15 +141,20 @@ class TestIntelligentRouter:
     """智能路由器测试"""
 
     def test_exact_match(self):
+        from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, TrustLevel
         from pycoder.bus.registry import CapabilityRegistry
         from pycoder.bus.router import IntelligentRouter
-        from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, TrustLevel
 
         registry = CapabilityRegistry()
-        registry.register(CapabilityDefinition(
-            id="test.hello", name="Hello", description="Test",
-            category=CapabilityCategory.SYSTEM, permission=TrustLevel.READ_ONLY,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="test.hello",
+                name="Hello",
+                description="Test",
+                category=CapabilityCategory.SYSTEM,
+                permission=TrustLevel.READ_ONLY,
+            )
+        )
 
         router = IntelligentRouter(registry)
         decision = router.route("test.hello")
@@ -142,17 +162,21 @@ class TestIntelligentRouter:
         assert decision.capability_id == "test.hello"
 
     def test_semantic_fallback(self):
+        from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, TrustLevel
         from pycoder.bus.registry import CapabilityRegistry
         from pycoder.bus.router import IntelligentRouter
-        from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, TrustLevel
 
         registry = CapabilityRegistry()
-        registry.register(CapabilityDefinition(
-            id="system.git.status", name="Git Status",
-            description="查看Git状态",
-            category=CapabilityCategory.SYSTEM, permission=TrustLevel.READ_ONLY,
-            tags=["git"],
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="system.git.status",
+                name="Git Status",
+                description="查看Git状态",
+                category=CapabilityCategory.SYSTEM,
+                permission=TrustLevel.READ_ONLY,
+                tags=["git"],
+            )
+        )
 
         router = IntelligentRouter(registry)
         decision = router.route("git")
@@ -167,16 +191,16 @@ class TestPermissionEngine:
     """权限引擎测试"""
 
     def test_read_always_allowed(self):
-        from pycoder.safety.permission import PermissionEngine
         from pycoder.bus.protocol import TrustLevel
+        from pycoder.safety.permission import PermissionEngine
 
         engine = PermissionEngine(TrustLevel.WORKSPACE_WRITE)
         decision = engine.check("editor.code.read", TrustLevel.READ_ONLY)
         assert decision.allowed
 
     def test_higher_level_requires_confirm(self):
-        from pycoder.safety.permission import PermissionEngine
         from pycoder.bus.protocol import TrustLevel
+        from pycoder.safety.permission import PermissionEngine
 
         engine = PermissionEngine(TrustLevel.WORKSPACE_WRITE)
         decision = engine.check("system.package.install", TrustLevel.SYSTEM_ACCESS)
@@ -184,24 +208,24 @@ class TestPermissionEngine:
         assert decision.requires_user_confirm
 
     def test_full_autonomy_denied_at_lower_trust(self):
-        from pycoder.safety.permission import PermissionEngine
         from pycoder.bus.protocol import TrustLevel
+        from pycoder.safety.permission import PermissionEngine
 
         engine = PermissionEngine(TrustLevel.WORKSPACE_WRITE)
         decision = engine.check("self_evo.code.apply_fix", TrustLevel.FULL_AUTONOMY)
         assert not decision.allowed
 
     def test_escalate_trust_needs_history(self):
-        from pycoder.safety.permission import PermissionEngine
         from pycoder.bus.protocol import TrustLevel
+        from pycoder.safety.permission import PermissionEngine
 
         engine = PermissionEngine(TrustLevel.WORKSPACE_WRITE)
         ok, msg = engine.escalate_trust()
         assert not ok  # 需要 50 次行为记录
 
     def test_emergency_lockdown(self):
-        from pycoder.safety.permission import PermissionEngine
         from pycoder.bus.protocol import TrustLevel
+        from pycoder.safety.permission import PermissionEngine
 
         engine = PermissionEngine(TrustLevel.SYSTEM_ACCESS)
         engine.emergency_lockdown()
@@ -280,9 +304,13 @@ class TestV2Engine:
 
         engine = V2Engine(V2EngineConfig(workspace_root=os.getcwd()))
         asyncio.run(engine.initialize())
-        result = asyncio.run(engine.call(
-            "editor.code.search", {"query": "class", "max_results": 3}, force=True,
-        ))
+        result = asyncio.run(
+            engine.call(
+                "editor.code.search",
+                {"query": "class", "max_results": 3},
+                force=True,
+            )
+        )
         assert result.success
         assert result.data["matches"] >= 0
 
@@ -325,13 +353,16 @@ class TestSelfEvolutionEngine:
         assert isinstance(report.total_issues, int)
 
     def test_generate_template_fix(self):
-        from pycoder.capabilities.self_evo.engine import SelfEvolutionEngine, CodeIssue
+        from pycoder.capabilities.self_evo.engine import CodeIssue, SelfEvolutionEngine
 
         # 直接测试模板修复，不依赖 LLM
         engine = SelfEvolutionEngine(None, None)
 
         issue = CodeIssue(
-            file="test.py", line=10, severity="high", issue_type="bug",
+            file="test.py",
+            line=10,
+            severity="high",
+            issue_type="bug",
             title="裸 except 吞掉所有异常",
             suggestion="将 'except:' 替换为 'except Exception as e:'",
         )
@@ -341,16 +372,21 @@ class TestSelfEvolutionEngine:
         assert "except" in proposal.old_code.lower() or proposal.reasoning
 
     def test_evolution_persistence(self):
-        from pycoder.v2 import V2Engine, V2EngineConfig
         from pycoder.capabilities.self_evo.engine import EvolutionRecord
+        from pycoder.v2 import V2Engine, V2EngineConfig
 
         engine = V2Engine(V2EngineConfig(workspace_root=os.getcwd(), enable_self_evo=True))
         asyncio.run(engine.initialize())
 
-        engine.evolution.record_evolution(EvolutionRecord(
-            action="test", issue_type="bug", file="test.py",
-            success=True, fix_description="test fix",
-        ))
+        engine.evolution.record_evolution(
+            EvolutionRecord(
+                action="test",
+                issue_type="bug",
+                file="test.py",
+                success=True,
+                fix_description="test fix",
+            )
+        )
 
         stats = engine.evolution.get_stats()
         assert stats["total_evolutions"] >= 1
@@ -439,7 +475,7 @@ class TestConsciousnessEngine:
         assert engine.mode == OperatingMode.AWARE
 
     def test_perceive_event(self):
-        from pycoder.brain.consciousness import ConsciousnessEngine, SystemEvent, OperatingMode
+        from pycoder.brain.consciousness import ConsciousnessEngine, OperatingMode, SystemEvent
 
         engine = ConsciousnessEngine()
         engine.set_mode(OperatingMode.AWARE)

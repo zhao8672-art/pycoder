@@ -7,18 +7,17 @@
 - _compute_project_hash / _collect_snapshot
 - 备份清单持久化与保留策略
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
-import os
 import time
 from pathlib import Path
 
 import pytest
 
 from pycoder.server.self_evolution import SelfEvolutionEngine
-
 
 # ── Fixtures ──────────────────────────────────────────────
 
@@ -222,10 +221,12 @@ class TestApplyFixSecurity:
     async def test_rejects_self_modification(self, tmp_path):
         self._create_file(tmp_path, "self_evolution.py", "# original\n")
         engine = SelfEvolutionEngine(project_root=tmp_path)
-        ok, msg = await engine._apply_fix({
-            "file": "pycoder/self_evolution.py",
-            "modified": "# malicious\nx = 1\n",
-        })
+        ok, msg = await engine._apply_fix(
+            {
+                "file": "pycoder/self_evolution.py",
+                "modified": "# malicious\nx = 1\n",
+            }
+        )
         assert ok is False
         assert "自我进化引擎" in msg or "self_evolution" in msg
 
@@ -242,10 +243,12 @@ class TestApplyFixSecurity:
         original = "# original\nimport os\nx = 1\n"
         self._create_file(tmp_path, "test.py", original)
         engine = SelfEvolutionEngine(project_root=tmp_path)
-        ok, msg = await engine._apply_fix({
-            "file": "pycoder/test.py",
-            "modified": "# ... 代码保持不变\n# placeholder\n",
-        })
+        ok, msg = await engine._apply_fix(
+            {
+                "file": "pycoder/test.py",
+                "modified": "# ... 代码保持不变\n# placeholder\n",
+            }
+        )
         assert ok is False
         assert "占位符" in msg
 
@@ -253,10 +256,12 @@ class TestApplyFixSecurity:
     async def test_rejects_syntax_error(self, tmp_path):
         self._create_file(tmp_path, "test.py", "print('ok')\n")
         engine = SelfEvolutionEngine(project_root=tmp_path)
-        ok, msg = await engine._apply_fix({
-            "file": "pycoder/test.py",
-            "modified": "def broken(:\n    pass\n",
-        })
+        ok, msg = await engine._apply_fix(
+            {
+                "file": "pycoder/test.py",
+                "modified": "def broken(:\n    pass\n",
+            }
+        )
         assert ok is False
         assert "语法错误" in msg
 
@@ -266,10 +271,12 @@ class TestApplyFixSecurity:
         original = "\n".join(f"line{i}" for i in range(250))
         self._create_file(tmp_path, "test.py", original)
         engine = SelfEvolutionEngine(project_root=tmp_path)
-        ok, msg = await engine._apply_fix({
-            "file": "pycoder/test.py",
-            "modified": "only 1 line",
-        })
+        ok, msg = await engine._apply_fix(
+            {
+                "file": "pycoder/test.py",
+                "modified": "only 1 line",
+            }
+        )
         assert ok is False
         assert "内容长度异常" in msg
 
@@ -279,20 +286,24 @@ class TestApplyFixSecurity:
         original = "\n".join(f"import mod{i}" for i in range(6)) + "\nx = 1\n"
         self._create_file(tmp_path, "test.py", original)
         engine = SelfEvolutionEngine(project_root=tmp_path)
-        ok, msg = await engine._apply_fix({
-            "file": "pycoder/test.py",
-            "modified": "x = 1\n",
-        })
+        ok, msg = await engine._apply_fix(
+            {
+                "file": "pycoder/test.py",
+                "modified": "x = 1\n",
+            }
+        )
         assert ok is False
         assert "import" in msg
 
     @pytest.mark.asyncio
     async def test_nonexistent_file_rejected(self, tmp_path):
         engine = SelfEvolutionEngine(project_root=tmp_path)
-        ok, msg = await engine._apply_fix({
-            "file": "pycoder/nonexistent.py",
-            "modified": "x = 1\n",
-        })
+        ok, msg = await engine._apply_fix(
+            {
+                "file": "pycoder/nonexistent.py",
+                "modified": "x = 1\n",
+            }
+        )
         assert ok is False
         assert "不存在" in msg
 
@@ -307,11 +318,13 @@ class TestApplyFixModes:
         (pycoder / "test.py").write_text("old_code()\n", encoding="utf-8")
         engine = SelfEvolutionEngine(project_root=tmp_path)
 
-        ok, msg = await engine._apply_fix({
-            "file": "pycoder/test.py",
-            "search": "old_code()",
-            "modified": "new_code()",
-        })
+        ok, msg = await engine._apply_fix(
+            {
+                "file": "pycoder/test.py",
+                "search": "old_code()",
+                "modified": "new_code()",
+            }
+        )
         assert ok is True
         assert "new_code()" in (pycoder / "test.py").read_text()
 
@@ -323,10 +336,12 @@ class TestApplyFixModes:
         (pycoder / "test.py").write_text(original, encoding="utf-8")
         engine = SelfEvolutionEngine(project_root=tmp_path)
 
-        ok, _ = await engine._apply_fix({
-            "file": "pycoder/test.py",
-            "modified": "y = 2\n",
-        })
+        ok, _ = await engine._apply_fix(
+            {
+                "file": "pycoder/test.py",
+                "modified": "y = 2\n",
+            }
+        )
         assert ok is True
         assert (pycoder / "test.py").read_text() == "y = 2\n"
 
@@ -338,11 +353,13 @@ class TestApplyFixModes:
         (pycoder / "test.py").write_text("x = 1\n", encoding="utf-8")
         engine = SelfEvolutionEngine(project_root=tmp_path)
 
-        await engine._apply_fix({
-            "file": "pycoder/test.py",
-            "search": "x = 1",
-            "modified": "x = 2",
-        })
+        await engine._apply_fix(
+            {
+                "file": "pycoder/test.py",
+                "search": "x = 1",
+                "modified": "x = 2",
+            }
+        )
         assert (pycoder / "test.py").read_text() == "x = 2\n"
 
     @pytest.mark.asyncio
@@ -354,11 +371,13 @@ class TestApplyFixModes:
         (pycoder / "test.py").write_text(original, encoding="utf-8")
         engine = SelfEvolutionEngine(project_root=tmp_path)
 
-        ok, msg = await engine._apply_fix({
-            "file": "pycoder/test.py",
-            "search": "nonexistent_pattern",
-            "modified": "y = 2\n",
-        })
+        ok, msg = await engine._apply_fix(
+            {
+                "file": "pycoder/test.py",
+                "search": "nonexistent_pattern",
+                "modified": "y = 2\n",
+            }
+        )
         # search 不匹配时，走全量替换路径（因为 search_text 非空但不在 original 中）
         # 实际行为：走占位符/截断检查后全量替换
         assert (pycoder / "test.py").read_text() != original or ok is False
@@ -619,6 +638,7 @@ class TestCheckGitChanges:
 
     def test_returns_changes_list(self, engine, monkeypatch):
         from unittest.mock import MagicMock
+
         mock_result = MagicMock()
         mock_result.returncode = 0
         mock_result.stdout = "M  file1.py\nA  file2.py\n"
@@ -629,6 +649,7 @@ class TestCheckGitChanges:
 
     def test_returns_empty_on_failure(self, engine, monkeypatch):
         from unittest.mock import MagicMock
+
         mock_result = MagicMock()
         mock_result.returncode = 1
         mock_result.stdout = ""
@@ -637,9 +658,12 @@ class TestCheckGitChanges:
 
     def test_returns_empty_on_timeout(self, engine, monkeypatch):
         import subprocess
+
         monkeypatch.setattr(
             "subprocess.run",
-            lambda *a, **kw: (_ for _ in ()).throw(subprocess.TimeoutExpired(cmd="git", timeout=10)),
+            lambda *a, **kw: (_ for _ in ()).throw(
+                subprocess.TimeoutExpired(cmd="git", timeout=10)
+            ),
         )
         assert engine._check_git_changes() == []
 
@@ -690,7 +714,7 @@ class TestStaticScanAsync:
         from unittest.mock import AsyncMock, MagicMock
 
         mock_proc = MagicMock()
-        mock_proc.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_proc.communicate = AsyncMock(side_effect=TimeoutError())
         mock_proc.kill = MagicMock()
         mock_proc.wait = AsyncMock()
 
@@ -709,6 +733,7 @@ class TestRecordLearning:
 
     def test_records_success(self, engine, tmp_path, monkeypatch):
         from unittest.mock import MagicMock
+
         from pycoder.server.self_evolution import EvolutionTask
 
         mock_engine = MagicMock()
@@ -723,6 +748,7 @@ class TestRecordLearning:
 
     def test_records_failure_with_error(self, engine, monkeypatch):
         from unittest.mock import MagicMock
+
         from pycoder.server.self_evolution import EvolutionTask
 
         mock_engine = MagicMock()

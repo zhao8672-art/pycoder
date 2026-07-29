@@ -17,8 +17,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from pycoder.server.chat_bridge import ChatBridge
 from pycoder.core.services.log import log
+from pycoder.server.chat_bridge import ChatBridge
 
 router = APIRouter(prefix="/api/browser", tags=["browser-ai"])
 

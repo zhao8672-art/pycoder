@@ -7,21 +7,19 @@
 
 测试策略：mock shutil.which 与 subprocess.run，避免触发真实命令执行。
 """
+
 from __future__ import annotations
 
 import subprocess
 from unittest.mock import MagicMock
 
-import pytest
-
 import pycoder.server.env_checker as env_mod
 from pycoder.server.env_checker import (
-    EnvCapability,
     EnvCapabilities,
+    EnvCapability,
     EnvChecker,
     get_env_checker,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # EnvCapability
@@ -39,9 +37,7 @@ class TestEnvCapability:
         assert cap.hint == ""
 
     def test_with_values(self):
-        cap = EnvCapability(
-            name="x", available=True, version="1.0", error="", hint="ok"
-        )
+        cap = EnvCapability(name="x", available=True, version="1.0", error="", hint="ok")
         assert cap.available is True
         assert cap.version == "1.0"
 

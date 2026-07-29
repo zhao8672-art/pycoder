@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import ast
 import textwrap
-from pathlib import Path
 
 import pytest
 
@@ -25,7 +24,6 @@ from pycoder.python.docstring_generator import (
     add_chinese_comments,
     generate_docstring,
 )
-
 
 # ── 数据模型 ──────────────────────────────────────────────
 
@@ -173,7 +171,9 @@ def test_value_to_str_unknown():
     op = ast.parse("x = ...").body[0].value
     # ... is Ellipsis (Constant), so actually returns repr(Ellipsis)
     # Use a node that isn't handled
-    unhandled = ast.IfExp(test=ast.Constant(value=True), body=ast.Constant(1), orelse=ast.Constant(2))
+    unhandled = ast.IfExp(
+        test=ast.Constant(value=True), body=ast.Constant(1), orelse=ast.Constant(2)
+    )
     assert g._value_to_str(unhandled) == "..."
 
 
@@ -260,7 +260,9 @@ def test_infer_arg_description_branches(name, arg_type, keyword):
 
 
 def test_infer_arg_description_default():
-    assert DocstringGenerator()._infer_arg_description("zzz", "Any") == "Description of the parameter."
+    assert (
+        DocstringGenerator()._infer_arg_description("zzz", "Any") == "Description of the parameter."
+    )
 
 
 # ── _infer_return_description ──────────────────────────────
@@ -518,7 +520,9 @@ def test_generate_docstring_syntax_error():
 
 
 def test_generate_docstring_for_code_success():
-    result = DocstringGenerator().generate_docstring_for_code("def f(x: int) -> int:\n    return x\n")
+    result = DocstringGenerator().generate_docstring_for_code(
+        "def f(x: int) -> int:\n    return x\n"
+    )
     assert '"""' in result
     assert "Args:" in result
 
@@ -553,7 +557,7 @@ def test_process_file_not_found(tmp_path):
 
 def test_chinese_comments_generate_success():
     g = ChineseCommentGenerator()
-    code = textwrap.dedent('''
+    code = textwrap.dedent("""
         max_value = 100
         items_list = [1, 2, 3]
         result_cache = {}
@@ -583,7 +587,7 @@ def test_chinese_comments_generate_success():
                             if e:
                                 if f:
                                     pass
-    ''')
+    """)
     result = g.generate_comments(code)
     assert "最大值限制" in result
     assert "列表数据" in result
@@ -603,7 +607,9 @@ def test_chinese_comments_syntax_error_returns_original():
 
 def test_analyze_function_basic():
     g = ChineseCommentGenerator()
-    node = ast.parse("def f(a, b):\n    if a:\n        for i in []:\n            pass\n    return b\n").body[0]
+    node = ast.parse(
+        "def f(a, b):\n    if a:\n        for i in []:\n            pass\n    return b\n"
+    ).body[0]
     info = g._analyze_function(node)
     assert info["name"] == "f"
     assert info["args"] == ["a", "b"]

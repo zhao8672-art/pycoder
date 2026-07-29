@@ -7,4 +7,5 @@
     - services/team/team_coordinator.py
     - services/team/agent_tool_loop.py
 """
+
 from __future__ import annotations

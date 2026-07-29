@@ -48,39 +48,44 @@ class BehavioralAnalyzer:
             if isinstance(node, (ast.For, ast.AsyncFor, ast.While)):
                 depth = self._get_loop_depth(node, tree)
                 if depth >= 3:
-                    issues.append({
-                        "severity": "warning",
-                        "line": node.lineno,
-                        "col": node.col_offset,
-                        "message": (
-                            f"检测到 {depth} 层嵌套循环，时间复杂度可能为 O(n^{depth})，"
-                            f"建议优化算法或引入索引"
-                        ),
-                        "code": "BEH001",
-                    })
+                    issues.append(
+                        {
+                            "severity": "warning",
+                            "line": node.lineno,
+                            "col": node.col_offset,
+                            "message": (
+                                f"检测到 {depth} 层嵌套循环，时间复杂度可能为 O(n^{depth})，"
+                                f"建议优化算法或引入索引"
+                            ),
+                            "code": "BEH001",
+                        }
+                    )
                 elif depth == 2:
-                    issues.append({
-                        "severity": "info",
-                        "line": node.lineno,
-                        "col": node.col_offset,
-                        "message": ("检测到 2 层嵌套循环 O(n^2)，大数据量时可能性能不足"),
-                        "code": "BEH002",
-                    })
+                    issues.append(
+                        {
+                            "severity": "info",
+                            "line": node.lineno,
+                            "col": node.col_offset,
+                            "message": ("检测到 2 层嵌套循环 O(n^2)，大数据量时可能性能不足"),
+                            "code": "BEH002",
+                        }
+                    )
 
             # 列表推导式中的嵌套循环
             if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp)):
                 generators = getattr(node, "generators", [])
                 if len(generators) > 2:
-                    issues.append({
-                        "severity": "info",
-                        "line": node.lineno,
-                        "col": node.col_offset,
-                        "message": (
-                            f"推导式中包含 {len(generators)} 层循环，"
-                            f"可读性差且可能性能不佳"
-                        ),
-                        "code": "BEH003",
-                    })
+                    issues.append(
+                        {
+                            "severity": "info",
+                            "line": node.lineno,
+                            "col": node.col_offset,
+                            "message": (
+                                f"推导式中包含 {len(generators)} 层循环，" f"可读性差且可能性能不佳"
+                            ),
+                            "code": "BEH003",
+                        }
+                    )
 
         return issues
 
@@ -108,13 +113,15 @@ class BehavioralAnalyzer:
                 if isinstance(node.func, ast.Name) and node.func.id == "open":
                     # 检查是否在 with 语句中
                     if not self._is_in_context_manager(node, tree):
-                        issues.append({
-                            "severity": "warning",
-                            "line": node.lineno,
-                            "col": node.col_offset,
-                            "message": "open() 未使用 with 语句，可能导致文件句柄泄漏",
-                            "code": "BEH004",
-                        })
+                        issues.append(
+                            {
+                                "severity": "warning",
+                                "line": node.lineno,
+                                "col": node.col_offset,
+                                "message": "open() 未使用 with 语句，可能导致文件句柄泄漏",
+                                "code": "BEH004",
+                            }
+                        )
 
             # 检测没有 close 的变量赋值
             if isinstance(node, ast.Assign):
@@ -164,16 +171,15 @@ class BehavioralAnalyzer:
                         pass  # 基本线程检测
 
         if has_threading and not has_lock:
-            issues.append({
-                "severity": "warning",
-                "line": 0,
-                "col": 0,
-                "message": (
-                    "使用了 threading 但没有检测到 Lock 使用，"
-                    "存在竞态条件风险"
-                ),
-                "code": "BEH005",
-            })
+            issues.append(
+                {
+                    "severity": "warning",
+                    "line": 0,
+                    "col": 0,
+                    "message": ("使用了 threading 但没有检测到 Lock 使用，" "存在竞态条件风险"),
+                    "code": "BEH005",
+                }
+            )
 
         return issues
 
@@ -194,24 +200,28 @@ class BehavioralAnalyzer:
         complexity_score = loops + nested_loops * 2 + (10 if recursive else 0)
 
         if recursive:
-            issues.append({
-                "severity": "warning",
-                "line": 0,
-                "col": 0,
-                "message": (
-                    "检测到递归调用，时间复杂度可能为 O(2^n) 或 O(n!)，"
-                    "建议使用迭代或尾递归优化"
-                ),
-                "code": "BEH006",
-            })
+            issues.append(
+                {
+                    "severity": "warning",
+                    "line": 0,
+                    "col": 0,
+                    "message": (
+                        "检测到递归调用，时间复杂度可能为 O(2^n) 或 O(n!)，"
+                        "建议使用迭代或尾递归优化"
+                    ),
+                    "code": "BEH006",
+                }
+            )
         elif complexity_score > 8:
-            issues.append({
-                "severity": "info",
-                "line": 0,
-                "col": 0,
-                "message": f"整体时间复杂度偏高 (评分: {complexity_score})，建议优化",
-                "code": "BEH007",
-            })
+            issues.append(
+                {
+                    "severity": "info",
+                    "line": 0,
+                    "col": 0,
+                    "message": f"整体时间复杂度偏高 (评分: {complexity_score})，建议优化",
+                    "code": "BEH007",
+                }
+            )
 
         return issues
 

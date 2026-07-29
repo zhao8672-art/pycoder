@@ -13,14 +13,14 @@
 - POST   /api/installer/security-check          - 仅做安全检查
 - GET    /api/installer/loaded                  - 列出已加载模块
 """
+
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from pycoder.python.self_iterating_installer import (
     get_installer,

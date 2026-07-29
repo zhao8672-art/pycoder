@@ -12,13 +12,11 @@
   - 用 monkeypatch 替换 _storage 为 tmp_path 下文件避免污染用户家目录
   - 创建真实临时 .py 文件作为 check_file/check_project 的目标
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
-
-import pytest
 
 from pycoder.server import custom_rules as cr_mod
 from pycoder.server.custom_rules import (
@@ -26,8 +24,8 @@ from pycoder.server.custom_rules import (
     get_rules_engine,
 )
 
-
 # ── 工厂: 创建带 tmp_path 存储的 CustomRulesEngine ────────
+
 
 def _make_engine(tmp_path: Path) -> CustomRulesEngine:
     """创建 CustomRulesEngine，存储路径指向 tmp_path"""
@@ -43,6 +41,7 @@ def _make_engine(tmp_path: Path) -> CustomRulesEngine:
 # load / save
 # ══════════════════════════════════════════════════════════
 
+
 class TestLoadSave:
     def test_load_nonexistent(self, tmp_path):
         e = _make_engine(tmp_path)
@@ -54,8 +53,15 @@ class TestLoadSave:
         e = _make_engine(tmp_path)
         # 先保存规则
         e._rules = [
-            {"id": "CR001", "name": "rule1", "pattern": "print", "type": "regex",
-             "severity": "warning", "message": "msg", "enabled": True},
+            {
+                "id": "CR001",
+                "name": "rule1",
+                "pattern": "print",
+                "type": "regex",
+                "severity": "warning",
+                "message": "msg",
+                "enabled": True,
+            },
         ]
         e.save()
 
@@ -78,9 +84,11 @@ class TestLoadSave:
         e = _make_engine(tmp_path)
         e._storage.parent.mkdir(parents=True, exist_ok=True)
         e._storage.write_text("[]", encoding="utf-8")
+
         # mock read_text 抛 OSError
         def boom(*a, **k):
             raise OSError("disk err")
+
         monkeypatch.setattr(Path, "read_text", boom)
         e.load()
         assert e._rules == []
@@ -114,6 +122,7 @@ class TestLoadSave:
 # ══════════════════════════════════════════════════════════
 # add_rule / remove_rule / list_rules
 # ══════════════════════════════════════════════════════════
+
 
 class TestRuleCRUD:
     def test_add_rule_with_message(self, tmp_path):
@@ -174,6 +183,7 @@ class TestRuleCRUD:
 # ══════════════════════════════════════════════════════════
 # check_file
 # ══════════════════════════════════════════════════════════
+
 
 class TestCheckFile:
     def test_file_not_exists(self, tmp_path):
@@ -262,6 +272,7 @@ class TestCheckFile:
 
         def boom(*a, **k):
             raise OSError("perm denied")
+
         monkeypatch.setattr(Path, "read_text", boom)
         assert e.check_file(str(f)) == []
 
@@ -273,6 +284,7 @@ class TestCheckFile:
 
         def boom(*a, **k):
             raise UnicodeDecodeError("utf-8", b"", 0, 1, "bad")
+
         monkeypatch.setattr(Path, "read_text", boom)
         assert e.check_file(str(f)) == []
 
@@ -284,6 +296,7 @@ class TestCheckFile:
 
         def boom(*a, **k):
             raise PermissionError("denied")
+
         monkeypatch.setattr(Path, "read_text", boom)
         assert e.check_file(str(f)) == []
 
@@ -311,6 +324,7 @@ class TestCheckFile:
 # ══════════════════════════════════════════════════════════
 # check_project
 # ══════════════════════════════════════════════════════════
+
 
 class TestCheckProject:
     def test_empty_project(self, tmp_path):
@@ -368,6 +382,7 @@ class TestCheckProject:
 # get_templates
 # ══════════════════════════════════════════════════════════
 
+
 class TestGetTemplates:
     def test_returns_list_of_templates(self, tmp_path):
         e = _make_engine(tmp_path)
@@ -392,6 +407,7 @@ class TestGetTemplates:
 # ══════════════════════════════════════════════════════════
 # get_rules_engine 单例 + 默认构造函数（触发 load）
 # ══════════════════════════════════════════════════════════
+
 
 class TestGetRulesEngine:
     def test_singleton(self, monkeypatch, tmp_path):
@@ -418,10 +434,22 @@ class TestGetRulesEngine:
         rules_dir = tmp_path / ".pycoder"
         rules_dir.mkdir()
         storage = rules_dir / "custom_rules.json"
-        storage.write_text(json.dumps([
-            {"id": "CR001", "name": "existing", "pattern": "x", "type": "regex",
-             "severity": "warning", "message": "m", "enabled": True},
-        ]), encoding="utf-8")
+        storage.write_text(
+            json.dumps(
+                [
+                    {
+                        "id": "CR001",
+                        "name": "existing",
+                        "pattern": "x",
+                        "type": "regex",
+                        "severity": "warning",
+                        "message": "m",
+                        "enabled": True,
+                    },
+                ]
+            ),
+            encoding="utf-8",
+        )
         monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
 
         e = CustomRulesEngine()

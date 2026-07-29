@@ -126,9 +126,7 @@ class ProjectContext:
     def add_artifact(self, artifact: PhaseArtifact) -> None:
         """添加产出物"""
         self.artifacts.append(artifact)
-        phase_rec = self.phases.setdefault(
-            artifact.phase, PhaseRecord(phase=artifact.phase)
-        )
+        phase_rec = self.phases.setdefault(artifact.phase, PhaseRecord(phase=artifact.phase))
         phase_rec.artifacts.append(artifact)
         self.touch()
 

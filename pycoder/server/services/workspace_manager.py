@@ -126,9 +126,15 @@ class WorkspaceManager:
                 raw = self._config_file.read_text(encoding="utf-8")
                 data = json.loads(raw)
                 self._config = WorkspaceConfig.from_dict(data)
-                logger.info("workspace_config_loaded path=%s folders=%d", self._config_file, len(self._config.folders))
+                logger.info(
+                    "workspace_config_loaded path=%s folders=%d",
+                    self._config_file,
+                    len(self._config.folders),
+                )
             except (json.JSONDecodeError, OSError, ValueError) as e:
-                logger.warning("workspace_config_load_failed path=%s error=%s", self._config_file, e)
+                logger.warning(
+                    "workspace_config_load_failed path=%s error=%s", self._config_file, e
+                )
                 self._config = WorkspaceConfig()
         else:
             # 默认配置：以根目录为唯一文件夹
@@ -189,8 +195,7 @@ class WorkspaceManager:
         resolved = Path(path).resolve()
         before = len(self._config.folders)
         self._config.folders = [
-            f for f in self._config.folders
-            if Path(f.path).resolve() != resolved
+            f for f in self._config.folders if Path(f.path).resolve() != resolved
         ]
         if len(self._config.folders) == before:
             return {"success": False, "error": f"文件夹不在工作区中: {path}"}
@@ -316,7 +321,14 @@ class WorkspaceManager:
                 "files": {
                     "README.md": f"# {name}\n\nReact 项目\n",
                     ".gitignore": "node_modules/\ndist/\n.env\n",
-                    "package.json": json.dumps({"name": name, "version": "0.1.0", "private": True, "scripts": {"dev": "vite", "build": "vite build"}}),
+                    "package.json": json.dumps(
+                        {
+                            "name": name,
+                            "version": "0.1.0",
+                            "private": True,
+                            "scripts": {"dev": "vite", "build": "vite build"},
+                        }
+                    ),
                     "src/main.tsx": 'import React from "react";\nimport ReactDOM from "react-dom/client";\n\nfunction App() {{\n  return <h1>Hello from {name}</h1>;\n}}\n\nReactDOM.createRoot(document.getElementById("root")!).render(<App />);\n',
                     "index.html": '<!DOCTYPE html>\n<html><head><meta charset="UTF-8" /></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>\n',
                     "vite.config.ts": 'import {{ defineConfig }} from "vite";\nexport default defineConfig({{}});\n',

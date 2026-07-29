@@ -30,7 +30,9 @@ register_builtin_commands()
 class _InstallTask:
     task_id: str
     ext_id: str
-    status: str = "pending"  # pending | downloading | validating | installing | activating | done | failed
+    status: str = (
+        "pending"  # pending | downloading | validating | installing | activating | done | failed
+    )
     step: int = 0
     progress: float = 0.0
     message: str = ""
@@ -73,16 +75,26 @@ async def _run_install_task(tid: str, ext_id: str, ext_data: dict):
             await asyncio.sleep(0.2)
             _update_task(tid, status="done", step=5, progress=100, message="安装完成")
         else:
-            _update_task(tid, status="failed", step=3, progress=60, message="安装失败", error="manager.install 返回失败")
+            _update_task(
+                tid,
+                status="failed",
+                step=3,
+                progress=60,
+                message="安装失败",
+                error="manager.install 返回失败",
+            )
     except PermissionError as e:
         _update_task(tid, status="failed", step=3, progress=60, message="安装失败", error=str(e))
     except Exception as e:
-        _update_task(tid, status="failed", step=3, progress=60, message="安装异常", error=str(e)[:200])
+        _update_task(
+            tid, status="failed", step=3, progress=60, message="安装异常", error=str(e)[:200]
+        )
     finally:
         # 任务完成后 60s 清理
         async def _cleanup():
             await asyncio.sleep(60)
             _install_tasks.pop(tid, None)
+
         asyncio.create_task(_cleanup())
 
 
@@ -245,7 +257,11 @@ async def update_extension(req: dict):
     ok = _manager.update(ext_id)
     if ok:
         return {"success": True, "id": ext_id}
-    return {"success": False, "id": ext_id, "error": "该扩展类型不支持自动更新（仅支持种子扩展和 Git 扩展）"}
+    return {
+        "success": False,
+        "id": ext_id,
+        "error": "该扩展类型不支持自动更新（仅支持种子扩展和 Git 扩展）",
+    }
 
 
 @router.get("/config/{ext_id}")

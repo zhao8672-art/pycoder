@@ -13,22 +13,17 @@ openapi_integrator.py 模块单元测试 — 覆盖率目标 >=95%
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-
-from pycoder.python import openapi_integrator as oa_mod
 from pycoder.python.openapi_integrator import (
+    _extract_params,
+    _gen_js_client,
+    _gen_python_client,
+    _generate_example,
+    _path_to_func,
     generate_from_openapi,
     generate_mock_server,
-    _generate_example,
-    _gen_python_client,
-    _gen_js_client,
-    _path_to_func,
-    _extract_params,
 )
-
 
 # ── generate_from_openapi ───────────────────────────────────
 
@@ -86,7 +81,9 @@ class TestGenerateFromOpenapi:
                 },
             },
         }
-        result = generate_from_openapi(spec_json=spec, language="javascript", output_dir=str(tmp_path))
+        result = generate_from_openapi(
+            spec_json=spec, language="javascript", output_dir=str(tmp_path)
+        )
         assert result["success"] is True
         out_file = tmp_path / "api_client.js"
         assert out_file.exists()
@@ -104,7 +101,9 @@ class TestGenerateFromOpenapi:
         fake_requests = MagicMock()
         fake_requests.get = raise_error
         monkeypatch.setitem(__import__("sys").modules, "requests", fake_requests)
-        result = generate_from_openapi(spec_url="http://example.com/openapi.json", output_dir=str(tmp_path))
+        result = generate_from_openapi(
+            spec_url="http://example.com/openapi.json", output_dir=str(tmp_path)
+        )
         assert result["success"] is False
         assert "OpenAPI 失败" in result["error"]
 
@@ -119,7 +118,9 @@ class TestGenerateFromOpenapi:
         fake_requests = MagicMock()
         fake_requests.get = lambda *a, **k: mock_response
         monkeypatch.setitem(__import__("sys").modules, "requests", fake_requests)
-        result = generate_from_openapi(spec_url="http://example.com/openapi.json", output_dir=str(tmp_path))
+        result = generate_from_openapi(
+            spec_url="http://example.com/openapi.json", output_dir=str(tmp_path)
+        )
         assert result["success"] is True
 
     def test_default_output_dir_uses_cwd(self, tmp_path, monkeypatch):
@@ -344,7 +345,7 @@ class TestGenPythonClient:
         spec = {"info": {}, "paths": {}}
         lines = _gen_python_client(spec, {})
         code = "\n".join(lines)
-        assert 'API' in code  # 默认 title
+        assert "API" in code  # 默认 title
 
     def test_patch_method_not_handled(self):
         # PATCH 方法没有专门的分支
@@ -395,7 +396,7 @@ class TestGenJsClient:
         spec = {"info": {"title": "X"}, "paths": {}}
         lines = _gen_js_client(spec, {})
         code = "\n".join(lines)
-        assert 'http://localhost' in code
+        assert "http://localhost" in code
 
 
 # ── _path_to_func ──────────────────────────────────────────

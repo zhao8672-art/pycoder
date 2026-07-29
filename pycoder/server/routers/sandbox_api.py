@@ -6,6 +6,7 @@
 - POST /api/sandbox/execute       - 通过统一入口执行代码
 - POST /api/sandbox/select        - 切换沙箱后端（修改全局选择器）
 """
+
 from __future__ import annotations
 
 import logging

@@ -18,7 +18,6 @@ from typing import Any
 
 from pycoder.brain.task_planner import (
     ExecutionPlan,
-    ExecutionStrategy,
     Task,
     TaskStatus,
 )
@@ -144,18 +143,14 @@ class DeviationDetector:
 
             # 依赖违规检测
             unmet_deps = [
-                dep
-                for dep in task.dependencies
-                if dep not in self._report.completed_task_ids
+                dep for dep in task.dependencies if dep not in self._report.completed_task_ids
             ]
             if unmet_deps:
                 self._report.deviations.append(
                     Deviation(
                         kind="dependency_violation",
                         task_id=task_id,
-                        description=(
-                            f"任务 {task_id} 依赖未完成的任务: {', '.join(unmet_deps)}"
-                        ),
+                        description=(f"任务 {task_id} 依赖未完成的任务: {', '.join(unmet_deps)}"),
                         correction=f"先完成依赖任务: {', '.join(unmet_deps)}",
                     )
                 )
@@ -170,17 +165,14 @@ class DeviationDetector:
                 if i < len(tool_calls):
                     task_id = self._match_tool_to_task(tool_calls[i])
                     if task_id:
-                        self._fail_counts[task_id] = (
-                            self._fail_counts.get(task_id, 0) + 1
-                        )
+                        self._fail_counts[task_id] = self._fail_counts.get(task_id, 0) + 1
                         if self._fail_counts[task_id] >= 2:
                             self._report.deviations.append(
                                 Deviation(
                                     kind="repeat",
                                     task_id=task_id,
                                     description=(
-                                        f"任务 {task_id} 已失败 "
-                                        f"{self._fail_counts[task_id]} 次"
+                                        f"任务 {task_id} 已失败 " f"{self._fail_counts[task_id]} 次"
                                     ),
                                     correction="触发重规划，调整剩余任务",
                                 )
@@ -198,9 +190,7 @@ class DeviationDetector:
                         Deviation(
                             kind="stall",
                             task_id=next_task.task_id,
-                            description=(
-                                f"连续 {self._report.stall_rounds} 轮未推进计划"
-                            ),
+                            description=(f"连续 {self._report.stall_rounds} 轮未推进计划"),
                             correction=(
                                 f"下一步应执行: {next_task.task_id} - "
                                 f"{next_task.description[:40]}"
@@ -253,10 +243,7 @@ class DeviationDetector:
         for task in self._plan.tasks:
             if task.status != TaskStatus.PENDING:
                 continue
-            if all(
-                dep in self._report.completed_task_ids
-                for dep in task.dependencies
-            ):
+            if all(dep in self._report.completed_task_ids for dep in task.dependencies):
                 return task
         return None
 

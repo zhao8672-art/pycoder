@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class AgentRole(Enum):
     """Agent 角色枚举 — 14 角色团队"""
+
     CORE_DEV = "core_dev"
     ARCHITECT = "architect"
     DEVELOPER = "developer"
@@ -36,6 +37,7 @@ class AgentRole(Enum):
 @dataclass
 class AgentProfile:
     """Agent 角色配置"""
+
     name: str = ""
     description: str = ""
     capabilities: list[str] = field(default_factory=list)
@@ -65,6 +67,7 @@ class AgentProfile:
 @dataclass
 class TeamTask:
     """团队任务"""
+
     task_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     title: str = ""
     description: str = ""
@@ -78,6 +81,7 @@ class TeamTask:
 @dataclass
 class Team:
     """Agent 团队"""
+
     name: str = ""
     roles: list[AgentRole] = field(default_factory=list)
     members: list[AgentProfile] = field(default_factory=list)
@@ -89,7 +93,9 @@ class Team:
         """获取团队成员的角色映射"""
         return {m.role: m for m in self.members}
 
-    def assign_task(self, role_or_profile: AgentRole | AgentProfile, task_or_desc: str | TeamTask) -> TeamTask:
+    def assign_task(
+        self, role_or_profile: AgentRole | AgentProfile, task_or_desc: str | TeamTask
+    ) -> TeamTask:
         """分配任务给指定角色"""
         if isinstance(role_or_profile, AgentProfile):
             role = role_or_profile.role
@@ -325,10 +331,41 @@ _ROLE_KEYWORDS: dict[AgentRole, list[str]] = {
     AgentRole.ARCHITECT: ["架构", "设计", "模块", "结构", "系统设计", "技术选型", "SOLID", "模式"],
     AgentRole.DEVELOPER: ["编写", "代码", "实现", "开发", "功能", "编码", "PEP", "Python"],
     AgentRole.TESTER: ["测试", "pytest", "用例", "覆盖率", "验证", "质量保证", "QA", "单元测试"],
-    AgentRole.DEBUGGER: ["bug", "Bug", "修复", "调试", "异常", "堆栈", "crash", "崩溃", "错误", "报错"],
+    AgentRole.DEBUGGER: [
+        "bug",
+        "Bug",
+        "修复",
+        "调试",
+        "异常",
+        "堆栈",
+        "crash",
+        "崩溃",
+        "错误",
+        "报错",
+    ],
     AgentRole.REVIEWER: ["审查", "review", "检查", "Review", "代码质量", "规范", "重构"],
-    AgentRole.SECURITY: ["安全", "漏洞", "SQL 注入", "加密", "审计", "OWASP", "XSS", "CSRF", "认证", "授权"],
-    AgentRole.DEVOPS: ["docker", "Docker", "部署", "CI/CD", "pipeline", "容器", "k8s", "Kubernetes"],
+    AgentRole.SECURITY: [
+        "安全",
+        "漏洞",
+        "SQL 注入",
+        "加密",
+        "审计",
+        "OWASP",
+        "XSS",
+        "CSRF",
+        "认证",
+        "授权",
+    ],
+    AgentRole.DEVOPS: [
+        "docker",
+        "Docker",
+        "部署",
+        "CI/CD",
+        "pipeline",
+        "容器",
+        "k8s",
+        "Kubernetes",
+    ],
     AgentRole.DOCUMENTER: ["文档", "docstring", "API 文档", "注释", "README", "说明"],
     AgentRole.OPTIMIZER: ["性能", "优化", "瓶颈", "缓存", "profiling", "加速", "调优"],
     AgentRole.ORCHESTRATOR: ["编排", "调度", "协调", "分配", "工作流", "规划", "任务分解", "流程"],
@@ -415,9 +452,7 @@ class SpecializedAgentTeam:
         """获取所有已注册的 Agent 角色配置（别名）"""
         return self.list_profiles()
 
-    def select_agents(
-        self, description: str, max_agents: int = 10
-    ) -> list[AgentProfile]:
+    def select_agents(self, description: str, max_agents: int = 10) -> list[AgentProfile]:
         """根据任务描述自动选择最合适的 Agent 角色
 
         基于关键词匹配评分，返回按相关度降序排列的角色列表。

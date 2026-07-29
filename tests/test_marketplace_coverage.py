@@ -20,17 +20,16 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
 from pycoder.extensions import marketplace as mp
 
-
 # ══════════════════════════════════════════════════════════
 # Mock 辅助
 # ══════════════════════════════════════════════════════════
+
 
 class MockHTTPResponse:
     def __init__(self, status_code=200, json_data=None, headers=None, text=""):
@@ -89,6 +88,7 @@ def isolated_cache(tmp_path, monkeypatch):
 # ══════════════════════════════════════════════════════════
 # SourceHealth
 # ══════════════════════════════════════════════════════════
+
 
 def test_source_health_defaults():
     h = mp.SourceHealth()
@@ -179,6 +179,7 @@ def test_source_health_record_failure_marks_dead():
 # SourceRegistry
 # ══════════════════════════════════════════════════════════
 
+
 def test_registry_register_new(tmp_path, monkeypatch):
     monkeypatch.setattr(mp, "SOURCE_HEALTH_CACHE", tmp_path / "h.json")
     reg = mp.SourceRegistry()
@@ -248,9 +249,14 @@ def test_registry_summary(tmp_path, monkeypatch):
 
 def test_registry_load_from_file(tmp_path, monkeypatch):
     health_file = tmp_path / "h.json"
-    health_file.write_text(json.dumps({
-        "github": {"name": "github", "priority": 10, "success_count": 5},
-    }), encoding="utf-8")
+    health_file.write_text(
+        json.dumps(
+            {
+                "github": {"name": "github", "priority": 10, "success_count": 5},
+            }
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setattr(mp, "SOURCE_HEALTH_CACHE", health_file)
     reg = mp.SourceRegistry()
     assert "github" in reg._sources
@@ -280,6 +286,7 @@ def test_registry_save_persists(tmp_path, monkeypatch):
 # _gh_headers / _GITHUB_TOKEN
 # ══════════════════════════════════════════════════════════
 
+
 def test_gh_headers_no_token(monkeypatch):
     monkeypatch.setattr(mp, "_GITHUB_TOKEN", "")
     h = mp._gh_headers()
@@ -297,13 +304,17 @@ def test_gh_headers_with_token(monkeypatch):
 # _github_request_with_retry
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_github_request_success(monkeypatch):
     monkeypatch.setattr(mp.asyncio, "sleep", _no_sleep)
-    resp = MockHTTPResponse(status_code=200, json_data={"items": []},
-                            headers={"X-RateLimit-Remaining": "5000"})
+    resp = MockHTTPResponse(
+        status_code=200, json_data={"items": []}, headers={"X-RateLimit-Remaining": "5000"}
+    )
     client = MockHTTPClient(responses={"api.github.com": resp})
-    result = await mp._github_request_with_retry(client, "https://api.github.com/search/repositories", {"q": "test"})
+    result = await mp._github_request_with_retry(
+        client, "https://api.github.com/search/repositories", {"q": "test"}
+    )
     assert result == {"items": []}
 
 
@@ -314,8 +325,9 @@ async def test_github_request_rate_limit_warning(monkeypatch):
     # 但 log 是 stdlib logging.Logger → 会抛 TypeError，被 except 捕获导致重试
     # 这里 mock log 以隔离该 bug，验证 rate-limit 分支本身
     monkeypatch.setattr(mp, "log", MagicMock())
-    resp = MockHTTPResponse(status_code=200, json_data={"items": []},
-                            headers={"X-RateLimit-Remaining": "5"})
+    resp = MockHTTPResponse(
+        status_code=200, json_data={"items": []}, headers={"X-RateLimit-Remaining": "5"}
+    )
     client = MockHTTPClient(responses={"api.github.com": resp})
     result = await mp._github_request_with_retry(client, "https://api.github.com/x", {})
     assert result == {"items": []}
@@ -382,7 +394,7 @@ async def test_github_request_exception_retries(monkeypatch):
     def get_fn(url, params):
         call_count[0] += 1
         if call_count[0] == 1:
-            raise asyncio.TimeoutError()
+            raise TimeoutError()
         return MockHTTPResponse(status_code=200, json_data={"ok": True})
 
     client = MockHTTPClient(responses={"api.github.com": get_fn})
@@ -402,12 +414,17 @@ async def test_github_request_exception_exhausted(monkeypatch):
 # 各数据源拉取
 # ══════════════════════════════════════════════════════════
 
+
 def _gh_repo(name, lang="python"):
     return {
-        "full_name": f"user/{name}", "name": name,
-        "description": f"desc {name}", "owner": {"login": "user"},
-        "stargazers_count": 100, "html_url": f"https://github.com/user/{name}",
-        "language": lang, "topics": ["topic1"],
+        "full_name": f"user/{name}",
+        "name": name,
+        "description": f"desc {name}",
+        "owner": {"login": "user"},
+        "stargazers_count": 100,
+        "html_url": f"https://github.com/user/{name}",
+        "language": lang,
+        "topics": ["topic1"],
     }
 
 
@@ -503,11 +520,17 @@ async def test_fetch_github_pycoder_empty(monkeypatch):
 async def test_fetch_npm_registry_success():
     data = {
         "objects": [
-            {"package": {"name": "test-pkg", "description": "a test",
-                         "keywords": ["k1"], "version": "1.0",
-                         "publisher": {"username": "alice"},
-                         "links": {"npm": "http://npm/test-pkg"}},
-             "score": {"detail": {"popularity": 0.5}}},
+            {
+                "package": {
+                    "name": "test-pkg",
+                    "description": "a test",
+                    "keywords": ["k1"],
+                    "version": "1.0",
+                    "publisher": {"username": "alice"},
+                    "links": {"npm": "http://npm/test-pkg"},
+                },
+                "score": {"detail": {"popularity": 0.5}},
+            },
         ],
     }
     resp = MockHTTPResponse(status_code=200, json_data=data)
@@ -535,8 +558,14 @@ async def test_fetch_npm_registry_exception():
 
 @pytest.mark.asyncio
 async def test_fetch_pypi_popular_success():
-    data = {"info": {"summary": "a lib", "author": "bob", "version": "2.0",
-                     "package_url": "http://pypi/black"}}
+    data = {
+        "info": {
+            "summary": "a lib",
+            "author": "bob",
+            "version": "2.0",
+            "package_url": "http://pypi/black",
+        }
+    }
     resp = MockHTTPResponse(status_code=200, json_data=data)
     # 所有 pypi.org 路径返回同一响应
     client = MockHTTPClient(responses={"pypi.org": resp})
@@ -563,10 +592,18 @@ async def test_fetch_pypi_popular_partial_failure():
 
 @pytest.mark.asyncio
 async def test_fetch_open_vsx_success():
-    data = {"extensions": [
-        {"name": "ext1", "namespace": "ns1", "description": "d",
-         "files": {"download": 500}, "tags": ["t1"], "version": "1.0"},
-    ]}
+    data = {
+        "extensions": [
+            {
+                "name": "ext1",
+                "namespace": "ns1",
+                "description": "d",
+                "files": {"download": 500},
+                "tags": ["t1"],
+                "version": "1.0",
+            },
+        ]
+    }
     resp = MockHTTPResponse(status_code=200, json_data=data)
     client = MockHTTPClient(responses={"open-vsx.org": resp})
     exts, _ = await mp._fetch_open_vsx(client)
@@ -592,6 +629,7 @@ async def test_fetch_open_vsx_exception():
 # ══════════════════════════════════════════════════════════
 # _gh_repo_to_extension
 # ══════════════════════════════════════════════════════════
+
 
 def test_gh_repo_to_extension():
     repo = _gh_repo("myrepo", "Python")
@@ -620,8 +658,11 @@ def test_gh_repo_to_extension_none_description():
 # _merge_and_dedup / _filter
 # ══════════════════════════════════════════════════════════
 
+
 def test_merge_and_dedup_new():
-    exts = [{"id": "a", "name": "A", "stars": 10, "description": "d", "tags": ["t"], "source": "github"}]
+    exts = [
+        {"id": "a", "name": "A", "stars": 10, "description": "d", "tags": ["t"], "source": "github"}
+    ]
     result = mp._merge_and_dedup(exts)
     assert len(result) == 1
     assert result[0]["_sources"] == ["github"]
@@ -629,8 +670,22 @@ def test_merge_and_dedup_new():
 
 def test_merge_and_dedup_duplicate_keeps_max_stars():
     exts = [
-        {"id": "a", "name": "A", "stars": 10, "description": "short", "tags": ["t1"], "source": "github"},
-        {"id": "a", "name": "A", "stars": 50, "description": "longer description here", "tags": ["t2"], "source": "npm"},
+        {
+            "id": "a",
+            "name": "A",
+            "stars": 10,
+            "description": "short",
+            "tags": ["t1"],
+            "source": "github",
+        },
+        {
+            "id": "a",
+            "name": "A",
+            "stars": 50,
+            "description": "longer description here",
+            "tags": ["t2"],
+            "source": "npm",
+        },
     ]
     result = mp._merge_and_dedup(exts)
     assert len(result) == 1
@@ -682,7 +737,14 @@ def test_filter_by_category():
 
 def test_filter_by_category_tag():
     exts = [
-        {"id": "1", "name": "X", "description": "", "tags": ["git-tag"], "category": "other", "stars": 10},
+        {
+            "id": "1",
+            "name": "X",
+            "description": "",
+            "tags": ["git-tag"],
+            "category": "other",
+            "stars": 10,
+        },
     ]
     result = mp._filter(exts, "", "git-tag")
     assert len(result) == 1
@@ -705,6 +767,7 @@ def test_filter_empty():
 # ══════════════════════════════════════════════════════════
 # 缓存读写
 # ══════════════════════════════════════════════════════════
+
 
 def test_load_cache_nonexistent(isolated_cache):
     result = mp._load_cache()
@@ -751,6 +814,7 @@ def test_is_cache_stale_no_timestamp():
 # 种子扩展
 # ══════════════════════════════════════════════════════════
 
+
 def test_get_seed_extensions():
     seeds = mp.get_seed_extensions()
     assert len(seeds) >= 10
@@ -776,6 +840,7 @@ def test_get_source_health_summary(isolated_cache):
 # _fetch_with_health
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_fetch_with_health_success(isolated_cache):
     async def good_fetcher(client):
@@ -799,12 +864,13 @@ async def test_fetch_with_health_timeout(isolated_cache, monkeypatch):
 
     # monkeypatch wait_for 的 timeout 为极小值
     import pycoder.extensions.marketplace as mp_mod
+
     orig_wait_for = mp_mod.asyncio.wait_for
 
     async def fast_wait_for(coro, timeout):
         # 立即取消
         coro.close()
-        raise asyncio.TimeoutError()
+        raise TimeoutError()
 
     monkeypatch.setattr(mp_mod.asyncio, "wait_for", fast_wait_for)
     result = await mp._fetch_with_health("test-src", slow_fetcher, MockHTTPClient())
@@ -829,21 +895,28 @@ async def test_fetch_with_health_exception(isolated_cache, monkeypatch):
 # _parallel_fetch_all
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_parallel_fetch_all_with_mock_fetchers(isolated_cache, monkeypatch):
     """用 mock fetcher 替换 ALL_SOURCES 中的函数"""
     monkeypatch.setattr(mp.asyncio, "sleep", _no_sleep)
 
     async def fake_fetch(client):
-        return [{"id": "fake-ext", "name": "Fake", "description": "d",
-                 "tags": [], "stars": 10, "source": "fake"}], 0.1
+        return [
+            {
+                "id": "fake-ext",
+                "name": "Fake",
+                "description": "d",
+                "tags": [],
+                "stars": 10,
+                "source": "fake",
+            }
+        ], 0.1
 
     # 替换 ALL_SOURCES 中的 fetch 函数
     original = mp.ALL_SOURCES[:]
     try:
-        mp.ALL_SOURCES[:] = [
-            (name, fake_fetch, prio, w) for name, _, prio, w in original
-        ]
+        mp.ALL_SOURCES[:] = [(name, fake_fetch, prio, w) for name, _, prio, w in original]
         # mock httpx.AsyncClient
         monkeypatch.setattr(mp.httpx, "AsyncClient", lambda **kwargs: MockHTTPClient())
         exts, info = await mp._parallel_fetch_all()
@@ -862,9 +935,7 @@ async def test_parallel_fetch_all_all_failed(isolated_cache, monkeypatch):
 
     original = mp.ALL_SOURCES[:]
     try:
-        mp.ALL_SOURCES[:] = [
-            (name, failing_fetch, prio, w) for name, _, prio, w in original
-        ]
+        mp.ALL_SOURCES[:] = [(name, failing_fetch, prio, w) for name, _, prio, w in original]
         monkeypatch.setattr(mp.httpx, "AsyncClient", lambda **kwargs: MockHTTPClient())
         exts, info = await mp._parallel_fetch_all()
         assert exts == []
@@ -876,11 +947,20 @@ async def test_parallel_fetch_all_all_failed(isolated_cache, monkeypatch):
 # search_extensions
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_search_extensions_cache_fresh(isolated_cache):
     """缓存未过期 → 直接返回缓存"""
-    exts = [{"id": "cached", "name": "Cached", "description": "d",
-             "tags": [], "stars": 10, "category": "tools"}]
+    exts = [
+        {
+            "id": "cached",
+            "name": "Cached",
+            "description": "d",
+            "tags": [],
+            "stars": 10,
+            "category": "tools",
+        }
+    ]
     cache_data = {"updated_at": time.time(), "extensions": exts, "source_info": {}, "total": 1}
     isolated_cache["cache"].write_text(json.dumps(cache_data), encoding="utf-8")
 
@@ -894,14 +974,28 @@ async def test_search_extensions_cache_fresh(isolated_cache):
 async def test_search_extensions_cache_stale_refreshes(isolated_cache, monkeypatch):
     """缓存过期 → stale-while-revalidate: 立即返回缓存，后台刷新"""
     # 过期缓存（含一个旧扩展）
-    stale_ext = {"id": "stale", "name": "Stale", "description": "old",
-                 "tags": [], "stars": 1, "source": "test"}
+    stale_ext = {
+        "id": "stale",
+        "name": "Stale",
+        "description": "old",
+        "tags": [],
+        "stars": 1,
+        "source": "test",
+    }
     cache_data = {"updated_at": time.time() - mp.CACHE_TTL - 100, "extensions": [stale_ext]}
     isolated_cache["cache"].write_text(json.dumps(cache_data), encoding="utf-8")
 
     async def fake_fetch_all():
-        return [{"id": "fresh", "name": "Fresh", "description": "d",
-                 "tags": [], "stars": 5, "source": "test"}], {}
+        return [
+            {
+                "id": "fresh",
+                "name": "Fresh",
+                "description": "d",
+                "tags": [],
+                "stars": 5,
+                "source": "test",
+            }
+        ], {}
 
     monkeypatch.setattr(mp, "_parallel_fetch_all", fake_fetch_all)
     # stale-while-revalidate: 立即返回过期缓存数据（不阻塞等待远程拉取）
@@ -912,6 +1006,7 @@ async def test_search_extensions_cache_stale_refreshes(isolated_cache, monkeypat
 
     # 等待后台刷新任务完成（使用真实 sleep 让出事件循环控制权）
     import asyncio as _asyncio
+
     await _asyncio.sleep(0.3)
     # 验证缓存已被后台任务更新
     new_cache = json.loads(isolated_cache["cache"].read_text(encoding="utf-8"))
@@ -922,7 +1017,14 @@ async def test_search_extensions_cache_stale_refreshes(isolated_cache, monkeypat
 @pytest.mark.asyncio
 async def test_search_extensions_query_filter(isolated_cache):
     exts = [
-        {"id": "1", "name": "Python Tool", "description": "", "tags": [], "stars": 10, "category": "x"},
+        {
+            "id": "1",
+            "name": "Python Tool",
+            "description": "",
+            "tags": [],
+            "stars": 10,
+            "category": "x",
+        },
         {"id": "2", "name": "Other", "description": "", "tags": [], "stars": 5, "category": "x"},
     ]
     cache_data = {"updated_at": time.time(), "extensions": exts}
@@ -973,6 +1075,7 @@ async def test_search_extensions_no_more(isolated_cache):
 
 # ── 异步辅助 ──
 
+
 async def _no_sleep(seconds):
     return None
 
@@ -980,4 +1083,5 @@ async def _no_sleep(seconds):
 def _async_return(value):
     async def _fn(*args, **kwargs):
         return value
+
     return _fn

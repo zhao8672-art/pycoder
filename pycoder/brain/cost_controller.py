@@ -40,9 +40,10 @@ logger = logging.getLogger(__name__)
 
 class BudgetStatus(StrEnum):
     """预算状态"""
+
     ACTIVE = "active"
-    WARNING = "warning"   # > 80% 使用
-    PAUSED = "paused"     # 已暂停
+    WARNING = "warning"  # > 80% 使用
+    PAUSED = "paused"  # 已暂停
     EXCEEDED = "exceeded"  # 已超支
     CLOSED = "closed"
 
@@ -50,6 +51,7 @@ class BudgetStatus(StrEnum):
 @dataclass
 class CostEntry:
     """单次成本记录"""
+
     timestamp: float = field(default_factory=time.time)
     agent_role: str = ""
     model: str = ""
@@ -74,6 +76,7 @@ class CostEntry:
 @dataclass
 class CostBudget:
     """成本预算"""
+
     budget_id: str
     workflow_name: str
     token_limit: int
@@ -139,7 +142,7 @@ class CostController:
 
     # 预设工作流预算
     WORKFLOW_BUDGETS: dict[str, tuple[int, float]] = {
-        "fullstack-dev": (150000, 0.30),   # tokens, USD
+        "fullstack-dev": (150000, 0.30),  # tokens, USD
         "api-service": (80000, 0.16),
         "ad-video": (120000, 0.24),
         "hotfix": (50000, 0.10),
@@ -192,7 +195,9 @@ class CostController:
         self._budgets[budget_id] = budget
         logger.info(
             "创建预算: %s tokens=%d cost=$%.2f",
-            budget_id, token_limit, cost_limit_usd,
+            budget_id,
+            token_limit,
+            cost_limit_usd,
         )
         return budget
 
@@ -293,10 +298,7 @@ class CostController:
     def should_pause_new_tasks(self) -> bool:
         """检查是否应该暂停新任务（全局 80% 阈值）"""
         total_usage = sum(b.usage_pct for b in self._budgets.values())
-        active_budgets = sum(
-            1 for b in self._budgets.values()
-            if b.status == BudgetStatus.ACTIVE
-        )
+        active_budgets = sum(1 for b in self._budgets.values() if b.status == BudgetStatus.ACTIVE)
         if active_budgets == 0:
             return False
         avg_usage = total_usage / active_budgets
@@ -313,18 +315,9 @@ class CostController:
 
     def get_stats(self) -> dict[str, Any]:
         """获取全局统计"""
-        active = sum(
-            1 for b in self._budgets.values()
-            if b.status == BudgetStatus.ACTIVE
-        )
-        warning = sum(
-            1 for b in self._budgets.values()
-            if b.status == BudgetStatus.WARNING
-        )
-        exceeded = sum(
-            1 for b in self._budgets.values()
-            if b.status == BudgetStatus.EXCEEDED
-        )
+        active = sum(1 for b in self._budgets.values() if b.status == BudgetStatus.ACTIVE)
+        warning = sum(1 for b in self._budgets.values() if b.status == BudgetStatus.WARNING)
+        exceeded = sum(1 for b in self._budgets.values() if b.status == BudgetStatus.EXCEEDED)
 
         return {
             "global": dict(self._global_stats),
@@ -335,8 +328,7 @@ class CostController:
                 "exceeded": exceeded,
             },
             "workflow_presets": {
-                k: {"tokens": v[0], "cost_limit": v[1]}
-                for k, v in self.WORKFLOW_BUDGETS.items()
+                k: {"tokens": v[0], "cost_limit": v[1]} for k, v in self.WORKFLOW_BUDGETS.items()
             },
         }
 
@@ -347,9 +339,7 @@ class CostController:
             return None
         return {
             **budget.to_dict(),
-            "recent_entries": [
-                e.to_dict() for e in budget.entries[-20:]
-            ],
+            "recent_entries": [e.to_dict() for e in budget.entries[-20:]],
             "by_agent": self._aggregate_by_agent(budget),
         }
 

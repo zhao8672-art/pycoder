@@ -15,7 +15,7 @@ import os
 import sqlite3
 import time
 
-_logger = logging.getLogger('pycoder.server.mcp_store')
+_logger = logging.getLogger("pycoder.server.mcp_store")
 
 from pathlib import Path
 
@@ -74,6 +74,7 @@ MCP_MARKETPLACE: dict[str, dict] = {
 
 # ── MCP 配置存储 ──
 
+
 class MCPStore:
     """MCP 服务器配置持久化 + 调用审计"""
 
@@ -110,19 +111,33 @@ class MCPStore:
         """)
         self._db.commit()
 
-    def save_server(self, name: str, server_type: str, command: str = "",
-                    url: str = "", env_vars: dict = None,
-                    auto_connect: bool = False) -> bool:
+    def save_server(
+        self,
+        name: str,
+        server_type: str,
+        command: str = "",
+        url: str = "",
+        env_vars: dict = None,
+        auto_connect: bool = False,
+    ) -> bool:
         """保存/更新 MCP 服务器配置"""
         try:
-            self._db.execute("""
+            self._db.execute(
+                """
                 INSERT OR REPLACE INTO mcp_servers
                 (name, type, command, url, env_json, auto_connect, created_at, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'disconnected')
-            """, (name, server_type, command, url,
-                  json.dumps(env_vars or {}),
-                  1 if auto_connect else 0,
-                  time.time()))
+            """,
+                (
+                    name,
+                    server_type,
+                    command,
+                    url,
+                    json.dumps(env_vars or {}),
+                    1 if auto_connect else 0,
+                    time.time(),
+                ),
+            )
             self._db.commit()
             return True
         except Exception as exc:
@@ -134,7 +149,7 @@ class MCPStore:
             self._db.execute("DELETE FROM mcp_servers WHERE name=?", (name,))
             self._db.commit()
             return True
-        except Exception as e:
+        except Exception:
             _logger.warning("silently_swallowed: {err}", exc_info=False)
             return False
 
@@ -156,9 +171,11 @@ class MCPStore:
         self._db.commit()
 
     def log_audit(self, server: str, tool: str, params: str, success: bool, duration_ms: float):
-        sql = ("INSERT INTO mcp_audit "
-               "(server, tool, params_summary, success, duration_ms, created_at) "
-               "VALUES (?, ?, ?, ?, ?, ?)")
+        sql = (
+            "INSERT INTO mcp_audit "
+            "(server, tool, params_summary, success, duration_ms, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)"
+        )
         self._db.execute(
             sql,
             (server, tool, params[:200], 1 if success else 0, duration_ms, time.time()),
@@ -176,6 +193,7 @@ class MCPStore:
 
 
 # ── MCP 自动重连管理器 ──
+
 
 class MCPAutoReconnect:
     """MCP 自动重连管理器 — 健康检查 + 自动重连"""
@@ -209,6 +227,7 @@ class MCPAutoReconnect:
         for server in servers:
             try:
                 from pycoder.server.mcp_tools import get_mcp_client_manager
+
                 mgr = get_mcp_client_manager()
                 name = server["name"]
                 if server["type"] == "stdio":

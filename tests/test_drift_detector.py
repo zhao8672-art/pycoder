@@ -12,14 +12,12 @@
     - generate_review_prompt: 任务回顾提示
     - reset: 重置状态
 """
-from __future__ import annotations
 
-import time
+from __future__ import annotations
 
 import pytest
 
 from pycoder.server.services.drift_detector import DriftDetector, DriftReport
-
 
 # ══════════════════════════════════════════════════════════
 # 辅助函数
@@ -214,7 +212,7 @@ class TestDriftDetectorCheck:
     def test_check_on_nth_round(self, detector):
         """第 N 轮检测"""
         detector.check("FastAPI setup")  # round 1
-        detector.check("JWT 配置")       # round 2
+        detector.check("JWT 配置")  # round 2
         report = detector.check("需要 OAuth2")  # round 3, check_every_n=3
         # 应该执行检测了
         assert report.similarity > 0.0  # 应该有实际相似度
@@ -235,8 +233,8 @@ class TestDriftDetectorCheck:
 
     def test_no_drift_with_relevant_messages(self, detector):
         """相关消息不触发偏离"""
-        detector.check("FastAPI 路由配置")   # round 1
-        detector.check("实现 JWT 认证")      # round 2
+        detector.check("FastAPI 路由配置")  # round 1
+        detector.check("实现 JWT 认证")  # round 2
         report = detector.check("OAuth2 集成")  # round 3
         assert report.is_drifting is False
 
@@ -296,22 +294,22 @@ class TestDriftDetectorProperties:
         d = DriftDetector(sensitivity=0.25, check_every_n=3)
         d.set_goal("创建一个 FastAPI 用户认证系统，支持 JWT 登录和 OAuth2")
         # 使用不相关的多字符消息
-        d.check("今天天气")    # round 1
+        d.check("今天天气")  # round 1
         d.check("今晚吃什么")  # round 2
         d.check("明天去哪玩")  # round 3 检查，偏离
-        d.check("最近新闻")    # round 4
-        d.check("电影推荐")    # round 5
-        d.check("旅游攻略")    # round 6 检查，偏离
-        d.check("健身计划")    # round 7
-        d.check("读书笔记")    # round 8
-        d.check("美食推荐")    # round 9 检查，偏离
+        d.check("最近新闻")  # round 4
+        d.check("电影推荐")  # round 5
+        d.check("旅游攻略")  # round 6 检查，偏离
+        d.check("健身计划")  # round 7
+        d.check("读书笔记")  # round 8
+        d.check("美食推荐")  # round 9 检查，偏离
         # 3 次检查，3 次偏离
         assert d.drift_rate == 1.0
 
     def test_drift_rate_partial(self, detector):
         """部分偏离 — 使用强相关消息不触发偏离"""
         # 触发 9 轮，3 次检查，全部使用强相关消息
-        for i in range(9):
+        for _i in range(9):
             detector.check("FastAPI JWT 用户认证 OAuth2 登录系统")  # 强相关消息
         # 没有偏离，所以 drift_rate 应该是 0
         assert detector.drift_rate == 0.0
@@ -341,7 +339,7 @@ class TestDriftDetectorReviewPrompt:
         """有偏离的回顾提示 — 使用不相关消息触发偏离"""
         d = DriftDetector(sensitivity=0.25, check_every_n=3)
         d.set_goal("创建一个 FastAPI 用户认证系统，支持 JWT 登录和 OAuth2")
-        d.check("今天天气")    # round 1
+        d.check("今天天气")  # round 1
         d.check("今晚吃什么")  # round 2
         d.check("明天去哪玩")  # round 3 检查，偏离
         prompt = d.generate_review_prompt()

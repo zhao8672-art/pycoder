@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import asyncio
-import pytest
 from pathlib import Path
+
+import pytest
 
 from pycoder.capabilities.tools.test_runner import (
     FailureDetail,
@@ -25,9 +25,7 @@ class TestTestRunResult:
         assert result.failure_details == []
 
     def test_to_dict(self) -> None:
-        result = TestRunResult(
-            success=True, total=5, passed=4, failed=1, duration=1.5
-        )
+        result = TestRunResult(success=True, total=5, passed=4, failed=1, duration=1.5)
         d = result.to_dict()
         assert d["success"] is True
         assert d["total"] == 5
@@ -178,4 +176,6 @@ tests/test_foo.py:10: AssertionError
             assert int(passed_m.group(1) if passed_m else 0) == passed, f"passed 不匹配: {output}"
             assert int(failed_m.group(1) if failed_m else 0) == failed, f"failed 不匹配: {output}"
             assert int(errors_m.group(1) if errors_m else 0) == errors, f"errors 不匹配: {output}"
-            assert int(skipped_m.group(1) if skipped_m else 0) == skipped, f"skipped 不匹配: {output}"
+            assert (
+                int(skipped_m.group(1) if skipped_m else 0) == skipped
+            ), f"skipped 不匹配: {output}"

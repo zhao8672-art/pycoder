@@ -1,4 +1,5 @@
 """阶段 2 验证：统一错误处理中间件工作正常"""
+
 from __future__ import annotations
 
 import pytest

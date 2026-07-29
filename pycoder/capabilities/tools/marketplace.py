@@ -7,8 +7,8 @@ from __future__ import annotations
 from typing import Any
 
 from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, ExecutionMode, SideEffect
-from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 from pycoder.capabilities.degradation import wrap_handler
+from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 
 _CT = CapabilityCategory.PLUGIN
 

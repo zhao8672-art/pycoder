@@ -7,9 +7,9 @@
 
 from __future__ import annotations
 
+from pycoder.ai.security.composite_scanner import CompositeSecurityScanner, get_scanner
 from pycoder.ai.security.metrics_analyzer import MetricsAnalyzer
 from pycoder.ai.security.vulnerability_scanner import VulnerabilityScanner
-from pycoder.ai.security.composite_scanner import CompositeSecurityScanner, get_scanner
 
 __all__ = [
     "MetricsAnalyzer",

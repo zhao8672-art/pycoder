@@ -8,6 +8,7 @@
 测试策略：mock 模块级 _ec（EnvChecker 实例）和 subprocess.run，
 避免触发真实 Docker 命令。
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -118,9 +119,7 @@ class TestEnsureContainer:
         """已有容器且仍在运行时复用"""
         backend = DockerBackend()
         backend._container_id = "existing123"
-        mock_run = MagicMock(
-            return_value=MagicMock(returncode=0, stdout="true\n", stderr="")
-        )
+        mock_run = MagicMock(return_value=MagicMock(returncode=0, stdout="true\n", stderr=""))
         monkeypatch.setattr(docker_mod.subprocess, "run", mock_run)
         cid = await backend.ensure_container()
         assert cid == "existing123"
@@ -152,9 +151,7 @@ class TestEnsureContainer:
         assert cid == "newcid"
 
     async def test_create_failure_raises(self, fresh_backend, monkeypatch):
-        mock_run = MagicMock(
-            return_value=MagicMock(returncode=1, stdout="", stderr="docker error")
-        )
+        mock_run = MagicMock(return_value=MagicMock(returncode=1, stdout="", stderr="docker error"))
         monkeypatch.setattr(docker_mod.subprocess, "run", mock_run)
         with pytest.raises(RuntimeError, match="Docker 启动失败"):
             await fresh_backend.ensure_container()
@@ -226,9 +223,7 @@ class TestExecute:
 class TestInstallPackage:
     async def test_install_success(self, fresh_backend, monkeypatch):
         ensure_resp = MagicMock(returncode=0, stdout="cid\n", stderr="")
-        install_resp = MagicMock(
-            returncode=0, stdout="Successfully installed numpy\n", stderr=""
-        )
+        install_resp = MagicMock(returncode=0, stdout="Successfully installed numpy\n", stderr="")
         mock_run = MagicMock(side_effect=[ensure_resp, install_resp])
         monkeypatch.setattr(docker_mod.subprocess, "run", mock_run)
         ok, msg = await fresh_backend.install_package("numpy")
@@ -244,9 +239,7 @@ class TestInstallPackage:
         assert ok is False
         assert "pip error" in msg
 
-    async def test_install_returns_empty_stdout_uses_stderr(
-        self, fresh_backend, monkeypatch
-    ):
+    async def test_install_returns_empty_stdout_uses_stderr(self, fresh_backend, monkeypatch):
         ensure_resp = MagicMock(returncode=0, stdout="cid\n", stderr="")
         # stdout 为空时 fallback 到 stderr
         install_resp = MagicMock(returncode=0, stdout="", stderr="from stderr\n")

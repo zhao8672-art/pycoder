@@ -45,15 +45,17 @@ class Session:
 
         # 限制消息历史大小
         if len(self.messages) > self._max_messages:
-            self.messages = self.messages[-self._max_messages:]
+            self.messages = self.messages[-self._max_messages :]
 
     def add_response(self, content: str) -> None:
         """添加 AI 响应到会话历史"""
-        self.messages.append({
-            "role": "assistant",
-            "content": content,
-            "timestamp": time.time(),
-        })
+        self.messages.append(
+            {
+                "role": "assistant",
+                "content": content,
+                "timestamp": time.time(),
+            }
+        )
         self.last_activity = time.time()
 
     def get_recent_messages(self, limit: int = 20) -> list[dict[str, Any]]:
@@ -195,11 +197,7 @@ class SessionManager:
         Returns:
             该用户的所有会话列表
         """
-        return [
-            session
-            for (_, uid), session in self._sessions.items()
-            if uid == user_id
-        ]
+        return [session for (_, uid), session in self._sessions.items() if uid == user_id]
 
     def set_active_session(self, session_id: str) -> None:
         """设置当前活跃会话

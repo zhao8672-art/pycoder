@@ -10,18 +10,12 @@ template_code.py 模块单元测试 — 覆盖率目标 >=95%
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
-
-from pycoder.python import template_code as tc_mod
 from pycoder.python.template_code import (
-    generate_fastapi_crud,
     generate_fastapi_auth,
-    generate_streamlit_dashboard,
+    generate_fastapi_crud,
     generate_scaffold_project,
+    generate_streamlit_dashboard,
 )
-
 
 # ── generate_fastapi_crud ──────────────────────────────────
 

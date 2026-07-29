@@ -31,7 +31,6 @@ from pycoder.server.services.unified_entry import (
     create_unified_entry,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # TaskCategory 枚举测试
 # ══════════════════════════════════════════════════════════
@@ -355,7 +354,9 @@ class TestRouteToModes:
         """CHAT 意图路由到 CHAT 模式"""
         agent = UnifiedEntryAgent()
         intent = ParsedIntent(
-            raw_input="你好", surface_text="你好", core_need="闲聊",
+            raw_input="你好",
+            surface_text="你好",
+            core_need="闲聊",
             task_category=TaskCategory.CHAT,
         )
         tasks = agent._route_to_modes(intent)
@@ -366,7 +367,9 @@ class TestRouteToModes:
         """HERMES 意图路由到 Hermes 模式"""
         agent = UnifiedEntryAgent()
         intent = ParsedIntent(
-            raw_input="修改文件", surface_text="修改文件", core_need="操作",
+            raw_input="修改文件",
+            surface_text="修改文件",
+            core_need="操作",
             task_category=TaskCategory.HERMES,
         )
         tasks = agent._route_to_modes(intent)
@@ -377,7 +380,9 @@ class TestRouteToModes:
         """AGENT 意图路由到 Agent 模式"""
         agent = UnifiedEntryAgent()
         intent = ParsedIntent(
-            raw_input="开发系统", surface_text="开发系统", core_need="开发",
+            raw_input="开发系统",
+            surface_text="开发系统",
+            core_need="开发",
             task_category=TaskCategory.AGENT,
         )
         tasks = agent._route_to_modes(intent)
@@ -392,7 +397,9 @@ class TestMergeResults:
         """归集成功的 CHAT 结果"""
         agent = UnifiedEntryAgent()
         intent = ParsedIntent(
-            raw_input="你好", surface_text="你好", core_need="闲聊",
+            raw_input="你好",
+            surface_text="你好",
+            core_need="闲聊",
             task_category=TaskCategory.CHAT,
         )
         results = [
@@ -411,7 +418,9 @@ class TestMergeResults:
         """所有模式失败时返回故障提示"""
         agent = UnifiedEntryAgent()
         intent = ParsedIntent(
-            raw_input="测试", surface_text="测试", core_need="测试",
+            raw_input="测试",
+            surface_text="测试",
+            core_need="测试",
             task_category=TaskCategory.HERMES,
         )
         results = [
@@ -430,7 +439,9 @@ class TestMergeResults:
         """归集时去除内部标记（标记块内容被移除）"""
         agent = UnifiedEntryAgent()
         intent = ParsedIntent(
-            raw_input="测试", surface_text="测试", core_need="测试",
+            raw_input="测试",
+            surface_text="测试",
+            core_need="测试",
             task_category=TaskCategory.CHAT,
         )
         results = [
@@ -554,7 +565,8 @@ class TestProcessAsync:
         agent = UnifiedEntryAgent(model="test-model", api_key="sk-test")
 
         with patch.object(
-            agent, "_execute_modes",
+            agent,
+            "_execute_modes",
             new_callable=AsyncMock,
         ) as mock_exec:
             mock_exec.return_value = [
@@ -579,7 +591,8 @@ class TestProcessAsync:
         agent = UnifiedEntryAgent()
 
         with patch.object(
-            agent, "_execute_modes",
+            agent,
+            "_execute_modes",
             new_callable=AsyncMock,
         ) as mock_exec:
             mock_exec.return_value = [
@@ -600,7 +613,8 @@ class TestProcessAsync:
         agent = UnifiedEntryAgent()
 
         with patch.object(
-            agent, "_execute_modes",
+            agent,
+            "_execute_modes",
             new_callable=AsyncMock,
         ) as mock_exec:
             mock_exec.return_value = [
@@ -621,7 +635,8 @@ class TestProcessAsync:
         agent = UnifiedEntryAgent()
 
         with patch.object(
-            agent, "_execute_modes",
+            agent,
+            "_execute_modes",
             new_callable=AsyncMock,
         ) as mock_exec:
             mock_exec.return_value = [
@@ -634,7 +649,8 @@ class TestProcessAsync:
             ]
             # 使用一个会触发风险检测的消息（has_risk 在 _parse_intent 中默认 False）
             with patch.object(
-                agent, "_parse_intent",
+                agent,
+                "_parse_intent",
                 return_value=ParsedIntent(
                     raw_input="删除所有文件",
                     surface_text="删除所有文件",
@@ -976,9 +992,7 @@ class TestProcessStream:
                                 mock_bridge.return_value.configure = MagicMock()
                                 mock_bridge.return_value.close = AsyncMock()
 
-                                async for ev in agent.process_stream(
-                                    "修改 main.py 中的登录逻辑"
-                                ):
+                                async for ev in agent.process_stream("修改 main.py 中的登录逻辑"):
                                     events.append(ev)
 
         # 应有 HERMES 分类的 intent

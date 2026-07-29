@@ -110,10 +110,7 @@ class WhitelistConfig:
             "mode": self.mode.value,
             "allowed_tools": self.allowed_tools,
             "denied_tools": self.denied_tools,
-            "param_schemas": {
-                tool: schema.patterns
-                for tool, schema in self.param_schemas.items()
-            },
+            "param_schemas": {tool: schema.patterns for tool, schema in self.param_schemas.items()},
         }
 
 
@@ -148,7 +145,8 @@ class ToolWhitelist:
         self.load_from_dict(data)
         logger.info(
             "whitelist_loaded path=%s mode=%s allowed=%d denied=%d",
-            path, self._config.mode.value,
+            path,
+            self._config.mode.value,
             len(self._config.allowed_tools),
             len(self._config.denied_tools),
         )
@@ -176,9 +174,7 @@ class ToolWhitelist:
         # 参数模式
         self._config.param_schemas = {}
         for tool_name, patterns in (data.get("param_schemas") or {}).items():
-            self._config.param_schemas[tool_name] = ParamSchema(
-                patterns=dict(patterns)
-            )
+            self._config.param_schemas[tool_name] = ParamSchema(patterns=dict(patterns))
 
     def set_mode(self, mode: WhitelistMode) -> None:
         """设置白名单模式"""
@@ -195,9 +191,7 @@ class ToolWhitelist:
         if tool_pattern not in self._config.denied_tools:
             self._config.denied_tools.append(tool_pattern)
 
-    def is_allowed(
-        self, tool_name: str, args: dict[str, Any] | None = None
-    ) -> tuple[bool, str]:
+    def is_allowed(self, tool_name: str, args: dict[str, Any] | None = None) -> tuple[bool, str]:
         """检查工具调用是否被允许
 
         Args:
@@ -253,9 +247,7 @@ class ToolWhitelist:
         """匹配工具名（支持通配符 * 和 ?）"""
         return fnmatch.fnmatch(tool_name, pattern)
 
-    def _validate_params(
-        self, tool_name: str, args: dict[str, Any]
-    ) -> tuple[bool, str]:
+    def _validate_params(self, tool_name: str, args: dict[str, Any]) -> tuple[bool, str]:
         """校验参数模式"""
         schema = self._config.param_schemas.get(tool_name)
         if schema is None:
@@ -287,7 +279,9 @@ class ToolWhitelist:
         if not allowed:
             logger.warning(
                 "tool_call_denied tool=%s reason=%s args_keys=%s",
-                tool_name, reason, entry["args_keys"],
+                tool_name,
+                reason,
+                entry["args_keys"],
             )
 
     def get_audit_log(self, last_n: int = 20) -> list[dict[str, Any]]:

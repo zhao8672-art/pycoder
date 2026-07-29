@@ -41,11 +41,13 @@ _agent_team: SpecializedAgentTeam = get_agent_team()
 
 class SelectRequest(BaseModel):
     """自动选角请求体"""
+
     task_description: str = Field(..., description="任务描述文本")
 
 
 class AgentProfileResponse(BaseModel):
     """Agent 角色配置响应"""
+
     role: str
     name: str
     description: str
@@ -58,6 +60,7 @@ class AgentProfileResponse(BaseModel):
 
 class SelectResponse(BaseModel):
     """自动选角响应"""
+
     task: str
     selected: list[AgentProfileResponse]
     count: int
@@ -65,12 +68,14 @@ class SelectResponse(BaseModel):
 
 class CreateTeamRequest(BaseModel):
     """创建团队请求体"""
+
     name: str = Field(..., description="团队名称")
     roles: list[str] = Field(..., description="角色列表，如: ['architect', 'developer', 'tester']")
 
 
 class CreateTeamResponse(BaseModel):
     """创建团队响应"""
+
     success: bool
     team_name: str | None = None
     members: list[str] | None = None
@@ -81,12 +86,14 @@ class CreateTeamResponse(BaseModel):
 
 class AssignTaskRequest(BaseModel):
     """分配任务请求体"""
+
     agent_role: str = Field(..., description="Agent 角色名称")
     task: str = Field(..., description="任务描述")
 
 
 class AssignTaskResponse(BaseModel):
     """分配任务响应"""
+
     success: bool
     team_name: str | None = None
     task_id: str | None = None
@@ -100,6 +107,7 @@ class AssignTaskResponse(BaseModel):
 
 class ProgressResponse(BaseModel):
     """团队进度响应"""
+
     team_name: str
     members: list[str]
     total_tasks: int

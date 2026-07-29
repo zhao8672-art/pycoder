@@ -22,7 +22,6 @@ from pycoder.server.services.unified_agent import (
     agent_chat_stream,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # 辅助模拟类
 # ══════════════════════════════════════════════════════════
@@ -66,6 +65,7 @@ def _make_mock_llm():
 
 def _make_mock_loop_events():
     """创建模拟 UnifiedAgentLoop 事件流"""
+
     async def _events(*args, **kwargs):
         yield {"type": "status", "message": "开始执行"}
         yield {"type": "tool_result", "tool": "read_file", "result": "内容"}
@@ -140,9 +140,7 @@ class TestUnifiedAgentEngine:
         mock_strategy = _make_mock_strategy()
         mock_grade = MockTaskGrade()
 
-        with patch(
-            "pycoder.server.services.unified_agent.registry"
-        ) as mock_registry:
+        with patch("pycoder.server.services.unified_agent.registry") as mock_registry:
             mock_registry.resolve.return_value = mock_llm
 
             with patch(
@@ -181,17 +179,13 @@ class TestUnifiedAgentEngine:
     # ── 策略选择失败降级 ──
 
     @pytest.mark.asyncio
-    async def test_chat_stream_strategy_fallback(
-        self, engine: UnifiedAgentEngine
-    ) -> None:
+    async def test_chat_stream_strategy_fallback(self, engine: UnifiedAgentEngine) -> None:
         """策略自动选择失败时降级为 auto"""
         mock_llm = _make_mock_llm()
         mock_loop = _make_mock_loop_events()
         mock_strategy = _make_mock_strategy()
 
-        with patch(
-            "pycoder.server.services.unified_agent.registry"
-        ) as mock_registry:
+        with patch("pycoder.server.services.unified_agent.registry") as mock_registry:
             mock_registry.resolve.return_value = mock_llm
 
             with patch(
@@ -223,26 +217,20 @@ class TestUnifiedAgentEngine:
                                 results.append(ev)
 
             # 策略降级后仍应正常执行
-            strategy_event = next(
-                (e for e in results if e["type"] == "strategy"), None
-            )
+            strategy_event = next((e for e in results if e["type"] == "strategy"), None)
             assert strategy_event is not None
 
     # ── 自定义 system_prompt ──
 
     @pytest.mark.asyncio
-    async def test_chat_stream_custom_system_prompt(
-        self, engine: UnifiedAgentEngine
-    ) -> None:
+    async def test_chat_stream_custom_system_prompt(self, engine: UnifiedAgentEngine) -> None:
         """自定义 system_prompt 覆盖默认"""
         mock_llm = _make_mock_llm()
         mock_loop = _make_mock_loop_events()
         mock_strategy = _make_mock_strategy()
         custom_prompt = "自定义系统提示词"
 
-        with patch(
-            "pycoder.server.services.unified_agent.registry"
-        ) as mock_registry:
+        with patch("pycoder.server.services.unified_agent.registry") as mock_registry:
             mock_registry.resolve.return_value = mock_llm
 
             with patch(
@@ -273,25 +261,19 @@ class TestUnifiedAgentEngine:
                             ):
                                 results.append(ev)
 
-            strategy_event = next(
-                (e for e in results if e["type"] == "strategy"), None
-            )
+            strategy_event = next((e for e in results if e["type"] == "strategy"), None)
             assert strategy_event is not None
 
     # ── 固定策略测试 ──
 
     @pytest.mark.asyncio
-    async def test_chat_stream_fixed_strategy(
-        self, engine: UnifiedAgentEngine
-    ) -> None:
+    async def test_chat_stream_fixed_strategy(self, engine: UnifiedAgentEngine) -> None:
         """指定固定策略时不自动选择"""
         mock_llm = _make_mock_llm()
         mock_loop = _make_mock_loop_events()
         mock_strategy = _make_mock_strategy()
 
-        with patch(
-            "pycoder.server.services.unified_agent.registry"
-        ) as mock_registry:
+        with patch("pycoder.server.services.unified_agent.registry") as mock_registry:
             mock_registry.resolve.return_value = mock_llm
 
             with patch(
@@ -324,26 +306,20 @@ class TestUnifiedAgentEngine:
                 # 固定策略不应调用 auto_select_strategy
                 mock_auto.assert_not_called()
 
-            strategy_event = next(
-                (e for e in results if e["type"] == "strategy"), None
-            )
+            strategy_event = next((e for e in results if e["type"] == "strategy"), None)
             assert strategy_event is not None
             assert strategy_event["strategy"] == "team"
 
     # ── 难度分级失败降级 ──
 
     @pytest.mark.asyncio
-    async def test_chat_stream_grade_failure(
-        self, engine: UnifiedAgentEngine
-    ) -> None:
+    async def test_chat_stream_grade_failure(self, engine: UnifiedAgentEngine) -> None:
         """难度分级失败时降级处理"""
         mock_llm = _make_mock_llm()
         mock_loop = _make_mock_loop_events()
         mock_strategy = _make_mock_strategy()
 
-        with patch(
-            "pycoder.server.services.unified_agent.registry"
-        ) as mock_registry:
+        with patch("pycoder.server.services.unified_agent.registry") as mock_registry:
             mock_registry.resolve.return_value = mock_llm
 
             with patch(
@@ -359,9 +335,7 @@ class TestUnifiedAgentEngine:
                         "pycoder.server.services.unified_agent.get_task_grader",
                     ) as mock_grader_factory:
                         mock_grader = MagicMock()
-                        mock_grader.grade.side_effect = RuntimeError(
-                            "分级失败"
-                        )
+                        mock_grader.grade.side_effect = RuntimeError("分级失败")
                         mock_grader_factory.return_value = mock_grader
 
                         with patch(
@@ -376,26 +350,20 @@ class TestUnifiedAgentEngine:
                                 results.append(ev)
 
             # 分级失败应降级，不应阻塞执行
-            strategy_event = next(
-                (e for e in results if e["type"] == "strategy"), None
-            )
+            strategy_event = next((e for e in results if e["type"] == "strategy"), None)
             assert strategy_event is not None
             assert strategy_event["grade"] is None
 
     # ── 策略事件结构测试 ──
 
     @pytest.mark.asyncio
-    async def test_chat_stream_strategy_event_structure(
-        self, engine: UnifiedAgentEngine
-    ) -> None:
+    async def test_chat_stream_strategy_event_structure(self, engine: UnifiedAgentEngine) -> None:
         """策略事件结构完整性"""
         mock_llm = _make_mock_llm()
         mock_loop = _make_mock_loop_events()
         mock_strategy = _make_mock_strategy()
 
-        with patch(
-            "pycoder.server.services.unified_agent.registry"
-        ) as mock_registry:
+        with patch("pycoder.server.services.unified_agent.registry") as mock_registry:
             mock_registry.resolve.return_value = mock_llm
 
             with patch(
@@ -425,9 +393,7 @@ class TestUnifiedAgentEngine:
                             ):
                                 results.append(ev)
 
-            strategy_event = next(
-                (e for e in results if e["type"] == "strategy"), None
-            )
+            strategy_event = next((e for e in results if e["type"] == "strategy"), None)
             assert strategy_event is not None
             assert "strategy" in strategy_event
             assert "config" in strategy_event
@@ -437,17 +403,13 @@ class TestUnifiedAgentEngine:
     # ── 上下文传递 ──
 
     @pytest.mark.asyncio
-    async def test_chat_stream_with_context(
-        self, engine: UnifiedAgentEngine
-    ) -> None:
+    async def test_chat_stream_with_context(self, engine: UnifiedAgentEngine) -> None:
         """带额外上下文执行"""
         mock_llm = _make_mock_llm()
         mock_loop = _make_mock_loop_events()
         mock_strategy = _make_mock_strategy()
 
-        with patch(
-            "pycoder.server.services.unified_agent.registry"
-        ) as mock_registry:
+        with patch("pycoder.server.services.unified_agent.registry") as mock_registry:
             mock_registry.resolve.return_value = mock_llm
 
             with patch(
@@ -478,25 +440,19 @@ class TestUnifiedAgentEngine:
                             ):
                                 results.append(ev)
 
-            agent_result = next(
-                (e for e in results if e["type"] == "agent_result"), None
-            )
+            agent_result = next((e for e in results if e["type"] == "agent_result"), None)
             assert agent_result is not None
 
     # ── 模型参数传递 ──
 
     @pytest.mark.asyncio
-    async def test_chat_stream_custom_model(
-        self, engine: UnifiedAgentEngine
-    ) -> None:
+    async def test_chat_stream_custom_model(self, engine: UnifiedAgentEngine) -> None:
         """自定义模型参数"""
         mock_llm = _make_mock_llm()
         mock_loop = _make_mock_loop_events()
         mock_strategy = _make_mock_strategy()
 
-        with patch(
-            "pycoder.server.services.unified_agent.registry"
-        ) as mock_registry:
+        with patch("pycoder.server.services.unified_agent.registry") as mock_registry:
             mock_registry.resolve.return_value = mock_llm
 
             with patch(
@@ -548,9 +504,7 @@ class TestAgentChatStream:
         mock_loop = _make_mock_loop_events()
         mock_strategy = _make_mock_strategy()
 
-        with patch(
-            "pycoder.server.services.unified_agent.registry"
-        ) as mock_registry:
+        with patch("pycoder.server.services.unified_agent.registry") as mock_registry:
             mock_registry.resolve.return_value = mock_llm
 
             with patch(
@@ -605,9 +559,7 @@ class TestAgentChatStream:
         mock_loop = _make_mock_loop_events()
         mock_strategy = _make_mock_strategy()
 
-        with patch(
-            "pycoder.server.services.unified_agent.registry"
-        ) as mock_registry:
+        with patch("pycoder.server.services.unified_agent.registry") as mock_registry:
             mock_registry.resolve.return_value = mock_llm
 
             with patch(

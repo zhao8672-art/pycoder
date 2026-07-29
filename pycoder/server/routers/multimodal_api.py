@@ -14,16 +14,16 @@
 - 错误截图识别 (检测红框/黄底/堆栈文本)
 - 图表理解 (折线/柱状/饼图 自动识别)
 """
+
 from __future__ import annotations
 
 import base64
 import logging
 import re
 import time
-from io import BytesIO
-from typing import Annotated, Literal
+from typing import Literal
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)

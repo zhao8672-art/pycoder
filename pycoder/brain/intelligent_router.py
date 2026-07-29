@@ -11,11 +11,11 @@ from __future__ import annotations
 import hashlib
 import logging
 import time
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from typing import Any
 
-from pycoder.brain.intent_analyzer import IntentAnalysis, IntentAnalyzer, get_intent_analyzer
 from pycoder.brain.agent_selector import AgentSelection, AgentSelector, get_agent_selector
+from pycoder.brain.intent_analyzer import IntentAnalysis, IntentAnalyzer, get_intent_analyzer
 from pycoder.brain.tool_planner import ToolPlan, ToolPlanner, get_tool_planner
 
 logger = logging.getLogger(__name__)
@@ -89,24 +89,48 @@ class RoutingDecision:
 
 COMPLEXITY_EXECUTION_CONFIG: dict[str, ExecutionConfig] = {
     "trivial": ExecutionConfig(
-        max_iterations=1, tool_timeout=10, temperature=0.5,
-        max_tokens=2048, enable_rumination=False, enable_snapshots=False,
-        enable_qa_review=False, max_concurrent_tools=0, strategy="simple",
+        max_iterations=1,
+        tool_timeout=10,
+        temperature=0.5,
+        max_tokens=2048,
+        enable_rumination=False,
+        enable_snapshots=False,
+        enable_qa_review=False,
+        max_concurrent_tools=0,
+        strategy="simple",
     ),
     "simple": ExecutionConfig(
-        max_iterations=5, tool_timeout=20, temperature=0.3,
-        max_tokens=4096, enable_rumination=False, enable_snapshots=False,
-        enable_qa_review=False, max_concurrent_tools=3, strategy="simple",
+        max_iterations=5,
+        tool_timeout=20,
+        temperature=0.3,
+        max_tokens=4096,
+        enable_rumination=False,
+        enable_snapshots=False,
+        enable_qa_review=False,
+        max_concurrent_tools=3,
+        strategy="simple",
     ),
     "medium": ExecutionConfig(
-        max_iterations=15, tool_timeout=30, temperature=0.3,
-        max_tokens=8192, enable_rumination=True, enable_snapshots=False,
-        enable_qa_review=False, max_concurrent_tools=5, strategy="simple",
+        max_iterations=15,
+        tool_timeout=30,
+        temperature=0.3,
+        max_tokens=8192,
+        enable_rumination=True,
+        enable_snapshots=False,
+        enable_qa_review=False,
+        max_concurrent_tools=5,
+        strategy="simple",
     ),
     "complex": ExecutionConfig(
-        max_iterations=50, tool_timeout=60, temperature=0.2,
-        max_tokens=16384, enable_rumination=True, enable_snapshots=True,
-        enable_qa_review=True, max_concurrent_tools=5, strategy="auto",
+        max_iterations=50,
+        tool_timeout=60,
+        temperature=0.2,
+        max_tokens=16384,
+        enable_rumination=True,
+        enable_snapshots=True,
+        enable_qa_review=True,
+        max_concurrent_tools=5,
+        strategy="auto",
     ),
 }
 
@@ -173,11 +197,7 @@ class IntelligentRouter:
         exec_config = self._get_execution_config(intent, agent)
 
         # 5. 综合置信度
-        confidence = (
-            intent.confidence * 0.4
-            + agent.confidence * 0.4
-            + 0.2  # 工具规划基础置信度
-        )
+        confidence = intent.confidence * 0.4 + agent.confidence * 0.4 + 0.2  # 工具规划基础置信度
 
         decision = RoutingDecision(
             intent=intent,
@@ -196,8 +216,12 @@ class IntelligentRouter:
 
         logger.info(
             "routing_decision: domain=%s type=%s complexity=%s agent=%s tools=%d confidence=%.2f",
-            intent.technical_domain, intent.task_type, intent.complexity,
-            agent.primary_agent, tool_plan.estimated_tool_calls, confidence,
+            intent.technical_domain,
+            intent.task_type,
+            intent.complexity,
+            agent.primary_agent,
+            tool_plan.estimated_tool_calls,
+            confidence,
         )
 
         return decision
@@ -222,11 +246,7 @@ class IntelligentRouter:
         # 执行配置
         exec_config = self._get_execution_config(intent, agent)
 
-        confidence = (
-            intent.confidence * 0.4
-            + agent.confidence * 0.4
-            + 0.2
-        )
+        confidence = intent.confidence * 0.4 + agent.confidence * 0.4 + 0.2
 
         decision = RoutingDecision(
             intent=intent,
@@ -240,13 +260,18 @@ class IntelligentRouter:
 
         logger.info(
             "routing_decision_deep: domain=%s type=%s complexity=%s agent=%s confidence=%.2f",
-            intent.technical_domain, intent.task_type, intent.complexity,
-            agent.primary_agent, confidence,
+            intent.technical_domain,
+            intent.task_type,
+            intent.complexity,
+            agent.primary_agent,
+            confidence,
         )
 
         return decision
 
-    def _get_execution_config(self, intent: IntentAnalysis, agent: AgentSelection) -> ExecutionConfig:
+    def _get_execution_config(
+        self, intent: IntentAnalysis, agent: AgentSelection
+    ) -> ExecutionConfig:
         """根据意图和 Agent 选择确定执行配置"""
         config = COMPLEXITY_EXECUTION_CONFIG.get(
             intent.complexity, COMPLEXITY_EXECUTION_CONFIG["medium"]

@@ -12,13 +12,10 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import pytest
 from fastapi.testclient import TestClient
 
 from pycoder.workspace.workspace_registry import ShareLevel, WorkspaceEntry, WorkspaceRegistry
-
 
 # ── 辅助函数 ──────────────────────────────────────────────
 

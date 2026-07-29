@@ -119,75 +119,120 @@ class CodeSanitizer:
                 # cursor.execute(f"SELECT ... {user_input}")
                 if isinstance(func, ast.Attribute) and func.attr == "execute":
                     if node.args and isinstance(node.args[0], ast.JoinedStr):
-                        warnings.append(SecurityWarning(
-                            line=node.lineno,
-                            vulnerability_type="sql_injection",
-                            severity="critical",
-                            description="SQL 查询使用 f-string 拼接，存在 SQL 注入风险",
-                            original_code=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                            fixed_code="使用参数化查询: cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))",
-                            cwe_id="CWE-89",
-                        ))
-                    elif node.args and isinstance(node.args[0], ast.BinOp) and isinstance(node.args[0].op, ast.Add):
-                        warnings.append(SecurityWarning(
-                            line=node.lineno,
-                            vulnerability_type="sql_injection",
-                            severity="critical",
-                            description="SQL 查询使用字符串拼接，存在 SQL 注入风险",
-                            original_code=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                            fixed_code="使用参数化查询: cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))",
-                            cwe_id="CWE-89",
-                        ))
+                        warnings.append(
+                            SecurityWarning(
+                                line=node.lineno,
+                                vulnerability_type="sql_injection",
+                                severity="critical",
+                                description="SQL 查询使用 f-string 拼接，存在 SQL 注入风险",
+                                original_code=(
+                                    lines[node.lineno - 1].strip()
+                                    if node.lineno <= len(lines)
+                                    else ""
+                                ),
+                                fixed_code="使用参数化查询: cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))",
+                                cwe_id="CWE-89",
+                            )
+                        )
+                    elif (
+                        node.args
+                        and isinstance(node.args[0], ast.BinOp)
+                        and isinstance(node.args[0].op, ast.Add)
+                    ):
+                        warnings.append(
+                            SecurityWarning(
+                                line=node.lineno,
+                                vulnerability_type="sql_injection",
+                                severity="critical",
+                                description="SQL 查询使用字符串拼接，存在 SQL 注入风险",
+                                original_code=(
+                                    lines[node.lineno - 1].strip()
+                                    if node.lineno <= len(lines)
+                                    else ""
+                                ),
+                                fixed_code="使用参数化查询: cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))",
+                                cwe_id="CWE-89",
+                            )
+                        )
 
                 # subprocess.run(f"cmd {user_input}") 或 subprocess.call(shell=True)
-                if isinstance(func, ast.Attribute) and func.attr in ("run", "call", "Popen", "check_output"):
+                if isinstance(func, ast.Attribute) and func.attr in (
+                    "run",
+                    "call",
+                    "Popen",
+                    "check_output",
+                ):
                     # 检查 shell=True
                     for kw in node.keywords:
-                        if kw.arg == "shell" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
-                            warnings.append(SecurityWarning(
+                        if (
+                            kw.arg == "shell"
+                            and isinstance(kw.value, ast.Constant)
+                            and kw.value.value is True
+                        ):
+                            warnings.append(
+                                SecurityWarning(
+                                    line=node.lineno,
+                                    vulnerability_type="command_injection",
+                                    severity="critical",
+                                    description="subprocess 使用 shell=True 存在命令注入风险",
+                                    original_code=(
+                                        lines[node.lineno - 1].strip()
+                                        if node.lineno <= len(lines)
+                                        else ""
+                                    ),
+                                    fixed_code="使用列表参数替代 shell=True: subprocess.run(['cmd', arg1, arg2])",
+                                    cwe_id="CWE-78",
+                                )
+                            )
+                    # 检查 f-string 命令
+                    if node.args and isinstance(node.args[0], ast.JoinedStr):
+                        warnings.append(
+                            SecurityWarning(
                                 line=node.lineno,
                                 vulnerability_type="command_injection",
                                 severity="critical",
-                                description="subprocess 使用 shell=True 存在命令注入风险",
-                                original_code=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                                fixed_code="使用列表参数替代 shell=True: subprocess.run(['cmd', arg1, arg2])",
+                                description="subprocess 使用 f-string 拼接命令，存在命令注入风险",
+                                original_code=(
+                                    lines[node.lineno - 1].strip()
+                                    if node.lineno <= len(lines)
+                                    else ""
+                                ),
+                                fixed_code="使用列表参数: subprocess.run(['cmd', user_input])",
                                 cwe_id="CWE-78",
-                            ))
-                    # 检查 f-string 命令
-                    if node.args and isinstance(node.args[0], ast.JoinedStr):
-                        warnings.append(SecurityWarning(
-                            line=node.lineno,
-                            vulnerability_type="command_injection",
-                            severity="critical",
-                            description="subprocess 使用 f-string 拼接命令，存在命令注入风险",
-                            original_code=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                            fixed_code="使用列表参数: subprocess.run(['cmd', user_input])",
-                            cwe_id="CWE-78",
-                        ))
+                            )
+                        )
 
                 # os.system(f"cmd {user_input}")
                 if isinstance(func, ast.Attribute) and func.attr == "system":
-                    warnings.append(SecurityWarning(
-                        line=node.lineno,
-                        vulnerability_type="command_injection",
-                        severity="critical",
-                        description="os.system() 存在命令注入风险",
-                        original_code=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                        fixed_code="使用 subprocess.run(['cmd', arg], shell=False) 替代 os.system()",
-                        cwe_id="CWE-78",
-                    ))
+                    warnings.append(
+                        SecurityWarning(
+                            line=node.lineno,
+                            vulnerability_type="command_injection",
+                            severity="critical",
+                            description="os.system() 存在命令注入风险",
+                            original_code=(
+                                lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
+                            ),
+                            fixed_code="使用 subprocess.run(['cmd', arg], shell=False) 替代 os.system()",
+                            cwe_id="CWE-78",
+                        )
+                    )
 
                 # eval() / exec()
                 if isinstance(func, ast.Name) and func.id in ("eval", "exec"):
-                    warnings.append(SecurityWarning(
-                        line=node.lineno,
-                        vulnerability_type="code_injection",
-                        severity="critical",
-                        description=f"{func.id}() 存在代码注入风险",
-                        original_code=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                        fixed_code=f"避免使用 {func.id}()，使用安全的替代方案 (如 ast.literal_eval)",
-                        cwe_id="CWE-94",
-                    ))
+                    warnings.append(
+                        SecurityWarning(
+                            line=node.lineno,
+                            vulnerability_type="code_injection",
+                            severity="critical",
+                            description=f"{func.id}() 存在代码注入风险",
+                            original_code=(
+                                lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
+                            ),
+                            fixed_code=f"避免使用 {func.id}()，使用安全的替代方案 (如 ast.literal_eval)",
+                            cwe_id="CWE-94",
+                        )
+                    )
 
             # 检测路径遍历: open(user_input)
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
@@ -195,15 +240,21 @@ class CodeSanitizer:
                     first_arg = node.args[0]
                     # 如果参数是变量名 (可能是用户输入)
                     if isinstance(first_arg, ast.Name) and first_arg.id not in ("__file__",):
-                        warnings.append(SecurityWarning(
-                            line=node.lineno,
-                            vulnerability_type="path_traversal",
-                            severity="high",
-                            description="open() 直接使用变量，可能存在路径遍历风险",
-                            original_code=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                            fixed_code="验证路径: from pathlib import Path; p = Path(user_input).resolve(); if not str(p).startswith(str(base_dir)): raise ValueError('非法路径')",
-                            cwe_id="CWE-22",
-                        ))
+                        warnings.append(
+                            SecurityWarning(
+                                line=node.lineno,
+                                vulnerability_type="path_traversal",
+                                severity="high",
+                                description="open() 直接使用变量，可能存在路径遍历风险",
+                                original_code=(
+                                    lines[node.lineno - 1].strip()
+                                    if node.lineno <= len(lines)
+                                    else ""
+                                ),
+                                fixed_code="验证路径: from pathlib import Path; p = Path(user_input).resolve(); if not str(p).startswith(str(base_dir)): raise ValueError('非法路径')",
+                                cwe_id="CWE-22",
+                            )
+                        )
 
         return warnings
 
@@ -217,56 +268,68 @@ class CodeSanitizer:
 
             # 检测 pickle.loads
             if re.search(r"pickle\.loads?\(", stripped):
-                warnings.append(SecurityWarning(
-                    line=i,
-                    vulnerability_type="deserialization",
-                    severity="high",
-                    description="pickle 反序列化存在任意代码执行风险",
-                    original_code=stripped,
-                    fixed_code="使用安全的序列化格式 (如 JSON)",
-                    cwe_id="CWE-502",
-                ))
+                warnings.append(
+                    SecurityWarning(
+                        line=i,
+                        vulnerability_type="deserialization",
+                        severity="high",
+                        description="pickle 反序列化存在任意代码执行风险",
+                        original_code=stripped,
+                        fixed_code="使用安全的序列化格式 (如 JSON)",
+                        cwe_id="CWE-502",
+                    )
+                )
 
             # 检测 yaml.load (无 Loader 参数)
             if re.search(r"yaml\.load\([^)]*\)$", stripped) and "Loader" not in stripped:
-                warnings.append(SecurityWarning(
-                    line=i,
-                    vulnerability_type="deserialization",
-                    severity="high",
-                    description="yaml.load() 不安全，应使用 yaml.safe_load()",
-                    original_code=stripped,
-                    fixed_code="使用 yaml.safe_load() 替代 yaml.load()",
-                    cwe_id="CWE-502",
-                ))
+                warnings.append(
+                    SecurityWarning(
+                        line=i,
+                        vulnerability_type="deserialization",
+                        severity="high",
+                        description="yaml.load() 不安全，应使用 yaml.safe_load()",
+                        original_code=stripped,
+                        fixed_code="使用 yaml.safe_load() 替代 yaml.load()",
+                        cwe_id="CWE-502",
+                    )
+                )
 
             # 检测 requests.get(user_url) (SSRF)
             if re.search(r"requests\.(get|post|put|delete)\(\s*\w+", stripped):
                 # 检查是否是变量 (可能是用户输入)
                 match = re.search(r"requests\.\w+\(\s*([a-z_]\w*)", stripped)
                 if match and match.group(1) not in ("url", "api_url", "endpoint"):
-                    warnings.append(SecurityWarning(
-                        line=i,
-                        vulnerability_type="ssrf",
-                        severity="medium",
-                        description="直接使用变量作为 URL，可能存在 SSRF 风险",
-                        original_code=stripped,
-                        fixed_code="验证 URL 白名单: if url not in ALLOWED_URLS: raise ValueError('非法 URL')",
-                        cwe_id="CWE-918",
-                    ))
+                    warnings.append(
+                        SecurityWarning(
+                            line=i,
+                            vulnerability_type="ssrf",
+                            severity="medium",
+                            description="直接使用变量作为 URL，可能存在 SSRF 风险",
+                            original_code=stripped,
+                            fixed_code="验证 URL 白名单: if url not in ALLOWED_URLS: raise ValueError('非法 URL')",
+                            cwe_id="CWE-918",
+                        )
+                    )
 
             # 检测硬编码密钥
-            if re.search(r"(api_key|secret|password|token)\s*=\s*['\"][^'\"]{8,}['\"]", stripped, re.IGNORECASE):
+            if re.search(
+                r"(api_key|secret|password|token)\s*=\s*['\"][^'\"]{8,}['\"]",
+                stripped,
+                re.IGNORECASE,
+            ):
                 # 排除环境变量获取
                 if "os.environ" not in stripped and "getenv" not in stripped:
-                    warnings.append(SecurityWarning(
-                        line=i,
-                        vulnerability_type="hardcoded_secret",
-                        severity="high",
-                        description="检测到硬编码的密钥/密码",
-                        original_code=stripped,
-                        fixed_code="使用环境变量: api_key = os.environ.get('API_KEY')",
-                        cwe_id="CWE-798",
-                    ))
+                    warnings.append(
+                        SecurityWarning(
+                            line=i,
+                            vulnerability_type="hardcoded_secret",
+                            severity="high",
+                            description="检测到硬编码的密钥/密码",
+                            original_code=stripped,
+                            fixed_code="使用环境变量: api_key = os.environ.get('API_KEY')",
+                            cwe_id="CWE-798",
+                        )
+                    )
 
         return warnings
 

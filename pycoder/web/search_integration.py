@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SearchResult:
     """搜索结果"""
+
     title: str
     url: str
     snippet: str
@@ -105,16 +106,18 @@ class DuckDuckGoSearch:
         )
 
         for i, (url, title_html) in enumerate(blocks[:num_results]):
-            title = re.sub(r'<[^>]+>', '', title_html).strip()
+            title = re.sub(r"<[^>]+>", "", title_html).strip()
             snippet = ""
             if i < len(snippets):
-                snippet = re.sub(r'<[^>]+>', '', snippets[i]).strip()
-            results.append(SearchResult(
-                title=title,
-                url=url,
-                snippet=snippet,
-                source="duckduckgo",
-            ))
+                snippet = re.sub(r"<[^>]+>", "", snippets[i]).strip()
+            results.append(
+                SearchResult(
+                    title=title,
+                    url=url,
+                    snippet=snippet,
+                    source="duckduckgo",
+                )
+            )
 
         return results
 
@@ -127,6 +130,7 @@ class SearXNGSearch:
 
     def __init__(self):
         import os
+
         self._base_url = os.environ.get("SEARXNG_BASE_URL", "")
 
     async def search(self, query: str, num_results: int = 5) -> list[SearchResult]:
@@ -134,6 +138,7 @@ class SearXNGSearch:
             return []
 
         import httpx
+
         async with httpx.AsyncClient(timeout=15) as c:
             resp = await c.get(
                 f"{self._base_url}/search",
@@ -143,12 +148,14 @@ class SearXNGSearch:
             data = resp.json()
             results = []
             for item in data.get("results", [])[:num_results]:
-                results.append(SearchResult(
-                    title=item.get("title", ""),
-                    url=item.get("url", ""),
-                    snippet=item.get("content", ""),
-                    source="searxng",
-                ))
+                results.append(
+                    SearchResult(
+                        title=item.get("title", ""),
+                        url=item.get("url", ""),
+                        snippet=item.get("content", ""),
+                        source="searxng",
+                    )
+                )
             return results
 
 
@@ -160,6 +167,7 @@ class TavilySearch:
 
     def __init__(self):
         import os
+
         self._api_key = os.environ.get("TAVILY_API_KEY", "")
 
     async def search(self, query: str, num_results: int = 5) -> list[SearchResult]:
@@ -167,6 +175,7 @@ class TavilySearch:
             return []
 
         import httpx
+
         async with httpx.AsyncClient(timeout=15) as c:
             resp = await c.post(
                 "https://api.tavily.com/search",
@@ -181,12 +190,14 @@ class TavilySearch:
             data = resp.json()
             results = []
             for item in data.get("results", [])[:num_results]:
-                results.append(SearchResult(
-                    title=item.get("title", ""),
-                    url=item.get("url", ""),
-                    snippet=item.get("content", ""),
-                    source="tavily",
-                ))
+                results.append(
+                    SearchResult(
+                        title=item.get("title", ""),
+                        url=item.get("url", ""),
+                        snippet=item.get("content", ""),
+                        source="tavily",
+                    )
+                )
             return results
 
 

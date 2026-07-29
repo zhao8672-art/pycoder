@@ -20,16 +20,12 @@
 - 构造特定代码片段触发各分支
 - 使用 ast 构造复杂结构
 """
+
 from __future__ import annotations
 
 import subprocess
 import sys
-from pathlib import Path
-from typing import Generator
 
-import pytest
-
-from pycoder.python import code_quality as cq
 from pycoder.python.code_quality import (
     ArchitectureIssue,
     CodePatternRecognizer,
@@ -46,7 +42,6 @@ from pycoder.python.code_quality import (
     get_refactoring_suggestions,
     recognize_patterns,
 )
-
 
 # ── 数据类测试 ─────────────────────────────────────────────
 
@@ -115,7 +110,7 @@ class TestCalculateScore:
 
     def test_long_code_penalty(self):
         # 500+ 行代码降低 readability（含 docstring 以避免额外扣分）
-        lines = ['""" module docstring """'] + ['x = 1'] * 600
+        lines = ['""" module docstring """'] + ["x = 1"] * 600
         code = "\n".join(lines)
         score = CodeQualityAnalyzer._calculate_score(code)
         # 80 - 20（500+ 行）= 60
@@ -443,11 +438,7 @@ class TestDependencyAnalyzer:
         assert "helpers" in result["local"]
 
     def test_mixed_imports(self):
-        code = (
-            "import os\n"
-            "from collections import defaultdict\n"
-            "from .helpers import util\n"
-        )
+        code = "import os\n" "from collections import defaultdict\n" "from .helpers import util\n"
         result = DependencyAnalyzer.analyze_imports(code)
         assert "os" in result["third_party"]
         assert "collections" in result["third_party"]

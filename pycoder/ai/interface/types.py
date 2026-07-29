@@ -11,7 +11,6 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any
 
-
 # ══════════════════════════════════════════════════════════
 # 枚举类型
 # ══════════════════════════════════════════════════════════
@@ -99,9 +98,7 @@ class ProviderCapability:
             "tool_use": 0.10,
             "cost_efficiency": 0.10,
         }
-        return sum(
-            getattr(self, k) * w for k, w in weights.items()
-        )
+        return sum(getattr(self, k) * w for k, w in weights.items())
 
 
 @dataclass

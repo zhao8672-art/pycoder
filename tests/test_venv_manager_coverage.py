@@ -23,15 +23,14 @@ import pytest
 from pycoder.python import venv_manager as vm
 from pycoder.python.venv_manager import (
     VirtualEnv,
-    detect_current_venv,
-    list_venvs,
     create_venv,
+    detect_current_venv,
+    get_activate_command,
     install_package,
     install_requirements,
-    get_activate_command,
+    list_venvs,
     switch_venv,
 )
-
 
 # ── VirtualEnv 数据类 ───────────────────────────────────────
 

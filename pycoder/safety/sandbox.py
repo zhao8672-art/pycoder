@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
 import ast
+import asyncio
 import json
 import logging
 import os
@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SandboxConfig:
     """沙箱配置"""
+
     timeout: int = 30
     max_cpu_percent: float = 30.0
     max_memory_mb: int = 512
@@ -38,6 +39,7 @@ class SandboxConfig:
 @dataclass
 class SandboxResult:
     """沙箱执行结果"""
+
     success: bool = True
     output: str = ""
     error: str = ""
@@ -93,6 +95,7 @@ class ProcessSandbox:
     ) -> SandboxResult:
         """在隔离进程中异步执行代码"""
         import tempfile
+
         _start = time.time()
 
         timeout = timeout if timeout is not None else float(self.config.max_timeout_seconds)
@@ -126,7 +129,7 @@ class ProcessSandbox:
                         proc.communicate(input=stdin.encode() if stdin else None),
                         timeout=timeout,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     proc.kill()
                     await proc.wait()
                     elapsed = (time.time() - _start) * 1000
@@ -183,10 +186,7 @@ class SandboxManager:
 
     def list_sandboxes(self) -> dict[str, str]:
         """列出所有沙箱，返回 {名称: 类型} 映射"""
-        return {
-            name: type(s).__name__
-            for name, s in self._sandboxes.items()
-        }
+        return {name: type(s).__name__ for name, s in self._sandboxes.items()}
 
     def create_process_sandbox(self, name: str) -> ProcessSandbox:
         """创建进程沙箱"""
@@ -226,6 +226,7 @@ class CodeSandbox:
 
     def __init__(self, timeout: float = 5.0, **kwargs: Any) -> None:
         import warnings
+
         warnings.warn(
             "CodeSandbox 已弃用，请使用 SubprocessSandbox 或 DockerSandbox 替代",
             DeprecationWarning,
@@ -236,6 +237,7 @@ class CodeSandbox:
     async def execute(self, code: str) -> SandboxResult:
         """执行 Python 代码，返回沙箱结果"""
         import time as _time
+
         _start = _time.time()
         result = safe_execute(code, timeout=int(self.timeout))
         elapsed = (_time.time() - _start) * 1000
@@ -300,10 +302,10 @@ def safe_execute(code: str, timeout: int = 5) -> dict[str, Any]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name):
-                if node.func.id in ('__import__', 'eval', 'exec', 'compile', 'open'):
+                if node.func.id in ("__import__", "eval", "exec", "compile", "open"):
                     return {"success": False, "error": f"禁止使用危险函数: {node.func.id}"}
             elif isinstance(node.func, ast.Attribute):
-                if node.func.attr in ('__import__', 'eval', 'exec', 'compile'):
+                if node.func.attr in ("__import__", "eval", "exec", "compile"):
                     return {"success": False, "error": f"禁止使用危险方法: {node.func.attr}"}
 
     # 3. 在受限命名空间中执行
@@ -353,7 +355,7 @@ def safe_execute(code: str, timeout: int = 5) -> dict[str, Any]:
 
     try:
         # 编译并执行
-        compiled = compile(tree, '<sandbox>', 'exec')
+        compiled = compile(tree, "<sandbox>", "exec")
 
         # 捕获 print 输出和执行结果
         import io
@@ -386,18 +388,45 @@ def safe_exec(code: str, safe_globals: dict | None = None, safe_locals: dict | N
     - 限制可用的内置函数
     """
     safe_builtins = {
-        'True': True, 'False': False, 'None': None,
-        'int': int, 'float': float, 'str': str, 'bool': bool,
-        'list': list, 'dict': dict, 'tuple': tuple, 'set': set,
-        'len': len, 'range': range, 'abs': abs, 'max': max, 'min': min,
-        'sum': sum, 'round': round, 'isinstance': isinstance, 'type': type,
-        'enumerate': enumerate, 'zip': zip, 'map': map, 'filter': filter,
-        'reversed': reversed, 'sorted': sorted, 'any': any, 'all': all,
-        'print': print, 'open': open,
-        'Exception': Exception, 'ValueError': ValueError, 'TypeError': TypeError,
-        'KeyError': KeyError, 'IndexError': IndexError,
-        'AttributeError': AttributeError, 'ImportError': ImportError,
-        'RuntimeError': RuntimeError, 'OSError': OSError,
+        "True": True,
+        "False": False,
+        "None": None,
+        "int": int,
+        "float": float,
+        "str": str,
+        "bool": bool,
+        "list": list,
+        "dict": dict,
+        "tuple": tuple,
+        "set": set,
+        "len": len,
+        "range": range,
+        "abs": abs,
+        "max": max,
+        "min": min,
+        "sum": sum,
+        "round": round,
+        "isinstance": isinstance,
+        "type": type,
+        "enumerate": enumerate,
+        "zip": zip,
+        "map": map,
+        "filter": filter,
+        "reversed": reversed,
+        "sorted": sorted,
+        "any": any,
+        "all": all,
+        "print": print,
+        "open": open,
+        "Exception": Exception,
+        "ValueError": ValueError,
+        "TypeError": TypeError,
+        "KeyError": KeyError,
+        "IndexError": IndexError,
+        "AttributeError": AttributeError,
+        "ImportError": ImportError,
+        "RuntimeError": RuntimeError,
+        "OSError": OSError,
     }
 
     wrapper_code = f"""
@@ -429,11 +458,11 @@ print(json.dumps(result))
 
     try:
         proc = subprocess.run(
-            ['python', '-c', wrapper_code],
+            ["python", "-c", wrapper_code],
             capture_output=True,
             text=True,
             timeout=30,
-            env={**os.environ, 'PYTHONPATH': ''},
+            env={**os.environ, "PYTHONPATH": ""},
         )
 
         if proc.returncode == 0:
@@ -442,16 +471,18 @@ print(json.dumps(result))
                 return result
             except json.JSONDecodeError:
                 return {
-                    'success': False, 'locals': {},
-                    'error': f'无法解析执行结果: {proc.stdout[:200]}',
+                    "success": False,
+                    "locals": {},
+                    "error": f"无法解析执行结果: {proc.stdout[:200]}",
                 }
         else:
             return {
-                'success': False, 'locals': {},
-                'error': f'子进程执行失败: {proc.stderr[:200]}',
+                "success": False,
+                "locals": {},
+                "error": f"子进程执行失败: {proc.stderr[:200]}",
             }
 
     except subprocess.TimeoutExpired:
-        return {'success': False, 'locals': {}, 'error': '代码执行超时（30秒）'}
+        return {"success": False, "locals": {}, "error": "代码执行超时（30秒）"}
     except Exception as e:
-        return {'success': False, 'locals': {}, 'error': f'执行异常: {str(e)[:200]}'}
+        return {"success": False, "locals": {}, "error": f"执行异常: {str(e)[:200]}"}

@@ -10,14 +10,13 @@
   - LearningEngine.generate_learning_report_markdown
   - get_pattern_extractor / get_learning_engine 单例
 """
+
 from __future__ import annotations
 
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ══════════════════════════════════════════════════════════
 # Fixture — 用 tmp_path 完全隔离所有持久化路径
@@ -32,18 +31,18 @@ def isolated_engine(tmp_path: Path, monkeypatch):
     FEEDBACK_DIR / METRICS_DB），并重置所有单例缓存变量，确保新实例
     使用 tmp_path 而非真实 ~/.pycoder。
     """
-    import pycoder.server.learning.knowledge_base as kb_mod
-    import pycoder.server.learning.metrics_tracker as mt_mod
-    import pycoder.server.learning.experience_buffer as eb_mod
-    import pycoder.server.learning.pattern_extractor as pe_mod
-    import pycoder.server.learning.feedback_loop as fb_mod
-    import pycoder.server.learning as learning_mod
     import pycoder.capabilities.self_evo.learning as v2_learning_mod
+    import pycoder.capabilities.self_evo.learning.experience_buffer as v2_eb_mod
+    import pycoder.capabilities.self_evo.learning.feedback_loop as v2_fb_mod
     import pycoder.capabilities.self_evo.learning.knowledge_base as v2_kb_mod
     import pycoder.capabilities.self_evo.learning.metrics_tracker as v2_mt_mod
-    import pycoder.capabilities.self_evo.learning.experience_buffer as v2_eb_mod
     import pycoder.capabilities.self_evo.learning.pattern_extractor as v2_pe_mod
-    import pycoder.capabilities.self_evo.learning.feedback_loop as v2_fb_mod
+    import pycoder.server.learning as learning_mod
+    import pycoder.server.learning.experience_buffer as eb_mod
+    import pycoder.server.learning.feedback_loop as fb_mod
+    import pycoder.server.learning.knowledge_base as kb_mod
+    import pycoder.server.learning.metrics_tracker as mt_mod
+    import pycoder.server.learning.pattern_extractor as pe_mod
 
     db_path = tmp_path / "pycoder.db"
     exp_dir = tmp_path / "exp"
@@ -86,6 +85,7 @@ def isolated_engine(tmp_path: Path, monkeypatch):
 
     # 重置 SessionStore 初始化标志（避免使用旧的内存数据库连接）
     from pycoder.server.session_store import SessionStore
+
     monkeypatch.setattr(SessionStore, "_db_initialized", False)
 
     # 现在创建新 LearningEngine — 它会使用 tmp_path 中的所有路径
@@ -100,13 +100,20 @@ def isolated_engine(tmp_path: Path, monkeypatch):
 class TestFormatTopErrors:
     def test_empty_list_returns_default(self):
         from pycoder.server.learning import _format_top_errors
+
         assert _format_top_errors([]) == "无数据"
 
     def test_formats_top_three(self):
         from pycoder.server.learning import _format_top_errors
-        result = _format_top_errors([
-            ("NameError", 5), ("TypeError", 3), ("ValueError", 2), ("KeyError", 1),
-        ])
+
+        result = _format_top_errors(
+            [
+                ("NameError", 5),
+                ("TypeError", 3),
+                ("ValueError", 2),
+                ("KeyError", 1),
+            ]
+        )
         # 只取前 3 个
         assert "NameError(5)" in result
         assert "TypeError(3)" in result
@@ -229,8 +236,13 @@ class TestOnQualityScan:
         """on_quality_scan 调用 metrics.record_quality_snapshot"""
         engine = isolated_engine
         engine.on_quality_scan(
-            lint_score=90, security_score=95, complexity_score=85,
-            test_coverage=80, total_score=87, file_count=10, issue_count=2,
+            lint_score=90,
+            security_score=95,
+            complexity_score=85,
+            test_coverage=80,
+            total_score=87,
+            file_count=10,
+            issue_count=2,
         )
         # 验证快照被写入
         snapshots = engine.metrics.get_quality_trends(days=1)
@@ -266,10 +278,12 @@ class TestOnPipelineComplete:
 
     def test_failure_status_recorded(self, isolated_engine):
         engine = isolated_engine
-        result = engine.on_pipeline_complete({
-            "run_id": "PIPE-FAIL",
-            "status": "failure",
-        })
+        result = engine.on_pipeline_complete(
+            {
+                "run_id": "PIPE-FAIL",
+                "status": "failure",
+            }
+        )
         assert "experience_id" in result
 
 
@@ -282,8 +296,13 @@ class TestGetTaskAdvice:
     def test_returns_advice_dict_with_all_keys(self, isolated_engine):
         engine = isolated_engine
         advice = engine.get_task_advice(task_description="fix bug")
-        for key in ("suggested_fix", "hotspots_to_check",
-                    "risk_warnings", "suggested_model", "quality_threshold"):
+        for key in (
+            "suggested_fix",
+            "hotspots_to_check",
+            "risk_warnings",
+            "suggested_model",
+            "quality_threshold",
+        ):
             assert key in advice
 
     def test_suggested_fix_when_error_msg_matches(self, isolated_engine):
@@ -346,14 +365,20 @@ class TestGetTaskAdvice:
         # 写入失败次数多的错误模式
         for _ in range(5):
             engine.kb.record_error_pattern(
-                "TEST: risky pattern xyz", "fix", success=False,
+                "TEST: risky pattern xyz",
+                "fix",
+                success=False,
             )
         engine.kb.record_error_pattern(
-            "TEST: risky pattern xyz", "fix", success=True,
+            "TEST: risky pattern xyz",
+            "fix",
+            success=True,
         )
         advice = engine.get_task_advice()
         # 应有 risk_warning 提及成功率
-        assert any("成功率" in w or "risky" in w.lower() or "TEST" in w for w in advice["risk_warnings"])
+        assert any(
+            "成功率" in w or "risky" in w.lower() or "TEST" in w for w in advice["risk_warnings"]
+        )
 
     def test_no_risk_warnings_when_healthy(self, isolated_engine):
         """健康状态下无 risk_warnings"""
@@ -388,9 +413,16 @@ class TestGenerateLearningReport:
             quality_score=90.0,
         )
         report = engine.generate_learning_report()
-        for key in ("generated_at", "knowledge_base", "experience_buffer",
-                    "evolution", "feedback", "patterns", "hotspots",
-                    "quality_trends"):
+        for key in (
+            "generated_at",
+            "knowledge_base",
+            "experience_buffer",
+            "evolution",
+            "feedback",
+            "patterns",
+            "hotspots",
+            "quality_trends",
+        ):
             assert key in report
 
     def test_empty_engine_returns_valid_report(self, isolated_engine):
@@ -453,8 +485,9 @@ class TestGenerateLearningReportMarkdown:
 class TestSingletons:
     def test_get_pattern_extractor_returns_same_instance(self, monkeypatch, tmp_path):
         """get_pattern_extractor 返回同一实例"""
-        import pycoder.server.learning.pattern_extractor as pe_mod
         import pycoder.server.learning as learning_mod
+        import pycoder.server.learning.pattern_extractor as pe_mod
+
         monkeypatch.setattr(pe_mod, "PATTERNS_DIR", tmp_path)
         monkeypatch.setattr(learning_mod, "_pattern_extractor_instance", None)
         a = learning_mod.get_pattern_extractor()
@@ -462,15 +495,17 @@ class TestSingletons:
         assert a is b
 
     def test_get_learning_engine_returns_same_instance(
-        self, monkeypatch, tmp_path,
+        self,
+        monkeypatch,
+        tmp_path,
     ):
         """get_learning_engine 返回同一实例"""
+        import pycoder.server.learning as learning_mod
+        import pycoder.server.learning.experience_buffer as eb_mod
+        import pycoder.server.learning.feedback_loop as fb_mod
         import pycoder.server.learning.knowledge_base as kb_mod
         import pycoder.server.learning.metrics_tracker as mt_mod
-        import pycoder.server.learning.experience_buffer as eb_mod
         import pycoder.server.learning.pattern_extractor as pe_mod
-        import pycoder.server.learning.feedback_loop as fb_mod
-        import pycoder.server.learning as learning_mod
 
         db_path = tmp_path / "pycoder.db"
         monkeypatch.setattr(kb_mod, "DB_PATH", db_path)

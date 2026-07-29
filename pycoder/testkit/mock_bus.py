@@ -8,7 +8,6 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
 
 
 class MockBus:
@@ -37,9 +36,7 @@ class MockBus:
         """取消注册"""
         self._handlers.pop(capability_id, None)
 
-    def call(
-        self, capability_id: str, args: dict[str, Any] | None = None
-    ) -> Any:
+    def call(self, capability_id: str, args: dict[str, Any] | None = None) -> Any:
         """调用能力（同步）"""
         args = args or {}
         self._call_records.append((capability_id, args))
@@ -57,9 +54,7 @@ class MockBus:
                 loop.close()
         return handler(args)
 
-    async def call_async(
-        self, capability_id: str, args: dict[str, Any] | None = None
-    ) -> Any:
+    async def call_async(self, capability_id: str, args: dict[str, Any] | None = None) -> Any:
         """调用能力（异步）"""
         args = args or {}
         self._call_records.append((capability_id, args))
@@ -72,9 +67,7 @@ class MockBus:
             return await handler(args)
         return handler(args)
 
-    def stream(
-        self, capability_id: str, args: dict[str, Any] | None = None
-    ) -> AsyncIterator[Any]:
+    def stream(self, capability_id: str, args: dict[str, Any] | None = None) -> AsyncIterator[Any]:
         """流式调用能力（返回异步迭代器）"""
         args = args or {}
         self._call_records.append((capability_id, args))
@@ -89,9 +82,7 @@ class MockBus:
             else:
                 # 非生成器，返回单个结果
                 result = (
-                    await handler(args)
-                    if asyncio.iscoroutinefunction(handler)
-                    else handler(args)
+                    await handler(args) if asyncio.iscoroutinefunction(handler) else handler(args)
                 )
                 yield result
 
@@ -104,9 +95,7 @@ class MockBus:
         calls = [r for r in self._call_records if r[0] == capability_id]
         assert calls, f"能力 '{capability_id}' 未被调用"
 
-    def assert_called_with(
-        self, capability_id: str, expected_args: dict[str, Any]
-    ) -> None:
+    def assert_called_with(self, capability_id: str, expected_args: dict[str, Any]) -> None:
         """断言指定能力以特定参数被调用"""
         calls = [r for r in self._call_records if r[0] == capability_id]
         assert calls, f"能力 '{capability_id}' 未被调用"

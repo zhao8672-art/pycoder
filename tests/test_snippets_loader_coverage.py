@@ -12,6 +12,7 @@
   - 创建临时 .json 文件作为片段库
   - 测试各分支: 文件不存在、内容格式、代码栅栏剥离等
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -25,14 +26,15 @@ from pycoder.prompts.snippets_loader import (
     load_snippets,
 )
 
-
 # ── fixture: 每个 test 重置 SNIPPETS_DIRS ─────────────────
+
 
 @pytest.fixture(autouse=True)
 def _reset_snippets_dirs(monkeypatch, tmp_path):
     """每个测试前重置 SNIPPETS_DIRS 为 tmp_path 下的目录"""
     monkeypatch.setattr(
-        sl_mod, "SNIPPETS_DIRS",
+        sl_mod,
+        "SNIPPETS_DIRS",
         [tmp_path / "snippets"],
     )
 
@@ -49,6 +51,7 @@ def _write_snippets(tmp_path: Path, language: str, content: str):
 # ══════════════════════════════════════════════════════════
 # _init_dirs
 # ══════════════════════════════════════════════════════════
+
 
 class TestInitDirs:
     def test_idempotent(self, monkeypatch):
@@ -77,6 +80,7 @@ class TestInitDirs:
 # load_snippets
 # ══════════════════════════════════════════════════════════
 
+
 class TestLoadSnippets:
     def test_no_dirs_exist(self, tmp_path):
         """目录下无 snippets 文件 → 返回空 dict"""
@@ -86,12 +90,16 @@ class TestLoadSnippets:
 
     def test_basic_snippet(self, tmp_path):
         """基础格式: prefix + body，用 --- 分隔"""
-        _write_snippets(tmp_path, "python", """prefix: fn
+        _write_snippets(
+            tmp_path,
+            "python",
+            """prefix: fn
 description: function snippet
 ---
 def fn():
     return 1
-""")
+""",
+        )
         result = load_snippets("python")
         assert "fn" in result
         assert result["fn"]["description"] == "function snippet"
@@ -100,18 +108,25 @@ def fn():
 
     def test_snippet_without_description(self, tmp_path):
         """无 description 字段 → 默认空字符串"""
-        _write_snippets(tmp_path, "python", """prefix: cls
+        _write_snippets(
+            tmp_path,
+            "python",
+            """prefix: cls
 ---
 class C:
     pass
-""")
+""",
+        )
         result = load_snippets("python")
         assert result["cls"]["description"] == ""
         assert "class C:" in result["cls"]["body"]
 
     def test_multiple_snippets(self, tmp_path):
         """多个 snippet 应都解析"""
-        _write_snippets(tmp_path, "python", """prefix: fn
+        _write_snippets(
+            tmp_path,
+            "python",
+            """prefix: fn
 description: function
 ---
 def fn():
@@ -122,21 +137,26 @@ description: class
 ---
 class C:
     pass
-""")
+""",
+        )
         result = load_snippets("python")
         assert "fn" in result
         assert "cls" in result
 
     def test_code_fence_stripped(self, tmp_path):
         """body 包裹在 ``` 围栏中应被剥离"""
-        _write_snippets(tmp_path, "python", """prefix: fenced
+        _write_snippets(
+            tmp_path,
+            "python",
+            """prefix: fenced
 description: with fence
 ---
 ```python
 def hello():
     print("hi")
 ```
-""")
+""",
+        )
         result = load_snippets("python")
         assert "fenced" in result
         # 应剥离 ```python 和 ```
@@ -145,46 +165,64 @@ def hello():
 
     def test_body_too_short_skipped(self, tmp_path):
         """body 长度 < 10 → 跳过"""
-        _write_snippets(tmp_path, "python", """prefix: short
+        _write_snippets(
+            tmp_path,
+            "python",
+            """prefix: short
 description: too short
 ---
 short
-""")
+""",
+        )
         result = load_snippets("python")
         # body "short" 长度 5 < 10 → 被跳过
         assert "short" not in result
 
     def test_meta_block_without_prefix_skipped(self, tmp_path):
         """meta 块无 prefix: 字段 → 跳过"""
-        _write_snippets(tmp_path, "python", """description: no prefix
+        _write_snippets(
+            tmp_path,
+            "python",
+            """description: no prefix
 ---
 def something():
     return 1
-""")
+""",
+        )
         result = load_snippets("python")
         assert result == {}
 
     def test_language_other_than_python(self, tmp_path):
         """加载其他语言的 snippets"""
-        _write_snippets(tmp_path, "javascript", """prefix: log
+        _write_snippets(
+            tmp_path,
+            "javascript",
+            """prefix: log
 description: console log
 ---
 console.log("x");
-""")
+""",
+        )
         result = load_snippets("javascript")
         assert "log" in result
         assert "console.log" in result["log"]["body"]
 
     def test_load_exception_handled(self, tmp_path, monkeypatch):
         """读取抛异常 → 静默捕获"""
-        _write_snippets(tmp_path, "python", """prefix: x
+        _write_snippets(
+            tmp_path,
+            "python",
+            """prefix: x
 description: y
 ---
 def x(): pass
-""")
+""",
+        )
+
         # mock read_text 抛异常
         def boom(*a, **k):
             raise RuntimeError("disk err")
+
         monkeypatch.setattr(Path, "read_text", boom)
         # 不抛异常
         result = load_snippets("python")
@@ -197,12 +235,12 @@ def x(): pass
         dir1.mkdir()
         dir2.mkdir()
         (dir1 / "python.json").write_text(
-            "prefix: a\ndescription: from dir1\n---\n"
-            "def a():\n    return 1\n", encoding="utf-8",
+            "prefix: a\ndescription: from dir1\n---\n" "def a():\n    return 1\n",
+            encoding="utf-8",
         )
         (dir2 / "python.json").write_text(
-            "prefix: b\ndescription: from dir2\n---\n"
-            "def b():\n    return 2\n", encoding="utf-8",
+            "prefix: b\ndescription: from dir2\n---\n" "def b():\n    return 2\n",
+            encoding="utf-8",
         )
         monkeypatch.setattr(sl_mod, "SNIPPETS_DIRS", [dir1, dir2])
 
@@ -219,12 +257,12 @@ def x(): pass
         dir1.mkdir()
         dir2.mkdir()
         (dir1 / "python.json").write_text(
-            "prefix: dup\ndescription: from dir1\n---\n"
-            "def dup():\n    return 1\n", encoding="utf-8",
+            "prefix: dup\ndescription: from dir1\n---\n" "def dup():\n    return 1\n",
+            encoding="utf-8",
         )
         (dir2 / "python.json").write_text(
-            "prefix: dup\ndescription: from dir2\n---\n"
-            "def dup():\n    return 2\n", encoding="utf-8",
+            "prefix: dup\ndescription: from dir2\n---\n" "def dup():\n    return 2\n",
+            encoding="utf-8",
         )
         monkeypatch.setattr(sl_mod, "SNIPPETS_DIRS", [dir1, dir2])
 
@@ -251,14 +289,19 @@ def x(): pass
 # get_snippet
 # ══════════════════════════════════════════════════════════
 
+
 class TestGetSnippet:
     def test_existing_prefix(self, tmp_path):
-        _write_snippets(tmp_path, "python", """prefix: fn
+        _write_snippets(
+            tmp_path,
+            "python",
+            """prefix: fn
 description: func
 ---
 def fn():
     return 1
-""")
+""",
+        )
         snip = get_snippet("python", "fn")
         assert snip is not None
         assert snip["description"] == "func"
@@ -273,6 +316,7 @@ def fn():
 # list_snippets
 # ══════════════════════════════════════════════════════════
 
+
 class TestListSnippets:
     def test_empty(self, tmp_path):
         """无 snippets → 空列表"""
@@ -280,12 +324,16 @@ class TestListSnippets:
         assert result == []
 
     def test_returns_list_with_metadata(self, tmp_path):
-        _write_snippets(tmp_path, "python", """prefix: fn
+        _write_snippets(
+            tmp_path,
+            "python",
+            """prefix: fn
 description: function
 ---
 def fn():
     return 1
-""")
+""",
+        )
         result = list_snippets("python")
         assert len(result) == 1
         assert result[0]["prefix"] == "fn"
@@ -296,11 +344,15 @@ def fn():
     def test_body_truncated_to_100(self, tmp_path):
         """body > 100 字符 → 截断并添加 ..."""
         long_body = "x = " + "1" * 200
-        _write_snippets(tmp_path, "python", f"""prefix: long
+        _write_snippets(
+            tmp_path,
+            "python",
+            f"""prefix: long
 description: long body
 ---
 {long_body}
-""")
+""",
+        )
         result = list_snippets("python")
         assert len(result) == 1
         body = result[0]["body"]
@@ -310,11 +362,15 @@ description: long body
 
     def test_body_short_not_truncated(self, tmp_path):
         """body <= 100 字符 → 不截断"""
-        _write_snippets(tmp_path, "python", """prefix: short
+        _write_snippets(
+            tmp_path,
+            "python",
+            """prefix: short
 description: short body
 ---
 def short():
     return 1
-""")
+""",
+        )
         result = list_snippets("python")
         assert "..." not in result[0]["body"]

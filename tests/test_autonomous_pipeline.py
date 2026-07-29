@@ -1,23 +1,22 @@
 """AutonomousPipeline 集成测试"""
+
 from __future__ import annotations
 
 import tempfile
-import time
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 from pycoder.server.services.autonomous_pipeline import (
+    ALLOWED_COMMANDS,
     AutonomousPipeline,
     PipelineRun,
     PipelineStatus,
     StepResult,
     StepStatus,
-    _infer_project_name,
     _execute_agent_tool,
+    _infer_project_name,
     _parse_tool_calls,
-    ALLOWED_COMMANDS,
 )
 
 
@@ -85,7 +84,9 @@ class TestToolExecution:
     @pytest.mark.asyncio
     async def test_search_code(self, temp_ws):
         r = await _execute_agent_tool(
-            "search_code", {"query": "hello"}, temp_ws,
+            "search_code",
+            {"query": "hello"},
+            temp_ws,
         )
         assert "test.py" in r
 

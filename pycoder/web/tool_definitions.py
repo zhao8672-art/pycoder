@@ -84,8 +84,8 @@ _extractor: object = None
 
 async def execute_web_fetch(url: str, extract_text: bool = True) -> dict:
     """执行 web_fetch 工具"""
-    from pycoder.web.fetch_engine import FetchEngine
     from pycoder.web.content_extractor import ContentExtractor
+    from pycoder.web.fetch_engine import FetchEngine
 
     global _engine, _extractor
     if _engine is None:
@@ -158,6 +158,7 @@ async def execute_web_screenshot(url: str) -> dict:
 
     # 保存到临时文件
     import tempfile
+
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     tmp.write(screenshot_bytes)
     tmp.close()

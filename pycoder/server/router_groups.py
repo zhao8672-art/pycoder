@@ -9,6 +9,7 @@
 - 与原行为完全等价（保持所有 prefix/不 prefix 顺序）
 - 单测可单独调用任意 group 验证（无需启动整个 app）
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -18,14 +19,14 @@ if TYPE_CHECKING:
 
 
 # ── 1. 健康检查（无前缀） ─────────────────────────────────────────
-def _register_health(app: "FastAPI") -> None:
+def _register_health(app: FastAPI) -> None:
     from pycoder.server.routers.health import router as health_router
 
     app.include_router(health_router)
 
 
 # ── 2. 工具类（Filesystem / Shell / Git / Search） ─────────────────
-def _register_tools(app: "FastAPI") -> None:
+def _register_tools(app: FastAPI) -> None:
     from pycoder.server.routers.code_exec import router as code_exec_router
     from pycoder.server.routers.diff import router as diff_router
     from pycoder.server.routers.diff_list import router as diff_list_router
@@ -46,13 +47,13 @@ def _register_tools(app: "FastAPI") -> None:
 
 
 # ── 3. 核心服务（Config / Chat / REST / Context / Extensions / Auth） ──
-def _register_core(app: "FastAPI") -> None:
+def _register_core(app: FastAPI) -> None:
     from pycoder.server.routers.chat_routes import router as chat_router
     from pycoder.server.routers.config import router as config_router
     from pycoder.server.routers.context import router as context_router
     from pycoder.server.routers.extensions import router as extensions_router
-    from pycoder.server.routers.rest_routes import router as rest_router
     from pycoder.server.routers.oauth2_api import router as oauth2_router  # OAuth2 第三方登录
+    from pycoder.server.routers.rest_routes import router as rest_router
 
     app.include_router(config_router)
     app.include_router(chat_router)
@@ -63,14 +64,14 @@ def _register_core(app: "FastAPI") -> None:
 
 
 # ── 4. AI / 浏览器自进化 ──────────────────────────────────────────
-def _register_ai(app: "FastAPI") -> None:
+def _register_ai(app: FastAPI) -> None:
     from pycoder.server.routers.browser_ai import router as browser_ai_router
 
     app.include_router(browser_ai_router)
 
 
 # ── 5. 业务模块（Skills / Cloud / Recommendation / GitHub 等） ────
-def _register_business(app: "FastAPI") -> None:
+def _register_business(app: FastAPI) -> None:
     from pycoder.server.routers.autonomous_api import router as autonomous_router
     from pycoder.server.routers.cloud_api import router as cloud_api_router
     from pycoder.server.routers.file_transfer import router as file_transfer_router
@@ -88,8 +89,8 @@ def _register_business(app: "FastAPI") -> None:
     from pycoder.server.routers.refactor_api import router as refactor_router
     from pycoder.server.routers.scaffold_api import router as scaffold_router
     from pycoder.server.routers.skills_api_v2 import router as skills_api_v2_router
-    from pycoder.server.routers.skills_v2_market_api import router as skills_v2_market_router
     from pycoder.server.routers.skills_lifecycle_api import router as skills_lifecycle_router
+    from pycoder.server.routers.skills_v2_market_api import router as skills_v2_market_router
     from pycoder.server.routers.team_api import router as team_router
 
     app.include_router(skills_api_v2_router)
@@ -113,7 +114,7 @@ def _register_business(app: "FastAPI") -> None:
 
 
 # ── 6. 高级能力（Debug / Rules / Scheduler / Advanced） ────────────
-def _register_advanced(app: "FastAPI") -> None:
+def _register_advanced(app: FastAPI) -> None:
     from pycoder.server.routers.advanced_api import (
         debug_router,
         rules_router,
@@ -128,7 +129,7 @@ def _register_advanced(app: "FastAPI") -> None:
 
 
 # ── 7. V2 引擎 API（核心 API + 进化 API + WebSocket） ─────────────
-def _register_v2(app: "FastAPI") -> None:
+def _register_v2(app: FastAPI) -> None:
     from pycoder.server.routers.v2 import router as v2_router
     from pycoder.server.routers.v2.evolution import router as v2_evolution_router
     from pycoder.server.routers.v2.evolution import ws_router as v2_evolution_ws_router
@@ -143,7 +144,12 @@ def _register_v2(app: "FastAPI") -> None:
 
 
 # ── 8. 系统能力（Workspace / Knowledge / Memory / Notify / Metrics） ──
-def _register_system(app: "FastAPI") -> None:
+def _register_system(app: FastAPI) -> None:
+    from pycoder.server.metrics import router as metrics_router  # Prometheus 指标
+    from pycoder.server.routers.dashboard_api import router as dashboard_router  # P1-3 仪表盘 API
+    from pycoder.server.routers.dep_api import router as dep_api_router
+    from pycoder.server.routers.env_api import router as env_api_router
+    from pycoder.server.routers.impact_api import router as impact_router  # P1-2 影响分析 API
     from pycoder.server.routers.knowledge_api import router as knowledge_api_router
     from pycoder.server.routers.memory_api import router as memory_api_router
     from pycoder.server.routers.notify_api import router as notify_api_router
@@ -152,13 +158,6 @@ def _register_system(app: "FastAPI") -> None:
     from pycoder.server.routers.workspace_api import router as workspace_api_router
     from pycoder.server.routers.workspace_detect_api import router as workspace_detect_router
     from pycoder.server.routers.workspace_manage_api import router as workspace_manage_router
-
-    from pycoder.server.routers.dep_api import router as dep_api_router
-    from pycoder.server.routers.env_api import router as env_api_router
-    from pycoder.server.routers.impact_api import router as impact_router  # P1-2 影响分析 API
-    from pycoder.server.routers.dashboard_api import router as dashboard_router  # P1-3 仪表盘 API
-
-    from pycoder.server.metrics import router as metrics_router  # Prometheus 指标
 
     app.include_router(session_search_router)
     app.include_router(dep_api_router)
@@ -175,15 +174,13 @@ def _register_system(app: "FastAPI") -> None:
     app.include_router(metrics_router)  # Prometheus /metrics
 
     # ── P1-3: 工具白名单管理 API（最高权限运维） ──
-    from pycoder.server.routers.whitelist_admin_api import (
-        router as whitelist_admin_router,
-    )
+    from pycoder.server.routers.whitelist_admin_api import router as whitelist_admin_router
 
     app.include_router(whitelist_admin_router)
 
 
 # ── 9. Phase 1 升级（Gateway / Sandbox / DeepMemory / Guard） ─────
-def _register_phase1(app: "FastAPI") -> None:
+def _register_phase1(app: FastAPI) -> None:
     from pycoder.server.routers.deep_memory_api import router as deep_memory_router
     from pycoder.server.routers.gateway_api import router as gateway_router
     from pycoder.server.routers.gateway_api import ws_router as gateway_ws_router
@@ -198,7 +195,8 @@ def _register_phase1(app: "FastAPI") -> None:
 
 
 # ── 10. Phase 2-3 升级（DAG / Task / Report / Marketplace / Search / ...） ──
-def _register_phase23(app: "FastAPI") -> None:
+def _register_phase23(app: FastAPI) -> None:
+    from pycoder.lifecycle.api import router as lifecycle_router  # 项目管理闭环 API
     from pycoder.server.routers.agents_api import router as agents_router
     from pycoder.server.routers.dag_api import router as dag_router
     from pycoder.server.routers.installer_api import router as installer_router  # P2-3 自迭代安装器 API
@@ -212,8 +210,6 @@ def _register_phase23(app: "FastAPI") -> None:
     from pycoder.server.routers.skills_marketplace_api import router as skills_marketplace_router
     from pycoder.server.routers.task_api import router as task_api_router
     from pycoder.server.routers.web_routes import router as web_router
-
-    from pycoder.lifecycle.api import router as lifecycle_router  # 项目管理闭环 API
 
     app.include_router(dag_router)
     app.include_router(task_api_router)
@@ -232,7 +228,7 @@ def _register_phase23(app: "FastAPI") -> None:
 
 
 # ── 11. WebSocket（独立挂载） ─────────────────────────────────────
-def _register_websocket(app: "FastAPI") -> None:
+def _register_websocket(app: FastAPI) -> None:
     from pycoder.server.routers.advanced_api import collab_ws_router
     from pycoder.server.routers.autonomous_api import ws_router as autonomous_ws_router
 
@@ -256,7 +252,7 @@ REGISTRY = [
 ]
 
 
-def register_router_groups(app: "FastAPI") -> None:
+def register_router_groups(app: FastAPI) -> None:
     """按业务域分组注册所有路由（替代 app.py 中 61 处 include_router）
 
     Returns:

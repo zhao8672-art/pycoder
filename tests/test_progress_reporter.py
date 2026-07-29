@@ -13,10 +13,10 @@
     - reset: 重置状态
     - force_complete_all: 强制完成所有阶段
 """
+
 from __future__ import annotations
 
-import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -25,7 +25,6 @@ from pycoder.server.services.progress_reporter import (
     ProgressReporter,
     StageDef,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 辅助函数
@@ -322,7 +321,9 @@ class TestProgressReporterAdvance:
         assert reporter_with_stages._current_idx == 6
 
     @pytest.mark.asyncio
-    async def test_advance_force_complete_all_milestones(self, reporter_with_stages, async_callback):
+    async def test_advance_force_complete_all_milestones(
+        self, reporter_with_stages, async_callback
+    ):
         """强制完成所有阶段更新里程碑"""
         reporter_with_stages.set_callback(async_callback)
         await reporter_with_stages.advance("", "", force_complete_all=True)
@@ -407,7 +408,6 @@ class TestProgressReporterReset:
         """推进后重置"""
         reporter_with_stages.set_callback(async_callback)
 
-        import asyncio
         async def advance():
             await reporter_with_stages.advance("plan", "规划中")
 

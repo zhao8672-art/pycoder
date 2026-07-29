@@ -10,29 +10,32 @@
   - BusMonitor: clear 清空数据
   - BusMonitor._summarize_params: 敏感信息过滤与截断
 """
+
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from pycoder.bus.monitor import BusMonitor
 from pycoder.bus.protocol import (
     CallTrace,
     CapabilityCall,
-    CapabilityResult,
-    CapabilityDefinition,
-    TrustLevel,
-    ExecutionMode,
     CapabilityCategory,
+    CapabilityDefinition,
+    CapabilityResult,
+    ExecutionMode,
+    TrustLevel,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 辅助函数
 # ══════════════════════════════════════════════════════════
 
 
-def _make_call(capability_id: str = "tools.file.read", params: dict | None = None) -> CapabilityCall:
+def _make_call(
+    capability_id: str = "tools.file.read", params: dict | None = None
+) -> CapabilityCall:
     """创建测试用的 CapabilityCall"""
     return CapabilityCall(
         capability_id=capability_id,
@@ -41,7 +44,9 @@ def _make_call(capability_id: str = "tools.file.read", params: dict | None = Non
     )
 
 
-def _make_result(trace_id: str, capability_id: str, success: bool = True, error: str | None = None) -> CapabilityResult:
+def _make_result(
+    trace_id: str, capability_id: str, success: bool = True, error: str | None = None
+) -> CapabilityResult:
     """创建测试用的 CapabilityResult"""
     return CapabilityResult(
         trace_id=trace_id,
@@ -199,8 +204,8 @@ class TestBusMonitorTrace:
         """追踪记录受 max_traces 限制"""
         monitor = BusMonitor(max_traces=3)
 
-        for i in range(5):
-            call = _make_call(f"tools.file.read")
+        for _i in range(5):
+            call = _make_call("tools.file.read")
             definition = _make_definition()
             trace = monitor.start_trace(call, definition)
             result = _make_result(trace.trace_id, "tools.file.read", success=True)
@@ -222,12 +227,13 @@ class TestBusMonitorQuery:
         """创建包含多条追踪记录的监控器"""
         monitor = BusMonitor()
         for i in range(5):
-            call = _make_call(f"tools.file.read")
+            call = _make_call("tools.file.read")
             definition = _make_definition()
             trace = monitor.start_trace(call, definition)
             success = i != 2  # 第 3 条记录失败
             result = _make_result(
-                trace.trace_id, "tools.file.read",
+                trace.trace_id,
+                "tools.file.read",
                 success=success,
                 error=None if success else "测试错误",
             )

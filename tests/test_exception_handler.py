@@ -10,10 +10,10 @@
   - handle_with_retry: 带分级重试的执行包装
   - get_exception_pipeline: 全局单例
 """
+
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -27,7 +27,6 @@ from pycoder.server.services.exception_handler import (
     get_exception_pipeline,
     handle_with_retry,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 辅助函数
@@ -208,7 +207,9 @@ class TestExceptionClassifierL2:
 
     def test_attribute_error_none(self):
         """AttributeError 带 None → L2"""
-        r = ExceptionClassifier.classify("AttributeError: 'NoneType' object has no attribute 'name'")
+        r = ExceptionClassifier.classify(
+            "AttributeError: 'NoneType' object has no attribute 'name'"
+        )
         assert r.level == DangerLevel.L2_MAJOR
 
     def test_null_check_missing(self):
@@ -358,9 +359,7 @@ class TestExceptionPipeline:
     @pytest.mark.asyncio
     async def test_handle_l1_no_snapshot_manager(self, pipeline):
         """L1 无 snapshot_manager 时返回 None"""
-        result = await pipeline.handle(
-            DangerLevel.L1_BLOCKING, "critical error", "snap-001"
-        )
+        result = await pipeline.handle(DangerLevel.L1_BLOCKING, "critical error", "snap-001")
         assert result is None
 
     @pytest.mark.asyncio
@@ -369,7 +368,8 @@ class TestExceptionPipeline:
         mgr = make_snapshot_manager(rollback_success=True)
         pipeline = ExceptionPipeline(snapshot_manager=mgr)
         result = await pipeline.handle(
-            DangerLevel.L1_BLOCKING, "critical error",
+            DangerLevel.L1_BLOCKING,
+            "critical error",
             snapshot_id="snap-001",
             run_context={"workspace": "/tmp/test"},
         )
@@ -385,7 +385,8 @@ class TestExceptionPipeline:
         mgr = make_snapshot_manager(rollback_success=False)
         pipeline = ExceptionPipeline(snapshot_manager=mgr)
         result = await pipeline.handle(
-            DangerLevel.L1_BLOCKING, "critical error",
+            DangerLevel.L1_BLOCKING,
+            "critical error",
             snapshot_id="snap-001",
             run_context={"workspace": "/tmp/test"},
         )
@@ -401,7 +402,8 @@ class TestExceptionPipeline:
         mgr.rollback = AsyncMock(side_effect=RuntimeError("rollback failed"))
         pipeline = ExceptionPipeline(snapshot_manager=mgr)
         result = await pipeline.handle(
-            DangerLevel.L1_BLOCKING, "critical error",
+            DangerLevel.L1_BLOCKING,
+            "critical error",
             snapshot_id="snap-001",
             run_context={"workspace": "/tmp/test"},
         )
@@ -416,7 +418,8 @@ class TestExceptionPipeline:
         mgr = make_snapshot_manager(rollback_success=True)
         pipeline = ExceptionPipeline(snapshot_manager=mgr)
         result = await pipeline.handle(
-            DangerLevel.L1_BLOCKING, "critical error",
+            DangerLevel.L1_BLOCKING,
+            "critical error",
             snapshot_id="snap-001",
             run_context={},
         )
@@ -432,9 +435,7 @@ class TestExceptionPipeline:
     @pytest.mark.asyncio
     async def test_handle_l2_major(self, pipeline):
         """L2 修正级处理"""
-        result = await pipeline.handle(
-            DangerLevel.L2_MAJOR, "missing test", "snap-001"
-        )
+        result = await pipeline.handle(DangerLevel.L2_MAJOR, "missing test", "snap-001")
         assert result.level == DangerLevel.L2_MAJOR
         assert result.handled is False
         assert result.action_taken == "collect_patch"
@@ -445,9 +446,7 @@ class TestExceptionPipeline:
     @pytest.mark.asyncio
     async def test_handle_l3_minor(self, pipeline):
         """L3 优化级不阻塞"""
-        result = await pipeline.handle(
-            DangerLevel.L3_MINOR, "suggestion", run_context={}
-        )
+        result = await pipeline.handle(DangerLevel.L3_MINOR, "suggestion", run_context={})
         assert result.level == DangerLevel.L3_MINOR
         assert result.handled is True
         assert result.action_taken == "log_only"
@@ -457,9 +456,7 @@ class TestExceptionPipeline:
     @pytest.mark.asyncio
     async def test_handle_l4_comm(self, pipeline):
         """L4 通信异常处理 — 注意: _handle_comm 内部 break 在 return 之前（已知缺陷）"""
-        result = await pipeline.handle(
-            DangerLevel.L4_COMM, "connection timeout"
-        )
+        result = await pipeline.handle(DangerLevel.L4_COMM, "connection timeout")
         # 由于 _handle_comm 的 for 循环中 break 在 return 之前，
         # 该方法不会返回有效结果，返回 None
         # 这是一个已知的代码缺陷，测试覆盖此路径
@@ -477,6 +474,7 @@ class TestHandleWithRetry:
     @pytest.mark.asyncio
     async def test_success_no_retry(self):
         """成功执行不重试"""
+
         async def success_func():
             return "ok"
 
@@ -487,6 +485,7 @@ class TestHandleWithRetry:
     @pytest.mark.asyncio
     async def test_l1_blocking_no_retry(self):
         """L1 阻断不重试 — SyntaxError 的 str(e) 不含 'SyntaxError'，需直接匹配"""
+
         async def raise_syntax():
             # str(SyntaxError("...")) 不包含 "SyntaxError" 字符串
             # 需要包含 "SyntaxError" 或 "Eval" 等匹配 L1 规则的文本
@@ -501,6 +500,7 @@ class TestHandleWithRetry:
     @pytest.mark.asyncio
     async def test_l3_minor_no_retry(self):
         """L3 优化不重试，直接返回"""
+
         async def raise_generic():
             raise ValueError("some error")
 
@@ -535,6 +535,7 @@ class TestHandleWithRetry:
     @pytest.mark.asyncio
     async def test_retry_exhausted(self):
         """重试次数耗尽"""
+
         async def always_fail():
             raise ConnectionError("Connection refused")
 
@@ -550,6 +551,7 @@ class TestHandleWithRetry:
     @pytest.mark.asyncio
     async def test_with_context(self):
         """带上下文提高分级"""
+
         async def raise_error():
             raise RuntimeError("critical failure")
 
@@ -569,6 +571,7 @@ class TestHandleWithRetry:
 
         async def flaky_func():
             import time
+
             call_times.append(time.time())
             if len(call_times) < 3:
                 raise ConnectionError("Connection refused")
@@ -603,6 +606,7 @@ class TestGetExceptionPipeline:
         """多次调用返回同一实例"""
         # 重置全局单例
         import pycoder.server.services.exception_handler as eh
+
         eh._default_exception_pipeline = None
 
         p1 = get_exception_pipeline()

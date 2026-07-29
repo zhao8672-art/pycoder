@@ -25,7 +25,7 @@ import logging
 import random
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 logger = logging.getLogger(__name__)
@@ -97,12 +97,17 @@ class KeyState:
             self.disabled = True
             logger.warning(
                 "key_disabled provider=%s key=%s failed_count=%d",
-                self.provider, self.masked, self.failed_count,
+                self.provider,
+                self.masked,
+                self.failed_count,
             )
         else:
             logger.info(
                 "key_marked_failed provider=%s key=%s status=%d failed_count=%d",
-                self.provider, self.masked, status_code, self.failed_count,
+                self.provider,
+                self.masked,
+                status_code,
+                self.failed_count,
             )
 
     def mark_success(self) -> None:
@@ -110,9 +115,7 @@ class KeyState:
         if self.failed_count > 0:
             self.failed_count = 0
             self.last_failed_at = 0.0
-            logger.debug(
-                "key_recovered provider=%s key=%s", self.provider, self.masked
-            )
+            logger.debug("key_recovered provider=%s key=%s", self.provider, self.masked)
 
 
 class KeyRotator:
@@ -168,7 +171,8 @@ class KeyRotator:
             )
             logger.debug(
                 "key_added provider=%s key=%s total=%d",
-                provider, key[:4] + "..." + key[-4:],
+                provider,
+                key[:4] + "..." + key[-4:],
                 len(self._states[provider]),
             )
 
@@ -229,7 +233,8 @@ class KeyRotator:
             if not available:
                 logger.warning(
                     "no_available_key provider=%s total=%d all_failed=%d",
-                    provider, len(states),
+                    provider,
+                    len(states),
                     sum(1 for s in states if s.failed_count > 0),
                 )
                 return None
@@ -244,9 +249,7 @@ class KeyRotator:
 
     # ── 失效检测 ──
 
-    def mark_failed(
-        self, provider: str, key: str, status_code: int = 401
-    ) -> None:
+    def mark_failed(self, provider: str, key: str, status_code: int = 401) -> None:
         """标记 Key 失败（自动切换到下一个）"""
         with self._mutex:
             states = self._states.get(provider, [])

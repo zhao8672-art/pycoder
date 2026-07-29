@@ -10,8 +10,6 @@
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
 from pycoder.lifecycle import (
@@ -25,7 +23,6 @@ from pycoder.lifecycle import (
     get_progress,
 )
 from pycoder.lifecycle.orchestrator import ProjectLifecycleOrchestrator
-
 
 # ══════════════════════════════════════════════════════
 # 上下文数据模型测试
@@ -94,9 +91,7 @@ class TestPhaseRecord:
 
     def test_to_dict(self):
         """序列化"""
-        record = PhaseRecord(
-            phase="DESIGN", status="passed", duration_ms=123.4, gate_score=85.0
-        )
+        record = PhaseRecord(phase="DESIGN", status="passed", duration_ms=123.4, gate_score=85.0)
         d = record.to_dict()
         assert d["phase"] == "DESIGN"
         assert d["status"] == "passed"

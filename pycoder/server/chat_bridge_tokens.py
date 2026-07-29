@@ -34,13 +34,14 @@ class TokenCounter:
             tokens = encoding.encode(text)
             return encoding.decode(tokens[:max_tokens])
         except (ImportError, KeyError):
-            return text[:max_tokens * 3]  # 降级截断
+            return text[: max_tokens * 3]  # 降级截断
 
     @classmethod
     def _get_encoding(cls, model: str):
         """获取编码器（带缓存）"""
         if model not in cls._encoders:
             import tiktoken
+
             # DeepSeek/Qwen/GLM 兼容 cl100k_base
             cls._encoders[model] = tiktoken.get_encoding("cl100k_base")
         return cls._encoders[model]

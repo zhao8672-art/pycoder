@@ -11,14 +11,14 @@
   7. pycoder/server/services/auto_plugin_detector.py — 能力需求探测器
   8. pycoder/server/services/auto_plugin_evaluator.py — 能力评估器
 """
+
 from __future__ import annotations
 
-import asyncio
 import json
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -335,7 +335,6 @@ class TestSystemCapabilities:
     async def test_watch_files_yields_event(self):
         """监听文件变化——占位实现"""
         from pycoder.capabilities.system import _watch_files
-        from pycoder.bus.protocol import CapabilityEvent
 
         context = {"trace_id": "test-trace"}
         events = []
@@ -368,7 +367,7 @@ class TestSystemCapabilities:
 
         with patch("asyncio.create_subprocess_shell") as mock_create:
             mock_proc = AsyncMock()
-            mock_proc.communicate.side_effect = asyncio.TimeoutError()
+            mock_proc.communicate.side_effect = TimeoutError()
             mock_create.return_value = mock_proc
 
             result = await _execute_shell({"command": "sleep 999"}, {})
@@ -401,9 +400,7 @@ class TestSystemCapabilities:
         from pycoder.capabilities.system import _git_status
 
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                stdout=" M file.py\n?? new.py", returncode=0
-            )
+            mock_run.return_value = MagicMock(stdout=" M file.py\n?? new.py", returncode=0)
             result = await _git_status({}, {})
             assert result["has_changes"] is True
             assert "file.py" in result["status"]
@@ -454,9 +451,7 @@ class TestSystemCapabilities:
             mock_run.return_value = MagicMock(
                 stdout="[master abc1234] test", stderr="", returncode=0
             )
-            result = await _git_commit(
-                {"message": "test", "files": ["a.py", "b.py"]}, {}
-            )
+            result = await _git_commit({"message": "test", "files": ["a.py", "b.py"]}, {})
             assert result["success"] is True
             # 验证 git add 包含了指定文件
             first_call = mock_run.call_args_list[0]
@@ -495,12 +490,8 @@ class TestSystemCapabilities:
         from pycoder.capabilities.system import _install_package
 
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                stdout="added 1 package", stderr="", returncode=0
-            )
-            result = await _install_package(
-                {"packages": ["lodash"], "manager": "npm"}, {}
-            )
+            mock_run.return_value = MagicMock(stdout="added 1 package", stderr="", returncode=0)
+            result = await _install_package({"packages": ["lodash"], "manager": "npm"}, {})
             assert result["success"] is True
 
     @pytest.mark.asyncio
@@ -509,9 +500,7 @@ class TestSystemCapabilities:
         from pycoder.capabilities.system import _install_package
 
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                stdout="added 1 package", stderr="", returncode=0
-            )
+            mock_run.return_value = MagicMock(stdout="added 1 package", stderr="", returncode=0)
             result = await _install_package(
                 {"packages": ["jest"], "manager": "npm", "dev": True}, {}
             )
@@ -540,9 +529,7 @@ class TestSystemCapabilities:
         from pycoder.capabilities.system import _list_packages
 
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                stdout="not valid json", returncode=0
-            )
+            mock_run.return_value = MagicMock(stdout="not valid json", returncode=0)
             result = await _list_packages({}, {})
             assert result["count"] == 0
             assert "error" in result
@@ -589,7 +576,6 @@ class TestEditorCapabilities:
     def test_register_editor_capabilities_has_deprecated(self):
         """注册的编辑器能力包含已弃用标记"""
         from pycoder.capabilities.editor import register_editor_capabilities
-        from pycoder.bus.protocol import CapabilityDefinition
 
         # 直接构造定义来检查 deprecated 字段
         registry = MockRegistry()
@@ -622,9 +608,7 @@ class TestEditorCapabilities:
         file_path = tmp_path / "test.py"
         file_path.write_text("a\nb\nc\nd\ne\n", encoding="utf-8")
 
-        result = await _read_file(
-            {"path": str(file_path), "start_line": 2, "end_line": 4}, {}
-        )
+        result = await _read_file({"path": str(file_path), "start_line": 2, "end_line": 4}, {})
         assert "b" in result
         assert "c" in result
         assert "d" in result
@@ -644,9 +628,7 @@ class TestEditorCapabilities:
         from pycoder.capabilities.editor import _write_file
 
         file_path = tmp_path / "new_file.py"
-        result = await _write_file(
-            {"path": str(file_path), "content": "print('hello')"}, {}
-        )
+        result = await _write_file({"path": str(file_path), "content": "print('hello')"}, {})
         assert result["existed_before"] is False
         assert result["lines"] == 1
         assert file_path.read_text() == "print('hello')"
@@ -659,9 +641,7 @@ class TestEditorCapabilities:
         file_path = tmp_path / "existing.py"
         file_path.write_text("old content")
 
-        result = await _write_file(
-            {"path": str(file_path), "content": "new content\nline2"}, {}
-        )
+        result = await _write_file({"path": str(file_path), "content": "new content\nline2"}, {})
         assert result["existed_before"] is True
         assert result["lines"] == 2
         assert file_path.read_text() == "new content\nline2"
@@ -672,9 +652,7 @@ class TestEditorCapabilities:
         from pycoder.capabilities.editor import _write_file
 
         file_path = tmp_path / "deep" / "nested" / "file.txt"
-        result = await _write_file(
-            {"path": str(file_path), "content": "hello"}, {}
-        )
+        result = await _write_file({"path": str(file_path), "content": "hello"}, {})
         assert file_path.exists()
         assert file_path.read_text() == "hello"
 
@@ -684,9 +662,7 @@ class TestEditorCapabilities:
         from pycoder.capabilities.editor import _create_file
 
         file_path = tmp_path / "brand_new.py"
-        result = await _create_file(
-            {"path": str(file_path), "content": "x = 1"}, {}
-        )
+        result = await _create_file({"path": str(file_path), "content": "x = 1"}, {})
         assert result["created"] is True
         assert file_path.exists()
 
@@ -729,9 +705,7 @@ class TestEditorCapabilities:
         (tmp_path / "a.py").write_text("hello world\nfoo bar\n")
         (tmp_path / "b.py").write_text("nothing here\n")
 
-        result = await _search_code(
-            {"query": "hello", "path": str(tmp_path)}, {}
-        )
+        result = await _search_code({"query": "hello", "path": str(tmp_path)}, {})
         assert result["matches"] >= 1
         assert any("hello" in r["content"] for r in result["results"])
 
@@ -742,9 +716,7 @@ class TestEditorCapabilities:
 
         (tmp_path / "a.py").write_text("foo bar\n")
 
-        result = await _search_code(
-            {"query": "zzz_not_found_zzz", "path": str(tmp_path)}, {}
-        )
+        result = await _search_code({"query": "zzz_not_found_zzz", "path": str(tmp_path)}, {})
         assert result["matches"] == 0
         assert result["results"] == []
 
@@ -890,9 +862,7 @@ class TestExecMod:
         # _run_in_subprocess 是动态导入的，通过 patch asyncio.to_thread 来模拟
         with patch("asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
             mock_to_thread.return_value = mock_result
-            result = await _handle_execute_python(
-                {"code": "print(42)", "timeout": 10}, {}
-            )
+            result = await _handle_execute_python({"code": "print(42)", "timeout": 10}, {})
             assert result["success"] is True
             assert result["stdout"] == "42"
 
@@ -902,9 +872,7 @@ class TestExecMod:
         from pycoder.capabilities.tools.exec_mod import _handle_execute_code
 
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="hello", stderr=""
-            )
+            mock_run.return_value = MagicMock(returncode=0, stdout="hello", stderr="")
             result = await _handle_execute_code(
                 {"code": "print('hello')", "language": "python"}, {}
             )
@@ -917,9 +885,7 @@ class TestExecMod:
         from pycoder.capabilities.tools.exec_mod import _handle_execute_code
 
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="hello", stderr=""
-            )
+            mock_run.return_value = MagicMock(returncode=0, stdout="hello", stderr="")
             result = await _handle_execute_code(
                 {"code": "console.log('hello')", "language": "javascript"}, {}
             )
@@ -932,14 +898,10 @@ class TestExecMod:
         from pycoder.capabilities.tools.exec_mod import _handle_execute_code
 
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="ok", stderr=""
-            )
+            mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
             with patch("tempfile.NamedTemporaryFile") as mock_tmp:
                 mock_tmp.return_value.__enter__.return_value.name = "/tmp/test.sh"
-                result = await _handle_execute_code(
-                    {"code": "echo ok", "language": "shell"}, {}
-                )
+                result = await _handle_execute_code({"code": "echo ok", "language": "shell"}, {})
                 assert result["success"] is True
                 assert result["language"] == "shell"
 
@@ -961,9 +923,7 @@ class TestExecMod:
         from pycoder.capabilities.tools.exec_mod import _handle_execute_code
 
         with patch("subprocess.run", side_effect=FileNotFoundError()):
-            result = await _handle_execute_code(
-                {"code": "test", "language": "python"}, {}
-            )
+            result = await _handle_execute_code({"code": "test", "language": "python"}, {})
             assert result["success"] is False
             assert "运行时未找到" in result["error"]
 
@@ -972,9 +932,7 @@ class TestExecMod:
         """执行代码——不支持的语言"""
         from pycoder.capabilities.tools.exec_mod import _handle_execute_code
 
-        result = await _handle_execute_code(
-            {"code": "test", "language": "cobol"}, {}
-        )
+        result = await _handle_execute_code({"code": "test", "language": "cobol"}, {})
         assert result["success"] is False
         assert "不支持" in result["error"]
 
@@ -987,12 +945,8 @@ class TestExecMod:
         mock_ml.list_available = MagicMock(return_value=["python", "node"])
         with patch.dict("sys.modules", {"pycoder.python.multilang_executor": mock_ml}):
             with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(
-                    returncode=0, stdout="detected", stderr=""
-                )
-                result = await _handle_execute_code(
-                    {"code": "print('auto')", "language": ""}, {}
-                )
+                mock_run.return_value = MagicMock(returncode=0, stdout="detected", stderr="")
+                result = await _handle_execute_code({"code": "print('auto')", "language": ""}, {})
                 assert result["success"] is True
                 assert result["language"] == "python"
 
@@ -1002,7 +956,9 @@ class TestExecMod:
         from pycoder.capabilities.tools.exec_mod import _handle_execute_multilang
 
         mock_ml = MagicMock()
-        mock_ml.execute_multilang = AsyncMock(return_value={"success": True, "output": "compiled ok"})
+        mock_ml.execute_multilang = AsyncMock(
+            return_value={"success": True, "output": "compiled ok"}
+        )
         with patch.dict("sys.modules", {"pycoder.python.multilang_executor": mock_ml}):
             result = await _handle_execute_multilang(
                 {"language": "go", "code": "package main", "timeout": 10}, {}
@@ -1026,9 +982,7 @@ class TestExecMod:
         ):
             with patch("asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
                 mock_to_thread.return_value = mock_result
-                result = await _handle_debug_python(
-                    {"code": "x = 1\nprint(x)"}, {}
-                )
+                result = await _handle_debug_python({"code": "x = 1\nprint(x)"}, {})
                 assert result["success"] is True
 
     @pytest.mark.asyncio
@@ -1059,9 +1013,7 @@ class TestExecMod:
         from pycoder.capabilities.tools.exec_mod import _handle_profile_python
 
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="profile stats here"
-            )
+            mock_run.return_value = MagicMock(returncode=0, stdout="profile stats here")
             with patch("tempfile.NamedTemporaryFile") as mock_tmp:
                 mock_tmp.return_value.__enter__.return_value.name = "/tmp/prof.py"
                 result = await _handle_profile_python(
@@ -1076,14 +1028,10 @@ class TestExecMod:
         """性能分析——超时"""
         from pycoder.capabilities.tools.exec_mod import _handle_profile_python
 
-        with patch(
-            "subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 30)
-        ):
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 30)):
             with patch("tempfile.NamedTemporaryFile") as mock_tmp:
                 mock_tmp.return_value.__enter__.return_value.name = "/tmp/prof.py"
-                result = await _handle_profile_python(
-                    {"code": "while True: pass"}, {}
-                )
+                result = await _handle_profile_python({"code": "while True: pass"}, {})
                 assert result["success"] is False
                 assert "超时" in result["error"]
 
@@ -1351,7 +1299,10 @@ class TestAutoPluginManager:
 
         mgr = AutoPluginManager()
         # _INSTALLED_REGISTRY 是模块级常量，不是实例属性
-        with patch("pycoder.server.services.auto_plugin_manager._INSTALLED_REGISTRY", tmp_path / "nonexistent.json"):
+        with patch(
+            "pycoder.server.services.auto_plugin_manager._INSTALLED_REGISTRY",
+            tmp_path / "nonexistent.json",
+        ):
             ids = mgr._get_installed_ids()
             assert isinstance(ids, list)
 
@@ -1360,9 +1311,7 @@ class TestAutoPluginManager:
         from pycoder.server.services.auto_plugin_manager import AutoPluginManager
 
         registry_file = tmp_path / "installed_skills.json"
-        registry_file.write_text(
-            json.dumps({"skill-a": "1.0", "skill-b": "2.0"}), encoding="utf-8"
-        )
+        registry_file.write_text(json.dumps({"skill-a": "1.0", "skill-b": "2.0"}), encoding="utf-8")
 
         mgr = AutoPluginManager()
         with patch(
@@ -1651,7 +1600,6 @@ class TestEvaluationResult:
     def test_passed_threshold(self):
         """passed 阈值 >= 60——通过 evaluate() 方法验证"""
         from pycoder.server.services.auto_plugin_evaluator import (
-            AutoPluginEvaluator,
             EvaluationResult,
         )
 
@@ -1733,9 +1681,7 @@ class TestAutoPluginEvaluator:
         ev = AutoPluginEvaluator()
         ev._eval_cache = {}
 
-        result = await ev.evaluate(
-            {"name": "named-skill", "quality_score": 20, "stars": 100}
-        )
+        result = await ev.evaluate({"name": "named-skill", "quality_score": 20, "stars": 100})
         assert result.candidate_id == "named-skill"
         assert result.name == "named-skill"
 
@@ -1766,8 +1712,16 @@ class TestAutoPluginEvaluator:
         candidates = [
             {"id": "low", "name": "Low", "stars": 0, "quality_score": 0, "installs": 0},
             {"id": "mid", "name": "Mid", "stars": 100, "quality_score": 15, "installs": 100},
-            {"id": "high", "name": "High", "stars": 1000, "quality_score": 30, "installs": 1000,
-             "verified": True, "repository_url": "https://github.com/high/repo", "license": "MIT"},
+            {
+                "id": "high",
+                "name": "High",
+                "stars": 1000,
+                "quality_score": 30,
+                "installs": 1000,
+                "verified": True,
+                "repository_url": "https://github.com/high/repo",
+                "license": "MIT",
+            },
         ]
         ranked = await ev.rank_candidates(candidates, top_n=2)
         assert len(ranked) == 2
@@ -1787,9 +1741,7 @@ class TestAutoPluginEvaluator:
         """质量评分——最高星级"""
         from pycoder.server.services.auto_plugin_evaluator import AutoPluginEvaluator
 
-        score = AutoPluginEvaluator._score_quality(
-            {"quality_score": 30, "stars": 2000}
-        )
+        score = AutoPluginEvaluator._score_quality({"quality_score": 30, "stars": 2000})
         assert score == 40.0  # 上限
 
     def test_score_quality_no_data(self):
@@ -1840,9 +1792,7 @@ class TestAutoPluginEvaluator:
         """维护评分——高活跃度"""
         from pycoder.server.services.auto_plugin_evaluator import AutoPluginEvaluator
 
-        score = AutoPluginEvaluator._score_maintenance(
-            {"stars": 600, "installs": 2000}
-        )
+        score = AutoPluginEvaluator._score_maintenance({"stars": 600, "installs": 2000})
         assert score == 15.0  # 5 + 5 + 5
 
     def test_score_maintenance_no_data(self):

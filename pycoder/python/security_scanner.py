@@ -9,6 +9,7 @@
 - 提供修复建议
 - 支持离线运行（无外部网络依赖）
 """
+
 from __future__ import annotations
 
 import logging
@@ -371,20 +372,24 @@ class DependencySecurityScanner:
                     # 解析 "package==1.0.0" / "package>=1.0.0"
                     match = re.match(r"^([A-Za-z0-9_.-]+)\s*([=<>!~]+)\s*([\d.]+)", line)
                     if match:
-                        result.append({
-                            "name": match.group(1).lower().replace("_", "-"),
-                            "version_spec": f"{match.group(2)}{match.group(3)}",
-                            "source": fname,
-                        })
+                        result.append(
+                            {
+                                "name": match.group(1).lower().replace("_", "-"),
+                                "version_spec": f"{match.group(2)}{match.group(3)}",
+                                "source": fname,
+                            }
+                        )
                     else:
                         # 无版本约束
                         pkg_name = re.split(r"[\s<>=!~]", line)[0].strip()
                         if pkg_name:
-                            result.append({
-                                "name": pkg_name.lower().replace("_", "-"),
-                                "version_spec": "",
-                                "source": fname,
-                            })
+                            result.append(
+                                {
+                                    "name": pkg_name.lower().replace("_", "-"),
+                                    "version_spec": "",
+                                    "source": fname,
+                                }
+                            )
             except OSError as e:
                 logger.warning("requirements_parse_failed: %s, %s", fpath, e)
         return result
@@ -406,11 +411,13 @@ class DependencySecurityScanner:
                 pkg = match.group(1).lower().replace("_", "-")
                 if pkg in ("python", "name", "version"):
                     continue
-                result.append({
-                    "name": pkg,
-                    "version_spec": match.group(2) + (match.group(3) or ""),
-                    "source": "pyproject.toml",
-                })
+                result.append(
+                    {
+                        "name": pkg,
+                        "version_spec": match.group(2) + (match.group(3) or ""),
+                        "source": "pyproject.toml",
+                    }
+                )
         except OSError as e:
             logger.warning("pyproject_parse_failed: %s", e)
         return result
@@ -423,6 +430,7 @@ class DependencySecurityScanner:
             return result
         try:
             import ast
+
             tree = ast.parse(fpath.read_text(encoding="utf-8"))
             # 查找 install_requires
             for node in ast.walk(tree):
@@ -437,20 +445,25 @@ class DependencySecurityScanner:
                                     line,
                                 )
                                 if match:
-                                    result.append({
-                                        "name": match.group(1).lower().replace("_", "-"),
-                                        "version_spec": (match.group(2) or "") + (match.group(3) or ""),
-                                        "source": "setup.py",
-                                    })
+                                    result.append(
+                                        {
+                                            "name": match.group(1).lower().replace("_", "-"),
+                                            "version_spec": (match.group(2) or "")
+                                            + (match.group(3) or ""),
+                                            "source": "setup.py",
+                                        }
+                                    )
                                 else:
                                     # 无版本约束的包（去掉 extras 等标记）
                                     pkg_name = re.split(r"[\s<>=!~;\[]", line, 1)[0].strip()
                                     if pkg_name:
-                                        result.append({
-                                            "name": pkg_name.lower().replace("_", "-"),
-                                            "version_spec": "",
-                                            "source": "setup.py",
-                                        })
+                                        result.append(
+                                            {
+                                                "name": pkg_name.lower().replace("_", "-"),
+                                                "version_spec": "",
+                                                "source": "setup.py",
+                                            }
+                                        )
         except (OSError, SyntaxError) as e:
             logger.warning("setup_parse_failed: %s", e)
         return result
@@ -485,9 +498,7 @@ class DependencySecurityScanner:
             logger.warning("get_installed_versions_failed: %s", e)
         return result
 
-    def _match_vulnerabilities(
-        self, packages: list[dict], installed: dict[str, str]
-    ) -> list[dict]:
+    def _match_vulnerabilities(self, packages: list[dict], installed: dict[str, str]) -> list[dict]:
         """匹配已知漏洞."""
         results = []
         for pkg_info in packages:
@@ -507,18 +518,20 @@ class DependencySecurityScanner:
                         break
 
                 if affected:
-                    results.append({
-                        "cve_id": vuln["cve_id"],
-                        "package": pkg_name,
-                        "installed_version": installed_ver,
-                        "version_spec": pkg_info.get("version_spec", ""),
-                        "fixed_version": vuln["fixed_version"],
-                        "severity": vuln["severity"],
-                        "title": vuln["title"],
-                        "description": vuln["description"],
-                        "cwe": vuln.get("cwe", ""),
-                        "cvss_score": vuln.get("cvss", 0.0),
-                    })
+                    results.append(
+                        {
+                            "cve_id": vuln["cve_id"],
+                            "package": pkg_name,
+                            "installed_version": installed_ver,
+                            "version_spec": pkg_info.get("version_spec", ""),
+                            "fixed_version": vuln["fixed_version"],
+                            "severity": vuln["severity"],
+                            "title": vuln["title"],
+                            "description": vuln["description"],
+                            "cwe": vuln.get("cwe", ""),
+                            "cvss_score": vuln.get("cvss", 0.0),
+                        }
+                    )
         return results
 
     def _build_recommendations(
@@ -552,6 +565,7 @@ class DependencySecurityScanner:
 
 # ── 便捷函数 ────────────────────────────
 
+
 def scan_project(project_root: Path | None = None) -> dict:
     """便捷函数：扫描项目依赖."""
     scanner = DependencySecurityScanner(project_root=project_root)
@@ -569,5 +583,6 @@ __all__ = [
 
 if __name__ == "__main__":
     import json as _json
+
     result = scan_project(Path.cwd())
     print(_json.dumps(result, indent=2, ensure_ascii=False))

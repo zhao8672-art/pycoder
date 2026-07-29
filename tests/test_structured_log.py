@@ -7,6 +7,7 @@
 - contextvars 隔离（async 安全）
 - 与标准 logging 桥接
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -20,7 +21,6 @@ from pycoder.observability.structured_log import (
     BufferSink,
     FileSink,
     LogContext,
-    StdoutSink,
     StructuredFormatter,
     StructuredLogger,
     add_file_sink,

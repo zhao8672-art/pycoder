@@ -25,6 +25,7 @@ def capability_test(
 
     装饰后可通过 `test._capability_id` 和 `test._capability_description` 访问元数据。
     """
+
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:

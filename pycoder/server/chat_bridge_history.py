@@ -70,7 +70,8 @@ class HistoryManager:
         messages = list(self._messages)
         # 1) 滑窗截断 + 记忆压缩
         messages, _dropped, _compressed_len = _apply_history_sliding_window(
-            messages, self._max_history,
+            messages,
+            self._max_history,
         )
         # 2) 注入上下文锚点
         messages = _apply_context_anchor(messages)

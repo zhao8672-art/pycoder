@@ -1,9 +1,10 @@
 """memory 模块测试 — 会话记忆引擎"""
+
 from __future__ import annotations
 
 import pytest
 
-from pycoder.memory.session_memory import SessionMemoryEngine, SessionMemory
+from pycoder.memory.session_memory import SessionMemory, SessionMemoryEngine
 
 
 class TestSessionMemoryEngine:

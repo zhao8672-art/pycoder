@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -20,9 +19,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from pycoder.capabilities.self_evo.learning.closed_loop import (
-    CLOSED_LOOP_DB,
     ClosedLearningLoop,
-    LearningObservation,
     LearnedSkill,
     _handle_apply_feedback,
     _handle_generate_skill,
@@ -32,7 +29,6 @@ from pycoder.capabilities.self_evo.learning.closed_loop import (
     get_closed_loop,
     register_capabilities,
 )
-
 
 # ════════════════════════════════════════════════════════════
 # Handler 函数测试
@@ -97,6 +93,7 @@ class TestHandleObserve:
     @pytest.mark.asyncio
     async def test_observe_handles_exception(self, loop: ClosedLearningLoop) -> None:
         """异常情况返回失败"""
+
         # mock loop.observe 抛异常
         async def raise_exc(*args, **kwargs):
             raise RuntimeError("boom")
@@ -151,9 +148,7 @@ class TestHandleReflect:
         assert "未找到" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_reflect_query_db_with_record(
-        self, loop: ClosedLearningLoop
-    ) -> None:
+    async def test_reflect_query_db_with_record(self, loop: ClosedLearningLoop) -> None:
         """先观察再反思（走数据库查询路径）"""
         # 先记录一个观察
         await _handle_observe(
@@ -177,6 +172,7 @@ class TestHandleReflect:
     @pytest.mark.asyncio
     async def test_reflect_handles_exception(self, loop: ClosedLearningLoop) -> None:
         """异常情况"""
+
         async def raise_exc(*args, **kwargs):
             raise RuntimeError("reflect boom")
 
@@ -197,9 +193,7 @@ class TestHandleGenerateSkill:
     """_handle_generate_skill handler"""
 
     @pytest.mark.asyncio
-    async def test_generate_skill_missing_reflection(
-        self, loop: ClosedLearningLoop
-    ) -> None:
+    async def test_generate_skill_missing_reflection(self, loop: ClosedLearningLoop) -> None:
         result = await _handle_generate_skill(loop, {}, {})
         assert result["success"] is False
         assert "reflection" in result["error"]
@@ -217,9 +211,7 @@ class TestHandleGenerateSkill:
         assert result["skill_ids"] == []
 
     @pytest.mark.asyncio
-    async def test_generate_skill_with_pattern(
-        self, loop: ClosedLearningLoop
-    ) -> None:
+    async def test_generate_skill_with_pattern(self, loop: ClosedLearningLoop) -> None:
         """reflection 中包含 pattern，应生成技能"""
         result = await _handle_generate_skill(
             loop,
@@ -242,9 +234,7 @@ class TestHandleGenerateSkill:
         assert len(result["skill_ids"]) == result["skills_generated"]
 
     @pytest.mark.asyncio
-    async def test_generate_skill_handles_exception(
-        self, loop: ClosedLearningLoop
-    ) -> None:
+    async def test_generate_skill_handles_exception(self, loop: ClosedLearningLoop) -> None:
         async def raise_exc(*args, **kwargs):
             raise RuntimeError("gen boom")
 
@@ -262,9 +252,7 @@ class TestHandleApplyFeedback:
     """_handle_apply_feedback handler"""
 
     @pytest.mark.asyncio
-    async def test_apply_feedback_missing_description(
-        self, loop: ClosedLearningLoop
-    ) -> None:
+    async def test_apply_feedback_missing_description(self, loop: ClosedLearningLoop) -> None:
         result = await _handle_apply_feedback(loop, {}, {})
         assert result["success"] is False
         assert "task_description" in result["error"]
@@ -280,9 +268,7 @@ class TestHandleApplyFeedback:
         assert "feedback" in result
 
     @pytest.mark.asyncio
-    async def test_apply_feedback_handles_exception(
-        self, loop: ClosedLearningLoop
-    ) -> None:
+    async def test_apply_feedback_handles_exception(self, loop: ClosedLearningLoop) -> None:
         async def raise_exc(*args, **kwargs):
             raise RuntimeError("apply boom")
 
@@ -390,7 +376,8 @@ class TestInitDbNoFts:
         # 验证表存在
         with sqlite3.connect(str(tmp_path / "nofts.db")) as conn:
             tables = [
-                r[0] for r in conn.execute(
+                r[0]
+                for r in conn.execute(
                     "SELECT name FROM sqlite_master WHERE type='table'"
                 ).fetchall()
             ]
@@ -407,9 +394,7 @@ class TestInitDbNoFts:
 class TestGetConn:
     """_get_conn 连接获取"""
 
-    def test_get_conn_returns_connection_with_row_factory(
-        self, loop: ClosedLearningLoop
-    ) -> None:
+    def test_get_conn_returns_connection_with_row_factory(self, loop: ClosedLearningLoop) -> None:
         conn = loop._get_conn()
         try:
             assert isinstance(conn, sqlite3.Connection)
@@ -596,9 +581,7 @@ class TestRowConverters:
         assert result.success_rate == 0.75
         assert result.usage_count == 3
 
-    def test_row_to_observation_converts_correctly(
-        self, loop: ClosedLearningLoop
-    ) -> None:
+    def test_row_to_observation_converts_correctly(self, loop: ClosedLearningLoop) -> None:
         """观察行转换"""
         asyncio.run(
             loop.observe(
@@ -635,9 +618,7 @@ class TestSearchObservations:
         result = loop._search_observations("")
         assert result == []
 
-    def test_search_finds_matching_observation(
-        self, loop: ClosedLearningLoop
-    ) -> None:
+    def test_search_finds_matching_observation(self, loop: ClosedLearningLoop) -> None:
         """搜索能找到匹配的观察"""
         asyncio.run(
             loop.observe(

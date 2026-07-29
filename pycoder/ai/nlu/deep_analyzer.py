@@ -86,8 +86,9 @@ class DeepAnalyzer:
         """调用 LLM 分析"""
         try:
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.chat_bridge")
-            ChatBridge = getattr(_mod, "ChatBridge")
+            ChatBridge = _mod.ChatBridge
 
             bridge = ChatBridge()
             bridge.configure(model="deepseek-chat", temperature=0.1, max_tokens=1024)
@@ -105,6 +106,7 @@ class DeepAnalyzer:
         """从 LLM 回复中解析 JSON"""
         # 找 ```json ... ``` 块
         import re
+
         match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", response, re.DOTALL)
         if match:
             json_str = match.group(1).strip()
@@ -116,7 +118,7 @@ class DeepAnalyzer:
         brace_start = json_str.find("{")
         brace_end = json_str.rfind("}")
         if brace_start >= 0 and brace_end > brace_start:
-            json_str = json_str[brace_start:brace_end + 1]
+            json_str = json_str[brace_start : brace_end + 1]
 
         try:
             return json.loads(json_str)

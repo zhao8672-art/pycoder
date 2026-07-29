@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ExtractedContent:
     """提取的结构化内容"""
+
     title: str = ""
     text: str = ""
     html: str = ""
@@ -41,6 +42,7 @@ class ContentExtractor:
     def _try_import(self):
         try:
             import html2text  # noqa: F401
+
             self._has_html2text = True
         except ImportError:
             self._has_html2text = False
@@ -50,15 +52,14 @@ class ContentExtractor:
         content = ExtractedContent(url=url, html=html[:100000])
 
         # 提取标题
-        title_match = re.search(
-            r'<title[^>]*>(.*?)</title>', html, re.IGNORECASE | re.DOTALL
-        )
+        title_match = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
         if title_match:
             content.title = title_match.group(1).strip()
 
         # 提取文本
         if self._has_html2text:
             import html2text
+
             h = html2text.HTML2Text()
             h.body_width = 0
             h.ignore_links = False
@@ -73,10 +74,12 @@ class ContentExtractor:
             html,
             re.IGNORECASE,
         ):
-            content.links.append({
-                "url": match.group(1),
-                "text": re.sub(r'<[^>]+>', '', match.group(2)).strip()[:100],
-            })
+            content.links.append(
+                {
+                    "url": match.group(1),
+                    "text": re.sub(r"<[^>]+>", "", match.group(2)).strip()[:100],
+                }
+            )
 
         # 提取图片
         for match in re.finditer(
@@ -93,13 +96,13 @@ class ContentExtractor:
         """无 html2text 时的正则回退"""
         text = html
         # 移除脚本和样式
-        text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL)
-        text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL)
+        text = re.sub(r"<script[^>]*>.*?</script>", "", text, flags=re.DOTALL)
+        text = re.sub(r"<style[^>]*>.*?</style>", "", text, flags=re.DOTALL)
         # 移除 HTML 标签
-        text = re.sub(r'<[^>]+>', ' ', text)
+        text = re.sub(r"<[^>]+>", " ", text)
         # 压缩空白
-        text = re.sub(r'\s+', ' ', text).strip()
+        text = re.sub(r"\s+", " ", text).strip()
         # 解码常见实体
-        text = text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
-        text = text.replace('&quot;', '"').replace('&#39;', "'")
+        text = text.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+        text = text.replace("&quot;", '"').replace("&#39;", "'")
         return text[:50000]

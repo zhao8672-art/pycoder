@@ -1,12 +1,11 @@
 """P0-2: 持久化记忆引擎单元测试"""
+
 from __future__ import annotations
 
 import json
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 from pycoder.memory.persistent_memory import (
     PersistentMemoryEngine,

@@ -15,9 +15,9 @@
   - mock _team_execute_tool / _team_parse_tool_calls 避免真实工具调用
   - 用 tmp_path 隔离文件写入
 """
+
 from __future__ import annotations
 
-import asyncio
 import json
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -36,10 +36,10 @@ from pycoder.server.services.team.agent_tool_loop import (
     review_code,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # 提示词常量
 # ══════════════════════════════════════════════════════════
+
 
 class TestPrompts:
     def test_agent_prompt_contains_role_and_tools(self):
@@ -65,6 +65,7 @@ class TestPrompts:
 # _parse_files_from_response 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestParseFilesFromResponse:
     def test_empty_text(self):
         assert _parse_files_from_response("") == []
@@ -81,11 +82,7 @@ class TestParseFilesFromResponse:
         assert "print('hello')" in files[0]["content"]
 
     def test_multiple_file_blocks(self):
-        text = (
-            "```FILE:a.py\ncontent_a\n```END\n"
-            "中间文本\n"
-            "```FILE:b.py\ncontent_b\n```END"
-        )
+        text = "```FILE:a.py\ncontent_a\n```END\n" "中间文本\n" "```FILE:b.py\ncontent_b\n```END"
         files = _parse_files_from_response(text)
         assert len(files) == 2
         assert files[0]["path"] == "a.py"
@@ -108,13 +105,16 @@ class TestParseFilesFromResponse:
 # _team_execute_tool 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestTeamExecuteTool:
     @pytest.mark.asyncio
     async def test_returns_result_on_success(self, monkeypatch):
         async def fake_exec(*args, **kwargs):
             return "✅ success"
+
         # mock execute_agent_tool 模块级函数
         import pycoder.server.services.agent_tools as at_mod
+
         monkeypatch.setattr(at_mod, "execute_agent_tool", fake_exec)
         result = await _team_execute_tool("read_file", {"path": "x"}, Path("."))
         assert result == "✅ success"
@@ -123,7 +123,9 @@ class TestTeamExecuteTool:
     async def test_returns_error_on_exception(self, monkeypatch):
         async def fake_exec(*args, **kwargs):
             raise RuntimeError("tool failed")
+
         import pycoder.server.services.agent_tools as at_mod
+
         monkeypatch.setattr(at_mod, "execute_agent_tool", fake_exec)
         result = await _team_execute_tool("bad_tool", {}, Path("."))
         assert "❌" in result
@@ -132,8 +134,10 @@ class TestTeamExecuteTool:
     @pytest.mark.asyncio
     async def test_returns_error_on_timeout(self, monkeypatch):
         async def fake_exec(*args, **kwargs):
-            raise asyncio.TimeoutError()
+            raise TimeoutError()
+
         import pycoder.server.services.agent_tools as at_mod
+
         monkeypatch.setattr(at_mod, "execute_agent_tool", fake_exec)
         result = await _team_execute_tool("slow_tool", {}, Path("."))
         assert "❌" in result
@@ -143,17 +147,20 @@ class TestTeamExecuteTool:
 # _team_parse_tool_calls 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestTeamParseToolCalls:
     def test_parses_valid_json(self, monkeypatch):
         """委托到 agent_tools.parse_tool_calls"""
         fake_calls = [{"name": "read_file", "params": {"path": "x"}}]
         import pycoder.server.services.agent_tools as at_mod
+
         monkeypatch.setattr(at_mod, "parse_tool_calls", lambda text: fake_calls)
         result = _team_parse_tool_calls("any text")
         assert result == fake_calls
 
     def test_empty_text(self, monkeypatch):
         import pycoder.server.services.agent_tools as at_mod
+
         monkeypatch.setattr(at_mod, "parse_tool_calls", lambda text: [])
         assert _team_parse_tool_calls("") == []
 
@@ -163,6 +170,7 @@ class TestTeamParseToolCalls:
             {"name": "write_file", "params": {"path": "b"}},
         ]
         import pycoder.server.services.agent_tools as at_mod
+
         monkeypatch.setattr(at_mod, "parse_tool_calls", lambda text: fake_calls)
         result = _team_parse_tool_calls("text")
         assert len(result) == 2
@@ -171,6 +179,7 @@ class TestTeamParseToolCalls:
 # ══════════════════════════════════════════════════════════
 # _agent_tool_loop 测试（async）
 # ══════════════════════════════════════════════════════════
+
 
 def _make_bridge_with_events(events):
     """构造一个 mock bridge，其 chat_stream 返回指定事件序列"""
@@ -223,9 +232,11 @@ class TestAgentToolLoop:
             return []  # 第二轮无工具调用
 
         monkeypatch.setattr(atl, "_team_parse_tool_calls", fake_parse)
+
         # mock _team_execute_tool 异步返回
         async def fake_exec(name, params, ws):
             return "✅ file content"
+
         monkeypatch.setattr(atl, "_team_execute_tool", fake_exec)
 
         # 第一次返回工具调用，第二次直接结束
@@ -267,14 +278,18 @@ class TestAgentToolLoop:
         bridge = _make_bridge_with_events(events)
         # 第一轮返回工具调用，第二轮返回空
         call_count = {"n": 0}
+
         def fake_parse(text):
             call_count["n"] += 1
             if call_count["n"] == 1:
                 return [{"name": "write_file", "params": {"path": "new.py"}}]
             return []
+
         monkeypatch.setattr(atl, "_team_parse_tool_calls", fake_parse)
+
         async def fake_exec(name, params, ws):
             return "✅ wrote"
+
         monkeypatch.setattr(atl, "_team_execute_tool", fake_exec)
 
         result, files = await _agent_tool_loop(bridge, "task", tmp_path)
@@ -321,11 +336,14 @@ class TestAgentToolLoop:
         bridge = _make_bridge_with_events(events)
         # 每轮都返回工具调用，永不停止
         monkeypatch.setattr(
-            atl, "_team_parse_tool_calls",
+            atl,
+            "_team_parse_tool_calls",
             lambda text: [{"name": "read_file", "params": {"path": "x"}}],
         )
+
         async def fake_exec(name, params, ws):
             return "result"
+
         monkeypatch.setattr(atl, "_team_execute_tool", fake_exec)
 
         result, files = await _agent_tool_loop(bridge, "task", tmp_path, max_iterations=2)
@@ -351,18 +369,26 @@ class TestAgentToolLoop:
 # _execute_agent_with_files 测试（async）
 # ══════════════════════════════════════════════════════════
 
+
 class TestExecuteAgentWithFiles:
     async def test_builds_prompt_with_role_and_task(self, tmp_path, monkeypatch):
         """构造的 prompt 应包含角色名、任务标题、描述"""
         from pycoder.server.services.agent_definitions import AgentRole, AgentTask
 
         role = AgentRole(
-            id="dev", name="开发者", description="编码实现",
-            system_prompt="sys", tools=[], model="deepseek-chat",
+            id="dev",
+            name="开发者",
+            description="编码实现",
+            system_prompt="sys",
+            tools=[],
+            model="deepseek-chat",
         )
         task = AgentTask(
-            id="t1", title="任务1", description="描述1",
-            assigned_role="dev", deliverables=["a.py"],
+            id="t1",
+            title="任务1",
+            description="描述1",
+            assigned_role="dev",
+            deliverables=["a.py"],
         )
         bridge = MagicMock()
         bridge.configure = MagicMock()
@@ -389,12 +415,19 @@ class TestExecuteAgentWithFiles:
         from pycoder.server.services.agent_definitions import AgentRole, AgentTask
 
         role = AgentRole(
-            id="dev", name="开发者", description="编码",
-            system_prompt="sys", tools=[], model="deepseek-chat",
+            id="dev",
+            name="开发者",
+            description="编码",
+            system_prompt="sys",
+            tools=[],
+            model="deepseek-chat",
         )
         task = AgentTask(
-            id="t2", title="任务2", description="描述2",
-            assigned_role="dev", deliverables=["a.py"],
+            id="t2",
+            title="任务2",
+            description="描述2",
+            assigned_role="dev",
+            deliverables=["a.py"],
         )
         bridge = MagicMock()
         bridge.configure = MagicMock()
@@ -410,7 +443,9 @@ class TestExecuteAgentWithFiles:
         monkeypatch.setattr(atl, "_agent_tool_loop", fake_loop)
 
         await _execute_agent_with_files(
-            bridge, role, task,
+            bridge,
+            role,
+            task,
             existing_results={"prev-task": "previous output"},
             work_dir=tmp_path,
         )
@@ -423,12 +458,19 @@ class TestExecuteAgentWithFiles:
         from pycoder.server.services.agent_definitions import AgentRole, AgentTask
 
         role = AgentRole(
-            id="dev", name="开发者", description="编码",
-            system_prompt="sys", tools=[], model="deepseek-chat",
+            id="dev",
+            name="开发者",
+            description="编码",
+            system_prompt="sys",
+            tools=[],
+            model="deepseek-chat",
         )
         task = AgentTask(
-            id="t3", title="任务3", description="描述3",
-            assigned_role="dev", deliverables=["a.py"],
+            id="t3",
+            title="任务3",
+            description="描述3",
+            assigned_role="dev",
+            deliverables=["a.py"],
         )
         bridge = MagicMock()
         bridge.configure = MagicMock()
@@ -444,7 +486,9 @@ class TestExecuteAgentWithFiles:
         monkeypatch.setattr(atl, "_agent_tool_loop", fake_loop)
 
         await _execute_agent_with_files(
-            bridge, role, task,
+            bridge,
+            role,
+            task,
             existing_results={
                 "prev-task": "```FILE:app.py\ncontent\n```END",
             },
@@ -457,12 +501,19 @@ class TestExecuteAgentWithFiles:
         from pycoder.server.services.agent_definitions import AgentRole, AgentTask
 
         role = AgentRole(
-            id="dev", name="开发者", description="编码",
-            system_prompt="sys", tools=[], model="deepseek-chat",
+            id="dev",
+            name="开发者",
+            description="编码",
+            system_prompt="sys",
+            tools=[],
+            model="deepseek-chat",
         )
         task = AgentTask(
-            id="t4", title="任务4", description="描述4",
-            assigned_role="dev", deliverables=["a.py"],
+            id="t4",
+            title="任务4",
+            description="描述4",
+            assigned_role="dev",
+            deliverables=["a.py"],
         )
         bridge = MagicMock()
         bridge.configure = MagicMock()
@@ -483,12 +534,19 @@ class TestExecuteAgentWithFiles:
         from pycoder.server.services.agent_definitions import AgentRole, AgentTask
 
         role = AgentRole(
-            id="arch", name="架构师", description="设计",
-            system_prompt="sys", tools=[], model="deepseek-reasoner",
+            id="arch",
+            name="架构师",
+            description="设计",
+            system_prompt="sys",
+            tools=[],
+            model="deepseek-reasoner",
         )
         task = AgentTask(
-            id="t5", title="任务5", description="描述5",
-            assigned_role="arch", deliverables=[],
+            id="t5",
+            title="任务5",
+            description="描述5",
+            assigned_role="arch",
+            deliverables=[],
         )
         bridge = MagicMock()
         bridge.configure = MagicMock()
@@ -508,12 +566,19 @@ class TestExecuteAgentWithFiles:
         from pycoder.server.services.agent_definitions import AgentRole, AgentTask
 
         role = AgentRole(
-            id="dev", name="开发者", description="编码",
-            system_prompt="sys", tools=[], model="deepseek-chat",
+            id="dev",
+            name="开发者",
+            description="编码",
+            system_prompt="sys",
+            tools=[],
+            model="deepseek-chat",
         )
         task = AgentTask(
-            id="t6", title="任务6", description="描述6",
-            assigned_role="dev", deliverables=[],
+            id="t6",
+            title="任务6",
+            description="描述6",
+            assigned_role="dev",
+            deliverables=[],
         )
         bridge = MagicMock()
         bridge.configure = MagicMock()
@@ -538,6 +603,7 @@ class TestExecuteAgentWithFiles:
 # ══════════════════════════════════════════════════════════
 # review_code 测试（async）
 # ══════════════════════════════════════════════════════════
+
 
 class TestReviewCode:
     async def test_valid_json_response(self, monkeypatch):

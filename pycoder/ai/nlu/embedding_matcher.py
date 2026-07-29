@@ -231,6 +231,7 @@ class EmbeddingMatcher:
         """尝试加载 sentence-transformers 模型"""
         try:
             import sentence_transformers  # noqa: F401
+
             self._has_sentence_transformers = True
         except ImportError:
             self._has_sentence_transformers = False
@@ -254,14 +255,17 @@ class EmbeddingMatcher:
             results = []
             for intent, templates in INTENT_TEMPLATES.items():
                 template_vec = self._model.encode(templates[0])
-                sim = float(np.dot(text_vec, template_vec) / (
-                    np.linalg.norm(text_vec) * np.linalg.norm(template_vec)
-                ))
-                results.append({
-                    "intent": intent,
-                    "confidence": round(max(0, sim), 3),
-                    "method": "embedding",
-                })
+                sim = float(
+                    np.dot(text_vec, template_vec)
+                    / (np.linalg.norm(text_vec) * np.linalg.norm(template_vec))
+                )
+                results.append(
+                    {
+                        "intent": intent,
+                        "confidence": round(max(0, sim), 3),
+                        "method": "embedding",
+                    }
+                )
 
             results.sort(key=lambda x: x["confidence"], reverse=True)
             return results[:top_k]
@@ -276,11 +280,13 @@ class EmbeddingMatcher:
 
         for intent, template_vec in self._template_features.items():
             sim = self._cosine_similarity(text_vec, template_vec)
-            results.append({
-                "intent": intent,
-                "confidence": round(sim, 3),
-                "method": "bow",
-            })
+            results.append(
+                {
+                    "intent": intent,
+                    "confidence": round(sim, 3),
+                    "method": "bow",
+                }
+            )
 
         results.sort(key=lambda x: x["confidence"], reverse=True)
         return results[:top_k]
@@ -288,14 +294,13 @@ class EmbeddingMatcher:
     def _bow_vector(self, text: str) -> dict[str, float]:
         """构建词袋向量 (TF)"""
         import re
+
         words = re.findall(r"\w+", text.lower())
         total = max(len(words), 1)
         counter = Counter(words)
         return {word: count / total for word, count in counter.items()}
 
-    def _cosine_similarity(
-        self, vec1: dict[str, float], vec2: dict[str, float]
-    ) -> float:
+    def _cosine_similarity(self, vec1: dict[str, float], vec2: dict[str, float]) -> float:
         """计算余弦相似度"""
         all_words = set(vec1) | set(vec2)
         dot_product = sum(vec1.get(w, 0) * vec2.get(w, 0) for w in all_words)

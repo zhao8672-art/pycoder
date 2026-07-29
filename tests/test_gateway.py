@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -31,7 +31,6 @@ from pycoder.gateway.adapters.telegram import TelegramAdapter
 from pycoder.gateway.adapters.wechat import WeChatAdapter
 from pycoder.gateway.message_router import MessageRouter
 from pycoder.gateway.session_manager import Session, SessionManager
-
 
 # ═══════════════════════════════════════════════
 # Fixtures
@@ -181,9 +180,7 @@ class TestGatewayMessage:
 
     def test_default_values(self) -> None:
         """测试默认值"""
-        msg = GatewayMessage(
-            platform="cli", user_id="u", session_id="s", content="c"
-        )
+        msg = GatewayMessage(platform="cli", user_id="u", session_id="s", content="c")
         assert msg.message_type == "text"
         assert msg.metadata == {}
 
@@ -329,9 +326,7 @@ class TestMessageRouter:
     @pytest.mark.asyncio
     async def test_route_command_help(self, router: MessageRouter) -> None:
         """测试路由 /help 命令"""
-        msg = GatewayMessage(
-            platform="cli", user_id="u", session_id="s", content="/help"
-        )
+        msg = GatewayMessage(platform="cli", user_id="u", session_id="s", content="/help")
         result = await router.route_message(msg)
         assert result is not None
         assert "帮助" in result
@@ -339,9 +334,7 @@ class TestMessageRouter:
     @pytest.mark.asyncio
     async def test_route_command_platforms(self, router: MessageRouter) -> None:
         """测试路由 /platforms 命令"""
-        msg = GatewayMessage(
-            platform="cli", user_id="u", session_id="s", content="/platforms"
-        )
+        msg = GatewayMessage(platform="cli", user_id="u", session_id="s", content="/platforms")
         result = await router.route_message(msg)
         assert result is not None
         assert "平台" in result
@@ -362,9 +355,7 @@ class TestMessageRouter:
     @pytest.mark.asyncio
     async def test_route_command_unknown(self, router: MessageRouter) -> None:
         """测试未知命令"""
-        msg = GatewayMessage(
-            platform="cli", user_id="u", session_id="s", content="/unknown_cmd"
-        )
+        msg = GatewayMessage(platform="cli", user_id="u", session_id="s", content="/unknown_cmd")
         result = await router.route_message(msg)
         assert result is not None
         assert "未知命令" in result
@@ -372,9 +363,7 @@ class TestMessageRouter:
     @pytest.mark.asyncio
     async def test_route_conversation_without_ai(self, router: MessageRouter) -> None:
         """测试对话消息（无 AI 大脑）"""
-        msg = GatewayMessage(
-            platform="cli", user_id="u", session_id="s", content="你好"
-        )
+        msg = GatewayMessage(platform="cli", user_id="u", session_id="s", content="你好")
         result = await router.route_message(msg)
         assert result is not None
         assert "收到您的消息" in result
@@ -386,9 +375,7 @@ class TestMessageRouter:
         mock_brain.process_message = AsyncMock(return_value="AI 响应")
         router.set_ai_brain(mock_brain)
 
-        msg = GatewayMessage(
-            platform="cli", user_id="u", session_id="s", content="/custom"
-        )
+        msg = GatewayMessage(platform="cli", user_id="u", session_id="s", content="/custom")
         result = await router.route_message(msg)
         assert result == "AI 响应"
         mock_brain.process_message.assert_called_once()
@@ -400,9 +387,7 @@ class TestMessageRouter:
         mock_brain.process_message = AsyncMock(return_value="你好，有什么可以帮你的？")
         router.set_ai_brain(mock_brain)
 
-        msg = GatewayMessage(
-            platform="cli", user_id="u", session_id="s", content="你好啊"
-        )
+        msg = GatewayMessage(platform="cli", user_id="u", session_id="s", content="你好啊")
         result = await router.route_message(msg)
         assert result == "你好，有什么可以帮你的？"
 
@@ -856,9 +841,7 @@ class TestDiscordAdapter:
             "channel_id": "ch_1",
             "author": {"id": "u1", "username": "test"},
             "content": "",
-            "attachments": [
-                {"filename": "photo.png", "content_type": "image/png"}
-            ],
+            "attachments": [{"filename": "photo.png", "content_type": "image/png"}],
         }
         msg = adapter._normalize_from_dict(raw)
         assert msg.message_type == "image"
@@ -872,9 +855,7 @@ class TestDiscordAdapter:
             "channel_id": "ch_1",
             "author": {"id": "u1", "username": "test"},
             "content": "",
-            "attachments": [
-                {"filename": "data.zip", "content_type": "application/zip"}
-            ],
+            "attachments": [{"filename": "data.zip", "content_type": "application/zip"}],
         }
         msg = adapter._normalize_from_dict(raw)
         assert msg.message_type == "file"
@@ -1008,9 +989,7 @@ class TestSlackAdapter:
     def test_normalize_section_block(self) -> None:
         """测试从 Slack Section Block 提取文本"""
         adapter = SlackAdapter()
-        blocks = [
-            {"type": "section", "text": {"type": "mrkdwn", "text": "Section text"}}
-        ]
+        blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": "Section text"}}]
         text = adapter._extract_blocks_text(blocks)
         assert text == "Section text"
 
@@ -1315,6 +1294,7 @@ class TestWeChatAdapter:
         adapter = WeChatAdapter(token="test_token")
         # 正确的签名: sha1(sort([test_token, timestamp, nonce]))
         import hashlib
+
         timestamp = "1234567890"
         nonce = "abc123"
         tmp = sorted(["test_token", timestamp, nonce])
@@ -1360,10 +1340,7 @@ class TestConcurrentSessionAccess:
         async def create_session(platform: str, user_id: str) -> Session:
             return sm.get_or_create_session(platform, user_id)
 
-        tasks = [
-            create_session("tg", f"user_{i}")
-            for i in range(20)
-        ]
+        tasks = [create_session("tg", f"user_{i}") for i in range(20)]
         sessions = await asyncio.gather(*tasks)
         assert len(sessions) == 20
         assert sm.session_count == 20
@@ -1394,10 +1371,7 @@ class TestConcurrentSessionAccess:
         async def share_context(user_id: str, key: str, value: str) -> None:
             sm.share_context(user_id, key, value)
 
-        tasks = [
-            share_context("user_1", f"key_{i}", f"value_{i}")
-            for i in range(10)
-        ]
+        tasks = [share_context("user_1", f"key_{i}", f"value_{i}") for i in range(10)]
         await asyncio.gather(*tasks)
         ctx = sm.get_all_shared_context("user_1")
         assert len(ctx) == 10

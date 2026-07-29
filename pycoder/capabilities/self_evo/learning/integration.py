@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -229,7 +229,9 @@ class EvolutionIntegration:
             if h.get("outcome") == "success":
                 types[t]["success"] += 1
 
-        best_type = max(types, key=lambda t: types[t]["success"] / max(types[t]["total"], 1), default="N/A")
+        best_type = max(
+            types, key=lambda t: types[t]["success"] / max(types[t]["total"], 1), default="N/A"
+        )
 
         return {
             "total_evolutions": total,
@@ -255,7 +257,7 @@ class EvolutionIntegration:
             return True  # 允许继续但记录警告
 
         try:
-            from pycoder.safety import SandboxManager, SandboxConfig
+            from pycoder.safety import SandboxConfig, SandboxManager
             from pycoder.safety.circuit_breaker import CircuitBreakerRegistry
 
             # 检查熔断器

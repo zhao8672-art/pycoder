@@ -28,11 +28,14 @@ class SkillsAutoUpdater:
             if age > self._max_age_sec:
                 logger.info(
                     "技能包已过期 (%.1f 小时 > %d 小时)，自动刷新...",
-                    hours_old, self._max_age_sec / 3600,
+                    hours_old,
+                    self._max_age_sec / 3600,
                 )
                 return await self._refresh()
             else:
-                logger.debug("技能包有效 (%.1f 小时 < %d 小时)", hours_old, self._max_age_sec / 3600)
+                logger.debug(
+                    "技能包有效 (%.1f 小时 < %d 小时)", hours_old, self._max_age_sec / 3600
+                )
                 return {
                     "success": True,
                     "refreshed": False,
@@ -51,6 +54,7 @@ class SkillsAutoUpdater:
         """执行刷新"""
         try:
             from pycoder.server.app import get_v2_engine
+
             v2 = get_v2_engine()
             if v2:
                 result = await v2.registry.call("tools_marketplace_skills_sync", {})

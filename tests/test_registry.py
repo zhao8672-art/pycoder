@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-import pytest
 from pycoder.providers.registry import (
     ALL_MODELS,
     ModelInfo,
-    get_all_models,
+    compare_models,
     get_model_info,
     get_models_by_provider,
     get_models_by_tag,
-    get_recommended_models,
     get_provider_for_model,
-    compare_models,
+    get_recommended_models,
 )
 
 

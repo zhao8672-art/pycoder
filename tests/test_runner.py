@@ -6,14 +6,13 @@
 被 safe-delete 沙箱拦截。现改为标准 pytest 测试函数 + tmp_path fixture，
 既不再触发顶层删除，也不污染项目目录。
 """
+
 import sys
-from pathlib import Path
 
 sys.path.insert(0, r"C:\Users\Administrator\Desktop\pycode")
 
 from pycoder.python.template_code import (
     generate_fastapi_crud,
-    generate_fastapi_auth,
     generate_scaffold_project,
 )
 
@@ -23,13 +22,11 @@ def test_generate_fastapi_crud(tmp_path):
     d1 = tmp_path / "test-gen-crud"
     d1.mkdir()
     result = generate_fastapi_crud(d1, "book")
-    print(f"TEST 1 - FastAPI CRUD:")
+    print("TEST 1 - FastAPI CRUD:")
     print(f"  Files: {len(result)}")
     py_files = list(d1.rglob("*.py"))
     total_lines = sum(
-        len(f.read_text(encoding="utf-8").splitlines())
-        for f in py_files
-        if f.is_file()
+        len(f.read_text(encoding="utf-8").splitlines()) for f in py_files if f.is_file()
     )
     print(f"  Python files: {len(py_files)}")
     print(f"  Total lines: {total_lines}")
@@ -65,9 +62,7 @@ def test_generate_scaffold_project(tmp_path):
     print(f"  Files: {len(result2)}")
     py_files2 = list(d2.rglob("*.py"))
     total_lines2 = sum(
-        len(f.read_text(encoding="utf-8").splitlines())
-        for f in py_files2
-        if f.is_file()
+        len(f.read_text(encoding="utf-8").splitlines()) for f in py_files2 if f.is_file()
     )
     print(f"  Total lines: {total_lines2}")
     print("\nDONE")

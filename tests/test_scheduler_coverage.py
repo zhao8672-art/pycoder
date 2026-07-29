@@ -14,15 +14,14 @@
   - mock asyncio.sleep 让 _run_loop 单次迭代后退出
   - mock call_builtin_tool 测试 _do_execute 的 mcp: 分支
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
+from unittest.mock import MagicMock
 
 from pycoder.server import scheduler as sched_mod
 from pycoder.server.scheduler import (
@@ -31,8 +30,8 @@ from pycoder.server.scheduler import (
     get_scheduler,
 )
 
-
 # ── 工厂: 创建带 tmp_path 存储的 Scheduler ──────────────────
+
 
 def _make_scheduler(tmp_path: Path) -> Scheduler:
     """创建 Scheduler，存储路径指向 tmp_path"""
@@ -42,19 +41,31 @@ def _make_scheduler(tmp_path: Path) -> Scheduler:
 
 
 def _make_task(
-    tid="t1", name="task1", trigger="interval", config=None,
-    action="mcp:noop", action_args=None, enabled=True, last_run=0.0,
+    tid="t1",
+    name="task1",
+    trigger="interval",
+    config=None,
+    action="mcp:noop",
+    action_args=None,
+    enabled=True,
+    last_run=0.0,
 ):
     return ScheduledTask(
-        id=tid, name=name, trigger=trigger,
-        config=config or {"seconds": 60}, action=action,
-        action_args=action_args or {}, enabled=enabled, last_run=last_run,
+        id=tid,
+        name=name,
+        trigger=trigger,
+        config=config or {"seconds": 60},
+        action=action,
+        action_args=action_args or {},
+        enabled=enabled,
+        last_run=last_run,
     )
 
 
 # ══════════════════════════════════════════════════════════
 # ScheduledTask dataclass
 # ══════════════════════════════════════════════════════════
+
 
 class TestScheduledTask:
     def test_defaults(self):
@@ -71,6 +82,7 @@ class TestScheduledTask:
 # ══════════════════════════════════════════════════════════
 # load / save
 # ══════════════════════════════════════════════════════════
+
 
 class TestLoadSave:
     def test_load_nonexistent(self, tmp_path):
@@ -132,6 +144,7 @@ class TestLoadSave:
 # ══════════════════════════════════════════════════════════
 # add_task / remove_task / list_tasks / toggle_task
 # ══════════════════════════════════════════════════════════
+
 
 class TestTaskCRUD:
     def test_add_task(self, tmp_path):
@@ -196,6 +209,7 @@ class TestTaskCRUD:
 # start / stop / is_running
 # ══════════════════════════════════════════════════════════
 
+
 class TestStartStop:
     async def test_start_creates_loop_task(self, tmp_path, monkeypatch):
         s = _make_scheduler(tmp_path)
@@ -203,6 +217,7 @@ class TestStartStop:
         # mock _run_loop 让其立即返回
         async def fake_loop():
             pass
+
         monkeypatch.setattr(s, "_run_loop", fake_loop)
 
         # mock load 避免文件读取
@@ -224,6 +239,7 @@ class TestStartStop:
                 await asyncio.sleep(100)
             except asyncio.CancelledError:
                 pass
+
         s._loop_task = asyncio.create_task(hang())
 
         await s.stop()
@@ -246,6 +262,7 @@ class TestStartStop:
 # _run_loop
 # ══════════════════════════════════════════════════════════
 
+
 class TestRunLoop:
     async def test_run_loop_executes_due_task(self, tmp_path, monkeypatch):
         """到期任务应被执行"""
@@ -258,8 +275,10 @@ class TestRunLoop:
 
         # mock _execute_action 避免真实调度
         executed = []
+
         def fake_exec(t):
             executed.append(t.id)
+
         monkeypatch.setattr(s, "_execute_action", fake_exec)
 
         # mock save 避免文件写入
@@ -297,10 +316,12 @@ class TestRunLoop:
         monkeypatch.setattr(s, "save", lambda: None)
 
         call_count = [0]
+
         async def fake_sleep(seconds):
             call_count[0] += 1
             if call_count[0] >= 2:
                 s._running = False
+
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
         await s._run_loop()
@@ -322,10 +343,12 @@ class TestRunLoop:
         monkeypatch.setattr(s, "save", lambda: None)
 
         call_count = [0]
+
         async def fake_sleep(seconds):
             call_count[0] += 1
             if call_count[0] >= 2:
                 s._running = False
+
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
         await s._run_loop()
@@ -344,10 +367,12 @@ class TestRunLoop:
         monkeypatch.setattr(s, "save", lambda: None)
 
         call_count = [0]
+
         async def fake_sleep(seconds):
             call_count[0] += 1
             if call_count[0] >= 2:
                 s._running = False
+
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
         await s._run_loop()
@@ -367,10 +392,12 @@ class TestRunLoop:
         monkeypatch.setattr(s, "save", lambda: None)
 
         call_count = [0]
+
         async def fake_sleep(seconds):
             call_count[0] += 1
             if call_count[0] >= 2:
                 s._running = False
+
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
         await s._run_loop()
@@ -383,6 +410,7 @@ class TestRunLoop:
 # _execute_action / _do_execute
 # ══════════════════════════════════════════════════════════
 
+
 class TestExecuteAction:
     async def test_execute_action_schedules_do_execute(self, tmp_path, monkeypatch):
         """_execute_action 应通过 create_task 调度 _do_execute"""
@@ -390,8 +418,10 @@ class TestExecuteAction:
         task = _make_task()
 
         called = []
+
         async def fake_do_execute(t):
             called.append(t.id)
+
         monkeypatch.setattr(s, "_do_execute", fake_do_execute)
 
         s._execute_action(task)
@@ -405,11 +435,14 @@ class TestExecuteAction:
         task = _make_task(action="mcp:git_status", action_args={"path": "."})
 
         called = []
+
         async def fake_call_tool(name, args):
             called.append((name, args))
             return MagicMock(success=True)
+
         # mock import 时的函数
         import pycoder.server.mcp_tools as mt_mod
+
         monkeypatch.setattr(mt_mod, "call_builtin_tool", fake_call_tool)
 
         await s._do_execute(task)
@@ -429,8 +462,10 @@ class TestExecuteAction:
         task = _make_task(action="mcp:bad_tool")
 
         import pycoder.server.mcp_tools as mt_mod
+
         async def boom(name, args):
             raise RuntimeError("tool not found")
+
         monkeypatch.setattr(mt_mod, "call_builtin_tool", boom)
 
         # 不抛异常
@@ -440,6 +475,7 @@ class TestExecuteAction:
 # ══════════════════════════════════════════════════════════
 # get_scheduler 单例
 # ══════════════════════════════════════════════════════════
+
 
 class TestGetScheduler:
     def test_singleton(self, monkeypatch):

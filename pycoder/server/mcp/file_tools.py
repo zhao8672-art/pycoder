@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -206,13 +205,13 @@ async def _handle_file_read(params: dict[str, Any], context: dict[str, Any]) -> 
     path = Path(params["path"])
     if not path.exists():
         return {"success": False, "error": f"文件不存在: {path}"}
-    
+
     encoding = params.get("encoding", "utf-8")
     try:
         content = path.read_text(encoding=encoding)
     except UnicodeDecodeError:
         return {"success": False, "error": f"无法使用 {encoding} 编码读取文件"}
-    
+
     start_line = params.get("start_line")
     end_line = params.get("end_line")
     if start_line is not None or end_line is not None:
@@ -220,7 +219,7 @@ async def _handle_file_read(params: dict[str, Any], context: dict[str, Any]) -> 
         start = (start_line or 1) - 1
         end = end_line or len(lines)
         content = "\n".join(lines[start:end])
-    
+
     return {
         "success": True,
         "content": content,
@@ -236,13 +235,13 @@ async def _handle_file_write(params: dict[str, Any], context: dict[str, Any]) ->
     content = params["content"]
     encoding = params.get("encoding", "utf-8")
     append = params.get("append", False)
-    
+
     path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     mode = "a" if append else "w"
     with open(path, mode, encoding=encoding) as f:
         f.write(content)
-    
+
     return {
         "success": True,
         "path": str(path),
@@ -259,33 +258,37 @@ async def _handle_file_list(params: dict[str, Any], context: dict[str, Any]) -> 
         return {"success": False, "error": f"目录不存在: {path}"}
     if not path.is_dir():
         return {"success": False, "error": f"路径不是目录: {path}"}
-    
+
     recursive = params.get("recursive", False)
     pattern = params.get("pattern", "*")
     max_results = params.get("max_results", 100)
-    
+
     files = []
     if recursive:
         for f in path.rglob(pattern):
             if len(files) >= max_results:
                 break
-            files.append({
-                "name": f.name,
-                "path": str(f),
-                "is_dir": f.is_dir(),
-                "size": f.stat().st_size if f.is_file() else 0,
-            })
+            files.append(
+                {
+                    "name": f.name,
+                    "path": str(f),
+                    "is_dir": f.is_dir(),
+                    "size": f.stat().st_size if f.is_file() else 0,
+                }
+            )
     else:
         for f in path.glob(pattern):
             if len(files) >= max_results:
                 break
-            files.append({
-                "name": f.name,
-                "path": str(f),
-                "is_dir": f.is_dir(),
-                "size": f.stat().st_size if f.is_file() else 0,
-            })
-    
+            files.append(
+                {
+                    "name": f.name,
+                    "path": str(f),
+                    "is_dir": f.is_dir(),
+                    "size": f.stat().st_size if f.is_file() else 0,
+                }
+            )
+
     return {
         "success": True,
         "files": files,
@@ -299,19 +302,20 @@ async def _handle_file_delete(params: dict[str, Any], context: dict[str, Any]) -
     path = Path(params["path"])
     if not path.exists():
         return {"success": False, "error": f"路径不存在: {path}"}
-    
+
     recursive = params.get("recursive", False)
-    
+
     try:
         if path.is_file():
             path.unlink()
         elif path.is_dir():
             if recursive:
                 import shutil
+
                 shutil.rmtree(path)
             else:
                 path.rmdir()
-        
+
         return {"success": True, "path": str(path), "deleted": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -322,19 +326,20 @@ async def _handle_file_copy(params: dict[str, Any], context: dict[str, Any]) -> 
     source = Path(params["source"])
     destination = Path(params["destination"])
     overwrite = params.get("overwrite", False)
-    
+
     if not source.exists():
         return {"success": False, "error": f"源路径不存在: {source}"}
     if destination.exists() and not overwrite:
         return {"success": False, "error": f"目标已存在且未设置覆盖: {destination}"}
-    
+
     try:
         import shutil
+
         if source.is_file():
             shutil.copy2(source, destination)
         else:
             shutil.copytree(source, destination, dirs_exist_ok=overwrite)
-        
+
         return {"success": True, "source": str(source), "destination": str(destination)}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -345,20 +350,21 @@ async def _handle_file_move(params: dict[str, Any], context: dict[str, Any]) -> 
     source = Path(params["source"])
     destination = Path(params["destination"])
     overwrite = params.get("overwrite", False)
-    
+
     if not source.exists():
         return {"success": False, "error": f"源路径不存在: {source}"}
     if destination.exists() and not overwrite:
         return {"success": False, "error": f"目标已存在且未设置覆盖: {destination}"}
-    
+
     try:
         if overwrite and destination.exists():
             if destination.is_file():
                 destination.unlink()
             else:
                 import shutil
+
                 shutil.rmtree(destination)
-        
+
         source.rename(destination)
         return {"success": True, "source": str(source), "destination": str(destination)}
     except Exception as e:
@@ -370,21 +376,23 @@ async def _handle_file_search(params: dict[str, Any], context: dict[str, Any]) -
     path = Path(params["path"])
     pattern = params["pattern"]
     max_results = params.get("max_results", 50)
-    
+
     if not path.exists():
         return {"success": False, "error": f"目录不存在: {path}"}
-    
+
     files = []
     for f in path.glob(pattern):
         if len(files) >= max_results:
             break
-        files.append({
-            "name": f.name,
-            "path": str(f),
-            "is_dir": f.is_dir(),
-            "size": f.stat().st_size if f.is_file() else 0,
-        })
-    
+        files.append(
+            {
+                "name": f.name,
+                "path": str(f),
+                "is_dir": f.is_dir(),
+                "size": f.stat().st_size if f.is_file() else 0,
+            }
+        )
+
     return {
         "success": True,
         "files": files,
@@ -393,7 +401,9 @@ async def _handle_file_search(params: dict[str, Any], context: dict[str, Any]) -
     }
 
 
-async def _handle_directory_create(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+async def _handle_directory_create(
+    params: dict[str, Any], context: dict[str, Any]
+) -> dict[str, Any]:
     """处理目录创建"""
     path = Path(params["path"])
     path.mkdir(parents=True, exist_ok=True)
@@ -405,7 +415,7 @@ async def _handle_file_info(params: dict[str, Any], context: dict[str, Any]) -> 
     path = Path(params["path"])
     if not path.exists():
         return {"success": False, "error": f"路径不存在: {path}"}
-    
+
     stat = path.stat()
     return {
         "success": True,
@@ -420,12 +430,14 @@ async def _handle_file_info(params: dict[str, Any], context: dict[str, Any]) -> 
     }
 
 
-async def _handle_file_permissions(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+async def _handle_file_permissions(
+    params: dict[str, Any], context: dict[str, Any]
+) -> dict[str, Any]:
     """处理文件权限"""
     path = Path(params["path"])
     if not path.exists():
         return {"success": False, "error": f"路径不存在: {path}"}
-    
+
     if "mode" in params:
         mode = int(params["mode"], 8)
         path.chmod(mode)

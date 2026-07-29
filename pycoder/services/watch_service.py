@@ -27,13 +27,12 @@ class WatchService:
     async def stop(self):
         """停止所有监控"""
         self._running = False
-        for path, observer in list(self._watchers.items()):
+        for _path, observer in list(self._watchers.items()):
             observer.stop()
         self._watchers.clear()
         logger.info("文件监控服务已停止")
 
-    async def watch(self, path: str, pattern: str = "*",
-                    on_change: callable = None) -> dict:
+    async def watch(self, path: str, pattern: str = "*", on_change: callable = None) -> dict:
         """监控目录文件变化
 
         Args:
@@ -42,12 +41,13 @@ class WatchService:
             on_change: 变化时的回调函数
         """
         import os
+
         if not os.path.isdir(path):
             return {"success": False, "error": f"目录不存在: {path}"}
 
         try:
-            from watchdog.observers import Observer
             from watchdog.events import FileSystemEventHandler
+            from watchdog.observers import Observer
 
             class AIHandler(FileSystemEventHandler):
                 def __init__(self, cb, pat):
@@ -58,6 +58,7 @@ class WatchService:
                     if event.is_directory:
                         return
                     import fnmatch
+
                     if fnmatch.fnmatch(os.path.basename(event.src_path), self._pat):
                         asyncio.ensure_future(self._cb(event.src_path))
 
@@ -65,6 +66,7 @@ class WatchService:
                     if event.is_directory:
                         return
                     import fnmatch
+
                     if fnmatch.fnmatch(os.path.basename(event.src_path), self._pat):
                         asyncio.ensure_future(self._cb(event.src_path))
 

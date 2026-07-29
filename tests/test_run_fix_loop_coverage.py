@@ -11,18 +11,15 @@
 - _strip_code_fence (静态)
 - _send_step (on_step 回调 / ws_send 失败)
 """
+
 from __future__ import annotations
 
-import asyncio
-import sys
 from pathlib import Path
-from typing import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from pycoder.server.services.run_fix_loop import RunFixLoop, RunFixResult, RunFixStep
-
 
 # ── 数据类 ─────────────────────────────────────────────
 
@@ -119,6 +116,7 @@ class TestGenerateCode:
     async def test_generates_and_writes(self, loop):
         async def _fake_chat(*args, **kwargs):
             yield {"type": "done", "content": "print('hello')"}
+
         loop._chat = _fake_chat
 
         code = await loop._generate_code("do something", "solution.py")
@@ -129,6 +127,7 @@ class TestGenerateCode:
     async def test_returns_empty_on_no_content(self, loop):
         async def _fake_chat(*args, **kwargs):
             yield {"type": "done", "content": ""}
+
         loop._chat = _fake_chat
         code = await loop._generate_code("task", "solution.py")
         assert code == ""
@@ -136,6 +135,7 @@ class TestGenerateCode:
     async def test_strips_code_fence(self, loop):
         async def _fake_chat(*args, **kwargs):
             yield {"type": "done", "content": "```python\nprint('x')\n```"}
+
         loop._chat = _fake_chat
         code = await loop._generate_code("task", "solution.py")
         assert code == "print('x')"
@@ -145,6 +145,7 @@ class TestGenerateCode:
             yield {"type": "token", "content": "pri"}
             yield {"type": "token", "content": "nt('x')"}
             yield {"type": "done", "content": "print('x')"}
+
         loop._chat = _fake_chat
         code = await loop._generate_code("task", "solution.py")
         assert code == "print('x')"
@@ -194,8 +195,10 @@ class TestRunCode:
 
     async def test_exec_exception(self, loop, tmp_path):
         # 模拟 create_subprocess_exec 抛异常
-        with patch("pycoder.server.services.run_fix_loop.asyncio.create_subprocess_exec",
-                    side_effect=OSError("no such file")):
+        with patch(
+            "pycoder.server.services.run_fix_loop.asyncio.create_subprocess_exec",
+            side_effect=OSError("no such file"),
+        ):
             result = await loop._run_code(Path("nonexistent.py"))
             assert result["success"] is False
             assert "exec_error" in result.get("error", "") or result["stderr"]
@@ -212,6 +215,7 @@ class TestFixCode:
 
         async def _fake_chat(*args, **kwargs):
             yield {"type": "done", "content": "print('fixed')"}
+
         loop._chat = _fake_chat
 
         fixed = await loop._fix_code("task", existing, "SyntaxError", 0)
@@ -224,6 +228,7 @@ class TestFixCode:
 
         async def _fake_chat(*args, **kwargs):
             yield {"type": "done", "content": ""}
+
         loop._chat = _fake_chat
 
         fixed = await loop._fix_code("task", existing, "err", 0)
@@ -254,6 +259,7 @@ class TestFixCode:
         # 文件不存在时 current 应为空字符串
         async def _fake_chat(*args, **kwargs):
             yield {"type": "done", "content": "print('new')"}
+
         loop._chat = _fake_chat
 
         missing = loop._target_dir / "ghost.py"
@@ -273,7 +279,9 @@ class TestAutoInstallDeps:
 
     async def test_installs_third_party(self, loop):
         code = "import requests\nimport numpy\n"
-        with patch("pycoder.server.services.run_fix_loop.asyncio.create_subprocess_exec") as mock_exec:
+        with patch(
+            "pycoder.server.services.run_fix_loop.asyncio.create_subprocess_exec"
+        ) as mock_exec:
             mock_proc = MagicMock()
             mock_proc.returncode = 0
             mock_proc.wait = AsyncMock()
@@ -285,22 +293,28 @@ class TestAutoInstallDeps:
 
     async def test_handles_install_failure(self, loop):
         code = "import nonexistent_pkg_xyz\n"
-        with patch("pycoder.server.services.run_fix_loop.asyncio.create_subprocess_exec",
-                    side_effect=OSError("pip fail")):
+        with patch(
+            "pycoder.server.services.run_fix_loop.asyncio.create_subprocess_exec",
+            side_effect=OSError("pip fail"),
+        ):
             installed = await loop._auto_install_deps(code)
             assert installed == []
 
     async def test_handles_timeout(self, loop):
         code = "import slow_pkg\n"
-        with patch("pycoder.server.services.run_fix_loop.asyncio.create_subprocess_exec") as mock_exec:
-            mock_exec.side_effect = asyncio.TimeoutError()
+        with patch(
+            "pycoder.server.services.run_fix_loop.asyncio.create_subprocess_exec"
+        ) as mock_exec:
+            mock_exec.side_effect = TimeoutError()
             installed = await loop._auto_install_deps(code)
             assert installed == []
 
     async def test_handles_dotted_module(self, loop):
         # from foo.bar import baz → 只安装 foo
         code = "from foo.bar import baz\n"
-        with patch("pycoder.server.services.run_fix_loop.asyncio.create_subprocess_exec") as mock_exec:
+        with patch(
+            "pycoder.server.services.run_fix_loop.asyncio.create_subprocess_exec"
+        ) as mock_exec:
             mock_proc = MagicMock()
             mock_proc.returncode = 0
             mock_proc.wait = AsyncMock()
@@ -310,7 +324,9 @@ class TestAutoInstallDeps:
 
     async def test_nonzero_returncode_not_installed(self, loop):
         code = "import bad_pkg\n"
-        with patch("pycoder.server.services.run_fix_loop.asyncio.create_subprocess_exec") as mock_exec:
+        with patch(
+            "pycoder.server.services.run_fix_loop.asyncio.create_subprocess_exec"
+        ) as mock_exec:
             mock_proc = MagicMock()
             mock_proc.returncode = 1
             mock_proc.wait = AsyncMock()
@@ -326,6 +342,7 @@ class TestCallAiAndWrite:
     async def test_writes_cleaned_content(self, loop):
         async def _fake_chat(*args, **kwargs):
             yield {"type": "done", "content": "```python\nprint('x')\n```"}
+
         loop._chat = _fake_chat
         # 抑制依赖安装
         with patch.object(loop, "_auto_install_deps", return_value=[]):
@@ -336,6 +353,7 @@ class TestCallAiAndWrite:
     async def test_empty_result(self, loop):
         async def _fake_chat(*args, **kwargs):
             yield {"type": "done", "content": ""}
+
         loop._chat = _fake_chat
         with patch.object(loop, "_auto_install_deps", return_value=[]):
             code = await loop._call_ai_and_write("prompt", "solution.py")
@@ -344,9 +362,9 @@ class TestCallAiAndWrite:
     async def test_auto_install_failure_swallowed(self, loop):
         async def _fake_chat(*args, **kwargs):
             yield {"type": "done", "content": "import os\n"}
+
         loop._chat = _fake_chat
-        with patch.object(loop, "_auto_install_deps",
-                          side_effect=OSError("install fail")):
+        with patch.object(loop, "_auto_install_deps", side_effect=OSError("install fail")):
             # 不应抛异常
             code = await loop._call_ai_and_write("prompt", "solution.py")
         assert "import os" in code
@@ -363,6 +381,7 @@ class TestExecute:
         async def _chat(*args, **kwargs):
             call_count["gen"] += 1
             yield {"type": "done", "content": "print('hello world')"}
+
         loop._chat = _chat
 
         result = await loop.execute("print hello world", "solution.py")
@@ -376,6 +395,7 @@ class TestExecute:
     async def test_generate_failure(self, loop):
         async def _chat(*args, **kwargs):
             yield {"type": "done", "content": ""}
+
         loop._chat = _chat
 
         result = await loop.execute("task", "solution.py")
@@ -396,6 +416,7 @@ class TestExecute:
             else:
                 # 修复: 成功代码
                 yield {"type": "done", "content": "print('fixed ok')"}
+
         loop._chat = _chat
 
         result = await loop.execute("task", "solution.py")
@@ -414,6 +435,7 @@ class TestExecute:
             call_idx["n"] += 1
             # 持续返回会失败的代码
             yield {"type": "done", "content": "raise RuntimeError('always fails')"}
+
         loop._chat = _chat
 
         result = await loop.execute("task", "solution.py")
@@ -432,6 +454,7 @@ class TestExecute:
             else:
                 # 修复返回空 → 修复失败
                 yield {"type": "done", "content": ""}
+
         loop._chat = _chat
 
         result = await loop.execute("task", "solution.py")
@@ -441,11 +464,12 @@ class TestExecute:
         assert "fix" in actions
         # 修复失败后不应再有 run
         last_fix_idx = max(i for i, a in enumerate(actions) if a == "fix")
-        assert "run" not in actions[last_fix_idx + 1:]
+        assert "run" not in actions[last_fix_idx + 1 :]
 
     async def test_custom_target_file(self, loop):
         async def _chat(*args, **kwargs):
             yield {"type": "done", "content": "print('ok')"}
+
         loop._chat = _chat
 
         result = await loop.execute("task", target_file="custom.py")
@@ -455,6 +479,7 @@ class TestExecute:
     async def test_duration_recorded(self, loop):
         async def _chat(*args, **kwargs):
             yield {"type": "done", "content": "print('ok')"}
+
         loop._chat = _chat
 
         result = await loop.execute("task", "solution.py")
@@ -463,6 +488,7 @@ class TestExecute:
     async def test_steps_have_incrementing_numbers(self, loop):
         async def _chat(*args, **kwargs):
             yield {"type": "done", "content": "raise ValueError('x')"}
+
         loop._chat = _chat
 
         result = await loop.execute("task", "solution.py")

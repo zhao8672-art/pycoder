@@ -33,8 +33,8 @@ from pathlib import Path
 
 from pycoder.core.di import registry
 from pycoder.core.ports.llm_provider import LLMProvider
-from pycoder.server.chat_handler import _get_api_key_for_model
 from pycoder.core.services.log import log
+from pycoder.server.chat_handler import _get_api_key_for_model
 
 logger = log  # alias for backward compatibility
 

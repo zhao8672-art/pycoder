@@ -2,11 +2,8 @@ from __future__ import annotations
 
 import json
 import os
-import sys
-import time
-import sqlite3
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -254,7 +251,6 @@ class TestSkillsFetcher:
     @pytest.fixture
     def fetcher(self, tmp_path: Path):
         """创建 SkillsFetcher 实例（使用临时目录）"""
-        import os
 
         from pycoder.server.skills_updater import SkillsFetcher
 
@@ -276,7 +272,6 @@ class TestSkillsFetcher:
 
     def test_get_stats_with_corrupt_registry(self, fetcher, tmp_path: Path):
         """损坏的注册表文件应返回默认值"""
-        import os
 
         fetcher._registry_path = tmp_path / ".skills-registry.json"
         fetcher._registry_path.write_text("not valid json", encoding="utf-8")
@@ -303,9 +298,7 @@ class TestSkillsFetcher:
         # 创建已有注册表
         fetcher._registry_path = tmp_path / ".skills-registry.json"
         existing = {
-            "skills": [
-                {"id": "test-skill", "file": "existing_file.md", "url": "https://old.com"}
-            ]
+            "skills": [{"id": "test-skill", "file": "existing_file.md", "url": "https://old.com"}]
         }
         fetcher._registry_path.write_text(json.dumps(existing), encoding="utf-8")
 
@@ -345,8 +338,8 @@ class TestGetSkillsFetcher:
 
     def test_get_skills_fetcher_returns_singleton(self):
         """get_skills_fetcher 应返回单例"""
-        from pycoder.server.skills_updater import get_skills_fetcher, SkillsFetcher
         import pycoder.server.skills_updater as su
+        from pycoder.server.skills_updater import get_skills_fetcher
 
         # 重置全局变量
         su._fetcher = None
@@ -422,7 +415,13 @@ class TestEnhancedSkill:
         from pycoder.server.skills_updater_v2 import EnhancedSkill
 
         skill = EnhancedSkill(
-            id="test", name="Test", stars=10000, downloads=100000, rating=5.0, verified=True, official=True
+            id="test",
+            name="Test",
+            stars=10000,
+            downloads=100000,
+            rating=5.0,
+            verified=True,
+            official=True,
         )
         assert skill.quality_score() <= 100.0
 
@@ -489,7 +488,6 @@ class TestEnhancedSkillsFetcher:
     @pytest.fixture
     def fetcher(self, tmp_path: Path):
         """创建 EnhancedSkillsFetcher 实例"""
-        import os
 
         from pycoder.server.skills_updater_v2 import EnhancedSkillsFetcher
 
@@ -563,9 +561,7 @@ class TestEnhancedSkillsFetcher:
         """有效的注册表应正确加载为 EnhancedSkill"""
         fetcher._registry_path = tmp_path / ".skills-registry-enhanced.json"
         data = {
-            "skills": [
-                {"id": "test-skill", "name": "Test Skill", "stars": 42, "category": "web"}
-            ]
+            "skills": [{"id": "test-skill", "name": "Test Skill", "stars": 42, "category": "web"}]
         }
         fetcher._registry_path.write_text(json.dumps(data), encoding="utf-8")
 
@@ -591,9 +587,7 @@ class TestEnhancedSkillsFetcher:
 
         fetcher._registry_path = tmp_path / ".skills-registry-enhanced.json"
         skills = {
-            "test": EnhancedSkill(
-                id="test", name="Test", stars=50, category="web", verified=True
-            )
+            "test": EnhancedSkill(id="test", name="Test", stars=50, category="web", verified=True)
         }
         fetcher._save_registry(skills)
 
@@ -629,13 +623,11 @@ class TestGetEnhancedFetcher:
 
     def test_get_enhanced_fetcher_returns_singleton(self):
         """应返回单例"""
-        from pycoder.server.skills_updater_v2 import get_enhanced_fetcher
         import pycoder.server.skills_updater_v2 as sv2
+        from pycoder.server.skills_updater_v2 import get_enhanced_fetcher
 
         sv2._enhanced_fetcher = None
         f1 = get_enhanced_fetcher()
         f2 = get_enhanced_fetcher()
         assert f1 is f2
         sv2._enhanced_fetcher = None
-
-

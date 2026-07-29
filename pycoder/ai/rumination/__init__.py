@@ -25,6 +25,7 @@ from typing import Any
 @dataclass
 class RuminationResult:
     """单次反思结果"""
+
     round_num: int = 0
     tool_name: str = ""
     deviation_score: float = 0.0  # 0=完全一致, 1=严重偏离
@@ -48,19 +49,20 @@ class RuminationEngine:
 
         # 危险操作检测
         dangerous_tools = {
-            "shell_exec", "run_command", "write_file", "delete_file",
-            "git_push", "git_commit", "install_package",
+            "shell_exec",
+            "run_command",
+            "write_file",
+            "delete_file",
+            "git_push",
+            "git_commit",
+            "install_package",
         }
         if tool_name in dangerous_tools:
             result.risk_level = "medium"
-            result.recommendations.append(
-                f"⚠️ 危险操作 {tool_name}，请确认参数正确"
-            )
+            result.recommendations.append(f"⚠️ 危险操作 {tool_name}，请确认参数正确")
             if "rm" in str(params) or "delete" in str(params).lower():
                 result.risk_level = "high"
-                result.recommendations.append(
-                    "🔴 检测到删除操作，请再次确认这是预期行为"
-                )
+                result.recommendations.append("🔴 检测到删除操作，请再次确认这是预期行为")
 
         self._history.append(result)
         return result
@@ -108,9 +110,7 @@ class RuminationEngine:
             len_ratio = abs(len(actual) - len(expected)) / max(len(expected), 1)
             if len_ratio > 5:  # 5倍以上差异
                 result.deviation_score = 0.4
-                result.recommendations.append(
-                    f"结果长度与预期差异 {len_ratio:.0f}x，请核实"
-                )
+                result.recommendations.append(f"结果长度与预期差异 {len_ratio:.0f}x，请核实")
 
         self._history.append(result)
         return result
@@ -143,9 +143,9 @@ class RuminationEngine:
 
         if checks:
             result.correction_msg = (
-                "🔍 最终检查发现问题：\n" +
-                "\n".join(f"  - {c}" for c in checks) +
-                "\n请修正后再输出最终回复。"
+                "🔍 最终检查发现问题：\n"
+                + "\n".join(f"  - {c}" for c in checks)
+                + "\n请修正后再输出最终回复。"
             )
 
         self._history.append(result)
@@ -159,9 +159,7 @@ class RuminationEngine:
             return result
 
         # 找最后一个 deviation_score < 0.3 的步骤
-        safe_points = [
-            (i, h) for i, h in enumerate(self._history) if h.deviation_score < 0.3
-        ]
+        safe_points = [(i, h) for i, h in enumerate(self._history) if h.deviation_score < 0.3]
         if safe_points:
             last_safe = safe_points[-1]
             result.should_continue = False
@@ -178,14 +176,16 @@ class RuminationEngine:
         if not self._history:
             return {"total": 0, "avg_deviation": 0, "rounds": 0, "status": "no_data"}
 
-        avg_deviation = sum(h.deviation_score for h in self._history) / len(
-            self._history
-        )
+        avg_deviation = sum(h.deviation_score for h in self._history) / len(self._history)
         self._total_score = max(0, 1 - avg_deviation)
 
-        status = "excellent" if self._total_score > 0.8 else (
-            "good" if self._total_score > 0.6 else (
-                "fair" if self._total_score > 0.4 else "poor"
+        status = (
+            "excellent"
+            if self._total_score > 0.8
+            else (
+                "good"
+                if self._total_score > 0.6
+                else ("fair" if self._total_score > 0.4 else "poor")
             )
         )
 
@@ -194,9 +194,7 @@ class RuminationEngine:
             "avg_deviation": round(avg_deviation, 2),
             "rounds": len(self._history),
             "status": status,
-            "high_risk_count": sum(
-                1 for h in self._history if h.risk_level == "high"
-            ),
+            "high_risk_count": sum(1 for h in self._history if h.risk_level == "high"),
         }
 
     def reset(self):

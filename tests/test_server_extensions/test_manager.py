@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 import json
-import os
-import sys
-import time
-import sqlite3
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -72,7 +68,6 @@ class TestManagerAdditional:
     @pytest.mark.asyncio
     async def test_install_npm_extension_success(self, em, ext_dir, monkeypatch):
         """npm 扩展安装 — 通过 mock _install_npm 内部方法验证"""
-        import pycoder.extensions.manager as mgr
 
         # 直接 mock _install_npm 方法，避免复杂的子进程模拟
         async def mock_install_npm(ext_id, ext_data):
@@ -100,6 +95,7 @@ class TestManagerAdditional:
     @pytest.mark.asyncio
     async def test_install_npm_extension_failure(self, em, ext_dir, monkeypatch):
         """npm 扩展安装失败"""
+
         async def mock_install_npm(ext_id, ext_data):
             return False
 
@@ -143,6 +139,7 @@ class TestManagerAdditional:
     @pytest.mark.asyncio
     async def test_install_pypi_extension_success(self, em, ext_dir, monkeypatch):
         """PyPI 扩展安装 — 通过 mock _install_pypi 内部方法验证"""
+
         async def mock_install_pypi(ext_id, ext_data):
             target = ext_dir / ext_id.replace("/", "_")
             target.mkdir(parents=True, exist_ok=True)
@@ -168,6 +165,7 @@ class TestManagerAdditional:
     @pytest.mark.asyncio
     async def test_install_pypi_extension_failure(self, em, ext_dir, monkeypatch):
         """PyPI 扩展安装失败"""
+
         async def mock_install_pypi(ext_id, ext_data):
             return False
 
@@ -211,6 +209,7 @@ class TestManagerAdditional:
     @pytest.mark.asyncio
     async def test_install_ovsx_prefix(self, em, ext_dir, monkeypatch):
         """ovsx. 前缀触发 vsix 安装 — mock _install_vsix"""
+
         async def mock_install_vsix(ext_id, ext_data):
             target = ext_dir / ext_id.replace("/", "_")
             target.mkdir(parents=True, exist_ok=True)
@@ -237,6 +236,7 @@ class TestManagerAdditional:
     @pytest.mark.asyncio
     async def test_install_vsix_download_fail(self, em, ext_dir, monkeypatch):
         """vsix 安装失败 — mock _install_vsix 返回 False"""
+
         async def mock_install_vsix(ext_id, ext_data):
             return False
 
@@ -379,9 +379,7 @@ class TestManagerAdditional:
 
         cfg_dir = ext_dir / "test_ext"
         cfg_dir.mkdir()
-        (cfg_dir / "config.json").write_text(
-            json.dumps({"a": 1, "b": 2}), encoding="utf-8"
-        )
+        (cfg_dir / "config.json").write_text(json.dumps({"a": 1, "b": 2}), encoding="utf-8")
 
         result = em.get_config("test_ext")
         assert result == {"a": 1, "b": 2}
@@ -393,9 +391,7 @@ class TestManagerAdditional:
 
         cfg_dir = ext_dir / "test_ext"
         cfg_dir.mkdir()
-        (cfg_dir / "config.json").write_text(
-            json.dumps({"only": "this"}), encoding="utf-8"
-        )
+        (cfg_dir / "config.json").write_text(json.dumps({"only": "this"}), encoding="utf-8")
 
         result = em.get_config("test_ext", "missing", "fallback")
         assert result == "fallback"
@@ -530,8 +526,8 @@ class TestManagerAdditional:
 
     def test__safe_extract_archive_tar(self, tmp_path):
         """安全解压 tar 归档"""
-        import tarfile
         import io
+        import tarfile
 
         from pycoder.extensions.manager import _safe_extract_archive
 
@@ -552,8 +548,8 @@ class TestManagerAdditional:
 
     def test__safe_extract_archive_tar_path_traversal(self, tmp_path):
         """检测 tar 路径穿越攻击"""
-        import tarfile
         import io
+        import tarfile
 
         from pycoder.extensions.manager import _safe_extract_archive
 
@@ -575,7 +571,6 @@ class TestManagerAdditional:
     def test__safe_extract_archive_zip(self, tmp_path):
         """安全解压 zip 归档"""
         import zipfile
-        import io
 
         from pycoder.extensions.manager import _safe_extract_archive
 

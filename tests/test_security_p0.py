@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import time
 import warnings
-from unittest.mock import patch
 
 import pytest
 
@@ -26,12 +25,10 @@ from pycoder.providers.key_rotator import (
 from pycoder.safety.tool_whitelist import (
     ParamSchema,
     ToolWhitelist,
-    WhitelistConfig,
     WhitelistMode,
     get_tool_whitelist,
     reset_tool_whitelist,
 )
-
 
 # ═══════════════════════════════════════════════
 # Fixtures
@@ -104,7 +101,8 @@ class TestKeyState:
     def test_is_available_false_during_cooldown(self) -> None:
         """冷却期内应不可用"""
         state = KeyState(
-            key="sk-test123456789012", provider="deepseek",
+            key="sk-test123456789012",
+            provider="deepseek",
             cooldown_seconds=60.0,
         )
         state.mark_failed(401)
@@ -113,7 +111,8 @@ class TestKeyState:
     def test_is_available_true_after_cooldown(self) -> None:
         """冷却期后应恢复可用"""
         state = KeyState(
-            key="sk-test123456789012", provider="deepseek",
+            key="sk-test123456789012",
+            provider="deepseek",
             cooldown_seconds=0.01,  # 10ms 冷却
         )
         state.mark_failed(401)
@@ -198,9 +197,7 @@ class TestKeyRotator:
             key = clean_rotator.get_key("deepseek")
             assert key == "sk-key2-1234567890"
 
-    def test_mark_failed_returns_none_when_all_failed(
-        self, clean_rotator: KeyRotator
-    ) -> None:
+    def test_mark_failed_returns_none_when_all_failed(self, clean_rotator: KeyRotator) -> None:
         """所有 Key 失效时应返回 None"""
         clean_rotator.add_key("deepseek", "sk-key1-1234567890")
         clean_rotator.mark_failed("deepseek", "sk-key1-1234567890", 401)
@@ -224,9 +221,7 @@ class TestKeyRotator:
         assert clean_rotator.should_rotate(200) is False
         assert clean_rotator.should_rotate(500) is False
 
-    def test_permanent_disable_after_5_failures(
-        self, clean_rotator: KeyRotator
-    ) -> None:
+    def test_permanent_disable_after_5_failures(self, clean_rotator: KeyRotator) -> None:
         """连续失败5次应永久禁用"""
         clean_rotator.add_key("deepseek", "sk-key1-1234567890")
         for _ in range(5):
@@ -342,9 +337,7 @@ class TestToolWhitelist:
         clean_whitelist._config.param_schemas["files.write"] = ParamSchema(
             patterns={"path": "^/tmp/"}
         )
-        ok, reason = clean_whitelist.is_allowed(
-            "files.write", {"path": "/etc/passwd"}
-        )
+        ok, reason = clean_whitelist.is_allowed("files.write", {"path": "/etc/passwd"})
         assert ok is False
         assert "不匹配" in reason
 
@@ -399,14 +392,14 @@ class TestToolWhitelist:
 
     def test_load_from_dict(self, clean_whitelist: ToolWhitelist) -> None:
         """从字典加载配置"""
-        clean_whitelist.load_from_dict({
-            "mode": "allowlist",
-            "allowed_tools": ["files.read", "search.*"],
-            "denied_tools": ["system.shutdown"],
-            "param_schemas": {
-                "files.write": {"path": "^/tmp/"}
-            },
-        })
+        clean_whitelist.load_from_dict(
+            {
+                "mode": "allowlist",
+                "allowed_tools": ["files.read", "search.*"],
+                "denied_tools": ["system.shutdown"],
+                "param_schemas": {"files.write": {"path": "^/tmp/"}},
+            }
+        )
         assert clean_whitelist.config.mode == WhitelistMode.ALLOWLIST
         assert "files.read" in clean_whitelist.config.allowed_tools
         assert "system.shutdown" in clean_whitelist.config.denied_tools
@@ -471,6 +464,7 @@ class TestDockerSandboxSecurity:
     def test_security_args_contains_cap_drop_all(self) -> None:
         """安全参数应包含 --cap-drop=ALL"""
         from pycoder.adapters.docker_sandbox import DockerSandbox
+
         sandbox = DockerSandbox()
         args = sandbox._build_security_args()
         assert "--cap-drop=ALL" in args
@@ -478,6 +472,7 @@ class TestDockerSandboxSecurity:
     def test_security_args_contains_no_new_privileges(self) -> None:
         """安全参数应包含 --security-opt=no-new-privileges"""
         from pycoder.adapters.docker_sandbox import DockerSandbox
+
         sandbox = DockerSandbox()
         args = sandbox._build_security_args()
         assert "--security-opt=no-new-privileges" in args
@@ -485,6 +480,7 @@ class TestDockerSandboxSecurity:
     def test_security_args_contains_user_nobody(self) -> None:
         """安全参数应包含 --user nobody:nogroup"""
         from pycoder.adapters.docker_sandbox import DockerSandbox
+
         sandbox = DockerSandbox()
         args = sandbox._build_security_args()
         assert "--user" in args
@@ -494,6 +490,7 @@ class TestDockerSandboxSecurity:
     def test_security_args_contains_pids_limit(self) -> None:
         """安全参数应包含 --pids-limit"""
         from pycoder.adapters.docker_sandbox import DockerSandbox
+
         sandbox = DockerSandbox()
         args = sandbox._build_security_args()
         # --pids-limit=64 或 --pids-limit 64 两种格式都可
@@ -502,6 +499,7 @@ class TestDockerSandboxSecurity:
     def test_security_args_contains_ulimit(self) -> None:
         """安全参数应包含 --ulimit nofile"""
         from pycoder.adapters.docker_sandbox import DockerSandbox
+
         sandbox = DockerSandbox()
         args = sandbox._build_security_args()
         assert "--ulimit" in args
@@ -511,6 +509,7 @@ class TestDockerSandboxSecurity:
     def test_security_args_contains_memory_swap_zero(self) -> None:
         """安全参数应包含 --memory-swap=0（禁止swap）"""
         from pycoder.adapters.docker_sandbox import DockerSandbox
+
         sandbox = DockerSandbox()
         args = sandbox._build_security_args()
         assert "--memory-swap=0" in args
@@ -518,6 +517,7 @@ class TestDockerSandboxSecurity:
     def test_security_args_contains_network_none(self) -> None:
         """安全参数应包含 --network=none"""
         from pycoder.adapters.docker_sandbox import DockerSandbox
+
         sandbox = DockerSandbox()
         args = sandbox._build_security_args()
         assert "--network=none" in args
@@ -525,6 +525,7 @@ class TestDockerSandboxSecurity:
     def test_security_args_contains_read_only(self) -> None:
         """安全参数应包含 --read-only"""
         from pycoder.adapters.docker_sandbox import DockerSandbox
+
         sandbox = DockerSandbox()
         args = sandbox._build_security_args()
         assert "--read-only" in args
@@ -532,6 +533,7 @@ class TestDockerSandboxSecurity:
     def test_custom_memory_reflected(self) -> None:
         """自定义内存限制应反映到参数"""
         from pycoder.adapters.docker_sandbox import DockerSandbox
+
         sandbox = DockerSandbox(max_memory="1g")
         args = sandbox._build_security_args()
         assert "--memory=1g" in args
@@ -548,6 +550,7 @@ class TestCodeSandboxDeprecation:
     def test_deprecation_warning_emitted(self) -> None:
         """实例化 CodeSandbox 应发出 DeprecationWarning"""
         from pycoder.safety.sandbox import CodeSandbox
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             CodeSandbox(timeout=1.0)
@@ -557,11 +560,13 @@ class TestCodeSandboxDeprecation:
     def test_deprecated_flag_set(self) -> None:
         """CodeSandbox 应有 _DEPRECATED = True 标记"""
         from pycoder.safety.sandbox import CodeSandbox
+
         assert CodeSandbox._DEPRECATED is True
 
     def test_deprecation_message_mentions_alternatives(self) -> None:
         """弃用消息应提及替代方案"""
         from pycoder.safety.sandbox import CodeSandbox
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             CodeSandbox(timeout=1.0)

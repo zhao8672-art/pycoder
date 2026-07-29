@@ -11,8 +11,9 @@
 """
 
 import sys
+
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 
 def _make_client(app):
@@ -68,13 +69,13 @@ async def test_mcp_tools_callable():
     # 测试搜索工具
     result = await call_builtin_tool("skills_search_v2", {"query": "test"})
     # MCPCallResult 有 success 和 output 属性
-    assert hasattr(result, 'success')
-    assert hasattr(result, 'output')
+    assert hasattr(result, "success")
+    assert hasattr(result, "output")
     assert result.success is True
 
     # 测试推荐工具
     result = await call_builtin_tool("skills_recommendations_v2", {"limit": 5})
-    assert hasattr(result, 'success')
+    assert hasattr(result, "success")
     assert result.success is True
 
     print("✓ MCP Tools 可正常调用")
@@ -115,8 +116,7 @@ async def test_search_endpoint():
 
     async with _make_client(app) as client:
         response = await client.get(
-            "/api/skills/v2/search",
-            params={"query": "test", "sort_by": "quality", "limit": 5}
+            "/api/skills/v2/search", params={"query": "test", "sort_by": "quality", "limit": 5}
         )
 
         assert response.status_code == 200
@@ -132,10 +132,7 @@ async def test_recommendations_endpoint():
     from pycoder.server.app import app
 
     async with _make_client(app) as client:
-        response = await client.get(
-            "/api/skills/v2/recommendations",
-            params={"limit": 5}
-        )
+        response = await client.get("/api/skills/v2/recommendations", params={"limit": 5})
 
         assert response.status_code == 200
         data = response.json()
@@ -150,10 +147,7 @@ async def test_trending_endpoint():
     from pycoder.server.app import app
 
     async with _make_client(app) as client:
-        response = await client.get(
-            "/api/skills/v2/trending",
-            params={"limit": 10}
-        )
+        response = await client.get("/api/skills/v2/trending", params={"limit": 10})
 
         assert response.status_code == 200
         data = response.json()
@@ -202,18 +196,14 @@ async def test_rate_endpoint():
 
     async with _make_client(app) as client:
         # 先搜索找到一个技能
-        search_response = await client.get(
-            "/api/skills/v2/search",
-            params={"limit": 1}
-        )
+        search_response = await client.get("/api/skills/v2/search", params={"limit": 1})
 
         if search_response.json()["total"] > 0:
             skill_id = search_response.json()["results"][0]["id"]
 
             # 评分这个技能
             rate_response = await client.post(
-                f"/api/skills/v2/{skill_id}/rate",
-                json={"rating": 5, "review": "Great skill!"}
+                f"/api/skills/v2/{skill_id}/rate", json={"rating": 5, "review": "Great skill!"}
             )
 
             assert rate_response.status_code == 200
@@ -232,6 +222,7 @@ async def test_rate_endpoint():
 async def test_api_response_time():
     """验证 API 响应时间 <200ms"""
     import time
+
     from pycoder.server.app import app
 
     async with _make_client(app) as client:
@@ -282,7 +273,7 @@ async def test_invalid_rating():
     async with _make_client(app) as client:
         response = await client.post(
             "/api/skills/v2/test-skill/rate",
-            json={"rating": 10, "review": "test"}  # 无效: 应在 1-5
+            json={"rating": 10, "review": "test"},  # 无效: 应在 1-5
         )
 
         # FastAPI 的 Pydantic 验证返回 422
@@ -318,8 +309,7 @@ async def test_full_workflow():
 
             # 3. 评分
             rate = await client.post(
-                f"/api/skills/v2/{skill_id}/rate",
-                json={"rating": 4, "review": "Good skill"}
+                f"/api/skills/v2/{skill_id}/rate", json={"rating": 4, "review": "Good skill"}
             )
             assert rate.status_code == 200
             assert rate.json()["success"] is True

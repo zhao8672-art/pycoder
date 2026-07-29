@@ -54,26 +54,32 @@ class SemanticAnalyzer:
                     if isinstance(op, (ast.Eq, ast.NotEq)):
                         if isinstance(comparator, ast.Constant) and comparator.value is None:
                             is_eq = isinstance(op, ast.Eq)
-                            msg = ("使用 == None，建议使用 is None"
-                                   if is_eq
-                                   else "使用 != None，建议使用 is not None")
-                            issues.append({
+                            msg = (
+                                "使用 == None，建议使用 is None"
+                                if is_eq
+                                else "使用 != None，建议使用 is not None"
+                            )
+                            issues.append(
+                                {
+                                    "severity": "warning",
+                                    "line": node.lineno,
+                                    "col": node.col_offset,
+                                    "message": msg,
+                                    "code": "SEM001",
+                                }
+                            )
+                for default in node.args.defaults:
+                    if isinstance(default, (ast.List, ast.Dict, ast.Set)):
+                        issues.append(
+                            {
                                 "severity": "warning",
                                 "line": node.lineno,
                                 "col": node.col_offset,
-                                "message": msg,
-                                "code": "SEM001",
-                            })
-                for default in node.args.defaults:
-                    if isinstance(default, (ast.List, ast.Dict, ast.Set)):
-                        issues.append({
-                            "severity": "warning",
-                            "line": node.lineno,
-                            "col": node.col_offset,
-                            "message": f"函数 '{node.name}' 使用了可变默认参数，"
-                                       f"可能导致意外的状态共享",
-                            "code": "SEM002",
-                        })
+                                "message": f"函数 '{node.name}' 使用了可变默认参数，"
+                                f"可能导致意外的状态共享",
+                                "code": "SEM002",
+                            }
+                        )
 
         return issues
 
@@ -117,14 +123,16 @@ class SemanticAnalyzer:
                         else:
                             has_return_value = True
                 if returns_none and has_return_value:
-                    issues.append({
-                        "severity": "warning",
-                        "line": node.lineno,
-                        "col": node.col_offset,
-                        "message": f"函数 '{node.name}' 有时返回 None，"
-                                   f"调用侧应做好 None 检查",
-                        "code": "SEM003",
-                    })
+                    issues.append(
+                        {
+                            "severity": "warning",
+                            "line": node.lineno,
+                            "col": node.col_offset,
+                            "message": f"函数 '{node.name}' 有时返回 None，"
+                            f"调用侧应做好 None 检查",
+                            "code": "SEM003",
+                        }
+                    )
 
         # 检查 super() 调用
         for node in ast.walk(tree):
@@ -160,13 +168,15 @@ class SemanticAnalyzer:
                         for item in node.body
                     )
                     if not has_concrete:
-                        issues.append({
-                            "severity": "info",
-                            "line": node.lineno,
-                            "col": node.col_offset,
-                            "message": f"类 '{node.name}' 标记为抽象但没有具体方法",
-                            "code": "SEM003",
-                        })
+                        issues.append(
+                            {
+                                "severity": "info",
+                                "line": node.lineno,
+                                "col": node.col_offset,
+                                "message": f"类 '{node.name}' 标记为抽象但没有具体方法",
+                                "code": "SEM003",
+                            }
+                        )
 
         return issues
 
@@ -184,16 +194,18 @@ class SemanticAnalyzer:
                 for op, comp in zip(node.ops, node.comparators):
                     if isinstance(op, (ast.Eq, ast.NotEq)):
                         if isinstance(comp, ast.Constant) and isinstance(comp.value, float):
-                            issues.append({
-                                "severity": "info",
-                                "line": node.lineno,
-                                "col": node.col_offset,
-                                "message": (
-                                    f"浮点数 {comp.value} 的相等比较可能不精确，"
-                                    f"建议使用 math.isclose()"
-                                ),
-                                "code": "SEM004",
-                            })
+                            issues.append(
+                                {
+                                    "severity": "info",
+                                    "line": node.lineno,
+                                    "col": node.col_offset,
+                                    "message": (
+                                        f"浮点数 {comp.value} 的相等比较可能不精确，"
+                                        f"建议使用 math.isclose()"
+                                    ),
+                                    "code": "SEM004",
+                                }
+                            )
 
             # 类型比较用 isinstance
             if isinstance(node, ast.Compare):
@@ -201,16 +213,24 @@ class SemanticAnalyzer:
                     if isinstance(op, (ast.Eq, ast.NotEq)):
                         right = node.comparators[0]
                         if isinstance(right, ast.Name) and right.id in (
-                            "str", "int", "float", "bool",
-                            "list", "dict", "tuple", "set",
+                            "str",
+                            "int",
+                            "float",
+                            "bool",
+                            "list",
+                            "dict",
+                            "tuple",
+                            "set",
                         ):
-                            issues.append({
-                                "severity": "info",
-                                "line": node.lineno,
-                                "col": node.col_offset,
-                                "message": f"类型比较建议使用 isinstance() 而不是 == {right.id}",
-                                "code": "SEM005",
-                            })
+                            issues.append(
+                                {
+                                    "severity": "info",
+                                    "line": node.lineno,
+                                    "col": node.col_offset,
+                                    "message": f"类型比较建议使用 isinstance() 而不是 == {right.id}",
+                                    "code": "SEM005",
+                                }
+                            )
 
         return issues
 

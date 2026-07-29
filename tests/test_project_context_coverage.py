@@ -21,15 +21,15 @@
 - 使用 tmp_path 构造项目结构
 - 直接操作 dependency_graph 测试循环依赖检测
 """
+
 from __future__ import annotations
 
 import os
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pytest
 
-from pycoder.python import project_context as pc_mod
 from pycoder.python.project_context import (
     ClassInfo,
     DependencyGraph,
@@ -43,7 +43,6 @@ from pycoder.python.project_context import (
     SymbolInfo,
     get_context_manager,
 )
-
 
 # ── 公共 fixtures ──────────────────────────────────────────
 
@@ -281,11 +280,7 @@ class TestBuildIndex:
 
     def test_summary_generated(self, project: Path):
         (project / "main.py").write_text(
-            '"""main"""\n'
-            "import os\n"
-            "def foo():\n"
-            '    """foo doc"""\n'
-            "    pass\n",
+            '"""main"""\n' "import os\n" "def foo():\n" '    """foo doc"""\n' "    pass\n",
             encoding="utf-8",
         )
         ctx = ProjectContext(str(project))
@@ -781,10 +776,7 @@ class TestIntegration:
             encoding="utf-8",
         )
         (project / "utils.py").write_text(
-            '"""utils module"""\n'
-            "def helper():\n"
-            '    """helper func"""\n'
-            "    pass\n",
+            '"""utils module"""\n' "def helper():\n" '    """helper func"""\n' "    pass\n",
             encoding="utf-8",
         )
         ctx = ProjectContext(str(project))

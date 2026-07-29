@@ -8,14 +8,12 @@ ReviewOrchestrator / TeamCoordinator，且旧 TeamOrchestrator 类已删除（H2
 - Agent 执行原语已迁移到 team.agent_tool_loop 子模块
 - team_api.py 路由层使用新的 get_coordinator
 """
+
 from __future__ import annotations
 
-import asyncio
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 
 # ══════════════════════════════════════════════════════════
 # SessionOrchestrator 测试
@@ -25,8 +23,10 @@ import pytest
 class TestSessionOrchestrator:
     def test_create_returns_team_run_with_id(self):
         from pycoder.server.services.team.session_orchestrator import (
-            SessionOrchestrator, TeamRun,
+            SessionOrchestrator,
+            TeamRun,
         )
+
         sess = SessionOrchestrator()
         run = sess.create("test request")
         assert isinstance(run, TeamRun)
@@ -39,6 +39,7 @@ class TestSessionOrchestrator:
         from pycoder.server.services.team.session_orchestrator import (
             SessionOrchestrator,
         )
+
         sess = SessionOrchestrator()
         run = sess.create("test")
         fetched = sess.get(run.id)
@@ -48,6 +49,7 @@ class TestSessionOrchestrator:
         from pycoder.server.services.team.session_orchestrator import (
             SessionOrchestrator,
         )
+
         sess = SessionOrchestrator()
         assert sess.get("nonexistent") is None
 
@@ -55,6 +57,7 @@ class TestSessionOrchestrator:
         from pycoder.server.services.team.session_orchestrator import (
             SessionOrchestrator,
         )
+
         sess = SessionOrchestrator()
         for i in range(5):
             sess.create(f"task-{i}")
@@ -66,6 +69,7 @@ class TestSessionOrchestrator:
         from pycoder.server.services.team.session_orchestrator import (
             SessionOrchestrator,
         )
+
         sess = SessionOrchestrator()
         run = sess.create("test")
         assert sess.close(run.id, "done") is True
@@ -76,6 +80,7 @@ class TestSessionOrchestrator:
         from pycoder.server.services.team.session_orchestrator import (
             SessionOrchestrator,
         )
+
         sess = SessionOrchestrator()
         run = sess.create("test")
         assert sess.fail(run.id, "boom") is True
@@ -91,12 +96,11 @@ class TestJobOrchestrator:
     @pytest.mark.asyncio
     async def test_parallel_execution_no_dependencies(self):
         from pycoder.server.services.team.job_orchestrator import (
-            JobOrchestrator, Job,
+            Job,
+            JobOrchestrator,
         )
-        jobs = [
-            Job(task_id=f"t-{i}", title=f"task-{i}", description="d")
-            for i in range(3)
-        ]
+
+        jobs = [Job(task_id=f"t-{i}", title=f"task-{i}", description="d") for i in range(3)]
 
         async def executor(job: Job) -> str:
             return f"result-{job.task_id}"
@@ -112,8 +116,10 @@ class TestJobOrchestrator:
     async def test_dependency_order_respected(self):
         """有依赖时，必须先完成依赖任务再执行下游"""
         from pycoder.server.services.team.job_orchestrator import (
-            JobOrchestrator, Job,
+            Job,
+            JobOrchestrator,
         )
+
         jobs = [
             Job(task_id="t-1", title="task1", description="d"),
             Job(task_id="t-2", title="task2", description="d", depends_on=["t-1"]),
@@ -133,8 +139,10 @@ class TestJobOrchestrator:
     async def test_failed_job_does_not_block_others(self):
         """单个任务失败不应阻塞其他无依赖任务"""
         from pycoder.server.services.team.job_orchestrator import (
-            JobOrchestrator, Job,
+            Job,
+            JobOrchestrator,
         )
+
         jobs = [
             Job(task_id="fail", title="failing", description="d"),
             Job(task_id="ok", title="ok", description="d"),
@@ -159,8 +167,10 @@ class TestJobOrchestrator:
     async def test_max_rounds_prevents_infinite_loop(self):
         """无可用任务时不应死循环"""
         from pycoder.server.services.team.job_orchestrator import (
-            JobOrchestrator, Job,
+            Job,
+            JobOrchestrator,
         )
+
         # 互相依赖形成死锁
         jobs = [
             Job(task_id="a", title="a", description="d", depends_on=["b"]),
@@ -187,16 +197,21 @@ class TestReviewOrchestrator:
     @pytest.mark.asyncio
     async def test_review_code_returns_valid_result_on_success(self):
         from pycoder.server.services.team.review_orchestrator import (
-            ReviewOrchestrator, ReviewResult,
+            ReviewOrchestrator,
+            ReviewResult,
         )
+
         bridge = MagicMock()
         bridge.configure = MagicMock()
         bridge.config = MagicMock()
 
         # Mock chat_stream 返回有效 JSON
         async def fake_stream(_prompt):
-            yield MagicMock(event_type="token",
-                            content='{"passed": true, "issues": [], "score": 90, "summary": "ok"}')
+            yield MagicMock(
+                event_type="token",
+                content='{"passed": true, "issues": [], "score": 90, "summary": "ok"}',
+            )
+
         bridge.chat_stream = fake_stream
 
         orch = ReviewOrchestrator()
@@ -211,12 +226,14 @@ class TestReviewOrchestrator:
         from pycoder.server.services.team.review_orchestrator import (
             ReviewOrchestrator,
         )
+
         bridge = MagicMock()
         bridge.configure = MagicMock()
         bridge.config = MagicMock()
 
         async def fake_stream(_prompt):
             yield MagicMock(event_type="token", content="not json at all")
+
         bridge.chat_stream = fake_stream
 
         orch = ReviewOrchestrator()
@@ -229,20 +246,25 @@ class TestReviewOrchestrator:
     @pytest.mark.asyncio
     async def test_review_loop_terminates_on_pass(self, monkeypatch):
         from pycoder.server.services.team.review_orchestrator import (
-            ReviewOrchestrator, ReviewResult,
+            ReviewOrchestrator,
+            ReviewResult,
         )
+
         orch = ReviewOrchestrator()
 
         async def fake_review(self, bridge, code, task_id=""):
-            return ReviewResult(task_id=task_id, passed=True, score=95,
-                                issues=[], summary="ok")
+            return ReviewResult(task_id=task_id, passed=True, score=95, issues=[], summary="ok")
+
         monkeypatch.setattr(ReviewOrchestrator, "review_code", fake_review)
 
         fix_executor = AsyncMock()
         results = {"task-1": "code-1"}
 
         all_issues, rounds = await orch.run_review_loop(
-            MagicMock(), results, fix_executor, max_rounds=3,
+            MagicMock(),
+            results,
+            fix_executor,
+            max_rounds=3,
         )
 
         assert rounds == 1  # 通过后立即终止
@@ -253,8 +275,10 @@ class TestReviewOrchestrator:
     @pytest.mark.asyncio
     async def test_review_loop_runs_fix_then_re_review(self, monkeypatch):
         from pycoder.server.services.team.review_orchestrator import (
-            ReviewOrchestrator, ReviewResult,
+            ReviewOrchestrator,
+            ReviewResult,
         )
+
         orch = ReviewOrchestrator()
 
         # 第 1 轮失败，第 2 轮通过
@@ -264,14 +288,14 @@ class TestReviewOrchestrator:
             call_count["n"] += 1
             if call_count["n"] == 1:
                 return ReviewResult(
-                    task_id=task_id, passed=False, score=40,
-                    issues=[{"severity": "high",
-                             "description": "bug",
-                             "suggestion": "fix it"}],
+                    task_id=task_id,
+                    passed=False,
+                    score=40,
+                    issues=[{"severity": "high", "description": "bug", "suggestion": "fix it"}],
                     summary="bad",
                 )
-            return ReviewResult(task_id=task_id, passed=True, score=90,
-                                issues=[], summary="ok")
+            return ReviewResult(task_id=task_id, passed=True, score=90, issues=[], summary="ok")
+
         monkeypatch.setattr(ReviewOrchestrator, "review_code", fake_review)
 
         async def fix_executor(task_id, feedback):
@@ -279,7 +303,10 @@ class TestReviewOrchestrator:
 
         results = {"task-1": "original-code"}
         all_issues, rounds = await orch.run_review_loop(
-            MagicMock(), results, fix_executor, max_rounds=3,
+            MagicMock(),
+            results,
+            fix_executor,
+            max_rounds=3,
         )
 
         assert rounds == 2  # 修复后再次审查通过
@@ -297,13 +324,14 @@ class TestReviewOrchestrator:
 class TestTeamCoordinatorFacade:
     def test_exposes_session_job_review_orchestrators(self):
         from pycoder.server.services.team import TeamCoordinator
-        from pycoder.server.services.team.session_orchestrator import (
-            SessionOrchestrator,
-        )
         from pycoder.server.services.team.job_orchestrator import JobOrchestrator
         from pycoder.server.services.team.review_orchestrator import (
             ReviewOrchestrator,
         )
+        from pycoder.server.services.team.session_orchestrator import (
+            SessionOrchestrator,
+        )
+
         coord = TeamCoordinator()
         assert isinstance(coord.sessions, SessionOrchestrator)
         assert isinstance(coord.jobs, JobOrchestrator)
@@ -311,6 +339,7 @@ class TestTeamCoordinatorFacade:
 
     def test_list_runs_delegates_to_sessions(self):
         from pycoder.server.services.team import TeamCoordinator
+
         coord = TeamCoordinator()
         coord.sessions.create("test-1")
         coord.sessions.create("test-2")
@@ -319,6 +348,7 @@ class TestTeamCoordinatorFacade:
 
     def test_get_run_delegates_to_sessions(self):
         from pycoder.server.services.team import TeamCoordinator
+
         coord = TeamCoordinator()
         run = coord.sessions.create("test")
         assert coord.get_run(run.id) is run
@@ -326,6 +356,7 @@ class TestTeamCoordinatorFacade:
 
     def test_get_coordinator_returns_singleton(self):
         from pycoder.server.services.team import get_coordinator
+
         c1 = get_coordinator()
         c2 = get_coordinator()
         assert c1 is c2
@@ -342,34 +373,35 @@ class TestTeamOrchestratorRemoved:
     def test_class_no_longer_importable(self):
         """TeamOrchestrator 类不应再可导入"""
         import pycoder.server.services.team_orchestrator as mod
-        assert not hasattr(mod, "TeamOrchestrator"), (
-            "TeamOrchestrator 类应已删除（H2），但仍可从 team_orchestrator 模块导入"
-        )
+
+        assert not hasattr(
+            mod, "TeamOrchestrator"
+        ), "TeamOrchestrator 类应已删除（H2），但仍可从 team_orchestrator 模块导入"
 
     def test_get_orchestrator_removed(self):
         """get_orchestrator 单例函数应已删除"""
         import pycoder.server.services.team_orchestrator as mod
-        assert not hasattr(mod, "get_orchestrator"), (
-            "get_orchestrator 单例应已删除（H2）"
-        )
+
+        assert not hasattr(mod, "get_orchestrator"), "get_orchestrator 单例应已删除（H2）"
 
     def test_team_api_uses_new_coordinator(self):
         """team_api.py 应改用新 TeamCoordinator，不再依赖旧 get_orchestrator"""
         import inspect
+
         from pycoder.server.routers import team_api
+
         source = inspect.getsource(team_api)
         assert "from pycoder.server.services.team import get_coordinator" in source
-        assert "get_orchestrator" not in source, (
-            "team_api.py 仍引用旧 get_orchestrator"
-        )
+        assert "get_orchestrator" not in source, "team_api.py 仍引用旧 get_orchestrator"
 
     def test_agent_tool_loop_migrated(self):
         """H2: Agent 执行原语已迁移到 team.agent_tool_loop 子模块"""
         from pycoder.server.services.team.agent_tool_loop import (
+            AGENT_SYSTEM_PROMPT,
             _agent_tool_loop,
             _execute_agent_with_files,
-            AGENT_SYSTEM_PROMPT,
         )
+
         assert callable(_agent_tool_loop)
         assert callable(_execute_agent_with_files)
         assert isinstance(AGENT_SYSTEM_PROMPT, str)
@@ -380,8 +412,7 @@ class TestTeamOrchestratorRemoved:
         from pycoder.server.services.team_orchestrator import (
             _agent_tool_loop,
             _execute_agent_with_files,
-            AGENT_SYSTEM_PROMPT,
-            _team_execute_tool,
         )
+
         assert callable(_agent_tool_loop)
         assert callable(_execute_agent_with_files)

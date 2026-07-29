@@ -23,30 +23,28 @@ ChromaDB 为可选依赖，未安装时自动回退到纯 SQLite 模式。
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
-
-# 数据模型
-from pycoder.memory.deep_memory_models import (
-    MemoryEntry,
-    MemoryContext,
-    MemoryStats,
-    _CHROMA_AVAILABLE,
-    _estimate_tokens,
-    _now_iso,
-)
-
-# 四级记忆实现
-from pycoder.memory.working_memory import WorkingMemory
-from pycoder.memory.iteration_memory import IterationMemory
-from pycoder.memory.project_memory import ProjectMemory
-from pycoder.memory.global_memory import GlobalMemory
-
-# 编排器
-from pycoder.memory.deep_memory_system import DeepMemorySystem
 
 # 能力注册
 from pycoder.memory.deep_memory_capabilities import register_capabilities
 
+# 数据模型
+from pycoder.memory.deep_memory_models import (
+    _CHROMA_AVAILABLE,
+    MemoryContext,
+    MemoryEntry,
+    MemoryStats,
+    _estimate_tokens,
+    _now_iso,
+)
+
+# 编排器
+from pycoder.memory.deep_memory_system import DeepMemorySystem
+from pycoder.memory.global_memory import GlobalMemory
+from pycoder.memory.iteration_memory import IterationMemory
+from pycoder.memory.project_memory import ProjectMemory
+
+# 四级记忆实现
+from pycoder.memory.working_memory import WorkingMemory
 
 # 单例管理
 _deep_memory_instance: DeepMemorySystem | None = None

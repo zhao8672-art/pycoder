@@ -428,9 +428,7 @@ class FeasibilityReport:
     @property
     def overall_score(self) -> float:
         """综合评分 = 正向均值 - 风险扣分"""
-        positive = (
-            self.reasonableness + self.resource_adequacy + self.technical_feasibility
-        ) / 3
+        positive = (self.reasonableness + self.resource_adequacy + self.technical_feasibility) / 3
         risk_penalty = min(len(self.risks) * 0.1 + len(self.obstacles) * 0.15, 0.5)
         return max(positive - risk_penalty, 0.0)
 
@@ -512,18 +510,14 @@ class FeasibilityAnalyzer:
         # ── 正向分析 ──
         report.reasonableness = self._assess_reasonableness(plan)
         report.resource_adequacy = self._assess_resource_adequacy(plan)
-        report.technical_feasibility = self._assess_technical_feasibility(
-            combined_text
-        )
+        report.technical_feasibility = self._assess_technical_feasibility(combined_text)
         report.expected_benefit = self._estimate_benefit(plan)
 
         # ── 反向分析 ──
         report.risks = self._identify_risks(combined_text, plan)
         report.obstacles = self._identify_obstacles(plan)
         report.resource_limits = self._identify_resource_limits(plan)
-        report.negative_outcomes = self._identify_negative_outcomes(
-            combined_text, plan
-        )
+        report.negative_outcomes = self._identify_negative_outcomes(combined_text, plan)
 
         # ── 综合建议 ──
         report.feasibility = report.overall_score >= 0.4

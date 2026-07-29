@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 import json
-import os
-import sys
-import time
-import sqlite3
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -32,6 +28,7 @@ class TestPluginExecutor:
 
     def test_set_plugin_callback(self, executor):
         """设置回调应正确存储"""
+
         async def my_callback(event: dict) -> None:
             pass
 
@@ -75,6 +72,7 @@ class TestPluginExecutor:
 
     async def test_emit_plugin_event_callback_failure(self, executor):
         """回调失败应不抛出异常"""
+
         async def failing_callback(event: dict) -> None:
             raise RuntimeError("回调失败")
 
@@ -153,7 +151,9 @@ class TestAutoPluginInstaller:
     @pytest.fixture
     def installer(self, tmp_path: Path):
         """创建 AutoPluginInstaller 实例"""
-        from pycoder.server.services.auto_plugin_installer import AutoPluginInstaller, _SKILLS_INSTALL_DIR, _INSTALL_LOG
+        from pycoder.server.services.auto_plugin_installer import (
+            AutoPluginInstaller,
+        )
 
         # 使用临时目录覆盖安装路径
         skill_dir = tmp_path / "skills"
@@ -163,15 +163,19 @@ class TestAutoPluginInstaller:
         pycoder_dir = tmp_path / ".pycoder"
         pycoder_dir.mkdir(parents=True, exist_ok=True)
 
-        with patch(
-            "pycoder.server.services.auto_plugin_installer._SKILLS_INSTALL_DIR",
-            skill_dir,
-        ), patch(
-            "pycoder.server.services.auto_plugin_installer._INSTALL_LOG",
-            log_file,
-        ), patch(
-            "pycoder.server.services.auto_plugin_installer.Path.home",
-            return_value=tmp_path,
+        with (
+            patch(
+                "pycoder.server.services.auto_plugin_installer._SKILLS_INSTALL_DIR",
+                skill_dir,
+            ),
+            patch(
+                "pycoder.server.services.auto_plugin_installer._INSTALL_LOG",
+                log_file,
+            ),
+            patch(
+                "pycoder.server.services.auto_plugin_installer.Path.home",
+                return_value=tmp_path,
+            ),
         ):
             inst = AutoPluginInstaller()
             yield inst
@@ -180,15 +184,19 @@ class TestAutoPluginInstaller:
         """初始化应创建安装目录"""
         from pycoder.server.services.auto_plugin_installer import AutoPluginInstaller
 
-        with patch(
-            "pycoder.server.services.auto_plugin_installer._SKILLS_INSTALL_DIR",
-            tmp_path / "skills",
-        ), patch(
-            "pycoder.server.services.auto_plugin_installer._INSTALL_LOG",
-            tmp_path / "log.jsonl",
-        ), patch(
-            "pycoder.server.services.auto_plugin_installer.Path.home",
-            return_value=tmp_path,
+        with (
+            patch(
+                "pycoder.server.services.auto_plugin_installer._SKILLS_INSTALL_DIR",
+                tmp_path / "skills",
+            ),
+            patch(
+                "pycoder.server.services.auto_plugin_installer._INSTALL_LOG",
+                tmp_path / "log.jsonl",
+            ),
+            patch(
+                "pycoder.server.services.auto_plugin_installer.Path.home",
+                return_value=tmp_path,
+            ),
         ):
             AutoPluginInstaller()
             assert (tmp_path / "skills").exists()
@@ -336,7 +344,9 @@ class TestEndToEndMemoryBankFlow:
 
         # 验证查询
         memories = mb.list_memories()
-        assert len(memories) >= 3  # project_brief, architecture, tech_context, active_context, progress
+        assert (
+            len(memories) >= 3
+        )  # project_brief, architecture, tech_context, active_context, progress
 
         # 加载上下文
         context = mb.load_context_for_prompt(max_tokens=5000)

@@ -18,17 +18,16 @@
     - 直接调用辅助函数 + TestClient 调用端点
     - 使用 tmp_path + monkeypatch WORKSPACE_ROOT 隔离文件系统
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pycoder.server.routers import diff as diff_router_mod
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -67,12 +66,15 @@ def _reset_recent_diffs():
 class TestGenerateDiff:
     def test_with_changes(self, app_client):
         """有差异时返回 diff 文本和统计"""
-        resp = app_client.post("/api/diff", json={
-            "original": "line1\nline2\n",
-            "modified": "line1\nline2 modified\n",
-            "context_lines": 3,
-            "filename": "test.py",
-        })
+        resp = app_client.post(
+            "/api/diff",
+            json={
+                "original": "line1\nline2\n",
+                "modified": "line1\nline2 modified\n",
+                "context_lines": 3,
+                "filename": "test.py",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["changed"] is True
@@ -82,10 +84,13 @@ class TestGenerateDiff:
 
     def test_no_changes(self, app_client):
         """无差异时 changed=False"""
-        resp = app_client.post("/api/diff", json={
-            "original": "same\n",
-            "modified": "same\n",
-        })
+        resp = app_client.post(
+            "/api/diff",
+            json={
+                "original": "same\n",
+                "modified": "same\n",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["changed"] is False
@@ -95,9 +100,13 @@ class TestGenerateDiff:
 
     def test_recent_diffs_stored(self, app_client):
         """生成 diff 后应存入 _recent_diffs"""
-        app_client.post("/api/diff", json={
-            "original": "a\n", "modified": "b\n",
-        })
+        app_client.post(
+            "/api/diff",
+            json={
+                "original": "a\n",
+                "modified": "b\n",
+            },
+        )
         assert len(diff_router_mod._recent_diffs) == 1
         assert diff_router_mod._recent_diffs[0]["filename"] == "file"
 
@@ -107,9 +116,13 @@ class TestGenerateDiff:
         try:
             diff_router_mod._MAX_RECENT = 2
             for i in range(3):
-                app_client.post("/api/diff", json={
-                    "original": "a\n", "modified": f"b{i}\n",
-                })
+                app_client.post(
+                    "/api/diff",
+                    json={
+                        "original": "a\n",
+                        "modified": f"b{i}\n",
+                    },
+                )
             assert len(diff_router_mod._recent_diffs) == 2
         finally:
             diff_router_mod._MAX_RECENT = original_max
@@ -123,10 +136,13 @@ class TestGenerateDiff:
 class TestDiffFile:
     def test_source_not_found(self, app_client):
         """源文件不存在 → 404"""
-        resp = app_client.post("/api/diff/file", json={
-            "source_path": "/nonexistent/path/abc.txt",
-            "content": "new",
-        })
+        resp = app_client.post(
+            "/api/diff/file",
+            json={
+                "source_path": "/nonexistent/path/abc.txt",
+                "content": "new",
+            },
+        )
         assert resp.status_code == 404
         assert "Source file not found" in resp.json()["detail"]
 
@@ -137,12 +153,16 @@ class TestDiffFile:
 
         def boom(_self, *args, **kwargs):
             raise OSError("io err")
+
         monkeypatch.setattr(Path, "read_text", boom)
 
-        resp = app_client.post("/api/diff/file", json={
-            "source_path": str(f),
-            "content": "new",
-        })
+        resp = app_client.post(
+            "/api/diff/file",
+            json={
+                "source_path": str(f),
+                "content": "new",
+            },
+        )
         assert resp.status_code == 500
         assert "Error reading source file" in resp.json()["detail"]
 
@@ -150,10 +170,13 @@ class TestDiffFile:
         """通过 content 字段提供新内容"""
         f = workspace / "src.txt"
         f.write_text("original line\n", encoding="utf-8")
-        resp = app_client.post("/api/diff/file", json={
-            "source_path": str(f),
-            "content": "modified line\n",
-        })
+        resp = app_client.post(
+            "/api/diff/file",
+            json={
+                "source_path": str(f),
+                "content": "modified line\n",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["changed"] is True
@@ -163,10 +186,13 @@ class TestDiffFile:
         """target_path 不存在 → 404"""
         f = workspace / "src.txt"
         f.write_text("orig\n", encoding="utf-8")
-        resp = app_client.post("/api/diff/file", json={
-            "source_path": str(f),
-            "target_path": "/nonexistent/target.txt",
-        })
+        resp = app_client.post(
+            "/api/diff/file",
+            json={
+                "source_path": str(f),
+                "target_path": "/nonexistent/target.txt",
+            },
+        )
         assert resp.status_code == 404
         assert "Target file not found" in resp.json()["detail"]
 
@@ -185,12 +211,16 @@ class TestDiffFile:
             if call_count["n"] >= 2:
                 raise OSError("io err")
             return original_read_text(self, *args, **kwargs)
+
         monkeypatch.setattr(Path, "read_text", selective_boom)
 
-        resp = app_client.post("/api/diff/file", json={
-            "source_path": str(src),
-            "target_path": str(tgt),
-        })
+        resp = app_client.post(
+            "/api/diff/file",
+            json={
+                "source_path": str(src),
+                "target_path": str(tgt),
+            },
+        )
         assert resp.status_code == 500
         assert "Error reading target file" in resp.json()["detail"]
 
@@ -200,10 +230,13 @@ class TestDiffFile:
         src.write_text("line1\nline2\n", encoding="utf-8")
         tgt = workspace / "tgt.txt"
         tgt.write_text("line1\nLINE2\n", encoding="utf-8")
-        resp = app_client.post("/api/diff/file", json={
-            "source_path": str(src),
-            "target_path": str(tgt),
-        })
+        resp = app_client.post(
+            "/api/diff/file",
+            json={
+                "source_path": str(src),
+                "target_path": str(tgt),
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["changed"] is True
@@ -212,9 +245,12 @@ class TestDiffFile:
         """既无 content 也无 target_path → 400"""
         f = workspace / "src.txt"
         f.write_text("orig\n", encoding="utf-8")
-        resp = app_client.post("/api/diff/file", json={
-            "source_path": str(f),
-        })
+        resp = app_client.post(
+            "/api/diff/file",
+            json={
+                "source_path": str(f),
+            },
+        )
         assert resp.status_code == 400
         assert "Either target_path or content is required" in resp.json()["detail"]
 
@@ -234,9 +270,13 @@ class TestListRecentDiffs:
     def test_with_limit(self, app_client):
         """limit 参数限制返回数量"""
         for i in range(3):
-            app_client.post("/api/diff", json={
-                "original": "a\n", "modified": f"b{i}\n",
-            })
+            app_client.post(
+                "/api/diff",
+                json={
+                    "original": "a\n",
+                    "modified": f"b{i}\n",
+                },
+            )
         resp = app_client.get("/api/diff/recent", params={"limit": 2})
         assert resp.status_code == 200
         data = resp.json()
@@ -293,26 +333,35 @@ class TestParseDiffHunks:
 class TestInvertHunk:
     def test_with_minus_lines(self, app_client):
         """hunk_lines 中有 - 行应被提取"""
-        resp = app_client.post("/api/diff/hunk/invert", json={
-            "hunk_lines": ["-old line\n", " context\n", "+new line\n"],
-        })
+        resp = app_client.post(
+            "/api/diff/hunk/invert",
+            json={
+                "hunk_lines": ["-old line\n", " context\n", "+new line\n"],
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["original"] == "old line\n"
 
     def test_fallback_to_original_context(self, app_client):
         """无 - 行时使用 original_context"""
-        resp = app_client.post("/api/diff/hunk/invert", json={
-            "hunk_lines": ["+only added\n"],
-            "original_context": "fallback content\n",
-        })
+        resp = app_client.post(
+            "/api/diff/hunk/invert",
+            json={
+                "hunk_lines": ["+only added\n"],
+                "original_context": "fallback content\n",
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["original"] == "fallback content\n"
 
     def test_no_minus_no_context(self, app_client):
         """无 - 行也无 original_context → 返回空字符串"""
-        resp = app_client.post("/api/diff/hunk/invert", json={
-            "hunk_lines": ["+only added\n"],
-        })
+        resp = app_client.post(
+            "/api/diff/hunk/invert",
+            json={
+                "hunk_lines": ["+only added\n"],
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["original"] == ""
 
@@ -325,9 +374,13 @@ class TestInvertHunk:
 class TestApplyHunk:
     def test_missing_file_path(self, app_client):
         """无 file_path → 返回 error"""
-        resp = app_client.post("/api/diff/hunk/apply", json={
-            "hunk_text": "+x\n", "action": "accept",
-        })
+        resp = app_client.post(
+            "/api/diff/hunk/apply",
+            json={
+                "hunk_text": "+x\n",
+                "action": "accept",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
@@ -335,11 +388,14 @@ class TestApplyHunk:
 
     def test_path_traversal(self, app_client, workspace):
         """路径越界（不在 WORKSPACE_ROOT 内）"""
-        resp = app_client.post("/api/diff/hunk/apply", json={
-            "file_path": "../../../etc/passwd",
-            "hunk_text": "+x\n",
-            "action": "accept",
-        })
+        resp = app_client.post(
+            "/api/diff/hunk/apply",
+            json={
+                "file_path": "../../../etc/passwd",
+                "hunk_text": "+x\n",
+                "action": "accept",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
@@ -347,11 +403,14 @@ class TestApplyHunk:
 
     def test_file_not_exist(self, app_client, workspace):
         """文件不存在"""
-        resp = app_client.post("/api/diff/hunk/apply", json={
-            "file_path": "missing.py",
-            "hunk_text": "+x\n",
-            "action": "accept",
-        })
+        resp = app_client.post(
+            "/api/diff/hunk/apply",
+            json={
+                "file_path": "missing.py",
+                "hunk_text": "+x\n",
+                "action": "accept",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
@@ -361,17 +420,15 @@ class TestApplyHunk:
         """accept 模式，hunk 中 - 行能匹配文件内容 → 替换成功"""
         f = workspace / "target.py"
         f.write_text("def hello():\n    print('hi')\n", encoding="utf-8")
-        hunk = (
-            "-def hello():\n"
-            "-    print('hi')\n"
-            "+def goodbye():\n"
-            "+    print('bye')\n"
+        hunk = "-def hello():\n" "-    print('hi')\n" "+def goodbye():\n" "+    print('bye')\n"
+        resp = app_client.post(
+            "/api/diff/hunk/apply",
+            json={
+                "file_path": "target.py",
+                "hunk_text": hunk,
+                "action": "accept",
+            },
         )
-        resp = app_client.post("/api/diff/hunk/apply", json={
-            "file_path": "target.py",
-            "hunk_text": hunk,
-            "action": "accept",
-        })
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -383,11 +440,14 @@ class TestApplyHunk:
         f = workspace / "target.py"
         f.write_text("totally different content\n", encoding="utf-8")
         hunk = "-nonexistent line\n+new line\n"
-        resp = app_client.post("/api/diff/hunk/apply", json={
-            "file_path": "target.py",
-            "hunk_text": hunk,
-            "action": "accept",
-        })
+        resp = app_client.post(
+            "/api/diff/hunk/apply",
+            json={
+                "file_path": "target.py",
+                "hunk_text": hunk,
+                "action": "accept",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
@@ -398,11 +458,14 @@ class TestApplyHunk:
         f = workspace / "target.py"
         f.write_text("line1\n", encoding="utf-8")
         hunk = "+line2\n+line3\n"
-        resp = app_client.post("/api/diff/hunk/apply", json={
-            "file_path": "target.py",
-            "hunk_text": hunk,
-            "action": "accept",
-        })
+        resp = app_client.post(
+            "/api/diff/hunk/apply",
+            json={
+                "file_path": "target.py",
+                "hunk_text": hunk,
+                "action": "accept",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -414,11 +477,14 @@ class TestApplyHunk:
         f = workspace / "target.py"
         f.write_text("line\n", encoding="utf-8")
         hunk = " context line only\n"
-        resp = app_client.post("/api/diff/hunk/apply", json={
-            "file_path": "target.py",
-            "hunk_text": hunk,
-            "action": "accept",
-        })
+        resp = app_client.post(
+            "/api/diff/hunk/apply",
+            json={
+                "file_path": "target.py",
+                "hunk_text": hunk,
+                "action": "accept",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
@@ -428,11 +494,14 @@ class TestApplyHunk:
         """reject 模式 → 直接返回 rejected"""
         f = workspace / "target.py"
         f.write_text("orig\n", encoding="utf-8")
-        resp = app_client.post("/api/diff/hunk/apply", json={
-            "file_path": "target.py",
-            "hunk_text": "+x\n",
-            "action": "reject",
-        })
+        resp = app_client.post(
+            "/api/diff/hunk/apply",
+            json={
+                "file_path": "target.py",
+                "hunk_text": "+x\n",
+                "action": "reject",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -444,11 +513,14 @@ class TestApplyHunk:
         """未知 action"""
         f = workspace / "target.py"
         f.write_text("orig\n", encoding="utf-8")
-        resp = app_client.post("/api/diff/hunk/apply", json={
-            "file_path": "target.py",
-            "hunk_text": "+x\n",
-            "action": "invalid_action",
-        })
+        resp = app_client.post(
+            "/api/diff/hunk/apply",
+            json={
+                "file_path": "target.py",
+                "hunk_text": "+x\n",
+                "action": "invalid_action",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False

@@ -55,35 +55,38 @@ class ArchitecturalAnalyzer:
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 method_count = sum(
-                    1 for n in node.body
-                    if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    1 for n in node.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
                 )
                 # 估算行数
                 if hasattr(node, "end_lineno") and node.lineno:
                     line_count = node.end_lineno - node.lineno
 
                     if method_count > 20 and line_count > 300:
-                        issues.append({
-                            "severity": "warning",
-                            "line": node.lineno,
-                            "col": node.col_offset,
-                            "message": (
-                                f"类 '{node.name}' 可能是上帝类: "
-                                f"{method_count} 个方法, {line_count} 行"
-                            ),
-                            "code": "ARC001",
-                        })
+                        issues.append(
+                            {
+                                "severity": "warning",
+                                "line": node.lineno,
+                                "col": node.col_offset,
+                                "message": (
+                                    f"类 '{node.name}' 可能是上帝类: "
+                                    f"{method_count} 个方法, {line_count} 行"
+                                ),
+                                "code": "ARC001",
+                            }
+                        )
                     elif method_count > 12:
-                        issues.append({
-                            "severity": "info",
-                            "line": node.lineno,
-                            "col": node.col_offset,
-                            "message": (
-                                f"类 '{node.name}' 方法较多 ({method_count})，"
-                                f"可考虑拆分职责"
-                            ),
-                            "code": "ARC002",
-                        })
+                        issues.append(
+                            {
+                                "severity": "info",
+                                "line": node.lineno,
+                                "col": node.col_offset,
+                                "message": (
+                                    f"类 '{node.name}' 方法较多 ({method_count})，"
+                                    f"可考虑拆分职责"
+                                ),
+                                "code": "ARC002",
+                            }
+                        )
 
         return issues
 
@@ -96,27 +99,30 @@ class ArchitecturalAnalyzer:
                     line_count = node.end_lineno - node.lineno
 
                     if line_count > 80:
-                        issues.append({
-                            "severity": "warning",
-                            "line": node.lineno,
-                            "col": node.col_offset,
-                            "message": (
-                                f"函数 '{node.name}' 过长 ({line_count} 行)，"
-                                f"建议拆分不超过 50 行"
-                            ),
-                            "code": "ARC003",
-                        })
+                        issues.append(
+                            {
+                                "severity": "warning",
+                                "line": node.lineno,
+                                "col": node.col_offset,
+                                "message": (
+                                    f"函数 '{node.name}' 过长 ({line_count} 行)，"
+                                    f"建议拆分不超过 50 行"
+                                ),
+                                "code": "ARC003",
+                            }
+                        )
                     elif line_count > 50:
-                        issues.append({
-                            "severity": "info",
-                            "line": node.lineno,
-                            "col": node.col_offset,
-                            "message": (
-                                f"函数 '{node.name}' 较长 ({line_count} 行)，"
-                                f"可考虑拆分"
-                            ),
-                            "code": "ARC004",
-                        })
+                        issues.append(
+                            {
+                                "severity": "info",
+                                "line": node.lineno,
+                                "col": node.col_offset,
+                                "message": (
+                                    f"函数 '{node.name}' 较长 ({line_count} 行)，" f"可考虑拆分"
+                                ),
+                                "code": "ARC004",
+                            }
+                        )
 
         return issues
 
@@ -135,16 +141,18 @@ class ArchitecturalAnalyzer:
         # 如果一个变量被超过 5 个函数使用，可能是霰弹式修改风险
         for name, funcs in global_refs.items():
             if len(funcs) > 5:
-                issues.append({
-                    "severity": "info",
-                    "line": 0,
-                    "col": 0,
-                    "message": (
-                        f"全局变量/名称 '{name}' 被 {len(funcs)} 个函数引用，"
-                        f"修改时可能需要霰弹式修改"
-                    ),
-                    "code": "ARC005",
-                })
+                issues.append(
+                    {
+                        "severity": "info",
+                        "line": 0,
+                        "col": 0,
+                        "message": (
+                            f"全局变量/名称 '{name}' 被 {len(funcs)} 个函数引用，"
+                            f"修改时可能需要霰弹式修改"
+                        ),
+                        "code": "ARC005",
+                    }
+                )
 
         return issues
 
@@ -168,16 +176,18 @@ class ArchitecturalAnalyzer:
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if len(node.decorator_list) > 5:
-                    issues.append({
-                        "severity": "warning",
-                        "line": node.lineno,
-                        "col": node.col_offset,
-                        "message": (
-                            f"函数 '{node.name}' 装饰器过多 "
-                            f"({len(node.decorator_list)} 个)，影响可读性"
-                        ),
-                        "code": "ARC006",
-                    })
+                    issues.append(
+                        {
+                            "severity": "warning",
+                            "line": node.lineno,
+                            "col": node.col_offset,
+                            "message": (
+                                f"函数 '{node.name}' 装饰器过多 "
+                                f"({len(node.decorator_list)} 个)，影响可读性"
+                            ),
+                            "code": "ARC006",
+                        }
+                    )
 
         return issues
 
@@ -195,15 +205,17 @@ class ArchitecturalAnalyzer:
 
                 # 超过 5 个参数且含注释（可能有未提取的值对象）
                 if positional_count > 5 and node.returns:
-                    issues.append({
-                        "severity": "info",
-                        "line": node.lineno,
-                        "col": node.col_offset,
-                        "message": (
-                            f"函数 '{node.name}' 有 {positional_count} 个参数，"
-                            f"可考虑提取为值对象/参数对象"
-                        ),
-                        "code": "ARC007",
-                    })
+                    issues.append(
+                        {
+                            "severity": "info",
+                            "line": node.lineno,
+                            "col": node.col_offset,
+                            "message": (
+                                f"函数 '{node.name}' 有 {positional_count} 个参数，"
+                                f"可考虑提取为值对象/参数对象"
+                            ),
+                            "code": "ARC007",
+                        }
+                    )
 
         return issues

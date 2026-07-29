@@ -79,8 +79,7 @@ class SyntaxAnalyzer:
             tree = ast.parse(code)
             classes = sum(1 for n in ast.walk(tree) if isinstance(n, ast.ClassDef))
             functions = sum(
-                1 for n in ast.walk(tree)
-                if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                1 for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
             )
             imports = sum(1 for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom)))
         except SyntaxError:
@@ -103,13 +102,15 @@ class SyntaxAnalyzer:
         try:
             ast.parse(code)
         except SyntaxError as e:
-            issues.append(SyntaxIssue(
-                severity="error",
-                line=e.lineno or 1,
-                col=e.offset or 0,
-                message=f"语法错误: {e.msg}",
-                code="SYN001",
-            ))
+            issues.append(
+                SyntaxIssue(
+                    severity="error",
+                    line=e.lineno or 1,
+                    col=e.offset or 0,
+                    message=f"语法错误: {e.msg}",
+                    code="SYN001",
+                )
+            )
         return issues
 
     def _check_dead_code(self, code: str) -> list[SyntaxIssue]:
@@ -136,13 +137,15 @@ class SyntaxAnalyzer:
 
         unused_imports = imported_names - used_names
         for name in unused_imports:
-            issues.append(SyntaxIssue(
-                severity="warning",
-                line=0,
-                col=0,
-                message=f"未使用的导入: '{name}'",
-                code="SYN002",
-            ))
+            issues.append(
+                SyntaxIssue(
+                    severity="warning",
+                    line=0,
+                    col=0,
+                    message=f"未使用的导入: '{name}'",
+                    code="SYN002",
+                )
+            )
 
         # 检测未使用的变量
         assigned_vars: set[str] = set()
@@ -160,13 +163,15 @@ class SyntaxAnalyzer:
         # 过滤掉明显的魔术变量
         unused_vars = {v for v in unused_vars if not v.startswith("_")}
         for name in unused_vars:
-            issues.append(SyntaxIssue(
-                severity="info",
-                line=0,
-                col=0,
-                message=f"可能未使用的变量: '{name}'",
-                code="SYN003",
-            ))
+            issues.append(
+                SyntaxIssue(
+                    severity="info",
+                    line=0,
+                    col=0,
+                    message=f"可能未使用的变量: '{name}'",
+                    code="SYN003",
+                )
+            )
 
         return issues
 
@@ -181,24 +186,28 @@ class SyntaxAnalyzer:
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 if not node.name[0].isupper():
-                    issues.append(SyntaxIssue(
-                        severity="warning",
-                        line=node.lineno,
-                        col=node.col_offset,
-                        message=f"类名 '{node.name}' 应使用 CapWords 约定",
-                        code="SYN004",
-                    ))
+                    issues.append(
+                        SyntaxIssue(
+                            severity="warning",
+                            line=node.lineno,
+                            col=node.col_offset,
+                            message=f"类名 '{node.name}' 应使用 CapWords 约定",
+                            code="SYN004",
+                        )
+                    )
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if node.name.startswith("_"):
                     continue  # 私有方法跳过
                 if not node.name[0].islower():
-                    issues.append(SyntaxIssue(
-                        severity="warning",
-                        line=node.lineno,
-                        col=node.col_offset,
-                        message=f"函数名 '{node.name}' 应使用 snake_case",
-                        code="SYN005",
-                    ))
+                    issues.append(
+                        SyntaxIssue(
+                            severity="warning",
+                            line=node.lineno,
+                            col=node.col_offset,
+                            message=f"函数名 '{node.name}' 应使用 snake_case",
+                            code="SYN005",
+                        )
+                    )
 
         return issues
 
@@ -215,27 +224,30 @@ class SyntaxAnalyzer:
                 # McCabe 复杂度近似: 决策点数量
                 decisions = self._count_decisions(node)
                 if decisions > 10:
-                    issues.append(SyntaxIssue(
-                        severity="warning",
-                        line=node.lineno,
-                        col=node.col_offset,
-                        message=(
-                            f"函数 '{node.name}' 的循环复杂度为 {decisions}，"
-                            f"超过 10 的阈值，建议拆分"
-                        ),
-                        code="SYN006",
-                    ))
+                    issues.append(
+                        SyntaxIssue(
+                            severity="warning",
+                            line=node.lineno,
+                            col=node.col_offset,
+                            message=(
+                                f"函数 '{node.name}' 的循环复杂度为 {decisions}，"
+                                f"超过 10 的阈值，建议拆分"
+                            ),
+                            code="SYN006",
+                        )
+                    )
                 elif decisions > 5:
-                    issues.append(SyntaxIssue(
-                        severity="info",
-                        line=node.lineno,
-                        col=node.col_offset,
-                        message=(
-                            f"函数 '{node.name}' 的循环复杂度为 {decisions}，"
-                            f"可考虑简化"
-                        ),
-                        code="SYN007",
-                    ))
+                    issues.append(
+                        SyntaxIssue(
+                            severity="info",
+                            line=node.lineno,
+                            col=node.col_offset,
+                            message=(
+                                f"函数 '{node.name}' 的循环复杂度为 {decisions}，" f"可考虑简化"
+                            ),
+                            code="SYN007",
+                        )
+                    )
 
         return issues
 
@@ -259,39 +271,47 @@ class SyntaxAnalyzer:
         for i, line in enumerate(lines, 1):
             # 行太长 (>79 for PEP 8, >100 宽松)
             if len(line) > 120:
-                issues.append(SyntaxIssue(
-                    severity="info",
-                    line=i,
-                    col=0,
-                    message=f"行过长 ({len(line)} > 120 字符)",
-                    code="SYN008",
-                ))
+                issues.append(
+                    SyntaxIssue(
+                        severity="info",
+                        line=i,
+                        col=0,
+                        message=f"行过长 ({len(line)} > 120 字符)",
+                        code="SYN008",
+                    )
+                )
             # 尾部空白
             if line != line.rstrip():
-                issues.append(SyntaxIssue(
-                    severity="info",
-                    line=i,
-                    col=0,
-                    message="行尾存在多余空白字符",
-                    code="SYN009",
-                ))
+                issues.append(
+                    SyntaxIssue(
+                        severity="info",
+                        line=i,
+                        col=0,
+                        message="行尾存在多余空白字符",
+                        code="SYN009",
+                    )
+                )
             # Tab 缩进
             if "\t" in line:
-                issues.append(SyntaxIssue(
-                    severity="warning",
-                    line=i,
-                    col=0,
-                    message="使用了 Tab 缩进，建议使用空格",
-                    code="SYN010",
-                ))
+                issues.append(
+                    SyntaxIssue(
+                        severity="warning",
+                        line=i,
+                        col=0,
+                        message="使用了 Tab 缩进，建议使用空格",
+                        code="SYN010",
+                    )
+                )
             # 连续空行过多
             if i > 1 and line == "" and lines[i - 2] == "" and lines[i - 3] == "":
-                issues.append(SyntaxIssue(
-                    severity="info",
-                    line=i,
-                    col=0,
-                    message="连续空行过多 (建议最多2行)",
-                    code="SYN011",
-                ))
+                issues.append(
+                    SyntaxIssue(
+                        severity="info",
+                        line=i,
+                        col=0,
+                        message="连续空行过多 (建议最多2行)",
+                        code="SYN011",
+                    )
+                )
 
         return issues

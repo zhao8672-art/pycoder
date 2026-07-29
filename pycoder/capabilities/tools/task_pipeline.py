@@ -191,9 +191,7 @@ class TaskPipeline:
         result.success = result.failed == 0
         return result
 
-    async def _execute_step(
-        self, step: PipelineStep, index: int, default_cwd: str
-    ) -> StepResult:
+    async def _execute_step(self, step: PipelineStep, index: int, default_cwd: str) -> StepResult:
         """执行单个步骤 (含重试)"""
         max_attempts = step.retries + 1
         cwd = step.working_dir or default_cwd or str(Path.cwd())
@@ -221,14 +219,18 @@ class TaskPipeline:
             try:
                 if sys.platform == "win32":
                     proc = await asyncio.create_subprocess_exec(
-                        "powershell.exe", "-Command", command,
+                        "powershell.exe",
+                        "-Command",
+                        command,
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE,
                         cwd=cwd or None,
                     )
                 else:
                     proc = await asyncio.create_subprocess_exec(
-                        "bash", "-c", command,
+                        "bash",
+                        "-c",
+                        command,
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE,
                         cwd=cwd or None,
@@ -251,11 +253,14 @@ class TaskPipeline:
                 if attempt < max_attempts:
                     logger.info(
                         "pipeline_step_retry index=%d attempt=%d/%d exit_code=%d",
-                        index, attempt, max_attempts, last_result.exit_code,
+                        index,
+                        attempt,
+                        max_attempts,
+                        last_result.exit_code,
                     )
                     await asyncio.sleep(step.retry_delay)
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 last_result.success = False
                 last_result.stderr = f"步骤超时 ({timeout}s)"
                 last_result.duration = float(timeout)
@@ -275,9 +280,7 @@ class TaskPipeline:
 
         return last_result
 
-    async def _execute_rollback(
-        self, step: PipelineStep, index: int, cwd: str
-    ) -> None:
+    async def _execute_rollback(self, step: PipelineStep, index: int, cwd: str) -> None:
         """执行回滚命令"""
         if not step.rollback_command:
             return
@@ -290,14 +293,18 @@ class TaskPipeline:
 
             if sys.platform == "win32":
                 proc = await asyncio.create_subprocess_exec(
-                    "powershell.exe", "-Command", command,
+                    "powershell.exe",
+                    "-Command",
+                    command,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd or None,
                 )
             else:
                 proc = await asyncio.create_subprocess_exec(
-                    "bash", "-c", command,
+                    "bash",
+                    "-c",
+                    command,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd or None,

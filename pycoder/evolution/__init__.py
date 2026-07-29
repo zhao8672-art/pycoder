@@ -30,15 +30,15 @@ from __future__ import annotations
 
 from .core import (
     EvolutionBrain,
-    EvolutionPipeline,
+    EvolutionConfig,
+    EvolutionMetrics,
     EvolutionPhase,
+    EvolutionPipeline,
     EvolutionReport,
     EvolutionTask,
-    EvolutionMetrics,
-    EvolutionConfig,
     get_evolution_brain,
-    get_evolution_pipeline,
     get_evolution_metrics,
+    get_evolution_pipeline,
 )
 
 __all__ = [
@@ -59,6 +59,7 @@ __all__ = [
 def register_capabilities(registry: object) -> None:
     """向 V2 能力总线注册进化引擎核心能力"""
     import logging
+
     from pycoder.bus.protocol import (
         CapabilityCategory,
         CapabilityDefinition,
@@ -152,6 +153,7 @@ def register_capabilities(registry: object) -> None:
 
 # ── 处理器实现 ──
 
+
 async def _handle_pipeline_run(params: dict, context: dict) -> dict:
     """处理 evolution.pipeline.run"""
     from .core import get_evolution_pipeline
@@ -180,7 +182,7 @@ async def _handle_pipeline_run(params: dict, context: dict) -> dict:
 
 async def _handle_pipeline_status(params: dict, context: dict) -> dict:
     """处理 evolution.pipeline.status"""
-    from .core import get_evolution_pipeline, get_evolution_metrics
+    from .core import get_evolution_metrics, get_evolution_pipeline
 
     pipeline = get_evolution_pipeline()
     metrics = get_evolution_metrics()
@@ -193,7 +195,7 @@ async def _handle_pipeline_status(params: dict, context: dict) -> dict:
 
 async def _handle_pipeline_report(params: dict, context: dict) -> dict:
     """处理 evolution.pipeline.report"""
-    from .core import get_evolution_pipeline, get_evolution_metrics
+    from .core import get_evolution_metrics, get_evolution_pipeline
 
     pipeline = get_evolution_pipeline()
     metrics = get_evolution_metrics()

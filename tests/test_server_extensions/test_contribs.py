@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-import json
-import os
-import sys
-import time
-import sqlite3
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -654,7 +648,6 @@ class TestGlobalRegistries:
         """unregister_extension_contributions 清除扩展贡献"""
         from pycoder.extensions.contributions import (
             get_command_registry,
-            get_settings_registry,
             register_extension_contributions,
             unregister_extension_contributions,
         )
@@ -682,5 +675,3 @@ class TestGlobalRegistries:
 
         cmd_reg = get_command_registry()
         assert cmd_reg.get("test.cmd") is None
-
-

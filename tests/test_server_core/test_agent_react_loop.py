@@ -1,12 +1,7 @@
 from __future__ import annotations
 
 import json
-import os
-import sys
-import time
-import sqlite3
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -132,7 +127,9 @@ class TestTryParseReActJson:
         """有效的 ReAct JSON 应正确解析"""
         from pycoder.server.services.agent_react_loop import _try_parse_react_json
 
-        data = json.dumps({"thought": "需要读文件", "action": "read_file", "action_input": {"path": "test.py"}})
+        data = json.dumps(
+            {"thought": "需要读文件", "action": "read_file", "action_input": {"path": "test.py"}}
+        )
         step = _try_parse_react_json(data, 1)
         assert step is not None
         assert step.thought == "需要读文件"
@@ -187,10 +184,12 @@ class TestTryParseToolCallsCompat:
         """有效的 tool_calls 格式应正确解析"""
         from pycoder.server.services.agent_react_loop import _try_parse_tool_calls_compat
 
-        data = json.dumps({
-            "thought": "需要读文件",
-            "tool_calls": [{"name": "read_file", "params": {"path": "test.py"}}],
-        })
+        data = json.dumps(
+            {
+                "thought": "需要读文件",
+                "tool_calls": [{"name": "read_file", "params": {"path": "test.py"}}],
+            }
+        )
         step = _try_parse_tool_calls_compat(data, 1)
         assert step is not None
         assert step.action == "read_file"
@@ -373,7 +372,13 @@ class TestReActLoop:
         from pycoder.server.services.agent_react_loop import ReActStep
 
         steps = [
-            ReActStep(thought="思考1", action="read_file", action_input={"path": "a.py"}, observation="内容", iteration=1)
+            ReActStep(
+                thought="思考1",
+                action="read_file",
+                action_input={"path": "a.py"},
+                observation="内容",
+                iteration=1,
+            )
         ]
         prompt = react_loop._build_prompt("测试任务", steps, ["初始观察"])
 
@@ -407,7 +412,9 @@ class TestReActLoop:
         """持续错误（>=3）时间隔 1"""
         from pycoder.server.services.agent_react_loop import ReActStep
 
-        steps = [ReActStep(thought="t", action="a", action_input={}, iteration=i) for i in range(10)]
+        steps = [
+            ReActStep(thought="t", action="a", action_input={}, iteration=i) for i in range(10)
+        ]
         interval = react_loop._compute_rumination_interval(steps, 3)
         assert interval == 1
 
@@ -415,8 +422,8 @@ class TestReActLoop:
         """低错误率（<20% 但 >0）时间隔 3"""
         from pycoder.server.services.agent_react_loop import ReActStep
 
-        steps = [ReActStep(thought="t", action="a", action_input={}, iteration=i) for i in range(10)]
+        steps = [
+            ReActStep(thought="t", action="a", action_input={}, iteration=i) for i in range(10)
+        ]
         interval = react_loop._compute_rumination_interval(steps, 1)  # 1/10 = 10%
         assert interval == 3
-
-

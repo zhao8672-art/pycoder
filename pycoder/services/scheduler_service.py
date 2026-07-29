@@ -28,13 +28,12 @@ class SchedulerService:
 
     async def stop(self):
         self._running = False
-        for name, task in list(self._tasks.items()):
+        for _name, task in list(self._tasks.items()):
             task.cancel()
         self._tasks.clear()
         logger.info("任务调度器已停止")
 
-    async def schedule_once(self, name: str, delay_sec: int,
-                            action: callable) -> dict:
+    async def schedule_once(self, name: str, delay_sec: int, action: callable) -> dict:
         """一次性延迟任务"""
         if name in self._tasks:
             return {"success": False, "error": f"任务名已存在: {name}"}
@@ -54,8 +53,7 @@ class SchedulerService:
         self._tasks[name] = asyncio.create_task(_run())
         return {"success": True, "message": f"任务 {name} 将在 {delay_sec}s 后执行"}
 
-    async def schedule_interval(self, name: str, interval_sec: int,
-                                action: callable) -> dict:
+    async def schedule_interval(self, name: str, interval_sec: int, action: callable) -> dict:
         """间隔重复任务"""
         if name in self._tasks:
             return {"success": False, "error": f"任务名已存在: {name}"}

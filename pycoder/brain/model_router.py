@@ -27,27 +27,29 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from pycoder.core.services.task_grader import TaskGrader, GradeLevel, get_task_grader
+from pycoder.core.services.task_grader import GradeLevel, get_task_grader
 
 logger = logging.getLogger(__name__)
 
 
 class ModelTier(StrEnum):
     """模型层级"""
-    PREMIUM = "premium"      # 深度推理
-    STANDARD = "standard"    # 标准编码
-    ECONOMY = "economy"      # 经济层
-    VISION = "vision"        # 多模态
-    LOCAL = "local"          # 本地兜底
+
+    PREMIUM = "premium"  # 深度推理
+    STANDARD = "standard"  # 标准编码
+    ECONOMY = "economy"  # 经济层
+    VISION = "vision"  # 多模态
+    LOCAL = "local"  # 本地兜底
 
 
 @dataclass
 class ModelRoute:
     """模型路由结果"""
+
     tier: ModelTier
     model: str
     fallback: str
@@ -161,16 +163,27 @@ class ModelRouter:
 
     # 多模态关键词
     VISION_KEYWORDS: list[str] = [
-        "图片", "截图", "图像", "照片", "视频", "界面",
-        "ui", "视觉", "页面设计", "样式", "前端组件",
-        "image", "screenshot", "photo", "video", "visual",
+        "图片",
+        "截图",
+        "图像",
+        "照片",
+        "视频",
+        "界面",
+        "ui",
+        "视觉",
+        "页面设计",
+        "样式",
+        "前端组件",
+        "image",
+        "screenshot",
+        "photo",
+        "video",
+        "visual",
     ]
 
     def __init__(self):
         self._grader = get_task_grader()
-        self._routing_stats: dict[str, int] = {
-            tier.value: 0 for tier in ModelTier
-        }
+        self._routing_stats: dict[str, int] = {tier.value: 0 for tier in ModelTier}
 
     def resolve(
         self,
@@ -221,7 +234,9 @@ class ModelRouter:
         self._routing_stats[tier.value] += 1
         logger.debug(
             "按难度路由: %s (评分 %.1f) → %s",
-            grade.level.name, grade.score, tier.value,
+            grade.level.name,
+            grade.score,
+            tier.value,
         )
         return route
 
@@ -234,9 +249,7 @@ class ModelRouter:
         Returns:
             ModelRoute 路由结果
         """
-        tier = self.AGENT_TIER_MAP.get(
-            agent_role.lower(), ModelTier.STANDARD
-        )
+        tier = self.AGENT_TIER_MAP.get(agent_role.lower(), ModelTier.STANDARD)
         return self._clone_route(tier)
 
     def get_fallback(self, tier: ModelTier) -> ModelRoute | None:
@@ -259,8 +272,7 @@ class ModelRouter:
             "routing_counts": dict(self._routing_stats),
             "total_routes": total,
             "distribution": {
-                tier: count / max(total, 1)
-                for tier, count in self._routing_stats.items()
+                tier: count / max(total, 1) for tier, count in self._routing_stats.items()
             },
             "available_tiers": [t.value for t in ModelTier],
         }

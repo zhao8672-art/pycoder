@@ -1,8 +1,8 @@
 """P2-修复: 沙箱 _resolve_project_root 单元测试"""
+
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 
 import pytest
@@ -14,11 +14,13 @@ class TestProjectRootResolution:
     def test_default_finds_pyproject(self, tmp_path: Path, monkeypatch) -> None:
         """默认能找到最近的 pyproject.toml 父目录."""
         import importlib
+
         (tmp_path / "pyproject.toml").write_text("[project]\nname='x'", encoding="utf-8")
         # 设置环境变量后重新加载模块，确保 _PROJECT_ROOT 使用新值
         monkeypatch.setenv("PYCODER_PROJECT_ROOT", str(tmp_path))
         # 强制重新加载模块以使用新的环境变量
         from pycoder.server.routers import code_exec
+
         importlib.reload(code_exec)
         assert code_exec._PROJECT_ROOT == tmp_path.resolve()
 
@@ -45,6 +47,7 @@ class TestSandboxEnvInjection:
 
     def test_pylogic_path_set(self) -> None:
         from pycoder.server.routers import code_exec
+
         # _PROJECT_ROOT 应该是 pyproject.toml 所在目录
         root = code_exec._PROJECT_ROOT
         assert (root / "pyproject.toml").exists()
@@ -62,11 +65,13 @@ class TestSandboxSubprocessImport:
     def test_sandbox_env_has_pythonpath(self) -> None:
         """验证 sandbox 注入的 env 中 PYTHONPATH 包含项目根."""
         from pycoder.server.routers import code_exec as ce
+
         # 验证 _PROJECT_ROOT 是绝对路径且存在
         assert ce._PROJECT_ROOT.is_absolute()
         assert ce._PROJECT_ROOT.exists()
         # 验证 _run_in_subprocess 源码中包含 PYTHONPATH 注入
         import inspect
+
         src = inspect.getsource(ce._run_in_subprocess)
         assert "PYTHONPATH" in src, "sandbox 源码应注入 PYTHONPATH"
         # 验证源码使用 _PROJECT_ROOT (变量名引用, 不需要实际路径)

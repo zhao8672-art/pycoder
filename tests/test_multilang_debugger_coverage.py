@@ -14,18 +14,13 @@ multilang_debugger.py 模块单元测试 — 覆盖率目标 >=95%
 
 from __future__ import annotations
 
-import subprocess
-from pathlib import Path
 from unittest.mock import MagicMock
-
-import pytest
 
 from pycoder.python import multilang_debugger as md_mod
 from pycoder.python.multilang_debugger import (
     MultiLangDebugger,
     get_multilang_debugger,
 )
-
 
 # ── list_debuggable ────────────────────────────────────────
 

@@ -13,12 +13,11 @@ from pycoder.memory.deep_memory import (
     MemoryStats,
 )
 
-
 # 记忆层级常量（源码中 level 为 int 1-4，无独立 MemoryLevel 枚举）
-WORKING = 1     # 工作记忆
-ITERATION = 2   # 迭代记忆
-PROJECT = 3     # 项目记忆
-GLOBAL = 4      # 全局记忆
+WORKING = 1  # 工作记忆
+ITERATION = 2  # 迭代记忆
+PROJECT = 3  # 项目记忆
+GLOBAL = 4  # 全局记忆
 
 
 class TestDeepMemorySystem:
@@ -154,9 +153,9 @@ class TestDeepMemorySystem:
         for entry in ctx.entries:
             assert entry.timestamp > 0
             # 时间戳应在存储时间段内（允许微小浮动）
-            assert t0 - 1 <= entry.timestamp <= t1 + 1, (
-                f"条目 {entry.key} 时间戳 {entry.timestamp} 不在 [{t0}, {t1}] 范围内"
-            )
+            assert (
+                t0 - 1 <= entry.timestamp <= t1 + 1
+            ), f"条目 {entry.key} 时间戳 {entry.timestamp} 不在 [{t0}, {t1}] 范围内"
 
     @pytest.mark.asyncio
     async def test_retrieve_empty(self, engine: DeepMemorySystem) -> None:

@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, ExecutionMode, SideEffect
-from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 from pycoder.capabilities.degradation import wrap_handler
+from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 
 _CT = CapabilityCategory.SELF_EVO
 
@@ -32,8 +32,16 @@ def register(registry: Any) -> None:
         "运行测试",
         "自动扫描并执行 pytest 测试，返回结构化结果（通过/失败及错误日志）",
         {
-            "test_path": {"type": "string", "default": "tests/", "description": "测试文件或目录路径"},
-            "pattern": {"type": "string", "default": "test_*.py", "description": "测试文件匹配模式"},
+            "test_path": {
+                "type": "string",
+                "default": "tests/",
+                "description": "测试文件或目录路径",
+            },
+            "pattern": {
+                "type": "string",
+                "default": "test_*.py",
+                "description": "测试文件匹配模式",
+            },
             "verbose": {"type": "boolean", "default": False},
             "timeout": {"type": "number", "default": 120, "description": "超时时间（秒）"},
             "cwd": {"type": "string", "default": ""},

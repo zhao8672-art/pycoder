@@ -7,6 +7,7 @@
   - tracing_span: OpenTelemetry 可选追踪（no-op fallback）
   - snapshot: 指标快照导出
 """
+
 from __future__ import annotations
 
 import time
@@ -15,15 +16,12 @@ from unittest.mock import patch
 import pytest
 
 from pycoder.server.services.observability import (
-    CounterData,
-    HistogramData,
     MetricsCollector,
     get_metrics,
+    tracing_span,
     track_latency,
     track_tokens,
-    tracing_span,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # MetricsCollector
@@ -134,8 +132,7 @@ class TestTrackLatency:
 
     def test_records_latency_on_success(self):
         metrics = MetricsCollector()
-        with patch("pycoder.server.services.observability.get_metrics",
-                   return_value=metrics):
+        with patch("pycoder.server.services.observability.get_metrics", return_value=metrics):
             with track_latency("test_op", labels={"tag": "x"}):
                 time.sleep(0.01)
         h = metrics.get_histogram("test_op", {"tag": "x", "error": "false"})
@@ -144,19 +141,16 @@ class TestTrackLatency:
 
     def test_records_error_on_exception(self):
         metrics = MetricsCollector()
-        with patch("pycoder.server.services.observability.get_metrics",
-                   return_value=metrics):
+        with patch("pycoder.server.services.observability.get_metrics", return_value=metrics):
             with pytest.raises(ValueError):
                 with track_latency("failing_op"):
                     raise ValueError("boom")
-        counter = metrics.get_counter("failing_op_total",
-                                       {"error": "true"})
+        counter = metrics.get_counter("failing_op_total", {"error": "true"})
         assert counter == 1
 
     def test_increments_counter(self):
         metrics = MetricsCollector()
-        with patch("pycoder.server.services.observability.get_metrics",
-                   return_value=metrics):
+        with patch("pycoder.server.services.observability.get_metrics", return_value=metrics):
             with track_latency("op"):
                 pass
         assert metrics.get_counter("op_total", {"error": "false"}) == 1
@@ -171,8 +165,7 @@ class TestTrackTokens:
 
     def test_records_token_usage(self):
         metrics = MetricsCollector()
-        with patch("pycoder.server.services.observability.get_metrics",
-                   return_value=metrics):
+        with patch("pycoder.server.services.observability.get_metrics", return_value=metrics):
             track_tokens("deepseek-chat", 100, 50)
         input_h = metrics.get_histogram("input_tokens", {"model": "deepseek-chat"})
         output_h = metrics.get_histogram("output_tokens", {"model": "deepseek-chat"})
@@ -203,6 +196,7 @@ class TestTracingSpan:
     def test_span_no_op_when_otel_unavailable(self, monkeypatch):
         """OpenTelemetry 不可用时 span 为 None（no-op）"""
         import pycoder.server.services.observability as obs
+
         monkeypatch.setattr(obs, "_tracer_available", False)
         monkeypatch.setattr(obs, "_tracer", None)
         with tracing_span("no_otel") as span:
@@ -275,10 +269,13 @@ class TestThreadSafety:
     def test_concurrent_increment(self):
         """多线程并发递增不丢数据"""
         import threading
+
         m = MetricsCollector()
+
         def worker():
             for _ in range(100):
                 m.increment("concurrent")
+
         threads = [threading.Thread(target=worker) for _ in range(10)]
         for t in threads:
             t.start()

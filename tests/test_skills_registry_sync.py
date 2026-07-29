@@ -13,7 +13,6 @@
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -28,7 +27,6 @@ from pycoder.skills.registry_client import (
     RegistrySkill,
     SyncResult,
 )
-
 
 # ═══════════════════════════════════════════════
 # Helpers
@@ -129,7 +127,7 @@ def _make_client_with_transport(transport: MockTransport) -> RegistryClient:
             response = await transport(request)
         except httpx.HTTPError as e:
             # 模拟重试
-            for attempt in range(client._max_retries):
+            for _attempt in range(client._max_retries):
                 try:
                     response = await transport(request)
                     break
@@ -221,9 +219,7 @@ class TestRegistryClientInit:
 
     def test_custom_params(self) -> None:
         """自定义参数应正确设置"""
-        client = RegistryClient(
-            "https://custom.registry", timeout=10.0, max_retries=5
-        )
+        client = RegistryClient("https://custom.registry", timeout=10.0, max_retries=5)
         assert client.registry_url == "https://custom.registry"
         assert client._timeout == 10.0
         assert client._max_retries == 5
@@ -542,7 +538,9 @@ class TestSyncFromRegistry:
         # 验证数据库
         with sqlite3.connect(str(mp._db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            rows = conn.execute("SELECT id, name, version, remote_version FROM skills ORDER BY id").fetchall()
+            rows = conn.execute(
+                "SELECT id, name, version, remote_version FROM skills ORDER BY id"
+            ).fetchall()
         assert len(rows) == 2
         assert rows[0]["id"] == "new-1"
         assert rows[0]["remote_version"] == "1.0.0"
@@ -553,16 +551,22 @@ class TestSyncFromRegistry:
         mp = clean_marketplace
         # 本地先注册一个旧版本
         sd = SkillDefinition(
-            id="exist-1", name="Old Name", version="1.0.0",
-            description="old desc", markdown_content="# old",
+            id="exist-1",
+            name="Old Name",
+            version="1.0.0",
+            description="old desc",
+            markdown_content="# old",
         )
         mp._save_skill_to_db(sd, mark_as_installed=False)
 
         # 远程推送新版本
         skills = [
             _make_registry_skill(
-                skill_id="exist-1", name="New Name", version="2.0.0",
-                description="new desc", markdown_content="# new",
+                skill_id="exist-1",
+                name="New Name",
+                version="2.0.0",
+                description="new desc",
+                markdown_content="# new",
             )
         ]
 
@@ -592,7 +596,10 @@ class TestSyncFromRegistry:
         mp = clean_marketplace
         # 本地注册一个技能
         sd = SkillDefinition(
-            id="same-1", name="Same", version="1.0.0", markdown_content="# same",
+            id="same-1",
+            name="Same",
+            version="1.0.0",
+            markdown_content="# same",
         )
         mp._save_skill_to_db(sd, mark_as_installed=False)
 
@@ -607,12 +614,16 @@ class TestSyncFromRegistry:
         assert result["unchanged"] == 1
 
     @pytest.mark.asyncio
-    async def test_sync_preserves_local_install_data(self, clean_marketplace: SkillMarketplace) -> None:
+    async def test_sync_preserves_local_install_data(
+        self, clean_marketplace: SkillMarketplace
+    ) -> None:
         """同步应保留本地 install_count/rating/installed_at/local_version"""
         mp = clean_marketplace
         # 本地安装一个技能
         sd = SkillDefinition(
-            id="preserve-1", name="Preserve", version="1.0.0",
+            id="preserve-1",
+            name="Preserve",
+            version="1.0.0",
             markdown_content="# v1",
         )
         mp._save_skill_to_db(sd, mark_as_installed=False)
@@ -629,7 +640,9 @@ class TestSyncFromRegistry:
         # 远程推送新版本
         skills = [
             _make_registry_skill(
-                skill_id="preserve-1", name="Preserve New", version="2.0.0",
+                skill_id="preserve-1",
+                name="Preserve New",
+                version="2.0.0",
                 markdown_content="# v2",
             )
         ]
@@ -660,7 +673,9 @@ class TestSyncFromRegistry:
         assert row["remote_version"] == "2.0.0"
 
     @pytest.mark.asyncio
-    async def test_sync_failed_skill_recorded_in_errors(self, clean_marketplace: SkillMarketplace) -> None:
+    async def test_sync_failed_skill_recorded_in_errors(
+        self, clean_marketplace: SkillMarketplace
+    ) -> None:
         """失败的技能应被记录在 errors 列表"""
         mp = clean_marketplace
 
@@ -722,7 +737,9 @@ class TestUpsertFromRegistry:
     """_upsert_from_registry 单元测试"""
 
     @pytest.mark.asyncio
-    async def test_upsert_new_skill_creates_record(self, clean_marketplace: SkillMarketplace) -> None:
+    async def test_upsert_new_skill_creates_record(
+        self, clean_marketplace: SkillMarketplace
+    ) -> None:
         """新技能应创建记录，installed_at 为空"""
         mp = clean_marketplace
         remote = _make_registry_skill(skill_id="new-upsert", name="New")
@@ -740,12 +757,17 @@ class TestUpsertFromRegistry:
         assert row["remote_version"] == "1.0.0"
 
     @pytest.mark.asyncio
-    async def test_upsert_existing_preserves_local_fields(self, clean_marketplace: SkillMarketplace) -> None:
+    async def test_upsert_existing_preserves_local_fields(
+        self, clean_marketplace: SkillMarketplace
+    ) -> None:
         """已存在技能应保留本地字段"""
         mp = clean_marketplace
         # 本地先注册
         sd = SkillDefinition(
-            id="preserve-2", name="Old", version="1.0.0", markdown_content="# old",
+            id="preserve-2",
+            name="Old",
+            version="1.0.0",
+            markdown_content="# old",
         )
         mp._save_skill_to_db(sd, mark_as_installed=False)
         with sqlite3.connect(str(mp._db_path)) as conn:
@@ -758,7 +780,9 @@ class TestUpsertFromRegistry:
 
         # 远程推送新版本
         remote = _make_registry_skill(
-            skill_id="preserve-2", name="New", version="2.0.0",
+            skill_id="preserve-2",
+            name="New",
+            version="2.0.0",
             markdown_content="# new",
         )
         await mp._upsert_from_registry(remote)
@@ -777,17 +801,23 @@ class TestUpsertFromRegistry:
         assert row["name"] == "New"
 
     @pytest.mark.asyncio
-    async def test_upsert_empty_remote_md_preserves_local_md(self, clean_marketplace: SkillMarketplace) -> None:
+    async def test_upsert_empty_remote_md_preserves_local_md(
+        self, clean_marketplace: SkillMarketplace
+    ) -> None:
         """远程 markdown_content 为空时应保留本地内容"""
         mp = clean_marketplace
         sd = SkillDefinition(
-            id="md-keep", name="MD", version="1.0.0",
+            id="md-keep",
+            name="MD",
+            version="1.0.0",
             markdown_content="# local content",
         )
         mp._save_skill_to_db(sd, mark_as_installed=False)
 
         remote = _make_registry_skill(
-            skill_id="md-keep", name="MD Updated", version="1.5.0",
+            skill_id="md-keep",
+            name="MD Updated",
+            version="1.5.0",
             markdown_content="",  # 远程无内容
         )
         await mp._upsert_from_registry(remote)
@@ -805,7 +835,8 @@ class TestUpsertFromRegistry:
         """新技能应写入文件系统 SKILL.md"""
         mp = clean_marketplace
         remote = _make_registry_skill(
-            skill_id="file-test", name="File",
+            skill_id="file-test",
+            name="File",
             markdown_content="# File Skill\n\nTest content.",
         )
         await mp._upsert_from_registry(remote)

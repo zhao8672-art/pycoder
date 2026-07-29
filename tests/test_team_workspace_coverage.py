@@ -15,10 +15,6 @@ team_workspace.py 模块单元测试 — 覆盖率目标 ≥80%
 
 from __future__ import annotations
 
-import json
-import time
-from pathlib import Path
-
 import pytest
 
 from pycoder.server.services.team_workspace import (
@@ -30,8 +26,8 @@ from pycoder.server.services.team_workspace import (
     get_team_workspace_manager,
 )
 
-
 # ── Fixture: 隔离的临时数据库 ──
+
 
 @pytest.fixture
 def mgr(tmp_path, monkeypatch):
@@ -39,6 +35,7 @@ def mgr(tmp_path, monkeypatch):
     db_path = tmp_path / "teams.db"
     instance = TeamWorkspaceManager.__new__(TeamWorkspaceManager)
     import threading
+
     instance._db_path = db_path
     instance._local = threading.local()
     instance._init_db()
@@ -46,6 +43,7 @@ def mgr(tmp_path, monkeypatch):
 
 
 # ── 数据模型 ──
+
 
 def test_team_workspace_dataclass_defaults():
     """TeamWorkspace 默认值"""
@@ -86,6 +84,7 @@ def test_activity_entry_fields():
 
 
 # ── 工作区管理 ──
+
 
 def test_create_workspace_returns_id_and_owner_member(mgr):
     """创建工作区返回 success+workspace_id, 创建者自动成为 owner"""
@@ -139,6 +138,7 @@ def test_delete_workspace_cascades(mgr):
 
 
 # ── 成员管理 ──
+
 
 def test_join_workspace_nonexistent_returns_error(mgr):
     """join_workspace 对不存在的工作区返回 success=False"""
@@ -207,13 +207,18 @@ def test_update_last_active_nonexistent_member(mgr):
 
 # ── 代码审查 ──
 
+
 def test_create_review_request(mgr):
     """create_review_request 写入数据库并返回 review_id"""
     r = mgr.create_workspace("W", "alice")
     result = mgr.create_review_request(
-        r["workspace_id"], "标题1", "alice",
-        file_path="a.py", code_snippet="x=1",
-        description="测试", assigned_to=["bob", "carol"],
+        r["workspace_id"],
+        "标题1",
+        "alice",
+        file_path="a.py",
+        code_snippet="x=1",
+        description="测试",
+        assigned_to=["bob", "carol"],
     )
     assert result["success"] is True
     assert "review_id" in result
@@ -309,6 +314,7 @@ def test_update_review_status_invalid(mgr):
 
 # ── 活动 Feed ──
 
+
 def test_get_activity_feed_limit(mgr):
     """get_activity_feed 默认 limit=30"""
     r = mgr.create_workspace("W", "alice")
@@ -333,6 +339,7 @@ def test_share_session(mgr):
 
 # ── 单例 ──
 
+
 def test_get_team_workspace_manager_singleton():
     """get_team_workspace_manager 返回同一个实例"""
     a = get_team_workspace_manager()
@@ -342,6 +349,7 @@ def test_get_team_workspace_manager_singleton():
 
 
 # ── _get_conn 复用 ──
+
 
 def test_get_conn_reuses_threadlocal(mgr):
     """_get_conn 在同一线程多次调用返回同一连接"""
@@ -354,6 +362,7 @@ def test_get_conn_creates_db_dir(tmp_path):
     """_get_conn 创建数据库父目录"""
     db_path = tmp_path / "sub" / "teams.db"
     import threading
+
     instance = TeamWorkspaceManager.__new__(TeamWorkspaceManager)
     instance._db_path = db_path
     instance._local = threading.local()

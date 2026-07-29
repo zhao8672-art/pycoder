@@ -12,8 +12,7 @@
 from __future__ import annotations
 
 import importlib
-import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -25,7 +24,6 @@ from pycoder.brain.specialized_agents import (
     Team,
     TeamTask,
 )
-
 
 # ── Fixtures ──────────────────────────────────────────────
 
@@ -53,10 +51,7 @@ def mock_team_mgr() -> MagicMock:
     """创建模拟的 SpecializedAgentTeam"""
     mgr = MagicMock(spec=SpecializedAgentTeam)
     # 默认返回 10 个角色配置
-    profiles = [
-        _make_mock_profile(role=r)
-        for r in AgentRole
-    ]
+    profiles = [_make_mock_profile(role=r) for r in AgentRole]
     mgr.get_all_profiles.return_value = profiles
     mgr.select_agents.return_value = profiles[:3]
     return mgr
@@ -73,6 +68,7 @@ def client_with_mgr(mock_team_mgr: MagicMock, monkeypatch) -> TestClient:
     monkeypatch.setenv("PYCODER_API_KEY", _TEST_API_KEY)
     # 强制重新加载 app 模块，让 _API_KEY_ENV 生效
     import pycoder.server.app as app_module
+
     importlib.reload(app_module)
     from pycoder.server.routers import agents_api
 
@@ -138,7 +134,7 @@ class TestSelectAgents:
         resp = client_with_mgr.post(
             "/api/agents/select",
             json={"task_description": "编写代码并测试功能"},
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -152,7 +148,7 @@ class TestSelectAgents:
         resp = client_with_mgr.post(
             "/api/agents/select",
             json={"task_description": ""},
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
         assert "task_description" in resp.json()["error"]["message"]
@@ -162,17 +158,19 @@ class TestSelectAgents:
         resp = client_with_mgr.post(
             "/api/agents/select",
             json={"task_description": "   "},
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
 
-    def test_select_agents_no_match(self, client_with_mgr: TestClient, mock_team_mgr: MagicMock) -> None:
+    def test_select_agents_no_match(
+        self, client_with_mgr: TestClient, mock_team_mgr: MagicMock
+    ) -> None:
         """测试无匹配角色时返回空列表"""
         mock_team_mgr.select_agents.return_value = []
         resp = client_with_mgr.post(
             "/api/agents/select",
             json={"task_description": "xyz_abc_123"},
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -184,7 +182,7 @@ class TestSelectAgents:
         resp = client_with_mgr.post(
             "/api/agents/select",
             json={"task_description": "设计系统架构"},
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -205,7 +203,9 @@ class TestSelectAgents:
 class TestCreateTeam:
     """创建团队端点"""
 
-    def test_create_team_success(self, client_with_mgr: TestClient, mock_team_mgr: MagicMock) -> None:
+    def test_create_team_success(
+        self, client_with_mgr: TestClient, mock_team_mgr: MagicMock
+    ) -> None:
         """测试成功创建团队"""
         mock_team = Team(
             name="测试团队",
@@ -219,7 +219,7 @@ class TestCreateTeam:
                 "name": "测试团队",
                 "roles": ["architect", "developer"],
             },
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -234,7 +234,7 @@ class TestCreateTeam:
         resp = client_with_mgr.post(
             "/api/agents/team/create",
             json={"name": "", "roles": ["developer"]},
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
         assert "团队名称" in resp.json()["error"]["message"]
@@ -244,7 +244,7 @@ class TestCreateTeam:
         resp = client_with_mgr.post(
             "/api/agents/team/create",
             json={"name": "测试", "roles": []},
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
         assert "至少需要一个角色" in resp.json()["error"]["message"]
@@ -257,7 +257,7 @@ class TestCreateTeam:
                 "name": "测试",
                 "roles": ["invalid_role", "superhero"],
             },
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -273,7 +273,7 @@ class TestCreateTeam:
                 "name": "测试",
                 "roles": ["developer", "superhero"],
             },
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -287,7 +287,9 @@ class TestCreateTeam:
 class TestAssignTask:
     """分配任务端点"""
 
-    def test_assign_task_success(self, client_with_mgr: TestClient, mock_team_mgr: MagicMock) -> None:
+    def test_assign_task_success(
+        self, client_with_mgr: TestClient, mock_team_mgr: MagicMock
+    ) -> None:
         """测试成功分配任务"""
         mock_team = MagicMock()
         mock_team.name = "测试团队"
@@ -307,7 +309,7 @@ class TestAssignTask:
                 "agent_role": "developer",
                 "task": "实现登录功能",
             },
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -316,7 +318,9 @@ class TestAssignTask:
         assert data["role"] == "developer"
         assert data["status"] == "pending"
 
-    def test_assign_task_team_not_found(self, client_with_mgr: TestClient, mock_team_mgr: MagicMock) -> None:
+    def test_assign_task_team_not_found(
+        self, client_with_mgr: TestClient, mock_team_mgr: MagicMock
+    ) -> None:
         """测试团队不存在返回 404"""
         mock_team_mgr.get_team.return_value = None
 
@@ -326,7 +330,7 @@ class TestAssignTask:
                 "agent_role": "developer",
                 "task": "任务",
             },
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 404
         assert "团队不存在" in resp.json()["error"]["message"]
@@ -339,7 +343,7 @@ class TestAssignTask:
                 "agent_role": "",
                 "task": "任务",
             },
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
         assert "agent_role" in resp.json()["error"]["message"]
@@ -352,12 +356,14 @@ class TestAssignTask:
                 "agent_role": "developer",
                 "task": "",
             },
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 400
         assert "task" in resp.json()["error"]["message"]
 
-    def test_assign_task_invalid_role(self, client_with_mgr: TestClient, mock_team_mgr: MagicMock) -> None:
+    def test_assign_task_invalid_role(
+        self, client_with_mgr: TestClient, mock_team_mgr: MagicMock
+    ) -> None:
         """测试无效角色名返回错误"""
         mock_team = Team(
             name="测试团队",
@@ -371,14 +377,16 @@ class TestAssignTask:
                 "agent_role": "superhero",
                 "task": "任务",
             },
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
         assert "无效角色" in data["error"]
 
-    def test_assign_task_role_not_in_team(self, client_with_mgr: TestClient, mock_team_mgr: MagicMock) -> None:
+    def test_assign_task_role_not_in_team(
+        self, client_with_mgr: TestClient, mock_team_mgr: MagicMock
+    ) -> None:
         """测试角色不在团队中返回错误"""
         mock_team = Team(
             name="测试团队",
@@ -392,7 +400,7 @@ class TestAssignTask:
                 "agent_role": "tester",
                 "task": "任务",
             },
-        headers=_AUTH_HEADERS,
+            headers=_AUTH_HEADERS,
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -407,7 +415,9 @@ class TestAssignTask:
 class TestTeamProgress:
     """团队进度端点"""
 
-    def test_get_progress_success(self, client_with_mgr: TestClient, mock_team_mgr: MagicMock) -> None:
+    def test_get_progress_success(
+        self, client_with_mgr: TestClient, mock_team_mgr: MagicMock
+    ) -> None:
         """测试成功获取进度"""
         mock_team = MagicMock()
         mock_team.name = "测试团队"
@@ -434,7 +444,9 @@ class TestTeamProgress:
         assert data["progress_pct"] == 60.0
         assert "tasks" in data
 
-    def test_get_progress_team_not_found(self, client_with_mgr: TestClient, mock_team_mgr: MagicMock) -> None:
+    def test_get_progress_team_not_found(
+        self, client_with_mgr: TestClient, mock_team_mgr: MagicMock
+    ) -> None:
         """测试团队不存在返回 404"""
         mock_team_mgr.get_team.return_value = None
 
@@ -442,7 +454,9 @@ class TestTeamProgress:
         assert resp.status_code == 404
         assert "团队不存在" in resp.json()["error"]["message"]
 
-    def test_get_progress_zero_tasks(self, client_with_mgr: TestClient, mock_team_mgr: MagicMock) -> None:
+    def test_get_progress_zero_tasks(
+        self, client_with_mgr: TestClient, mock_team_mgr: MagicMock
+    ) -> None:
         """测试空任务进度"""
         mock_team = MagicMock()
         mock_team.name = "空团队"

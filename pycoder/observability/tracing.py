@@ -52,29 +52,30 @@
 
 from __future__ import annotations
 
-import logging
-import os
 import contextvars
 import functools
 import inspect
+import logging
+import os
 import time
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterator
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # ── OpenTelemetry 可选导入 ──────────────────────────────
 try:
     from opentelemetry import trace
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+        OTLPSpanExporter,
+    )
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import (
         BatchSpanProcessor,
         ConsoleSpanExporter,
-    )
-    from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
-        OTLPSpanExporter,
     )
     from opentelemetry.trace import Status, StatusCode
 
@@ -98,10 +99,12 @@ except ImportError:  # pragma: no cover
 
 # ── 上下文变量（trace_id/span_id 注入日志）──
 _TRACE_ID: contextvars.ContextVar[str] = contextvars.ContextVar(
-    "trace_id", default="",
+    "trace_id",
+    default="",
 )
 _SPAN_ID: contextvars.ContextVar[str] = contextvars.ContextVar(
-    "span_id", default="",
+    "span_id",
+    default="",
 )
 
 
@@ -134,7 +137,7 @@ class TracingConfig:
 class NoOpSpan:
     """NoOp Span（OTel 不可用时使用）"""
 
-    def __enter__(self) -> "NoOpSpan":
+    def __enter__(self) -> NoOpSpan:
         return self
 
     def __exit__(self, *exc: Any) -> None:
@@ -186,10 +189,10 @@ class TracingManager:
             ...
     """
 
-    _instance: "TracingManager | None" = None
+    _instance: TracingManager | None = None
     _initialized: bool = False
 
-    def __new__(cls) -> "TracingManager":
+    def __new__(cls) -> TracingManager:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
@@ -231,9 +234,7 @@ class TracingManager:
             exporters: list = []
             if self._config.exporter_endpoint:
                 exporters.append(
-                    BatchSpanProcessor(
-                        OTLPSpanExporter(endpoint=self._config.exporter_endpoint)
-                    )
+                    BatchSpanProcessor(OTLPSpanExporter(endpoint=self._config.exporter_endpoint))
                 )
             if self._config.console_exporter:
                 exporters.append(BatchSpanProcessor(ConsoleSpanExporter()))
@@ -298,6 +299,7 @@ class TracingManager:
 
 # ── 全局单例 ────────────────────────────────────────────
 
+
 def get_tracer() -> Any:
     """获取全局 tracer 实例
 
@@ -313,6 +315,7 @@ def get_tracing_manager() -> TracingManager:
 
 
 # ── 装饰器：自动埋点 ────────────────────────────────────
+
 
 def traced(
     name: str | None = None,
@@ -332,6 +335,7 @@ def traced(
         async def my_function(...):
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         span_name = name or f"{func.__module__}.{func.__name__}"
 
@@ -463,6 +467,7 @@ def _inject_trace_context(current_span: Any) -> None:
 
 
 # ── 便捷方法 ────────────────────────────────────────────
+
 
 def is_available() -> bool:
     """OpenTelemetry SDK 是否可用"""

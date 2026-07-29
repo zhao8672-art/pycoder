@@ -1,9 +1,11 @@
 """env 模块测试 — 工具检测与安装"""
+
 from __future__ import annotations
 
 import pytest
-from pycoder.env.tool_detector import ToolDetector, ToolRequirement, ToolStatus
+
 from pycoder.env.auto_installer import AutoInstaller
+from pycoder.env.tool_detector import ToolDetector, ToolRequirement, ToolStatus
 from pycoder.env.version_checker import VersionChecker
 
 
@@ -19,33 +21,39 @@ class TestToolDetector:
         """Git 在开发环境中应该已安装"""
         detector = ToolDetector()
         statuses = detector.detect_all()
-        git_status = next(
-            (s for s in statuses if s.name == "git"), None
-        )
+        git_status = next((s for s in statuses if s.name == "git"), None)
         assert git_status is not None
         # Git 通常在开发环境中已安装
         assert git_status.installed
 
     def test_detect_single_tool(self):
-        detector = ToolDetector([ToolRequirement(
-            name="python",
-            display_name="Python",
-            required=True,
-            check_cmd="python --version",
-            min_version="3.0.0",
-        )])
+        detector = ToolDetector(
+            [
+                ToolRequirement(
+                    name="python",
+                    display_name="Python",
+                    required=True,
+                    check_cmd="python --version",
+                    min_version="3.0.0",
+                )
+            ]
+        )
         statuses = detector.detect_all()
         assert len(statuses) == 1
         assert statuses[0].installed
         assert statuses[0].meets_minimum
 
     def test_missing_tool_reported(self):
-        detector = ToolDetector([ToolRequirement(
-            name="nonexistent_tool_xyz",
-            display_name="不存在工具",
-            required=True,
-            check_cmd="nonexistent_tool_xyz --version",
-        )])
+        detector = ToolDetector(
+            [
+                ToolRequirement(
+                    name="nonexistent_tool_xyz",
+                    display_name="不存在工具",
+                    required=True,
+                    check_cmd="nonexistent_tool_xyz --version",
+                )
+            ]
+        )
         statuses = detector.detect_all()
         assert not statuses[0].installed
         assert "未找到" in statuses[0].error
@@ -109,31 +117,40 @@ class TestAutoInstaller:
 
 
 class TestVersionChecker:
-    @pytest.mark.parametrize("current,minimum,expected", [
-        ("1.2.3", "1.0.0", True),
-        ("1.0.0", "1.0.0", True),
-        ("0.9.0", "1.0.0", False),
-        ("2.0.0", "1.0.0", True),
-        ("1.0.0", "2.0.0", False),
-    ])
+    @pytest.mark.parametrize(
+        "current,minimum,expected",
+        [
+            ("1.2.3", "1.0.0", True),
+            ("1.0.0", "1.0.0", True),
+            ("0.9.0", "1.0.0", False),
+            ("2.0.0", "1.0.0", True),
+            ("1.0.0", "2.0.0", False),
+        ],
+    )
     def test_meets_minimum(self, current, minimum, expected):
         assert VersionChecker.meets_minimum(current, minimum) == expected
 
-    @pytest.mark.parametrize("v1,v2,expected", [
-        ("1.0.0", "2.0.0", -1),
-        ("2.0.0", "1.0.0", 1),
-        ("1.0.0", "1.0.0", 0),
-    ])
+    @pytest.mark.parametrize(
+        "v1,v2,expected",
+        [
+            ("1.0.0", "2.0.0", -1),
+            ("2.0.0", "1.0.0", 1),
+            ("1.0.0", "1.0.0", 0),
+        ],
+    )
     def test_compare(self, v1, v2, expected):
         assert VersionChecker.compare(v1, v2) == expected
 
-    @pytest.mark.parametrize("current,range_str,expected", [
-        ("1.5.0", ">=1.0.0,<2.0.0", True),
-        ("0.9.0", ">=1.0.0,<2.0.0", False),
-        ("2.1.0", ">=1.0.0,<2.0.0", False),
-        ("1.0.0", "==1.0.0", True),
-        ("1.0.1", "!=1.0.0", True),
-    ])
+    @pytest.mark.parametrize(
+        "current,range_str,expected",
+        [
+            ("1.5.0", ">=1.0.0,<2.0.0", True),
+            ("0.9.0", ">=1.0.0,<2.0.0", False),
+            ("2.1.0", ">=1.0.0,<2.0.0", False),
+            ("1.0.0", "==1.0.0", True),
+            ("1.0.1", "!=1.0.0", True),
+        ],
+    )
     def test_is_compatible(self, current, range_str, expected):
         assert VersionChecker.is_compatible(current, range_str) == expected
 

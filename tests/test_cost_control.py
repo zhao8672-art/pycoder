@@ -2,21 +2,18 @@
 
 验证三级 Token 预算检查、用量记录、小时重置与用量报告。
 """
+
 from __future__ import annotations
 
 import time
 from unittest.mock import MagicMock
 
-import pytest
-
 from pycoder.server.services.cost_control import (
     CostController,
     TokenBudget,
-    UsageAccumulator,
     get_cost_controller,
     reset_cost_controller,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # TestTokenBudget — 预算配置
@@ -48,9 +45,13 @@ class TestCheckBeforeCall:
     """check_before_call 三级限制检查"""
 
     def test_within_all_limits_returns_ok(self):
-        ctrl = CostController(budget=TokenBudget(
-            per_request_limit=1000, per_session_limit=5000, per_hour_limit=10000,
-        ))
+        ctrl = CostController(
+            budget=TokenBudget(
+                per_request_limit=1000,
+                per_session_limit=5000,
+                per_hour_limit=10000,
+            )
+        )
         ok, reason = ctrl.check_before_call(500)
         assert ok is True
         assert reason == ""
@@ -65,9 +66,13 @@ class TestCheckBeforeCall:
 
     def test_session_limit_exceeded(self):
         """会话累计超限"""
-        ctrl = CostController(budget=TokenBudget(
-            per_request_limit=10000, per_session_limit=3000, per_hour_limit=100000,
-        ))
+        ctrl = CostController(
+            budget=TokenBudget(
+                per_request_limit=10000,
+                per_session_limit=3000,
+                per_hour_limit=100000,
+            )
+        )
         # 先消耗 2500
         ctrl.record_usage(1500, 1000)
         assert ctrl._session.used_tokens == 2500
@@ -78,9 +83,13 @@ class TestCheckBeforeCall:
 
     def test_hour_limit_exceeded(self):
         """小时累计超限"""
-        ctrl = CostController(budget=TokenBudget(
-            per_request_limit=100000, per_session_limit=1000000, per_hour_limit=5000,
-        ))
+        ctrl = CostController(
+            budget=TokenBudget(
+                per_request_limit=100000,
+                per_session_limit=1000000,
+                per_hour_limit=5000,
+            )
+        )
         # 消耗 4500
         ctrl.record_usage(3000, 1500)
         # 再请求 600 → 4500+600=5100 > 5000
@@ -90,9 +99,13 @@ class TestCheckBeforeCall:
 
     def test_request_limit_checked_first(self):
         """单次请求限制优先于会话/小时限制检查"""
-        ctrl = CostController(budget=TokenBudget(
-            per_request_limit=100, per_session_limit=1000, per_hour_limit=10000,
-        ))
+        ctrl = CostController(
+            budget=TokenBudget(
+                per_request_limit=100,
+                per_session_limit=1000,
+                per_hour_limit=10000,
+            )
+        )
         ok, reason = ctrl.check_before_call(200)
         assert not ok
         assert "单次请求" in reason
@@ -205,9 +218,13 @@ class TestUsageReport:
         assert report["per_request_limit"] == 100_000
 
     def test_report_after_usage(self):
-        ctrl = CostController(budget=TokenBudget(
-            per_request_limit=5000, per_session_limit=10000, per_hour_limit=50000,
-        ))
+        ctrl = CostController(
+            budget=TokenBudget(
+                per_request_limit=5000,
+                per_session_limit=10000,
+                per_hour_limit=50000,
+            )
+        )
         ctrl.record_usage(200, 100)
         ctrl.record_usage(300, 150)
         report = ctrl.get_usage_report()

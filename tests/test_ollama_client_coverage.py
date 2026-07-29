@@ -23,10 +23,10 @@ import pytest
 
 from pycoder.providers import ollama_client as oc
 
-
 # ══════════════════════════════════════════════════════════
 # Mock 辅助
 # ══════════════════════════════════════════════════════════
+
 
 class MockResponse:
     """模拟 httpx 响应"""
@@ -68,8 +68,9 @@ class MockStreamCM:
 class MockAsyncClient:
     """模拟 httpx.AsyncClient"""
 
-    def __init__(self, get_resp=None, post_resp=None, delete_resp=None,
-                 stream_resp=None, stream_exc=None):
+    def __init__(
+        self, get_resp=None, post_resp=None, delete_resp=None, stream_resp=None, stream_exc=None
+    ):
         self._get = get_resp
         self._post = post_resp
         self._delete = delete_resp
@@ -112,6 +113,7 @@ def make_client_with_mock(tracker_mock=None, **kwargs):
 # LocalModel
 # ══════════════════════════════════════════════════════════
 
+
 def test_local_model_defaults():
     m = oc.LocalModel(name="test", display_name="Test")
     assert m.size == ""
@@ -121,8 +123,14 @@ def test_local_model_defaults():
 
 
 def test_local_model_to_dict():
-    m = oc.LocalModel(name="qwen:7b", display_name="Qwen", size="4GB",
-                      context_window=32768, installed=True, running=True)
+    m = oc.LocalModel(
+        name="qwen:7b",
+        display_name="Qwen",
+        size="4GB",
+        context_window=32768,
+        installed=True,
+        running=True,
+    )
     d = m.to_dict()
     assert d["name"] == "qwen:7b"
     assert d["display_name"] == "Qwen"
@@ -143,6 +151,7 @@ def test_recommended_models_list():
 # OllamaClient.__init__
 # ══════════════════════════════════════════════════════════
 
+
 def test_ollama_client_default_url():
     c = oc.OllamaClient()
     assert c.base_url == "http://localhost:11434"
@@ -162,6 +171,7 @@ def test_ollama_client_custom_url_no_slash():
 # ══════════════════════════════════════════════════════════
 # check_availability
 # ══════════════════════════════════════════════════════════
+
 
 @pytest.mark.asyncio
 async def test_check_availability_cached():
@@ -208,6 +218,7 @@ async def test_check_availability_os_error():
 # check_availability_sync
 # ══════════════════════════════════════════════════════════
 
+
 def test_check_availability_sync_success(monkeypatch):
     c = oc.OllamaClient()
     fake_resp = MagicMock()
@@ -219,6 +230,7 @@ def test_check_availability_sync_success(monkeypatch):
         return fake_resp
 
     import urllib.request
+
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
     assert c.check_availability_sync() is True
 
@@ -230,6 +242,7 @@ def test_check_availability_sync_failure(monkeypatch):
         raise OSError("refused")
 
     import urllib.request
+
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
     assert c.check_availability_sync() is False
 
@@ -241,6 +254,7 @@ def test_check_availability_sync_timeout(monkeypatch):
         raise TimeoutError("slow")
 
     import urllib.request
+
     monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
     assert c.check_availability_sync() is False
 
@@ -248,6 +262,7 @@ def test_check_availability_sync_timeout(monkeypatch):
 # ══════════════════════════════════════════════════════════
 # list_models
 # ══════════════════════════════════════════════════════════
+
 
 @pytest.mark.asyncio
 async def test_list_models_unavailable():
@@ -319,6 +334,7 @@ def test_list_recommended():
 # ══════════════════════════════════════════════════════════
 # pull_model
 # ══════════════════════════════════════════════════════════
+
 
 @pytest.mark.asyncio
 async def test_pull_model_unavailable():
@@ -396,6 +412,7 @@ async def test_pull_model_stream_error():
 # delete_model
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_delete_model_unavailable():
     c = oc.OllamaClient()
@@ -433,6 +450,7 @@ async def test_delete_model_http_error():
 # chat_stream
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_chat_stream_unavailable():
     c = oc.OllamaClient()
@@ -447,8 +465,14 @@ async def test_chat_stream_unavailable():
 async def test_chat_stream_success():
     lines = [
         json.dumps({"message": {"content": "Hello"}, "done": False}),
-        json.dumps({"message": {"content": " world"}, "done": True,
-                    "prompt_eval_count": 10, "eval_count": 5}),
+        json.dumps(
+            {
+                "message": {"content": " world"},
+                "done": True,
+                "prompt_eval_count": 10,
+                "eval_count": 5,
+            }
+        ),
     ]
     resp = MockResponse(status_code=200, lines=lines)
     c = oc.OllamaClient()
@@ -577,6 +601,7 @@ async def test_chat_stream_empty_content_not_yielded():
 # chat (非流式)
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_chat_success():
     lines = [
@@ -607,6 +632,7 @@ async def test_chat_error_event():
 # fim_complete
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_fim_complete_unavailable():
     c = oc.OllamaClient()
@@ -618,11 +644,14 @@ async def test_fim_complete_unavailable():
 
 @pytest.mark.asyncio
 async def test_fim_complete_success():
-    resp = MockResponse(status_code=200, json_data={
-        "response": "completed_code",
-        "prompt_eval_count": 5,
-        "eval_count": 3,
-    })
+    resp = MockResponse(
+        status_code=200,
+        json_data={
+            "response": "completed_code",
+            "prompt_eval_count": 5,
+            "eval_count": 3,
+        },
+    )
     c = oc.OllamaClient()
     c._available = True
     c._client = MockAsyncClient(post_resp=resp)
@@ -655,6 +684,7 @@ async def test_fim_complete_exception():
 # ══════════════════════════════════════════════════════════
 # _get_client / close / install_instructions
 # ══════════════════════════════════════════════════════════
+
 
 @pytest.mark.asyncio
 async def test_get_client_creates_new():
@@ -694,6 +724,7 @@ def test_get_install_instructions():
 # ══════════════════════════════════════════════════════════
 # NetworkSwitch
 # ══════════════════════════════════════════════════════════
+
 
 @pytest.mark.asyncio
 async def test_network_switch_stays_online(monkeypatch):
@@ -833,6 +864,7 @@ async def test_check_online_api_os_error(monkeypatch):
 # 全局单例
 # ══════════════════════════════════════════════════════════
 
+
 def test_get_ollama_client_singleton():
     oc._ollama_client = None
     c1 = oc.get_ollama_client()
@@ -856,6 +888,7 @@ def test_get_network_switch_with_bridge():
 
 # ── 异步辅助函数 ──
 
+
 async def _async_true() -> bool:
     return True
 
@@ -867,4 +900,5 @@ async def _async_false() -> bool:
 def _async_return(value: Any):
     async def _fn():
         return value
+
     return _fn

@@ -52,9 +52,11 @@ class DiscordAdapter(PlatformAdapter):
     async def start(self) -> None:
         """启动 Discord 适配器"""
         self._running = True
-        logger.info("Discord 适配器已启动 (token=%s..., prefix='%s')",
-                    self._bot_token[:8] if self._bot_token else "N/A",
-                    self._command_prefix)
+        logger.info(
+            "Discord 适配器已启动 (token=%s..., prefix='%s')",
+            self._bot_token[:8] if self._bot_token else "N/A",
+            self._command_prefix,
+        )
 
         if self._bot_token:
             self._ws_task = asyncio.create_task(self._gateway_loop())
@@ -153,9 +155,7 @@ class DiscordAdapter(PlatformAdapter):
             "channel_id": channel_id,
             "guild_id": str(guild_id) if guild_id else "",
             "author_name": (
-                f"{author_name}#{author_discriminator}"
-                if author_discriminator
-                else author_name
+                f"{author_name}#{author_discriminator}" if author_discriminator else author_name
             ),
             "author_global_name": author.get("global_name", ""),
             "is_bot": author.get("bot", False),

@@ -110,11 +110,15 @@ class IterationMemory:
     async def track_file(self, file_path: str, action: str = "modified") -> MemoryEntry:
         return await self._store("file", file_path, f"{action}: {file_path}", {"action": action})
 
-    async def track_command(self, command: str, exit_code: int = 0, output: str = "") -> MemoryEntry:
+    async def track_command(
+        self, command: str, exit_code: int = 0, output: str = ""
+    ) -> MemoryEntry:
         content = f"命令: {command} | 退出码: {exit_code}"
         if output:
             content += f" | 输出: {output[:800]}"
-        return await self._store("command", command, content, {"exit_code": exit_code, "command": command})
+        return await self._store(
+            "command", command, content, {"exit_code": exit_code, "command": command}
+        )
 
     async def track_error(self, error_message: str, resolved: bool = False) -> MemoryEntry:
         return await self._store("error", error_message, error_message, {"resolved": resolved})
@@ -125,7 +129,9 @@ class IterationMemory:
     async def track_note(self, note: str) -> MemoryEntry:
         return await self._store("note", f"note_{int(time.time())}", note, {})
 
-    async def search(self, query: str, category: str | None = None, limit: int = 20) -> list[MemoryEntry]:
+    async def search(
+        self, query: str, category: str | None = None, limit: int = 20
+    ) -> list[MemoryEntry]:
         conn = self._get_conn()
         fts_query = " OR ".join(f'"{word}"' for word in query.split() if word)
         if not fts_query:
@@ -155,7 +161,9 @@ class IterationMemory:
             WHERE category = ? AND (iteration_id = ? OR ? IS NULL)
             ORDER BY timestamp DESC LIMIT ?
         """
-        rows = conn.execute(sql, (category, self._iteration_id, self._iteration_id, limit)).fetchall()
+        rows = conn.execute(
+            sql, (category, self._iteration_id, self._iteration_id, limit)
+        ).fetchall()
         return [self._row_to_entry(r) for r in rows]
 
     async def get_all(self, limit: int = 100) -> list[MemoryEntry]:
@@ -167,7 +175,8 @@ class IterationMemory:
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM iteration_entries ORDER BY timestamp DESC LIMIT ?", (limit,),
+                "SELECT * FROM iteration_entries ORDER BY timestamp DESC LIMIT ?",
+                (limit,),
             ).fetchall()
         return [self._row_to_entry(r) for r in rows]
 
@@ -193,15 +202,23 @@ class IterationMemory:
             return "无迭代记录"
         files = [e for e in entries if e.metadata.get("category") == "file" or "file" in e.key]
         errors = [e for e in entries if e.metadata.get("category") == "error" or "error" in e.key]
-        commands = [e for e in entries if e.metadata.get("category") == "command" or "command" in e.key]
+        commands = [
+            e for e in entries if e.metadata.get("category") == "command" or "command" in e.key
+        ]
         parts: list[str] = []
         if files:
-            parts.append(f"修改文件 ({len(files)}): {', '.join(e.content[:80] for e in files[:10])}")
+            parts.append(
+                f"修改文件 ({len(files)}): {', '.join(e.content[:80] for e in files[:10])}"
+            )
         if errors:
             unresolved = [e for e in errors if not e.metadata.get("resolved", False)]
-            parts.append(f"错误 ({len(errors)}, 未解决 {len(unresolved)}): {', '.join(e.content[:80] for e in errors[:5])}")
+            parts.append(
+                f"错误 ({len(errors)}, 未解决 {len(unresolved)}): {', '.join(e.content[:80] for e in errors[:5])}"
+            )
         if commands:
-            parts.append(f"执行命令 ({len(commands)}): {', '.join(e.content[:80] for e in commands[:5])}")
+            parts.append(
+                f"执行命令 ({len(commands)}): {', '.join(e.content[:80] for e in commands[:5])}"
+            )
         if llm_provider:
             try:
                 prompt = (
@@ -232,9 +249,13 @@ class IterationMemory:
         ).fetchall()
         return {"total": total, "by_category": {r[0]: r[1] for r in cats}}
 
-    async def _store(self, category: str, key: str, content: str, metadata: dict[str, Any]) -> MemoryEntry:
+    async def _store(
+        self, category: str, key: str, content: str, metadata: dict[str, Any]
+    ) -> MemoryEntry:
         entry = MemoryEntry(
-            level=2, key=key, content=content,
+            level=2,
+            key=key,
+            content=content,
             metadata={**metadata, "category": category, "iteration_id": self._iteration_id},
             ttl=86400 * 7,
         )
@@ -243,8 +264,16 @@ class IterationMemory:
             """INSERT INTO iteration_entries
                (id, iteration_id, category, key, content, metadata, timestamp, ttl)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (entry.id, self._iteration_id, category, entry.key, entry.content,
-             json.dumps(entry.metadata, ensure_ascii=False), entry.timestamp, entry.ttl),
+            (
+                entry.id,
+                self._iteration_id,
+                category,
+                entry.key,
+                entry.content,
+                json.dumps(entry.metadata, ensure_ascii=False),
+                entry.timestamp,
+                entry.ttl,
+            ),
         )
         conn.commit()
         return entry
@@ -252,9 +281,13 @@ class IterationMemory:
     @staticmethod
     def _row_to_entry(row: sqlite3.Row) -> MemoryEntry:
         return MemoryEntry(
-            id=row["id"], level=2, key=row["key"], content=row["content"],
+            id=row["id"],
+            level=2,
+            key=row["key"],
+            content=row["content"],
             metadata=json.loads(row["metadata"]) if row["metadata"] else {},
-            timestamp=row["timestamp"], ttl=row["ttl"],
+            timestamp=row["timestamp"],
+            ttl=row["ttl"],
         )
 
     def close(self) -> None:

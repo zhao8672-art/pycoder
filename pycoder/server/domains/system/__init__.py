@@ -9,4 +9,5 @@
     - routers/dashboard_api.py
     - routers/impact_api.py
 """
+
 from __future__ import annotations

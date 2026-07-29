@@ -18,12 +18,10 @@
 from __future__ import annotations
 
 import ast
-import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
-from pycoder.contracts.base import CONTRACTS, Layer, ModuleContract, get_contract
+from pycoder.contracts.base import CONTRACTS, Layer, ModuleContract
 
 
 @dataclass
@@ -43,13 +41,9 @@ class ContractChecker:
 
     def __init__(self, contracts: list[ModuleContract] | None = None) -> None:
         self.contracts = contracts or CONTRACTS
-        self._contract_map: dict[str, ModuleContract] = {
-            c.name: c for c in self.contracts
-        }
+        self._contract_map: dict[str, ModuleContract] = {c.name: c for c in self.contracts}
 
-    def check_import(
-        self, source_module: str, imported_path: str
-    ) -> ContractViolation | None:
+    def check_import(self, source_module: str, imported_path: str) -> ContractViolation | None:
         """检查单个导入是否合规
 
         Args:
@@ -82,10 +76,7 @@ class ContractChecker:
 
         if target_contract:
             # D → C 违规
-            if (
-                contract.layer == Layer.DOMAIN
-                and target_contract.layer == Layer.COMPOSITE
-            ):
+            if contract.layer == Layer.DOMAIN and target_contract.layer == Layer.COMPOSITE:
                 return ContractViolation(
                     module=source_module,
                     imported=imported_path,
@@ -96,9 +87,9 @@ class ContractChecker:
                     ),
                 )
             # P → D/C 违规
-            if (
-                contract.layer == Layer.PLATFORM
-                and target_contract.layer in (Layer.DOMAIN, Layer.COMPOSITE)
+            if contract.layer == Layer.PLATFORM and target_contract.layer in (
+                Layer.DOMAIN,
+                Layer.COMPOSITE,
             ):
                 return ContractViolation(
                     module=source_module,
@@ -180,8 +171,7 @@ class ContractChecker:
             # 跳过 __pycache__、tests、node_modules
             parts = py_file.parts
             if any(
-                skip in parts
-                for skip in ("__pycache__", "node_modules", ".git", "dist", "build")
+                skip in parts for skip in ("__pycache__", "node_modules", ".git", "dist", "build")
             ):
                 continue
             all_violations.extend(self.check_file(py_file))
@@ -227,7 +217,6 @@ class ContractChecker:
 
 def main() -> int:
     """CLI 入口：python -m pycoder.contracts check"""
-    import sys
 
     checker = ContractChecker()
     violations = checker.check_all()

@@ -743,8 +743,16 @@ async def _tool_search_skill(params: dict) -> str:
         lines = [f"找到 {len(results)} 个匹配技能："]
         for s in results[:10]:
             name = getattr(s, "name", s.get("name", "")) if isinstance(s, dict) else s.name
-            desc = getattr(s, "description", s.get("description", "")) if isinstance(s, dict) else s.description
-            installed = getattr(s, "installed", s.get("installed", False)) if isinstance(s, dict) else s.installed
+            desc = (
+                getattr(s, "description", s.get("description", ""))
+                if isinstance(s, dict)
+                else s.description
+            )
+            installed = (
+                getattr(s, "installed", s.get("installed", False))
+                if isinstance(s, dict)
+                else s.installed
+            )
             status = "✅ 已安装" if installed else "⬇️ 未安装"
             lines.append(f"  [{status}] {name}")
             if desc:

@@ -1,7 +1,6 @@
 """P2-修复: 跨平台 shell 操作符翻译单元测试"""
-from __future__ import annotations
 
-import sys
+from __future__ import annotations
 
 import pytest
 
@@ -48,17 +47,13 @@ class TestShellTranslatorOperators:
         assert r.translated.count("}") == 2
 
     def test_or_translated_to_windows_if(self) -> None:
-        r = self.t.translate(
-            "cd /tmp || echo failed", source="linux", target="windows"
-        )
+        r = self.t.translate("cd /tmp || echo failed", source="linux", target="windows")
         assert "||" not in r.translated
         assert "$LASTEXITCODE -ne 0" in r.translated
         assert "||" in r.mappings_applied
 
     def test_pipe_preserved(self) -> None:
-        r = self.t.translate(
-            "grep foo file | head -10", source="linux", target="windows"
-        )
+        r = self.t.translate("grep foo file | head -10", source="linux", target="windows")
         assert "|" in r.translated
 
     def test_redirect_preserved(self) -> None:
@@ -66,21 +61,19 @@ class TestShellTranslatorOperators:
         assert ">" in r.translated
 
     def test_windows_to_linux_collapse(self) -> None:
-        win_cmd = 'ls ; if ($LASTEXITCODE -eq 0) { echo ok }'
+        win_cmd = "ls ; if ($LASTEXITCODE -eq 0) { echo ok }"
         r = self.t.translate(win_cmd, source="windows", target="linux")
         assert "&&" in r.translated
         assert "echo ok" in r.translated
 
     def test_windows_to_linux_or_collapse(self) -> None:
-        win_cmd = 'cd x ; if ($LASTEXITCODE -ne 0) { echo fail }'
+        win_cmd = "cd x ; if ($LASTEXITCODE -ne 0) { echo fail }"
         r = self.t.translate(win_cmd, source="windows", target="linux")
         assert "||" in r.translated
         assert "echo fail" in r.translated
 
     def test_windows_to_linux_chained(self) -> None:
-        win_cmd = (
-            "ls ; if ($LASTEXITCODE -eq 0) { echo a } ; if ($LASTEXITCODE -eq 0) { pwd }"
-        )
+        win_cmd = "ls ; if ($LASTEXITCODE -eq 0) { echo a } ; if ($LASTEXITCODE -eq 0) { pwd }"
         r = self.t.translate(win_cmd, source="windows", target="linux")
         assert "&&" in r.translated
         assert r.translated.count("&&") == 2

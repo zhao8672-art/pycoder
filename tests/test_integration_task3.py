@@ -10,13 +10,16 @@
 运行: python -m pytest test_integration_task3.py -v
 """
 
+import logging
+
 import pytest
-from datetime import datetime, timedelta
+
 from pycoder.server.models.behavior_models import (
-    UserBehavior, BehaviorLog, UserPreference, SkillSimilarity
+    BehaviorLog,
+    SkillSimilarity,
+    UserBehavior,
 )
 from pycoder.server.recommendation.engine import RecommendationEngine
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -32,18 +35,14 @@ async def test_track_user_view(db_session):
     engine = RecommendationEngine(db_session)
 
     result = await engine.track_user_behavior(
-        user_id="user-001",
-        skill_id="skill-001",
-        action="view"
+        user_id="user-001", skill_id="skill-001", action="view"
     )
 
     assert result["success"] is True
 
     # 验证数据库
     user_behavior = (
-        db_session.query(UserBehavior)
-        .filter(UserBehavior.user_id == "user-001")
-        .first()
+        db_session.query(UserBehavior).filter(UserBehavior.user_id == "user-001").first()
     )
     assert user_behavior is not None
     assert user_behavior.total_views == 1
@@ -60,15 +59,13 @@ async def test_track_user_rating(db_session):
         user_id="user-002",
         skill_id="skill-002",
         action="rate",
-        metadata={"rating": 5, "review": "很棒!"}
+        metadata={"rating": 5, "review": "很棒!"},
     )
 
     assert result["success"] is True
 
     user_behavior = (
-        db_session.query(UserBehavior)
-        .filter(UserBehavior.user_id == "user-002")
-        .first()
+        db_session.query(UserBehavior).filter(UserBehavior.user_id == "user-002").first()
     )
     assert user_behavior.total_ratings == 1
     assert user_behavior.avg_rating_score > 0
@@ -84,15 +81,11 @@ async def test_track_multiple_behaviors(db_session):
     # 追踪多个行为
     for i in range(10):
         await engine.track_user_behavior(
-            user_id="user-003",
-            skill_id=f"skill-{i:03d}",
-            action="view" if i % 2 == 0 else "click"
+            user_id="user-003", skill_id=f"skill-{i:03d}", action="view" if i % 2 == 0 else "click"
         )
 
     user_behavior = (
-        db_session.query(UserBehavior)
-        .filter(UserBehavior.user_id == "user-003")
-        .first()
+        db_session.query(UserBehavior).filter(UserBehavior.user_id == "user-003").first()
     )
 
     assert user_behavior.total_views + user_behavior.total_clicks == 10
@@ -111,36 +104,34 @@ async def test_trending_skills(db_session):
     engine = RecommendationEngine(db_session)
 
     # 先添加一些评分
-    from pycoder.server.models.cloud_models import User
     import uuid
+
+    from pycoder.server.models.cloud_models import User
 
     user = User(
         id=str(uuid.uuid4()),
         username="trending-user",
         email="trending@test.com",
-        password_hash="hash"
+        password_hash="hash",
     )
     db_session.add(user)
     db_session.flush()
 
     # 添加行为日志
-    for i in range(5):
+    for _i in range(5):
         log = BehaviorLog(
             id=str(uuid.uuid4()),
             user_behavior_id=user.id,
             skill_id="popular-skill",
             action="rate",
-            metadata={"rating": 5}
+            metadata={"rating": 5},
         )
         db_session.add(log)
 
     db_session.commit()
 
     # 获取热门技能
-    trending = await engine.get_trending_skills(
-        period_days=7,
-        limit=10
-    )
+    trending = await engine.get_trending_skills(period_days=7, limit=10)
 
     assert isinstance(trending, list)
     print(f"✓ 获取热门技能成功, 共 {len(trending)} 个")
@@ -163,7 +154,7 @@ async def test_similar_skills(db_session):
             skill_id_a="skill-base",
             skill_id_b=f"skill-{i}",
             similarity_score=0.8 - (i * 0.1),
-            reason="tags"
+            reason="tags",
         )
         db_session.add(sim)
 
@@ -186,45 +177,28 @@ async def test_similar_skills(db_session):
 @pytest.mark.asyncio
 async def test_collaborative_filtering(db_session):
     """测试协同过滤"""
-    from pycoder.server.models.cloud_models import User, SkillRating
     import uuid
+
+    from pycoder.server.models.cloud_models import SkillRating, User
 
     # 创建两个用户
     user1 = User(
-        id=str(uuid.uuid4()),
-        username="cf-user-1",
-        email="cf1@test.com",
-        password_hash="hash"
+        id=str(uuid.uuid4()), username="cf-user-1", email="cf1@test.com", password_hash="hash"
     )
     user2 = User(
-        id=str(uuid.uuid4()),
-        username="cf-user-2",
-        email="cf2@test.com",
-        password_hash="hash"
+        id=str(uuid.uuid4()), username="cf-user-2", email="cf2@test.com", password_hash="hash"
     )
     db_session.add_all([user1, user2])
     db_session.flush()
 
     # user1 和 user2 对相同技能评分相似
     for skill_id in ["s1", "s2", "s3"]:
-        rating1 = SkillRating(
-            user_id=user1.id,
-            skill_id=skill_id,
-            rating=4
-        )
-        rating2 = SkillRating(
-            user_id=user2.id,
-            skill_id=skill_id,
-            rating=5
-        )
+        rating1 = SkillRating(user_id=user1.id, skill_id=skill_id, rating=4)
+        rating2 = SkillRating(user_id=user2.id, skill_id=skill_id, rating=5)
         db_session.add_all([rating1, rating2])
 
     # user2 还评分了 s4
-    rating_new = SkillRating(
-        user_id=user2.id,
-        skill_id="s4",
-        rating=5
-    )
+    rating_new = SkillRating(user_id=user2.id, skill_id="s4", rating=5)
     db_session.add(rating_new)
     db_session.commit()
 
@@ -249,14 +223,15 @@ async def test_collaborative_filtering(db_session):
 @pytest.mark.asyncio
 async def test_personalized_recommendations(db_session):
     """测试个性化推荐"""
-    from pycoder.server.models.cloud_models import User
     import uuid
+
+    from pycoder.server.models.cloud_models import User
 
     user = User(
         id=str(uuid.uuid4()),
         username="personal-user",
         email="personal@test.com",
-        password_hash="hash"
+        password_hash="hash",
     )
     db_session.add(user)
     db_session.flush()
@@ -267,7 +242,7 @@ async def test_personalized_recommendations(db_session):
         user_id=user.id,
         total_views=100,
         total_ratings=20,
-        avg_rating_score=4.2
+        avg_rating_score=4.2,
     )
     db_session.add(behavior)
     db_session.commit()
@@ -275,10 +250,7 @@ async def test_personalized_recommendations(db_session):
     engine = RecommendationEngine(db_session)
 
     # 获取个性化推荐
-    recs = await engine.get_personalized_recommendations(
-        user_id=user.id,
-        limit=15
-    )
+    recs = await engine.get_personalized_recommendations(user_id=user.id, limit=15)
 
     assert isinstance(recs, list)
     print(f"✓ 个性化推荐成功, 生成 {len(recs)} 个推荐")
@@ -314,22 +286,17 @@ async def test_recommendation_api_endpoints(db_session):
 async def test_recommendation_performance(db_session):
     """测试推荐系统性能"""
     import time
-    from pycoder.server.models.cloud_models import User
     import uuid
 
+    from pycoder.server.models.cloud_models import User
+
     user = User(
-        id=str(uuid.uuid4()),
-        username="perf-user",
-        email="perf@test.com",
-        password_hash="hash"
+        id=str(uuid.uuid4()), username="perf-user", email="perf@test.com", password_hash="hash"
     )
     db_session.add(user)
 
     behavior = UserBehavior(
-        id=str(uuid.uuid4()),
-        user_id=user.id,
-        total_views=1000,
-        total_ratings=100
+        id=str(uuid.uuid4()), user_id=user.id, total_views=1000, total_ratings=100
     )
     db_session.add(behavior)
     db_session.commit()
@@ -355,8 +322,9 @@ def db_session():
     """创建测试数据库会话"""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
-    from pycoder.server.models.cloud_models import Base as CloudBase
+
     from pycoder.server.models.behavior_models import Base as BehaviorBase
+    from pycoder.server.models.cloud_models import Base as CloudBase
 
     # 使用内存SQLite
     engine = create_engine("sqlite:///:memory:")

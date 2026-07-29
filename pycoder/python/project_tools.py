@@ -17,8 +17,8 @@ import os
 import subprocess
 import sys
 from dataclasses import dataclass, field
-from typing import ClassVar
 from pathlib import Path
+from typing import ClassVar
 
 logger = logging.getLogger(__name__)
 

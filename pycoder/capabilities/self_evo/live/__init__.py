@@ -37,6 +37,7 @@ MAX_OBSERVATIONS_PER_SESSION = 50
 @dataclass
 class LiveObservation:
     """单次 chat 的执行观察"""
+
     task_preview: str  # 任务前 200 字
     success: bool
     rounds: int
@@ -153,7 +154,9 @@ class LiveLearner:
 
         logger.debug(
             "live_learner_reflect success_rate=%.2f clusters=%d obs=%d",
-            success_rate, len(clusters), len(recent),
+            success_rate,
+            len(clusters),
+            len(recent),
         )
 
     @staticmethod
@@ -201,13 +204,16 @@ class LiveLearner:
                     "FROM patterns ORDER BY total_count DESC LIMIT 5"
                 )
                 for row in cursor:
-                    patterns.append({
-                        "name": row[0],
-                        "success_rate": round(
-                            row[1] / max(row[2], 1), 2,
-                        ),
-                        "avg_rounds": round(row[3], 1),
-                    })
+                    patterns.append(
+                        {
+                            "name": row[0],
+                            "success_rate": round(
+                                row[1] / max(row[2], 1),
+                                2,
+                            ),
+                            "avg_rounds": round(row[3], 1),
+                        }
+                    )
                 conn.close()
             except (OSError, sqlite3.Error):
                 pass
@@ -215,10 +221,13 @@ class LiveLearner:
         return {
             "total_observations": len(self._observations),
             "recent_success_rate": (
-                sum(1 for o in self._observations[-10:] if o.success) / max(
-                    len(self._observations[-10:]), 1,
+                sum(1 for o in self._observations[-10:] if o.success)
+                / max(
+                    len(self._observations[-10:]),
+                    1,
                 )
-                if self._observations else 0
+                if self._observations
+                else 0
             ),
             "total_patterns": len(patterns),
             "patterns": patterns,
@@ -249,9 +258,7 @@ class LiveLearner:
             ]
             for pname, sc, tc, ar in patterns:
                 rate = round(sc / max(tc, 1) * 100)
-                lines.append(
-                    f"- {pname}: 成功率 {sc}/{tc} ({rate}%), 平均 {round(ar, 1)} 轮"
-                )
+                lines.append(f"- {pname}: 成功率 {sc}/{tc} ({rate}%), 平均 {round(ar, 1)} 轮")
                 # 追加可操作建议
                 if rate >= 90 and ar <= 5:
                     lines.append("  💡 高效模式 — 优先复用此工作流程")
@@ -268,7 +275,7 @@ class LiveLearner:
                 recent_success = list(cursor_tools)
                 if recent_success:
                     _avg = sum(r[1] for r in recent_success) / len(recent_success)
-                    lines.append("🛠️ **最近成功工具链** (平均 {:.1f} 轮):".format(_avg))
+                    lines.append(f"🛠️ **最近成功工具链** (平均 {_avg:.1f} 轮):")
                     for rp, rr, rm in recent_success:
                         preview = rp[:80] if rp else "(空)"
                         lines.append(f"  - [{rm}] {preview} ({rr} 轮)")

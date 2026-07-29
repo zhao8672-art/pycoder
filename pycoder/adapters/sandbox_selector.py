@@ -15,6 +15,7 @@ Docker 可用性检测：
 - 缓存 60s，避免每次执行都跑 docker info
 - 同时检查 docker CLI 与 docker daemon
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -103,9 +104,7 @@ class SandboxSelector:
         docker_required: bool | None = None,
     ) -> None:
         self._prefer = (prefer or os.getenv("PYCODER_SANDBOX", "auto")).lower()
-        self._docker_image = docker_image or os.getenv(
-            "PYCODER_DOCKER_IMAGE", "python:3.12-slim"
-        )
+        self._docker_image = docker_image or os.getenv("PYCODER_DOCKER_IMAGE", "python:3.12-slim")
         if docker_required is None:
             self._docker_required = os.getenv("PYCODER_DOCKER_REQUIRED", "false").lower() == "true"
         else:
@@ -127,22 +126,16 @@ class SandboxSelector:
             if docker_available:
                 backend = "docker"
             elif self._docker_required:
-                raise RuntimeError(
-                    f"Docker 不可用但 PYCODER_SANDBOX=docker 且 required: {reason}"
-                )
+                raise RuntimeError(f"Docker 不可用但 PYCODER_SANDBOX=docker 且 required: {reason}")
             else:
-                logger.warning(
-                    "sandbox_docker_unavailable_fallback reason=%s", reason
-                )
+                logger.warning("sandbox_docker_unavailable_fallback reason=%s", reason)
                 backend = "subprocess"
         elif self._prefer == "subprocess":
             backend = "subprocess"
         else:  # auto
             backend = "docker" if docker_available else "subprocess"
             if not docker_available:
-                logger.info(
-                    "sandbox_auto_select_subprocess reason=%s", reason
-                )
+                logger.info("sandbox_auto_select_subprocess reason=%s", reason)
 
         info = SandboxInfo(
             backend=backend,

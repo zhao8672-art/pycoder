@@ -7,12 +7,10 @@
   - ReportBuilder: 流式构建器
   - 异常路径: 错误添加、状态变更
 """
+
 from __future__ import annotations
 
 import json
-import tempfile
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -22,7 +20,6 @@ from pycoder.server.services.execution_report import (
     OperationStep,
     ReportBuilder,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 辅助函数

@@ -11,15 +11,14 @@
   - RollbackManager: 容量管理与过期清理
   - RollbackManager: 错误路径（文件不存在、快照不存在）
 """
+
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
 import pytest
 
 from pycoder.safety.rollback import RollbackManager, Snapshot
-
 
 # ══════════════════════════════════════════════════════════
 # Snapshot 数据模型测试

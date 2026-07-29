@@ -17,12 +17,10 @@ DAG 依赖调度器单元测试
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from pycoder.server.services.agent_scheduler import DAGScheduler, DAGTask
-
 
 # ══════════════════════════════════════════════════════════
 # 辅助函数
@@ -75,6 +73,7 @@ class TestDAGTask:
 
     def test_create_task_with_executor(self):
         """创建带执行器的任务"""
+
         async def my_executor(t):
             return "done"
 
@@ -395,6 +394,7 @@ class TestDAGSchedulerExecute:
     async def test_execute_empty(self):
         """执行空调度器"""
         scheduler = DAGScheduler()
+
         async def executor(task: DAGTask) -> str:
             return "never_called"
 

@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, ExecutionMode, SideEffect
-from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 from pycoder.capabilities.degradation import wrap_handler
+from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 
 _CT = CapabilityCategory.SYSTEM
 
@@ -52,8 +52,9 @@ def register(registry: Any) -> None:
 
 async def _handle_list_agent_configs(params: dict, context: dict) -> dict:
     import importlib as _il
+
     _mod = _il.import_module("pycoder.server.services.agent_definitions")
-    roles = getattr(_mod, "AGENT_ROLES")
+    roles = _mod.AGENT_ROLES
 
     agent_list = []
     for role_id, role in roles.items():

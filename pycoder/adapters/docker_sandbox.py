@@ -75,11 +75,14 @@ class DockerSandbox:
             "--cap-drop=ALL",
             "--security-opt=no-new-privileges",
             # 非 root 用户
-            "--user", "nobody:nogroup",
+            "--user",
+            "nobody:nogroup",
             # 进程/资源限制
             "--pids-limit=64",
-            "--ulimit", "nofile=64:64",
-            "--ulimit", "nproc=32:32",
+            "--ulimit",
+            "nofile=64:64",
+            "--ulimit",
+            "nproc=32:32",
         ]
 
     async def execute(self, code: str, timeout: int = 30) -> CodeExecutionResult:
@@ -99,11 +102,14 @@ class DockerSandbox:
 
             # 构建完整命令（安全参数 + 代码挂载 + 镜像 + 执行命令）
             docker_args = [
-                "docker", "run",
+                "docker",
+                "run",
                 *self._build_security_args(),
-                "-v", f"{tmp_path}:/code.py:ro",
+                "-v",
+                f"{tmp_path}:/code.py:ro",
                 self._image,
-                "python", "/code.py",
+                "python",
+                "/code.py",
             ]
 
             proc = await asyncio.create_subprocess_exec(

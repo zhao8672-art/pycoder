@@ -7,6 +7,7 @@
 4. DOT/JSON 导出
 5. 异常文件处理（语法错误、不可读）
 """
+
 from __future__ import annotations
 
 import json
@@ -166,7 +167,9 @@ def test_stats(sample_workspace):
     analyzer.build()
 
     stats = analyzer.stats()
-    assert stats["total_symbols"] >= 7  # foo, bar, caller_a, caller_b, MyClass, MyClass.method, Helper, Helper.compute
+    assert (
+        stats["total_symbols"] >= 7
+    )  # foo, bar, caller_a, caller_b, MyClass, MyClass.method, Helper, Helper.compute
     assert stats["total_references"] >= 3  # bar→foo, caller_a→foo, caller_b→bar, etc
     assert stats["files"] == 3  # a.py, b.py, c.py (bad.py 解析失败不计入符号)
 
@@ -230,7 +233,9 @@ def test_exclude_patterns():
         (tmp / ".venv" / "lib.py").write_text("def venv_func():\n    pass\n", encoding="utf-8")
         # __pycache__（应被排除）
         (tmp / "__pycache__").mkdir()
-        (tmp / "__pycache__" / "cached.py").write_text("def cached_func():\n    pass\n", encoding="utf-8")
+        (tmp / "__pycache__" / "cached.py").write_text(
+            "def cached_func():\n    pass\n", encoding="utf-8"
+        )
 
         analyzer = ImpactAnalyzer(workspace=tmp)
         analyzer.build()

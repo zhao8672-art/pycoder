@@ -18,10 +18,11 @@
     POST   /api/github/issues/{owner}/{repo}
     辅助函数: _load_token, _save_token, _clear_token, _gh_headers
 """
+
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
@@ -168,9 +169,9 @@ class TestAuth:
 
     def test_auth_success(self, client, monkeypatch):
         """认证成功"""
-        mock_resp = _make_mock_response(200, {
-            "login": "testuser", "name": "Test", "avatar_url": "http://..."
-        })
+        mock_resp = _make_mock_response(
+            200, {"login": "testuser", "name": "Test", "avatar_url": "http://..."}
+        )
         mock_client = _make_mock_async_client(get_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
         monkeypatch.setattr(github, "_save_token", MagicMock())
@@ -273,6 +274,7 @@ class TestAuth:
 def httpx_error():
     """返回 httpx.HTTPError 实例"""
     import httpx
+
     return httpx.ConnectError("connection failed")
 
 
@@ -314,8 +316,10 @@ class TestClone:
     def test_clone_timeout(self, client, monkeypatch):
         """克隆超时"""
         import subprocess as sp
+
         monkeypatch.setattr(
-            github.subprocess, "run",
+            github.subprocess,
+            "run",
             MagicMock(side_effect=sp.TimeoutExpired(cmd="git", timeout=120)),
         )
 
@@ -327,7 +331,8 @@ class TestClone:
     def test_clone_exception(self, client, monkeypatch):
         """克隆异常"""
         monkeypatch.setattr(
-            github.subprocess, "run",
+            github.subprocess,
+            "run",
             MagicMock(side_effect=RuntimeError("unexpected")),
         )
 
@@ -353,10 +358,13 @@ class TestClone:
         run_mock = MagicMock(return_value=result_mock)
         monkeypatch.setattr(github.subprocess, "run", run_mock)
 
-        resp = client.post("/api/github/clone", json={
-            "url": "https://github.com/user/repo.git",
-            "target_dir": "/tmp/custom",
-        })
+        resp = client.post(
+            "/api/github/clone",
+            json={
+                "url": "https://github.com/user/repo.git",
+                "target_dir": "/tmp/custom",
+            },
+        )
         assert resp.status_code == 200
         args = run_mock.call_args[0][0]
         assert args[3] == "/tmp/custom"
@@ -382,18 +390,26 @@ class TestCreateRepo:
 
     def test_create_repo_success(self, client, monkeypatch, with_token):
         """创建成功"""
-        mock_resp = _make_mock_response(201, {
-            "html_url": "https://github.com/user/test",
-            "clone_url": "https://github.com/user/test.git",
-            "name": "test",
-            "full_name": "user/test",
-        })
+        mock_resp = _make_mock_response(
+            201,
+            {
+                "html_url": "https://github.com/user/test",
+                "clone_url": "https://github.com/user/test.git",
+                "name": "test",
+                "full_name": "user/test",
+            },
+        )
         mock_client = _make_mock_async_client(post_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
 
-        resp = client.post("/api/github/create-repo", json={
-            "name": "test", "description": "desc", "private": True,
-        })
+        resp = client.post(
+            "/api/github/create-repo",
+            json={
+                "name": "test",
+                "description": "desc",
+                "private": True,
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -450,11 +466,14 @@ class TestPublish:
     def test_publish_success(self, client, monkeypatch, with_token, tmp_path):
         """发布成功"""
         monkeypatch.setattr(github, "WORKSPACE_ROOT", tmp_path)
-        mock_resp = _make_mock_response(201, {
-            "clone_url": "https://github.com/user/test.git",
-            "html_url": "https://github.com/user/test",
-            "full_name": "user/test",
-        })
+        mock_resp = _make_mock_response(
+            201,
+            {
+                "clone_url": "https://github.com/user/test.git",
+                "html_url": "https://github.com/user/test",
+                "full_name": "user/test",
+            },
+        )
         mock_client = _make_mock_async_client(post_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
         # git init 不存在 .git 目录
@@ -495,19 +514,26 @@ class TestPublish:
     def test_publish_with_org(self, client, monkeypatch, with_token, tmp_path):
         """发布到组织"""
         monkeypatch.setattr(github, "WORKSPACE_ROOT", tmp_path)
-        mock_resp = _make_mock_response(201, {
-            "clone_url": "https://github.com/org/test.git",
-            "html_url": "https://github.com/org/test",
-            "full_name": "org/test",
-        })
+        mock_resp = _make_mock_response(
+            201,
+            {
+                "clone_url": "https://github.com/org/test.git",
+                "html_url": "https://github.com/org/test",
+                "full_name": "org/test",
+            },
+        )
         mock_client = _make_mock_async_client(post_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
         run_mock = MagicMock(return_value=MagicMock(returncode=0, stderr=""))
         monkeypatch.setattr(github.subprocess, "run", run_mock)
 
-        resp = client.post("/api/github/publish", json={
-            "repo_name": "test", "org": "myorg",
-        })
+        resp = client.post(
+            "/api/github/publish",
+            json={
+                "repo_name": "test",
+                "org": "myorg",
+            },
+        )
         assert resp.status_code == 200
         # 验证 API URL 包含 org
         post_call = mock_client.post.call_args
@@ -516,11 +542,14 @@ class TestPublish:
     def test_publish_no_repo_name(self, client, monkeypatch, with_token, tmp_path):
         """无 repo_name → 使用工作区名"""
         monkeypatch.setattr(github, "WORKSPACE_ROOT", tmp_path)
-        mock_resp = _make_mock_response(201, {
-            "clone_url": "https://github.com/user/x.git",
-            "html_url": "https://github.com/user/x",
-            "full_name": "user/x",
-        })
+        mock_resp = _make_mock_response(
+            201,
+            {
+                "clone_url": "https://github.com/user/x.git",
+                "html_url": "https://github.com/user/x",
+                "full_name": "user/x",
+            },
+        )
         mock_client = _make_mock_async_client(post_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
         run_mock = MagicMock(return_value=MagicMock(returncode=0, stderr=""))
@@ -534,11 +563,14 @@ class TestPublish:
     def test_publish_push_failure(self, client, monkeypatch, with_token, tmp_path):
         """push 失败但仓库已创建"""
         monkeypatch.setattr(github, "WORKSPACE_ROOT", tmp_path)
-        mock_resp = _make_mock_response(201, {
-            "clone_url": "https://github.com/user/test.git",
-            "html_url": "https://github.com/user/test",
-            "full_name": "user/test",
-        })
+        mock_resp = _make_mock_response(
+            201,
+            {
+                "clone_url": "https://github.com/user/test.git",
+                "html_url": "https://github.com/user/test",
+                "full_name": "user/test",
+            },
+        )
         mock_client = _make_mock_async_client(post_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
         # git remote add 成功, checkout 成功, push 失败
@@ -581,17 +613,26 @@ class TestRepos:
 
     def test_list_repos_success(self, client, monkeypatch, with_token):
         """列表成功"""
-        mock_resp = _make_mock_response(200, [
-            {
-                "id": 1, "name": "repo1", "full_name": "user/repo1",
-                "description": "desc", "private": False,
-                "html_url": "https://github.com/user/repo1",
-                "clone_url": "https://github.com/user/repo1.git",
-                "language": "Python", "stargazers_count": 10,
-                "forks_count": 2, "open_issues_count": 1,
-                "updated_at": "2024-01-01", "default_branch": "main",
-            },
-        ])
+        mock_resp = _make_mock_response(
+            200,
+            [
+                {
+                    "id": 1,
+                    "name": "repo1",
+                    "full_name": "user/repo1",
+                    "description": "desc",
+                    "private": False,
+                    "html_url": "https://github.com/user/repo1",
+                    "clone_url": "https://github.com/user/repo1.git",
+                    "language": "Python",
+                    "stargazers_count": 10,
+                    "forks_count": 2,
+                    "open_issues_count": 1,
+                    "updated_at": "2024-01-01",
+                    "default_branch": "main",
+                },
+            ],
+        )
         mock_client = _make_mock_async_client(get_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
 
@@ -626,13 +667,21 @@ class TestRepos:
 
     def test_repo_detail_success(self, client, monkeypatch):
         """仓库详情成功"""
-        mock_resp = _make_mock_response(200, {
-            "full_name": "user/repo", "description": "desc",
-            "private": False, "html_url": "https://github.com/user/repo",
-            "language": "Python", "stargazers_count": 5,
-            "forks_count": 1, "open_issues_count": 0,
-            "default_branch": "main", "updated_at": "2024-01-01",
-        })
+        mock_resp = _make_mock_response(
+            200,
+            {
+                "full_name": "user/repo",
+                "description": "desc",
+                "private": False,
+                "html_url": "https://github.com/user/repo",
+                "language": "Python",
+                "stargazers_count": 5,
+                "forks_count": 1,
+                "open_issues_count": 0,
+                "default_branch": "main",
+                "updated_at": "2024-01-01",
+            },
+        )
         mock_client = _make_mock_async_client(get_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
 
@@ -675,15 +724,23 @@ class TestPulls:
 
     def test_list_prs_success(self, client, monkeypatch):
         """PR 列表成功"""
-        mock_resp = _make_mock_response(200, [
-            {
-                "number": 1, "title": "PR 1", "state": "open",
-                "user": {"login": "user1"}, "created_at": "2024-01-01",
-                "html_url": "https://github.com/user/repo/pull/1",
-                "head": {"ref": "feature"}, "base": {"ref": "main"},
-                "mergeable": True, "draft": False,
-            },
-        ])
+        mock_resp = _make_mock_response(
+            200,
+            [
+                {
+                    "number": 1,
+                    "title": "PR 1",
+                    "state": "open",
+                    "user": {"login": "user1"},
+                    "created_at": "2024-01-01",
+                    "html_url": "https://github.com/user/repo/pull/1",
+                    "head": {"ref": "feature"},
+                    "base": {"ref": "main"},
+                    "mergeable": True,
+                    "draft": False,
+                },
+            ],
+        )
         mock_client = _make_mock_async_client(get_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
 
@@ -716,17 +773,26 @@ class TestPulls:
 
     def test_pr_detail_success(self, client, monkeypatch):
         """PR 详情成功"""
-        mock_resp = _make_mock_response(200, {
-            "number": 1, "title": "PR 1", "body": "body",
-            "state": "open", "user": {"login": "user1"},
-            "created_at": "2024-01-01",
-            "html_url": "https://github.com/user/repo/pull/1",
-            "head": {"ref": "feature", "repo": {"full_name": "user/repo"}},
-            "base": {"ref": "main", "repo": {"full_name": "user/repo"}},
-            "mergeable": True, "merged": False,
-            "commits": 1, "changed_files": 2,
-            "additions": 10, "deletions": 5,
-        })
+        mock_resp = _make_mock_response(
+            200,
+            {
+                "number": 1,
+                "title": "PR 1",
+                "body": "body",
+                "state": "open",
+                "user": {"login": "user1"},
+                "created_at": "2024-01-01",
+                "html_url": "https://github.com/user/repo/pull/1",
+                "head": {"ref": "feature", "repo": {"full_name": "user/repo"}},
+                "base": {"ref": "main", "repo": {"full_name": "user/repo"}},
+                "mergeable": True,
+                "merged": False,
+                "commits": 1,
+                "changed_files": 2,
+                "additions": 10,
+                "deletions": 5,
+            },
+        )
         mock_client = _make_mock_async_client(get_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
 
@@ -738,13 +804,20 @@ class TestPulls:
 
     def test_pr_detail_no_repo(self, client, monkeypatch):
         """PR 详情 head.repo 为 None"""
-        mock_resp = _make_mock_response(200, {
-            "number": 1, "title": "PR", "body": "",
-            "state": "open", "user": {"login": "u"},
-            "created_at": "", "html_url": "",
-            "head": {"ref": "f", "repo": None},
-            "base": {"ref": "m", "repo": None},
-        })
+        mock_resp = _make_mock_response(
+            200,
+            {
+                "number": 1,
+                "title": "PR",
+                "body": "",
+                "state": "open",
+                "user": {"login": "u"},
+                "created_at": "",
+                "html_url": "",
+                "head": {"ref": "f", "repo": None},
+                "base": {"ref": "m", "repo": None},
+            },
+        )
         mock_client = _make_mock_async_client(get_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
 
@@ -785,15 +858,24 @@ class TestPulls:
 
     def test_create_pr_success(self, client, monkeypatch, with_token):
         """创建 PR 成功"""
-        mock_resp = _make_mock_response(201, {
-            "number": 42, "html_url": "https://github.com/user/repo/pull/42",
-        })
+        mock_resp = _make_mock_response(
+            201,
+            {
+                "number": 42,
+                "html_url": "https://github.com/user/repo/pull/42",
+            },
+        )
         mock_client = _make_mock_async_client(post_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
 
-        resp = client.post("/api/github/pulls/user/repo", json={
-            "title": "New PR", "head": "feature", "base": "main",
-        })
+        resp = client.post(
+            "/api/github/pulls/user/repo",
+            json={
+                "title": "New PR",
+                "head": "feature",
+                "base": "main",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -805,9 +887,13 @@ class TestPulls:
         mock_client = _make_mock_async_client(post_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
 
-        resp = client.post("/api/github/pulls/user/repo", json={
-            "title": "T", "head": "f",
-        })
+        resp = client.post(
+            "/api/github/pulls/user/repo",
+            json={
+                "title": "T",
+                "head": "f",
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["success"] is False
 
@@ -817,9 +903,13 @@ class TestPulls:
         mock_client.post = AsyncMock(side_effect=RuntimeError("e"))
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
 
-        resp = client.post("/api/github/pulls/user/repo", json={
-            "title": "T", "head": "f",
-        })
+        resp = client.post(
+            "/api/github/pulls/user/repo",
+            json={
+                "title": "T",
+                "head": "f",
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["success"] is False
 
@@ -834,9 +924,12 @@ class TestPulls:
         mock_client = _make_mock_async_client(put_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
 
-        resp = client.post("/api/github/pulls/user/repo/1/merge", json={
-            "merge_method": "squash",
-        })
+        resp = client.post(
+            "/api/github/pulls/user/repo/1/merge",
+            json={
+                "merge_method": "squash",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -873,22 +966,33 @@ class TestIssues:
 
     def test_list_issues_success(self, client, monkeypatch):
         """Issue 列表成功"""
-        mock_resp = _make_mock_response(200, [
-            {
-                "number": 1, "title": "Bug", "state": "open",
-                "user": {"login": "user1"}, "created_at": "2024-01-01",
-                "html_url": "https://github.com/user/repo/issues/1",
-                "comments": 3,
-                "labels": [{"name": "bug", "color": "ff0000"}],
-            },
-            # 带 pull_request 的应该被过滤
-            {
-                "number": 2, "title": "PR", "state": "open",
-                "user": {"login": "u2"}, "created_at": "",
-                "html_url": "", "comments": 0, "labels": [],
-                "pull_request": {"url": "..."},
-            },
-        ])
+        mock_resp = _make_mock_response(
+            200,
+            [
+                {
+                    "number": 1,
+                    "title": "Bug",
+                    "state": "open",
+                    "user": {"login": "user1"},
+                    "created_at": "2024-01-01",
+                    "html_url": "https://github.com/user/repo/issues/1",
+                    "comments": 3,
+                    "labels": [{"name": "bug", "color": "ff0000"}],
+                },
+                # 带 pull_request 的应该被过滤
+                {
+                    "number": 2,
+                    "title": "PR",
+                    "state": "open",
+                    "user": {"login": "u2"},
+                    "created_at": "",
+                    "html_url": "",
+                    "comments": 0,
+                    "labels": [],
+                    "pull_request": {"url": "..."},
+                },
+            ],
+        )
         mock_client = _make_mock_async_client(get_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
 
@@ -904,9 +1008,13 @@ class TestIssues:
         mock_client = _make_mock_async_client(get_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
 
-        resp = client.get("/api/github/issues/user/repo", params={
-            "labels": "bug,enhancement", "state": "closed",
-        })
+        resp = client.get(
+            "/api/github/issues/user/repo",
+            params={
+                "labels": "bug,enhancement",
+                "state": "closed",
+            },
+        )
         assert resp.status_code == 200
         get_call = mock_client.get.call_args
         assert get_call.kwargs["params"]["labels"] == "bug,enhancement"
@@ -943,15 +1051,24 @@ class TestIssues:
 
     def test_create_issue_success(self, client, monkeypatch, with_token):
         """创建 Issue 成功"""
-        mock_resp = _make_mock_response(201, {
-            "number": 5, "html_url": "https://github.com/user/repo/issues/5",
-        })
+        mock_resp = _make_mock_response(
+            201,
+            {
+                "number": 5,
+                "html_url": "https://github.com/user/repo/issues/5",
+            },
+        )
         mock_client = _make_mock_async_client(post_resp=mock_resp)
         monkeypatch.setattr(github.httpx, "AsyncClient", MagicMock(return_value=mock_client))
 
-        resp = client.post("/api/github/issues/user/repo", json={
-            "title": "Bug report", "body": "desc", "labels": ["bug"],
-        })
+        resp = client.post(
+            "/api/github/issues/user/repo",
+            json={
+                "title": "Bug report",
+                "body": "desc",
+                "labels": ["bug"],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True

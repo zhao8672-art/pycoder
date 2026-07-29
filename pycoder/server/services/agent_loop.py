@@ -27,8 +27,8 @@ from pycoder.brain.intelligent_router import (
     RoutingDecision,
     get_intelligent_router,
 )
-from pycoder.core.services.agent_parser import parse_response, validate_tool_call
 from pycoder.core.services.agent_parser import WRITE_TOOLS as WRITE_SAFE_TOOLS
+from pycoder.core.services.agent_parser import parse_response, validate_tool_call
 from pycoder.server.services.agent_strategies import AgentStrategy
 from pycoder.server.services.agent_tools import execute_agent_tool
 
@@ -101,13 +101,12 @@ class UnifiedAgentLoop:
         if self._enable_intelligent_routing:
             try:
                 # 上下文增强
-                enhanced = self._context_enhancer.process_message(
-                    message, session_id=session_id
-                )
+                enhanced = self._context_enhancer.process_message(message, session_id=session_id)
                 if enhanced.resolved_message != message:
                     logger.info(
                         "context_enhanced: original='%s' resolved='%s'",
-                        message[:50], enhanced.resolved_message[:50],
+                        message[:50],
+                        enhanced.resolved_message[:50],
                     )
 
                 # 路由决策
@@ -130,8 +129,10 @@ class UnifiedAgentLoop:
                 )
 
                 # 直接回答路径（无需 Agent 和工具）
-                if (decision.agent.primary_agent == "none"
-                        and decision.tool_plan.allow_direct_answer):
+                if (
+                    decision.agent.primary_agent == "none"
+                    and decision.tool_plan.allow_direct_answer
+                ):
                     yield {
                         "type": "status",
                         "status": "analyzing",
@@ -166,7 +167,8 @@ class UnifiedAgentLoop:
                         return
 
                     self._context_enhancer.record_assistant_response(
-                        session_id, response_text[:500],
+                        session_id,
+                        response_text[:500],
                         topic=decision.intent.task_type,
                     )
                     yield {
@@ -329,8 +331,11 @@ class UnifiedAgentLoop:
 
                 # V2: 记录反馈
                 self._record_feedback(
-                    decision, session_id, completed=True,
-                    reason="done", iterations=iteration,
+                    decision,
+                    session_id,
+                    completed=True,
+                    reason="done",
+                    iterations=iteration,
                     tool_calls=len(all_tool_calls),
                     tool_success=tool_success_count,
                     execution_time_ms=(time.monotonic() - start_time) * 1000,
@@ -403,8 +408,11 @@ class UnifiedAgentLoop:
                     done_result["routing"] = decision.to_dict()
 
                 self._record_feedback(
-                    decision, session_id, completed=True,
-                    reason="done_no_tools", iterations=iteration,
+                    decision,
+                    session_id,
+                    completed=True,
+                    reason="done_no_tools",
+                    iterations=iteration,
                     tool_calls=len(all_tool_calls),
                     tool_success=tool_success_count,
                     execution_time_ms=(time.monotonic() - start_time) * 1000,
@@ -525,8 +533,11 @@ class UnifiedAgentLoop:
 
         # V2: 记录反馈
         self._record_feedback(
-            decision, session_id, completed=False,
-            reason="max_iterations", iterations=max_iterations,
+            decision,
+            session_id,
+            completed=False,
+            reason="max_iterations",
+            iterations=max_iterations,
             tool_calls=len(all_tool_calls),
             tool_success=tool_success_count,
             execution_time_ms=(time.monotonic() - start_time) * 1000,

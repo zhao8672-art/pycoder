@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -23,15 +22,14 @@ import pytest
 
 from pycoder.python import jupyter as jupyter_mod
 from pycoder.python.jupyter import (
+    JupyterNotebook,
     NotebookCell,
     NotebookInfo,
-    JupyterNotebook,
-    execute_notebook,
     execute_cell_code,
+    execute_notebook,
     find_notebooks,
     scan_notebooks,
 )
-
 
 # ── 辅助函数 ────────────────────────────────────────────────
 
@@ -141,10 +139,13 @@ class TestJupyterNotebook:
 
     def test_load_success(self, tmp_path):
         path = tmp_path / "test.ipynb"
-        _write_notebook(path, [
-            {"cell_type": "code", "source": "print(1)", "outputs": [], "execution_count": 1},
-            {"cell_type": "markdown", "source": "# Title"},
-        ])
+        _write_notebook(
+            path,
+            [
+                {"cell_type": "code", "source": "print(1)", "outputs": [], "execution_count": 1},
+                {"cell_type": "markdown", "source": "# Title"},
+            ],
+        )
         nb = JupyterNotebook(path)
         loaded = nb.load()
         assert loaded is nb
@@ -217,10 +218,13 @@ class TestJupyterNotebook:
 
     def test_get_cell(self, tmp_path):
         path = tmp_path / "test.ipynb"
-        _write_notebook(path, [
-            {"cell_type": "code", "source": "x=1"},
-            {"cell_type": "markdown", "source": "# t"},
-        ])
+        _write_notebook(
+            path,
+            [
+                {"cell_type": "code", "source": "x=1"},
+                {"cell_type": "markdown", "source": "# t"},
+            ],
+        )
         nb = JupyterNotebook(path)
         cell = nb.get_cell(0)
         assert cell.source == "x=1"
@@ -229,21 +233,27 @@ class TestJupyterNotebook:
 
     def test_get_code_cells(self, tmp_path):
         path = tmp_path / "test.ipynb"
-        _write_notebook(path, [
-            {"cell_type": "code", "source": "x=1"},
-            {"cell_type": "markdown", "source": "# t"},
-            {"cell_type": "code", "source": "y=2"},
-        ])
+        _write_notebook(
+            path,
+            [
+                {"cell_type": "code", "source": "x=1"},
+                {"cell_type": "markdown", "source": "# t"},
+                {"cell_type": "code", "source": "y=2"},
+            ],
+        )
         nb = JupyterNotebook(path)
         code_cells = nb.get_code_cells()
         assert len(code_cells) == 2
 
     def test_get_markdown_cells(self, tmp_path):
         path = tmp_path / "test.ipynb"
-        _write_notebook(path, [
-            {"cell_type": "code", "source": "x=1"},
-            {"cell_type": "markdown", "source": "# t"},
-        ])
+        _write_notebook(
+            path,
+            [
+                {"cell_type": "code", "source": "x=1"},
+                {"cell_type": "markdown", "source": "# t"},
+            ],
+        )
         nb = JupyterNotebook(path)
         md_cells = nb.get_markdown_cells()
         assert len(md_cells) == 1
@@ -259,10 +269,13 @@ class TestJupyterNotebook:
 
     def test_add_code_cell_at_index(self, tmp_path):
         path = tmp_path / "test.ipynb"
-        _write_notebook(path, [
-            {"cell_type": "code", "source": "x=1"},
-            {"cell_type": "code", "source": "y=2"},
-        ])
+        _write_notebook(
+            path,
+            [
+                {"cell_type": "code", "source": "x=1"},
+                {"cell_type": "code", "source": "y=2"},
+            ],
+        )
         nb = JupyterNotebook(path)
         nb.load()
         nb.add_code_cell("z=3", index=0)
@@ -313,10 +326,13 @@ class TestJupyterNotebook:
 
     def test_remove_cell(self, tmp_path):
         path = tmp_path / "test.ipynb"
-        _write_notebook(path, [
-            {"cell_type": "code", "source": "x=1"},
-            {"cell_type": "code", "source": "y=2"},
-        ])
+        _write_notebook(
+            path,
+            [
+                {"cell_type": "code", "source": "x=1"},
+                {"cell_type": "code", "source": "y=2"},
+            ],
+        )
         nb = JupyterNotebook(path)
         nb.load()
         removed = nb.remove_cell(0)
@@ -326,10 +342,13 @@ class TestJupyterNotebook:
 
     def test_clear_outputs(self, tmp_path):
         path = tmp_path / "test.ipynb"
-        _write_notebook(path, [
-            {"cell_type": "code", "source": "x=1", "outputs": [{"x": 1}], "execution_count": 1},
-            {"cell_type": "markdown", "source": "# t"},
-        ])
+        _write_notebook(
+            path,
+            [
+                {"cell_type": "code", "source": "x=1", "outputs": [{"x": 1}], "execution_count": 1},
+                {"cell_type": "markdown", "source": "# t"},
+            ],
+        )
         nb = JupyterNotebook(path)
         nb.load()
         nb.clear_outputs()
@@ -338,11 +357,14 @@ class TestJupyterNotebook:
 
     def test_get_source(self, tmp_path):
         path = tmp_path / "test.ipynb"
-        _write_notebook(path, [
-            {"cell_type": "code", "source": "x=1"},
-            {"cell_type": "markdown", "source": "# t"},
-            {"cell_type": "code", "source": "y=2"},
-        ])
+        _write_notebook(
+            path,
+            [
+                {"cell_type": "code", "source": "x=1"},
+                {"cell_type": "markdown", "source": "# t"},
+                {"cell_type": "code", "source": "y=2"},
+            ],
+        )
         nb = JupyterNotebook(path)
         source = nb.get_source()
         assert "Cell 1" in source
@@ -352,10 +374,13 @@ class TestJupyterNotebook:
 
     def test_extract_context_within_limit(self, tmp_path):
         path = tmp_path / "test.ipynb"
-        _write_notebook(path, [
-            {"cell_type": "code", "source": "x=1"},
-            {"cell_type": "markdown", "source": "# Title"},
-        ])
+        _write_notebook(
+            path,
+            [
+                {"cell_type": "code", "source": "x=1"},
+                {"cell_type": "markdown", "source": "# Title"},
+            ],
+        )
         nb = JupyterNotebook(path)
         # 必须先 load() 才能填充 _cells, 否则 extract_context 访问空列表
         nb.load()
@@ -518,10 +543,13 @@ class TestFindAndScanNotebooks:
 
     def test_scan_notebooks_success(self, tmp_path):
         path = tmp_path / "test.ipynb"
-        _write_notebook(path, [
-            {"cell_type": "code", "source": "x=1"},
-            {"cell_type": "markdown", "source": "# t"},
-        ])
+        _write_notebook(
+            path,
+            [
+                {"cell_type": "code", "source": "x=1"},
+                {"cell_type": "markdown", "source": "# t"},
+            ],
+        )
         result = scan_notebooks(tmp_path)
         assert len(result) == 1
         info = result[0]

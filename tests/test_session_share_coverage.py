@@ -13,14 +13,12 @@
   - 用 AsyncMock 模拟 send_func 测试 broadcast 和 _safe_send
   - 通过 monkeypatch 重置全局单例避免污染
 """
+
 from __future__ import annotations
 
-import asyncio
 import json
 import time
 from unittest.mock import AsyncMock, MagicMock
-
-import pytest
 
 from pycoder.server import session_share as ss_mod
 from pycoder.server.session_share import (
@@ -29,10 +27,10 @@ from pycoder.server.session_share import (
     get_session_share_manager,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # FileLock
 # ══════════════════════════════════════════════════════════
+
 
 class TestFileLock:
     def test_acquire_new_lock(self):
@@ -103,6 +101,7 @@ class TestFileLock:
 # SessionShareManager - 基础方法
 # ══════════════════════════════════════════════════════════
 
+
 class TestSessionShareBasic:
     def test_join_first_client(self):
         m = SessionShareManager()
@@ -167,6 +166,7 @@ class TestSessionShareBasic:
 # SessionShareManager - broadcast / _safe_send
 # ══════════════════════════════════════════════════════════
 
+
 class TestSessionShareBroadcast:
     async def test_broadcast_single_client_skipped(self):
         """房间只有一人时不广播"""
@@ -222,6 +222,7 @@ class TestSessionShareBroadcast:
 # SessionShareManager - operation log
 # ══════════════════════════════════════════════════════════
 
+
 class TestSessionShareOperationLog:
     def test_log_operation_basic(self):
         m = SessionShareManager()
@@ -263,6 +264,7 @@ class TestSessionShareOperationLog:
 # ══════════════════════════════════════════════════════════
 # get_session_share_manager 单例
 # ══════════════════════════════════════════════════════════
+
 
 class TestGetSessionShareManager:
     def test_singleton(self, monkeypatch):

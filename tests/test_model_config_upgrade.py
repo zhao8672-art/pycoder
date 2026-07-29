@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from pycoder.server.app import app
-from pycoder.server.chat_handler import _resolve_model, _get_effective_model, _get_api_key_for_model
+from pycoder.server.chat_handler import _get_api_key_for_model, _get_effective_model, _resolve_model
 
 client = TestClient(app)
 
@@ -14,8 +14,10 @@ def test_resolve_model_uses_model_manager_recommendation(monkeypatch):
     class DummyManager:
         def auto_detect(self):
             return {"qwen": "fake-key"}
+
         def recommend(self, task_type="coding"):
             return ("qwen-coder-plus", "qwen")
+
         def get_key(self, provider: str) -> str:
             return "fake-key" if provider == "qwen" else ""
 
@@ -52,8 +54,10 @@ def test_effective_model_uses_recommended_model_when_auto(monkeypatch):
     class DummyManager:
         def auto_detect(self):
             return {"qwen": "fake-key"}
+
         def recommend(self, task_type="coding"):
             return ("qwen-coder-plus", "qwen")
+
         def get_key(self, provider: str) -> str:
             return "fake-key" if provider == "qwen" else ""
 

@@ -160,9 +160,7 @@ async def list_skills(
         }
     except Exception as e:
         log.error("skills_list_error", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"获取技能列表失败: {e}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"获取技能列表失败: {e}") from e
 
 
 # ─────────────────────────────────────────────────────────
@@ -211,9 +209,7 @@ async def search_skills(
         }
     except Exception as e:
         log.error("skills_search_error", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"搜索技能失败: {e}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"搜索技能失败: {e}") from e
 
 
 # ─────────────────────────────────────────────────────────
@@ -257,9 +253,7 @@ async def get_skill_detail(
         }
     except Exception as e:
         log.error("skills_detail_error", skill_id=skill_id, error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"获取技能详情失败: {e}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"获取技能详情失败: {e}") from e
 
 
 # ─────────────────────────────────────────────────────────
@@ -292,9 +286,7 @@ async def install_skill(
         return result
     except Exception as e:
         log.error("skills_install_error", skill_id=payload.skill_id, error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"安装技能失败: {e}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"安装技能失败: {e}") from e
 
 
 # ─────────────────────────────────────────────────────────
@@ -327,9 +319,7 @@ async def uninstall_skill(
         return result
     except Exception as e:
         log.error("skills_uninstall_error", skill_id=payload.skill_id, error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"卸载技能失败: {e}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"卸载技能失败: {e}") from e
 
 
 # ─────────────────────────────────────────────────────────
@@ -365,9 +355,7 @@ async def rate_skill(
         return result
     except Exception as e:
         log.error("skills_rate_error", skill_id=payload.skill_id, error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"评分技能失败: {e}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"评分技能失败: {e}") from e
 
 
 # ─────────────────────────────────────────────────────────
@@ -398,9 +386,7 @@ async def get_stats() -> dict:
         }
     except Exception as e:
         log.error("skills_stats_error", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"获取市场统计失败: {e}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"获取市场统计失败: {e}") from e
 
 
 __all__ = ["router"]

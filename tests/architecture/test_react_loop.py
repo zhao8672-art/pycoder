@@ -11,15 +11,15 @@
 - 提示词构建
 - 步骤序列化
 """
+
 from __future__ import annotations
 
-import asyncio
 import json
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 import pytest
 
-from pycoder.core.ports.llm_provider import LLMEvent, LLMProvider, LLMResponse
+from pycoder.core.ports.llm_provider import LLMEvent, LLMResponse
 from pycoder.server.services.agent_react_loop import (
     FINISH_ACTION,
     REACT_SYSTEM_PROMPT,
@@ -31,13 +31,14 @@ from pycoder.server.services.agent_react_loop import (
     _try_parse_tool_calls_compat,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # 测试桩
 # ══════════════════════════════════════════════════════════
 
+
 class MockLLMProvider:
     """模拟 LLM — 按预设序列返回响应"""
+
     def __init__(self, responses: list[str]) -> None:
         self._responses = list(responses)
         self._calls: list[str] = []
@@ -64,6 +65,7 @@ class MockLLMProvider:
 
 class FailingLLMProvider:
     """LLM 调用总是失败"""
+
     async def generate(self, prompt, system_prompt="", max_tokens=4096) -> LLMResponse:
         raise ConnectionError("LLM 服务不可用")
 
@@ -88,16 +90,20 @@ async def _executor_failing(name: str, params: dict) -> str:
 
 def _make_react_json(thought: str, action: str, action_input: dict | None = None) -> str:
     """生成 ReAct 格式 JSON 字符串"""
-    return json.dumps({
-        "thought": thought,
-        "action": action,
-        "action_input": action_input or {},
-    }, ensure_ascii=False)
+    return json.dumps(
+        {
+            "thought": thought,
+            "action": action,
+            "action_input": action_input or {},
+        },
+        ensure_ascii=False,
+    )
 
 
 # ══════════════════════════════════════════════════════════
 # 测试用例
 # ══════════════════════════════════════════════════════════
+
 
 class TestReActLoopTermination:
     """ReAct 循环终止条件"""
@@ -105,9 +111,11 @@ class TestReActLoopTermination:
     @pytest.mark.asyncio
     async def test_finish_terminates_immediately(self):
         """FINISH 动作立即终止，返回 thought 作为答案"""
-        llm = MockLLMProvider([
-            _make_react_json("任务已完成", FINISH_ACTION),
-        ])
+        llm = MockLLMProvider(
+            [
+                _make_react_json("任务已完成", FINISH_ACTION),
+            ]
+        )
         loop = ReActLoop(llm=llm, tool_executor=_executor_success, max_iterations=5)
         result = await loop.run("测试任务")
         assert result.success is True
@@ -120,10 +128,9 @@ class TestReActLoopTermination:
     async def test_max_iterations_termination(self):
         """达到最大迭代次数时终止"""
         # 每轮都返回 read_file，从不 FINISH
-        llm = MockLLMProvider([
-            _make_react_json("读取文件", "read_file", {"path": f"f{i}.py"})
-            for i in range(5)
-        ])
+        llm = MockLLMProvider(
+            [_make_react_json("读取文件", "read_file", {"path": f"f{i}.py"}) for i in range(5)]
+        )
         loop = ReActLoop(llm=llm, tool_executor=_executor_success, max_iterations=3)
         result = await loop.run("无限读取")
         assert result.terminated_by == "max_iterations"
@@ -135,10 +142,12 @@ class TestReActLoopTermination:
     @pytest.mark.asyncio
     async def test_finish_after_tool_observation(self):
         """工具执行后立即 FINISH"""
-        llm = MockLLMProvider([
-            _make_react_json("先读取文件", "read_file", {"path": "app.py"}),
-            _make_react_json("已获取文件内容，任务完成", FINISH_ACTION),
-        ])
+        llm = MockLLMProvider(
+            [
+                _make_react_json("先读取文件", "read_file", {"path": "app.py"}),
+                _make_react_json("已获取文件内容，任务完成", FINISH_ACTION),
+            ]
+        )
         loop = ReActLoop(llm=llm, tool_executor=_executor_success, max_iterations=5)
         result = await loop.run("读取并总结")
         assert result.success is True
@@ -162,10 +171,12 @@ class TestReActLoopObservation:
                 captured_prompts.append(prompt)
                 return await super().generate(prompt, system_prompt, max_tokens)
 
-        llm = CapturingLLM([
-            _make_react_json("查找文件", "list_files", {"path": "."}),
-            _make_react_json("完成", FINISH_ACTION),
-        ])
+        llm = CapturingLLM(
+            [
+                _make_react_json("查找文件", "list_files", {"path": "."}),
+                _make_react_json("完成", FINISH_ACTION),
+            ]
+        )
         loop = ReActLoop(llm=llm, tool_executor=_executor_success, max_iterations=5)
         await loop.run("测试观察反馈")
         # 第二轮提示词应包含第一轮的观察
@@ -175,10 +186,12 @@ class TestReActLoopObservation:
     @pytest.mark.asyncio
     async def test_observation_recorded_in_step(self):
         """步骤对象必须记录观察结果"""
-        llm = MockLLMProvider([
-            _make_react_json("读文件", "read_file", {"path": "x.py"}),
-            _make_react_json("完成", FINISH_ACTION),
-        ])
+        llm = MockLLMProvider(
+            [
+                _make_react_json("读文件", "read_file", {"path": "x.py"}),
+                _make_react_json("完成", FINISH_ACTION),
+            ]
+        )
         loop = ReActLoop(llm=llm, tool_executor=_executor_success, max_iterations=5)
         result = await loop.run("测试步骤记录")
         assert result.steps[0].observation
@@ -220,10 +233,12 @@ class TestReActLoopErrorHandling:
     @pytest.mark.asyncio
     async def test_tool_failure_records_observation_and_continues(self):
         """工具执行失败不应终止循环，而应记录观察后继续"""
-        llm = MockLLMProvider([
-            _make_react_json("读取不存在的文件", "read_file", {"path": "missing.py"}),
-            _make_react_json("文件不存在，任务完成", FINISH_ACTION),
-        ])
+        llm = MockLLMProvider(
+            [
+                _make_react_json("读取不存在的文件", "read_file", {"path": "missing.py"}),
+                _make_react_json("文件不存在，任务完成", FINISH_ACTION),
+            ]
+        )
         loop = ReActLoop(llm=llm, tool_executor=_executor_failing, max_iterations=5)
         result = await loop.run("测试容错")
         assert result.success is True
@@ -234,10 +249,12 @@ class TestReActLoopErrorHandling:
     @pytest.mark.asyncio
     async def test_parse_failure_does_not_terminate(self):
         """LLM 输出无法解析时，不终止，下一轮重试"""
-        llm = MockLLMProvider([
-            "这不是 JSON 格式，无法解析",
-            _make_react_json("修正后完成", FINISH_ACTION),
-        ])
+        llm = MockLLMProvider(
+            [
+                "这不是 JSON 格式，无法解析",
+                _make_react_json("修正后完成", FINISH_ACTION),
+            ]
+        )
         loop = ReActLoop(llm=llm, tool_executor=_executor_success, max_iterations=5)
         result = await loop.run("解析失败重试")
         assert result.success is True
@@ -294,7 +311,9 @@ class TestReActLoopParsing:
 
     def test_tool_calls_compat_parsing(self):
         """兼容旧格式 {"tool_calls":[{"name":..., "params":...}]}"""
-        json_str = '{"thought":"用旧格式","tool_calls":[{"name":"read_file","params":{"path":"a.py"}}]}'
+        json_str = (
+            '{"thought":"用旧格式","tool_calls":[{"name":"read_file","params":{"path":"a.py"}}]}'
+        )
         step = _try_parse_tool_calls_compat(json_str, iteration=2)
         assert step is not None
         assert step.action == "read_file"
@@ -310,10 +329,12 @@ class TestReActLoopParsing:
     @pytest.mark.asyncio
     async def test_loop_accepts_tool_calls_format(self):
         """ReActLoop 能处理旧 tool_calls 格式"""
-        llm = MockLLMProvider([
-            '```json\n{"thought":"旧格式","tool_calls":[{"name":"list_files","params":{}}]}\n```',
-            _make_react_json("完成", FINISH_ACTION),
-        ])
+        llm = MockLLMProvider(
+            [
+                '```json\n{"thought":"旧格式","tool_calls":[{"name":"list_files","params":{}}]}\n```',
+                _make_react_json("完成", FINISH_ACTION),
+            ]
+        )
         loop = ReActLoop(llm=llm, tool_executor=_executor_success, max_iterations=5)
         result = await loop.run("兼容旧格式")
         assert result.success is True
@@ -328,7 +349,6 @@ class TestReActLoopPrompt:
             llm=MockLLMProvider([_make_react_json("完成", FINISH_ACTION)]),
             tool_executor=_executor_success,
         )
-        import asyncio as _a
         prompt = loop._build_prompt("特殊任务 xyz", [], [])
         assert "特殊任务 xyz" in prompt
 
@@ -348,13 +368,15 @@ class TestReActLoopPrompt:
             llm=MockLLMProvider([]),
             tool_executor=_executor_success,
         )
-        steps = [ReActStep(
-            thought="历史思考",
-            action="read_file",
-            action_input={"path": "h.py"},
-            observation="历史观察 abc",
-            iteration=1,
-        )]
+        steps = [
+            ReActStep(
+                thought="历史思考",
+                action="read_file",
+                action_input={"path": "h.py"},
+                observation="历史观察 abc",
+                iteration=1,
+            )
+        ]
         prompt = loop._build_prompt("任务", steps, [])
         assert "历史思考" in prompt
         assert "read_file" in prompt
@@ -421,9 +443,11 @@ class TestReActLoopProtocolConformance:
     @pytest.mark.asyncio
     async def test_accepts_duck_typed_llm(self):
         """无需继承，只要实现 generate 方法即可"""
+
         class DuckLLM:
             async def generate(self, prompt, system_prompt="", max_tokens=4096):
                 return LLMResponse(content=_make_react_json("done", FINISH_ACTION))
+
             def stream(self, *a, **kw): ...
             def configure(self, **kw): ...
 
@@ -482,8 +506,9 @@ class TestReActLoopFeedbackIntegration:
 
         # 注入一个伪 feedback context，避免依赖真实 ExperienceBuffer
         monkeypatch.setattr(
-            loop, "_build_feedback_context",
-            lambda task: "## 历史失败教训（避免重复犯错）\n- 失败原因: 注入标记 marker_456"
+            loop,
+            "_build_feedback_context",
+            lambda task: "## 历史失败教训（避免重复犯错）\n- 失败原因: 注入标记 marker_456",
         )
         await loop.run("任意任务")
         assert any("marker_456" in p for p in captured)
@@ -497,6 +522,7 @@ class TestReActLoopFeedbackIntegration:
 
         # 模拟导入失败：让 import 语句抛 ImportError
         import builtins
+
         original_import = builtins.__import__
 
         def failing_import(name, *args, **kwargs):

@@ -10,14 +10,9 @@ project_tools.py 模块单元测试 — 覆盖率目标 >=80%
 
 from __future__ import annotations
 
-import asyncio
 import json
-import os
 import textwrap
-from pathlib import Path
 from unittest.mock import MagicMock
-
-import pytest
 
 import pycoder.python.project_tools as pt_mod
 from pycoder.python.project_tools import (
@@ -34,7 +29,6 @@ from pycoder.python.project_tools import (
     run_tests,
     scaffold_project,
 )
-
 
 # ── 数据模型 ──────────────────────────────────────────────
 
@@ -121,14 +115,18 @@ def test_get_installed_packages_returncode_nonzero(monkeypatch):
 
 def test_get_installed_packages_subprocess_error(monkeypatch):
     import subprocess as sp
+
     def raise_err(*a, **k):
         raise sp.SubprocessError("fail")
+
     monkeypatch.setattr(pt_mod.subprocess, "run", raise_err)
     assert DependencyManager()._get_installed_packages() == set()
 
 
 def test_get_installed_packages_json_error(monkeypatch):
-    monkeypatch.setattr(pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(stdout="not json"))
+    monkeypatch.setattr(
+        pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(stdout="not json")
+    )
     assert DependencyManager()._get_installed_packages() == set()
 
 
@@ -271,6 +269,7 @@ def test_install_missing_packages_failure(monkeypatch):
 def test_install_missing_packages_exception(monkeypatch):
     def raise_err(*a, **k):
         raise RuntimeError("boom")
+
     monkeypatch.setattr(pt_mod.subprocess, "run", raise_err)
     dm = DependencyManager()
     result = dm.install_missing_packages(["err_pkg"])
@@ -330,8 +329,10 @@ def test_get_installed_packages_with_versions_success(monkeypatch):
 
 def test_get_installed_packages_with_versions_failure(monkeypatch):
     import subprocess as sp
+
     def raise_err(*a, **k):
         raise sp.SubprocessError("fail")
+
     monkeypatch.setattr(pt_mod.subprocess, "run", raise_err)
     assert DependencyManager()._get_installed_packages_with_versions() == {}
 
@@ -340,9 +341,11 @@ def test_get_installed_packages_with_versions_failure(monkeypatch):
 
 
 def test_check_outdated_packages_success(monkeypatch):
-    stdout = json.dumps([
-        {"name": "requests", "version": "1.0", "latest_version": "2.0"},
-    ])
+    stdout = json.dumps(
+        [
+            {"name": "requests", "version": "1.0", "latest_version": "2.0"},
+        ]
+    )
     monkeypatch.setattr(pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(stdout=stdout))
     result = DependencyManager()._check_outdated_packages()
     assert len(result) == 1
@@ -357,7 +360,9 @@ def test_check_outdated_packages_failure(monkeypatch):
 
 
 def test_check_outdated_packages_json_error(monkeypatch):
-    monkeypatch.setattr(pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(stdout="bad json"))
+    monkeypatch.setattr(
+        pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(stdout="bad json")
+    )
     assert DependencyManager()._check_outdated_packages() == []
 
 
@@ -390,7 +395,8 @@ def test_parse_pyproject_with_deps(tmp_path):
     # 但逐行解析时不处理 TOML 的 key = "value" 语法 (会误将 'flask = "*' 当作键)。
     # 解析器实际期望 requirements.txt 风格的行 (pkg>=ver / pkg==ver / pkg)。
     pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text(textwrap.dedent('''
+    pyproject.write_text(
+        textwrap.dedent("""
         [project]
         name = "test"
 
@@ -398,7 +404,9 @@ def test_parse_pyproject_with_deps(tmp_path):
         requests>=2.0.0
         numpy==1.0.0
         flask
-    '''), encoding="utf-8")
+    """),
+        encoding="utf-8",
+    )
     dm = DependencyManager(tmp_path)
     result = dm._parse_pyproject()
     assert "requests" in result
@@ -427,10 +435,12 @@ def test_parse_pyproject_no_deps_section(tmp_path):
 def test_find_unused_packages(monkeypatch, tmp_path):
     (tmp_path / "mod.py").write_text("import requests\n", encoding="utf-8")
     # 已安装 requests 和 unused_pkg
-    stdout = json.dumps([
-        {"name": "requests", "version": "2.0.0"},
-        {"name": "unused_pkg", "version": "1.0.0"},
-    ])
+    stdout = json.dumps(
+        [
+            {"name": "requests", "version": "2.0.0"},
+            {"name": "unused_pkg", "version": "1.0.0"},
+        ]
+    )
     monkeypatch.setattr(pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(stdout=stdout))
     dm = DependencyManager(tmp_path)
     result = dm.find_unused_packages()
@@ -455,9 +465,11 @@ def test_analyze_dependencies_full(monkeypatch, tmp_path):
     # pip list 返回 requests 已安装
     installed_stdout = json.dumps([{"name": "requests", "version": "2.0.0"}])
     # pip list --outdated 返回 requests 过期
-    outdated_stdout = json.dumps([
-        {"name": "requests", "version": "2.0.0", "latest_version": "3.0.0"},
-    ])
+    outdated_stdout = json.dumps(
+        [
+            {"name": "requests", "version": "2.0.0", "latest_version": "3.0.0"},
+        ]
+    )
 
     call_count = {"n": 0}
 
@@ -484,12 +496,14 @@ def test_analyze_dependencies_no_config_files(monkeypatch, tmp_path):
     (tmp_path / "mod.py").write_text("import requests\n", encoding="utf-8")
     stdout = json.dumps([{"name": "requests", "version": "2.0.0"}])
     outdated_stdout = json.dumps([])
+
     def mock_run(*args, **kwargs):
         cmd = args[0] if args else kwargs.get("args", [])
         cmd_str = " ".join(str(c) for c in cmd) if isinstance(cmd, list) else str(cmd)
         if "--outdated" in cmd_str:
             return _mock_completed(stdout=outdated_stdout)
         return _mock_completed(stdout=stdout)
+
     monkeypatch.setattr(pt_mod.subprocess, "run", mock_run)
     dm = DependencyManager(tmp_path)
     result = dm.analyze_dependencies()
@@ -594,7 +608,9 @@ async def test_run_pytest_success(monkeypatch, tmp_path):
     # 且期望 token 形如 "5passed" (无空格)。真实 pytest 输出 "1 passed in 0.5s"
     # 仅含 "passed" 不含 "failed", 因此 passed 计数保持为 0。
     output = "test_a.py .\n1 passed in 0.5s"
-    monkeypatch.setattr(pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(returncode=0, stdout=output))
+    monkeypatch.setattr(
+        pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(returncode=0, stdout=output)
+    )
     tr = TestRunner(tmp_path)
     result = await tr.run_pytest()
     assert result.success is True  # returncode == 0
@@ -607,7 +623,9 @@ async def test_run_pytest_with_failures(monkeypatch, tmp_path):
     # 解析器 split() 得到 "skipped" token (无逗号), endswith("skipped") 为真,
     # part[:-7] = "" → int("") 抛出 ValueError, 被外层 except 捕获为失败。
     output = "2 passed, 1 failed, 1 errors, 3 skipped in 1.2s"
-    monkeypatch.setattr(pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(returncode=1, stdout=output))
+    monkeypatch.setattr(
+        pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(returncode=1, stdout=output)
+    )
     tr = TestRunner(tmp_path)
     result = await tr.run_pytest()
     assert result.success is False  # ValueError 被外层 except 捕获
@@ -618,6 +636,7 @@ async def test_run_pytest_with_failures(monkeypatch, tmp_path):
 async def test_run_pytest_file_not_found(monkeypatch, tmp_path):
     def raise_fnf(*a, **k):
         raise FileNotFoundError("pytest")
+
     monkeypatch.setattr(pt_mod.subprocess, "run", raise_fnf)
     tr = TestRunner(tmp_path)
     result = await tr.run_pytest()
@@ -628,6 +647,7 @@ async def test_run_pytest_file_not_found(monkeypatch, tmp_path):
 async def test_run_pytest_general_exception(monkeypatch, tmp_path):
     def raise_err(*a, **k):
         raise RuntimeError("boom")
+
     monkeypatch.setattr(pt_mod.subprocess, "run", raise_err)
     tr = TestRunner(tmp_path)
     result = await tr.run_pytest()
@@ -637,7 +657,9 @@ async def test_run_pytest_general_exception(monkeypatch, tmp_path):
 
 async def test_run_pytest_with_coverage(monkeypatch, tmp_path):
     output = "1 passed in 0.1s"
-    monkeypatch.setattr(pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(returncode=0, stdout=output))
+    monkeypatch.setattr(
+        pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(returncode=0, stdout=output)
+    )
     tr = TestRunner(tmp_path)
     result = await tr.run_pytest(coverage=True)
     assert result.success is True
@@ -645,7 +667,9 @@ async def test_run_pytest_with_coverage(monkeypatch, tmp_path):
 
 async def test_run_pytest_invalid_duration(monkeypatch, tmp_path):
     output = "1 passed in abc s"
-    monkeypatch.setattr(pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(returncode=0, stdout=output))
+    monkeypatch.setattr(
+        pt_mod.subprocess, "run", lambda *a, **k: _mock_completed(returncode=0, stdout=output)
+    )
     tr = TestRunner(tmp_path)
     result = await tr.run_pytest()
     assert result.success is True
@@ -713,9 +737,11 @@ def test_create_project_library(tmp_path):
 
 def test_create_project_exception(monkeypatch, tmp_path):
     ps = ProjectScaffold(tmp_path)
+
     # 让 _create_files 抛出异常
     def raise_error(*args, **kwargs):
         raise RuntimeError("boom")
+
     monkeypatch.setattr(ps, "_create_files", raise_error)
     result = ps.create_project("test", "library")
     assert result.success is False
@@ -751,7 +777,9 @@ def test_extract_imports_from_code_ast():
     # 但 Python ast 中 ImportFrom 的 level 对绝对导入为 0 (非 None),
     # 因此所有 `from X import Y` (绝对导入) 被错误跳过。
     # 仅 ast.Import 节点能被正确提取。
-    code = "import requests\nimport numpy as np\nfrom fastapi import FastAPI\nfrom PIL import Image\n"
+    code = (
+        "import requests\nimport numpy as np\nfrom fastapi import FastAPI\nfrom PIL import Image\n"
+    )
     result = _extract_imports_from_code(code)
     assert result["requests"] == "requests"
     assert result["numpy"] == "numpy"
@@ -882,7 +910,7 @@ async def test_auto_dep_agent_timeout(monkeypatch):
     )
 
     async def mock_wait_for_timeout(coro, timeout):
-        raise asyncio.TimeoutError()
+        raise TimeoutError()
 
     monkeypatch.setattr(pt_mod.asyncio, "wait_for", mock_wait_for_timeout)
     code = "import requests\n"
@@ -954,8 +982,10 @@ async def test_auto_dep_agent_ws_send_error(monkeypatch):
 async def test_auto_dep_agent_pip_list_failure(monkeypatch):
     """pip list 失败时 installed_pkgs 为空集"""
     import subprocess as sp
+
     def raise_err(*a, **k):
         raise sp.SubprocessError("fail")
+
     monkeypatch.setattr(pt_mod.subprocess, "run", raise_err)
     monkeypatch.setattr(
         pt_mod.asyncio,

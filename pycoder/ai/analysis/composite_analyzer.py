@@ -22,18 +22,18 @@ import logging
 import time
 from dataclasses import dataclass
 
-from pycoder.ai.analysis.syntax_analyzer import SyntaxAnalyzer
-from pycoder.ai.analysis.semantic_analyzer import SemanticAnalyzer
-from pycoder.ai.analysis.structural_analyzer import StructuralAnalyzer
 from pycoder.ai.analysis.architectural_analyzer import ArchitecturalAnalyzer
 from pycoder.ai.analysis.behavioral_analyzer import BehavioralAnalyzer
+from pycoder.ai.analysis.semantic_analyzer import SemanticAnalyzer
+from pycoder.ai.analysis.structural_analyzer import StructuralAnalyzer
+from pycoder.ai.analysis.syntax_analyzer import SyntaxAnalyzer
+from pycoder.ai.interface.base import ICodeAnalyzer
 from pycoder.ai.interface.types import (
     AnalysisDepth,
     AnalysisResult,
     CodeAnalysisRequest,
     ProviderCapability,
 )
-from pycoder.ai.interface.base import ICodeAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class AnalysisPipeline:
     labels: list[str]
 
     @classmethod
-    def for_depth(cls, depth: AnalysisDepth) -> "AnalysisPipeline":
+    def for_depth(cls, depth: AnalysisDepth) -> AnalysisPipeline:
         """根据所需深度构建流水线"""
         if depth == AnalysisDepth.SYNTAX:
             return cls(
@@ -65,8 +65,12 @@ class AnalysisPipeline:
             )
         if depth == AnalysisDepth.ARCHITECTURAL:
             return cls(
-                depths=[AnalysisDepth.SYNTAX, AnalysisDepth.SEMANTIC,
-                        AnalysisDepth.STRUCTURAL, AnalysisDepth.ARCHITECTURAL],
+                depths=[
+                    AnalysisDepth.SYNTAX,
+                    AnalysisDepth.SEMANTIC,
+                    AnalysisDepth.STRUCTURAL,
+                    AnalysisDepth.ARCHITECTURAL,
+                ],
                 labels=["语法分析", "语义分析", "结构分析", "架构分析"],
             )
         # BEHAVIORAL = 所有层
@@ -137,20 +141,21 @@ class CompositeAnalyzer(ICodeAnalyzer):
         # 根据问题严重程度计算复杂度评分
         severity_weights = {"error": 10, "warning": 5, "info": 2}
         complexity = sum(
-            severity_weights.get(i.get("severity", "info"), 2)
-            for i in unique_issues
+            severity_weights.get(i.get("severity", "info"), 2) for i in unique_issues
         ) / max(len(unique_issues), 1)
         complexity = min(round(complexity / 10, 2), 1.0)
 
         # 生成建议
         for issue in unique_issues:
             if issue.get("severity") in ("warning", "error"):
-                all_suggestions.append({
-                    "type": issue.get("code", "GENERAL"),
-                    "description": issue.get("message", ""),
-                    "line": issue.get("line", 0),
-                    "priority": issue.get("severity", "info"),
-                })
+                all_suggestions.append(
+                    {
+                        "type": issue.get("code", "GENERAL"),
+                        "description": issue.get("message", ""),
+                        "line": issue.get("line", 0),
+                        "priority": issue.get("severity", "info"),
+                    }
+                )
 
         severity = "unknown"
         error_count = sum(1 for i in unique_issues if i.get("severity") == "error")
@@ -191,9 +196,7 @@ class CompositeAnalyzer(ICodeAnalyzer):
         result = await self.analyze(req)
         return result.issues
 
-    async def suggest_improvements(
-        self, code: str, language: str = ""
-    ) -> list[dict]:
+    async def suggest_improvements(self, code: str, language: str = "") -> list[dict]:
         """建议改进"""
         req = CodeAnalysisRequest(
             code=code,
@@ -211,12 +214,20 @@ class CompositeAnalyzer(ICodeAnalyzer):
         self, old_code: str, new_code: str, language: str = ""
     ) -> AnalysisResult:
         """版本对比分析"""
-        old_result = await self.analyze(CodeAnalysisRequest(
-            code=old_code, language=language, depth=AnalysisDepth.ARCHITECTURAL,
-        ))
-        new_result = await self.analyze(CodeAnalysisRequest(
-            code=new_code, language=language, depth=AnalysisDepth.ARCHITECTURAL,
-        ))
+        old_result = await self.analyze(
+            CodeAnalysisRequest(
+                code=old_code,
+                language=language,
+                depth=AnalysisDepth.ARCHITECTURAL,
+            )
+        )
+        new_result = await self.analyze(
+            CodeAnalysisRequest(
+                code=new_code,
+                language=language,
+                depth=AnalysisDepth.ARCHITECTURAL,
+            )
+        )
 
         fixed = set()
         introduced = set()
@@ -227,10 +238,7 @@ class CompositeAnalyzer(ICodeAnalyzer):
         introduced = new_codes - old_codes
 
         return AnalysisResult(
-            summary=(
-                f"版本对比: 修复 {len(fixed)} 个问题, "
-                f"新引入 {len(introduced)} 个问题"
-            ),
+            summary=(f"版本对比: 修复 {len(fixed)} 个问题, " f"新引入 {len(introduced)} 个问题"),
             issues=new_result.issues,
             suggestions=new_result.suggestions,
             metrics={

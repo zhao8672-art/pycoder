@@ -20,7 +20,6 @@ import pytest
 
 from pycoder.server.hermes_engine import _execute_hermes_write
 
-
 # ── Fixtures ──────────────────────────────────────────────
 
 
@@ -50,7 +49,9 @@ class TestHermesWriteSuccess:
     """成功写入文件场景"""
 
     @pytest.mark.asyncio
-    async def test_write_new_file(self, mock_workspace_root: MagicMock, temp_workspace: Path) -> None:
+    async def test_write_new_file(
+        self, mock_workspace_root: MagicMock, temp_workspace: Path
+    ) -> None:
         """测试写入新文件"""
         result = await _execute_hermes_write("test.py", "print('hello world')")
         assert result["success"] is True
@@ -62,7 +63,9 @@ class TestHermesWriteSuccess:
         assert written == "print('hello world')"
 
     @pytest.mark.asyncio
-    async def test_write_overwrite_existing(self, mock_workspace_root: MagicMock, temp_workspace: Path) -> None:
+    async def test_write_overwrite_existing(
+        self, mock_workspace_root: MagicMock, temp_workspace: Path
+    ) -> None:
         """测试覆盖已存在的文件"""
         # 先创建文件
         (temp_workspace / "existing.py").write_text("old content", encoding="utf-8")
@@ -76,7 +79,9 @@ class TestHermesWriteSuccess:
         assert written == "new content"
 
     @pytest.mark.asyncio
-    async def test_write_nested_directory(self, mock_workspace_root: MagicMock, temp_workspace: Path) -> None:
+    async def test_write_nested_directory(
+        self, mock_workspace_root: MagicMock, temp_workspace: Path
+    ) -> None:
         """测试写入嵌套目录中的文件（自动创建父目录）"""
         result = await _execute_hermes_write("deep/nested/file.py", "nested content")
         assert result["success"] is True
@@ -87,7 +92,9 @@ class TestHermesWriteSuccess:
         assert written == "nested content"
 
     @pytest.mark.asyncio
-    async def test_write_unicode_content(self, mock_workspace_root: MagicMock, temp_workspace: Path) -> None:
+    async def test_write_unicode_content(
+        self, mock_workspace_root: MagicMock, temp_workspace: Path
+    ) -> None:
         """测试写入包含中文的内容"""
         result = await _execute_hermes_write("readme.txt", "你好，世界！\n这是中文内容。")
         assert result["success"] is True
@@ -119,7 +126,9 @@ class TestHermesWritePathTraversal:
     """路径穿越拒绝场景"""
 
     @pytest.mark.asyncio
-    async def test_reject_dot_dot_path(self, mock_workspace_root: MagicMock, temp_workspace: Path) -> None:
+    async def test_reject_dot_dot_path(
+        self, mock_workspace_root: MagicMock, temp_workspace: Path
+    ) -> None:
         """测试拒绝 ../ 路径穿越"""
         result = await _execute_hermes_write("../outside.txt", "malicious")
         assert result["success"] is False
@@ -127,14 +136,18 @@ class TestHermesWritePathTraversal:
         assert "路径穿越拒绝" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_reject_absolute_path(self, mock_workspace_root: MagicMock, temp_workspace: Path) -> None:
+    async def test_reject_absolute_path(
+        self, mock_workspace_root: MagicMock, temp_workspace: Path
+    ) -> None:
         """测试拒绝绝对路径"""
         result = await _execute_hermes_write("C:/Windows/System32/test.txt", "malicious")
         assert result["success"] is False
         assert "路径穿越拒绝" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_reject_multiple_dot_dot(self, mock_workspace_root: MagicMock, temp_workspace: Path) -> None:
+    async def test_reject_multiple_dot_dot(
+        self, mock_workspace_root: MagicMock, temp_workspace: Path
+    ) -> None:
         """测试拒绝多层 ../ 路径穿越"""
         result = await _execute_hermes_write("a/../../../../etc/passwd", "malicious")
         assert result["success"] is False
@@ -148,7 +161,9 @@ class TestHermesWriteEmptyContentNoFile:
     """空 content 且文件不存在的场景"""
 
     @pytest.mark.asyncio
-    async def test_empty_content_no_file(self, mock_workspace_root: MagicMock, temp_workspace: Path) -> None:
+    async def test_empty_content_no_file(
+        self, mock_workspace_root: MagicMock, temp_workspace: Path
+    ) -> None:
         """测试空 content 且文件不存在返回错误"""
         result = await _execute_hermes_write("nonexistent.py", "")
         assert result["success"] is False
@@ -175,7 +190,9 @@ class TestHermesWriteExceptions:
             assert "无法访问工作区" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_write_large_content(self, mock_workspace_root: MagicMock, temp_workspace: Path) -> None:
+    async def test_write_large_content(
+        self, mock_workspace_root: MagicMock, temp_workspace: Path
+    ) -> None:
         """测试写入大内容"""
         large_content = "x" * 10000
         result = await _execute_hermes_write("large.txt", large_content)

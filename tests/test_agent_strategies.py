@@ -13,23 +13,21 @@ Agent 策略定义单元测试
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from pycoder.server.services.agent_strategies import (
-    SIMPLE_STRATEGY,
-    TEAM_STRATEGY,
     AUTO_STRATEGY,
-    STRATEGY_MAP,
-    UNIFIED_SYSTEM_PROMPT,
     GRADE_ITERATION_BUDGET,
+    SIMPLE_STRATEGY,
+    STRATEGY_MAP,
+    TEAM_STRATEGY,
+    UNIFIED_SYSTEM_PROMPT,
     AgentStrategy,
+    auto_select_strategy,
     get_strategy,
     resolve_iterations_for_grade,
-    auto_select_strategy,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 测试：AgentStrategy 数据类

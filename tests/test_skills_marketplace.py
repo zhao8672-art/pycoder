@@ -253,9 +253,7 @@ class TestSkillRegistration:
     @pytest.mark.asyncio
     async def test_register_duplicate_skill(self, marketplace: SkillMarketplace) -> None:
         """测试注册重复技能 ID（INSERT OR REPLACE 会覆盖）"""
-        skill_def = _make_skill_def(
-            skill_id="dup-skill", name="重复技能", markdown_content="# dup"
-        )
+        skill_def = _make_skill_def(skill_id="dup-skill", name="重复技能", markdown_content="# dup")
         await marketplace.register_skill(skill_def, skill_def.markdown_content)
         # 再次注册相同 ID —— INSERT OR REPLACE 会覆盖，返回成功
         result = await marketplace.register_skill(skill_def, skill_def.markdown_content)
@@ -689,9 +687,7 @@ class TestSkillMetadataValidation:
 
     def test_skill_definition_to_dict_excludes_content(self) -> None:
         """测试 SkillDefinition.to_dict 不包含 markdown_content"""
-        sd = _make_skill_def(
-            skill_id="s1", name="n1", markdown_content="secret content"
-        )
+        sd = _make_skill_def(skill_id="s1", name="n1", markdown_content="secret content")
         d = sd.to_dict()
         assert "markdown_content" not in d
 
@@ -769,9 +765,7 @@ class TestErrorHandling:
         assert mp1 is mp2
 
     @pytest.mark.asyncio
-    async def test_install_skill_missing_from_db(
-        self, marketplace: SkillMarketplace
-    ) -> None:
+    async def test_install_skill_missing_from_db(self, marketplace: SkillMarketplace) -> None:
         """测试安装数据库中不存在的技能"""
         result = await marketplace.install_skill("i-do-not-exist-anywhere")
         assert result["success"] is False
@@ -790,9 +784,7 @@ class TestErrorHandling:
         assert result["success"] is False
 
     @pytest.mark.asyncio
-    async def test_register_skill_whitespace_content(
-        self, marketplace: SkillMarketplace
-    ) -> None:
+    async def test_register_skill_whitespace_content(self, marketplace: SkillMarketplace) -> None:
         """测试注册时 Markdown 内容仅为空白"""
         skill_def = _make_skill_def(skill_id="ws", name="空白", markdown_content="")
         result = await marketplace.register_skill(skill_def, "   \n  ")

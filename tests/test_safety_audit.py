@@ -6,17 +6,16 @@
   - AuditTrail: 导出 JSON/CSV、容量压缩、持久化
   - AuditTrail: 异常检测、索引维护
 """
+
 from __future__ import annotations
 
 import json
 import time
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from pycoder.safety.audit import AuditRecord, AuditTrail
-
 
 # ══════════════════════════════════════════════════════════
 # 辅助函数
@@ -175,21 +174,47 @@ class TestAuditTrailQuery:
         """构建包含多种记录的审计追踪"""
         trail = AuditTrail()
         # 成功操作
-        trail.log(_make_record(
-            trace_id="s1", capability_id="editor.code.read", decision="允许", success=True, caller="agent_a",
-        ))
+        trail.log(
+            _make_record(
+                trace_id="s1",
+                capability_id="editor.code.read",
+                decision="允许",
+                success=True,
+                caller="agent_a",
+            )
+        )
         # 拒绝操作
-        trail.log(_make_record(
-            trace_id="s2", capability_id="shell.exec", decision="拒绝", success=False, caller="agent_b",
-        ))
+        trail.log(
+            _make_record(
+                trace_id="s2",
+                capability_id="shell.exec",
+                decision="拒绝",
+                success=False,
+                caller="agent_b",
+            )
+        )
         # 需要确认的操作
-        trail.log(_make_record(
-            trace_id="s3", capability_id="git.commit", decision="需要确认", success=True, user_confirmed=True, caller="agent_a",
-        ))
+        trail.log(
+            _make_record(
+                trace_id="s3",
+                capability_id="git.commit",
+                decision="需要确认",
+                success=True,
+                user_confirmed=True,
+                caller="agent_a",
+            )
+        )
         # 回滚操作
-        trail.log(_make_record(
-            trace_id="s4", capability_id="file.write", decision="允许", success=False, rollback_used=True, caller="agent_a",
-        ))
+        trail.log(
+            _make_record(
+                trace_id="s4",
+                capability_id="file.write",
+                decision="允许",
+                success=False,
+                rollback_used=True,
+                caller="agent_a",
+            )
+        )
         return trail
 
     def test_query_by_capability(self, trail_with_data):
@@ -268,13 +293,15 @@ class TestAuditTrailReport:
         trail = AuditTrail()
         for i in range(5):
             success = i % 2 == 0
-            trail.log(_make_record(
-                trace_id=f"r-{i}",
-                capability_id=f"cap.{i % 3}",
-                decision="允许" if success else "拒绝",
-                success=success,
-                duration_ms=10.0 + i,
-            ))
+            trail.log(
+                _make_record(
+                    trace_id=f"r-{i}",
+                    capability_id=f"cap.{i % 3}",
+                    decision="允许" if success else "拒绝",
+                    success=success,
+                    duration_ms=10.0 + i,
+                )
+            )
         report = trail.generate_report()
         assert report["total_operations"] == 5
         assert 0 < report["success_rate"] < 1
@@ -390,9 +417,13 @@ class TestAuditTrailAnomalies:
         now = time.time()
         # 模拟 60 秒内 60 次操作
         for i in range(60):
-            trail.log(_make_record(
-                trace_id=f"hf-{i}", success=True, timestamp=now - 30 + i * 0.5,
-            ))
+            trail.log(
+                _make_record(
+                    trace_id=f"hf-{i}",
+                    success=True,
+                    timestamp=now - 30 + i * 0.5,
+                )
+            )
         report = trail.generate_report()
         assert any("高频操作" in a for a in report["anomalies"])
 
@@ -411,9 +442,13 @@ class TestAuditTrailAnomalies:
         trail = AuditTrail()
         for i in range(50):
             # 前 12 个是高危操作
-            trail.log(_make_record(
-                trace_id=f"hr-{i}", permission_level=3 if i < 12 else 0, success=True,
-            ))
+            trail.log(
+                _make_record(
+                    trace_id=f"hr-{i}",
+                    permission_level=3 if i < 12 else 0,
+                    success=True,
+                )
+            )
         report = trail.generate_report()
         assert any("高危操作" in a for a in report["anomalies"])
 

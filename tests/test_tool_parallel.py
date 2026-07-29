@@ -5,14 +5,11 @@
   - 结果顺序与 tool_calls 顺序一致
   - write_file 仍能正确追踪写入文件路径
 """
+
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
-
+from unittest.mock import MagicMock
 
 # ══════════════════════════════════════════════════════════
 # 工具并行执行
@@ -33,15 +30,19 @@ class TestToolParallelExecution:
 
         # 构造 LLM 返回单工具调用
         async def fake_chat_stream(prompt):
-            yield MagicMock(event_type="done", content=(
-                '```json\n{"name": "read_file", "params": {"path": "a.py"}}\n```'
-            ))
+            yield MagicMock(
+                event_type="done",
+                content=('```json\n{"name": "read_file", "params": {"path": "a.py"}}\n```'),
+            )
 
         bridge = MagicMock()
         bridge.chat_stream = fake_chat_stream
 
         result, files = await atl._agent_tool_loop(
-            bridge, "task", tmp_path, max_iterations=1,
+            bridge,
+            "task",
+            tmp_path,
+            max_iterations=1,
         )
         assert "read_file" in result
 
@@ -66,21 +67,27 @@ class TestToolParallelExecution:
         # 注意 parse_tool_calls 只返回第一个 JSON 代码块，
         # 所以用 tool_calls 数组格式
         async def fake_chat_stream(prompt):
-            yield MagicMock(event_type="done", content=(
-                '```json\n'
-                '{"tool_calls": ['
-                '  {"name": "read_file", "params": {"path": "a.py"}},'
-                '  {"name": "read_file", "params": {"path": "b.py"}},'
-                '  {"name": "list_files", "params": {"path": "."}}'
-                ']}'
-                '\n```'
-            ))
+            yield MagicMock(
+                event_type="done",
+                content=(
+                    "```json\n"
+                    '{"tool_calls": ['
+                    '  {"name": "read_file", "params": {"path": "a.py"}},'
+                    '  {"name": "read_file", "params": {"path": "b.py"}},'
+                    '  {"name": "list_files", "params": {"path": "."}}'
+                    "]}"
+                    "\n```"
+                ),
+            )
 
         bridge = MagicMock()
         bridge.chat_stream = fake_chat_stream
 
         result, files = await atl._agent_tool_loop(
-            bridge, "task", tmp_path, max_iterations=1,
+            bridge,
+            "task",
+            tmp_path,
+            max_iterations=1,
         )
         # 3 个工具都被执行
         assert "read_file" in result
@@ -103,21 +110,27 @@ class TestToolParallelExecution:
         monkeypatch.setattr(atl, "_team_execute_tool", fake_exec)
 
         async def fake_chat_stream(prompt):
-            yield MagicMock(event_type="done", content=(
-                '```json\n'
-                '{"tool_calls": ['
-                '  {"name": "alpha", "params": {}},'
-                '  {"name": "beta", "params": {}},'
-                '  {"name": "gamma", "params": {}}'
-                ']}'
-                '\n```'
-            ))
+            yield MagicMock(
+                event_type="done",
+                content=(
+                    "```json\n"
+                    '{"tool_calls": ['
+                    '  {"name": "alpha", "params": {}},'
+                    '  {"name": "beta", "params": {}},'
+                    '  {"name": "gamma", "params": {}}'
+                    "]}"
+                    "\n```"
+                ),
+            )
 
         bridge = MagicMock()
         bridge.chat_stream = fake_chat_stream
 
         result, files = await atl._agent_tool_loop(
-            bridge, "task", tmp_path, max_iterations=1,
+            bridge,
+            "task",
+            tmp_path,
+            max_iterations=1,
         )
         # 验证结果顺序
         alpha_pos = result.find("alpha")
@@ -135,20 +148,26 @@ class TestToolParallelExecution:
         monkeypatch.setattr(atl, "_team_execute_tool", fake_exec)
 
         async def fake_chat_stream(prompt):
-            yield MagicMock(event_type="done", content=(
-                '```json\n'
-                '{"tool_calls": ['
-                '  {"name": "write_file", "params": {"path": "a.py", "content": "x"}},'
-                '  {"name": "write_file", "params": {"path": "b.py", "content": "y"}}'
-                ']}'
-                '\n```'
-            ))
+            yield MagicMock(
+                event_type="done",
+                content=(
+                    "```json\n"
+                    '{"tool_calls": ['
+                    '  {"name": "write_file", "params": {"path": "a.py", "content": "x"}},'
+                    '  {"name": "write_file", "params": {"path": "b.py", "content": "y"}}'
+                    "]}"
+                    "\n```"
+                ),
+            )
 
         bridge = MagicMock()
         bridge.chat_stream = fake_chat_stream
 
         _, files = await atl._agent_tool_loop(
-            bridge, "task", tmp_path, max_iterations=1,
+            bridge,
+            "task",
+            tmp_path,
+            max_iterations=1,
         )
         assert "a.py" in files
         assert "b.py" in files
@@ -169,21 +188,27 @@ class TestToolParallelExecution:
         monkeypatch.setattr(atl, "_team_execute_tool", fake_exec)
 
         async def fake_chat_stream(prompt):
-            yield MagicMock(event_type="done", content=(
-                '```json\n'
-                '{"tool_calls": ['
-                '  {"name": "ok_tool", "params": {}},'
-                '  {"name": "fail_tool", "params": {}},'
-                '  {"name": "ok_tool2", "params": {}}'
-                ']}'
-                '\n```'
-            ))
+            yield MagicMock(
+                event_type="done",
+                content=(
+                    "```json\n"
+                    '{"tool_calls": ['
+                    '  {"name": "ok_tool", "params": {}},'
+                    '  {"name": "fail_tool", "params": {}},'
+                    '  {"name": "ok_tool2", "params": {}}'
+                    "]}"
+                    "\n```"
+                ),
+            )
 
         bridge = MagicMock()
         bridge.chat_stream = fake_chat_stream
 
         result, _ = await atl._agent_tool_loop(
-            bridge, "task", tmp_path, max_iterations=1,
+            bridge,
+            "task",
+            tmp_path,
+            max_iterations=1,
         )
         # 所有工具都被调用
         assert call_count == 3
@@ -213,15 +238,18 @@ class TestParallelPerformance:
         monkeypatch.setattr(atl, "_team_execute_tool", slow_exec)
 
         async def fake_chat_stream(prompt):
-            yield MagicMock(event_type="done", content=(
-                '```json\n'
-                '{"tool_calls": ['
-                '  {"name": "t1", "params": {}},'
-                '  {"name": "t2", "params": {}},'
-                '  {"name": "t3", "params": {}}'
-                ']}'
-                '\n```'
-            ))
+            yield MagicMock(
+                event_type="done",
+                content=(
+                    "```json\n"
+                    '{"tool_calls": ['
+                    '  {"name": "t1", "params": {}},'
+                    '  {"name": "t2", "params": {}},'
+                    '  {"name": "t3", "params": {}}'
+                    "]}"
+                    "\n```"
+                ),
+            )
 
         bridge = MagicMock()
         bridge.chat_stream = fake_chat_stream

@@ -16,6 +16,7 @@
     ...     from pycoder.server.chat_bridge import ChatBridge
     ...     return ChatBridge()
 """
+
 from __future__ import annotations
 
 import importlib
@@ -163,7 +164,7 @@ class StartupProfiler:
     def report(self) -> dict[str, float]:
         """输出耗时报告（毫秒）"""
         with self._lock:
-            return {name: ms for name, ms in self._stages}
+            return dict(self._stages)
 
     def format_report(self) -> str:
         """格式化耗时报告为字符串"""
@@ -185,7 +186,7 @@ class _StageContext:
         self._name = name
         self._t0: float = 0.0
 
-    def __enter__(self) -> "_StageContext":
+    def __enter__(self) -> _StageContext:
         self._t0 = time.perf_counter()
         return self
 

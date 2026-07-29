@@ -133,24 +133,28 @@ class StructuralAnalyzer:
         # 高扇出警告 (单函数调用过多)
         for func, count in fan_out.items():
             if count > 8:
-                issues.append({
-                    "severity": "warning",
-                    "line": 0,
-                    "col": 0,
-                    "message": f"函数 '{func}' 扇出过高 ({count})，直接依赖过多模块/函数",
-                    "code": "STR001",
-                })
+                issues.append(
+                    {
+                        "severity": "warning",
+                        "line": 0,
+                        "col": 0,
+                        "message": f"函数 '{func}' 扇出过高 ({count})，直接依赖过多模块/函数",
+                        "code": "STR001",
+                    }
+                )
 
         # 高扇入警告 (过于中心化)
         for func, count in fan_in.items():
             if count > 10 and func != "global":
-                issues.append({
-                    "severity": "info",
-                    "line": 0,
-                    "col": 0,
-                    "message": f"函数 '{func}' 扇入过高 ({count})，作为中心节点",
-                    "code": "STR002",
-                })
+                issues.append(
+                    {
+                        "severity": "info",
+                        "line": 0,
+                        "col": 0,
+                        "message": f"函数 '{func}' 扇入过高 ({count})，作为中心节点",
+                        "code": "STR002",
+                    }
+                )
 
         return issues
 
@@ -197,13 +201,15 @@ class StructuralAnalyzer:
                         seen_cycles.add(sig)
                         cycle_nodes = [n for n in cycle if n != cycle[-1] or n != cycle[0]]
                         if len(cycle_nodes) >= 2:
-                            issues.append({
-                                "severity": "warning",
-                                "line": 0,
-                                "col": 0,
-                                "message": f"检测到循环依赖: {' → '.join(cycle_nodes)} → {cycle_nodes[0]}",
-                                "code": "STR003",
-                            })
+                            issues.append(
+                                {
+                                    "severity": "warning",
+                                    "line": 0,
+                                    "col": 0,
+                                    "message": f"检测到循环依赖: {' → '.join(cycle_nodes)} → {cycle_nodes[0]}",
+                                    "code": "STR003",
+                                }
+                            )
 
         return issues
 

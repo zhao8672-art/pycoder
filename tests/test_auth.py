@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import os
-
-import pytest
-from pycoder.providers.auth import get_model_manager, ModelManager
+from pycoder.providers.auth import ModelManager, get_model_manager
 
 
 def test_get_model_manager():

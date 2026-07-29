@@ -21,48 +21,47 @@
 - 使用 monkeypatch.delenv 清理环境变量
 - 不依赖网络与外部进程
 """
+
 from __future__ import annotations
 
-import json
 import os
 import time
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pytest
 
 from pycoder.python import model_config as mc
 from pycoder.python.model_config import (
     MODEL_REGISTRY,
+    CacheEntry,
     ModelConfig,
     ModelInfo,
     ProviderInfo,
     SimpleCache,
-    CacheEntry,
     cached,
-    invalidate_cache,
-    get_config_dir,
-    get_config_path,
-    get_key_path,
-    load_config,
-    save_config,
-    get_api_key,
-    set_api_key,
     check_all_keys,
     get_all_models,
-    get_models_for_provider,
+    get_api_key,
+    get_config_dir,
+    get_config_path,
+    get_default_model,
+    get_key_path,
+    get_model_config,
     get_model_info,
+    get_models_by_capability,
+    get_models_for_provider,
     get_provider_for_model,
     get_recommended_models,
-    get_models_by_capability,
-    get_default_model,
-    set_default_model,
-    get_model_config,
+    invalidate_cache,
+    load_config,
+    save_config,
     save_model_config,
-    update_model_config,
+    set_api_key,
+    set_default_model,
     suggest_model,
+    update_model_config,
 )
-
 
 # ── 公共 fixtures ──────────────────────────────────────────
 
@@ -261,9 +260,9 @@ class TestModelRegistry:
 
     def test_at_least_one_recommended_per_provider(self):
         for pid, info in MODEL_REGISTRY.items():
-            assert any(m.recommended for m in info.models), (
-                f"Provider {pid} has no recommended model"
-            )
+            assert any(
+                m.recommended for m in info.models
+            ), f"Provider {pid} has no recommended model"
 
 
 # ── 配置目录与文件路径测试 ─────────────────────────────────
@@ -302,9 +301,7 @@ class TestEncryption:
         result = mc._decrypt_string("not-a-valid-encrypted-string")
         assert result is None
 
-    def test_decrypt_with_wrong_key_returns_none(
-        self, isolated_config_dir: Path, monkeypatch
-    ):
+    def test_decrypt_with_wrong_key_returns_none(self, isolated_config_dir: Path, monkeypatch):
         # 加密后更换密钥再解密
         original = "sk-test-secret"
         encrypted = mc._encrypt_string(original)
@@ -352,9 +349,7 @@ class TestConfigLoadSave:
         config_path.write_text("not valid json {", encoding="utf-8")
         assert load_config() == {}
 
-    def test_load_config_os_error_returns_empty(
-        self, isolated_config_dir: Path, monkeypatch
-    ):
+    def test_load_config_os_error_returns_empty(self, isolated_config_dir: Path, monkeypatch):
         # 模拟 OSError（先创建可读文件，再让 open 抛错）
         config_path = get_config_path()
         config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -391,16 +386,12 @@ class TestApiKeyManagement:
         monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-from-env")
         assert get_api_key("deepseek") == "sk-from-env"
 
-    def test_get_api_key_from_key_name_when_env_name_missing(
-        self, isolated_env: Path, monkeypatch
-    ):
+    def test_get_api_key_from_key_name_when_env_name_missing(self, isolated_env: Path, monkeypatch):
         # qwen 的 key_name != env_name
         monkeypatch.setenv("QWEN_API_KEY", "sk-qwen-alt")
         assert get_api_key("qwen") == "sk-qwen-alt"
 
-    def test_get_api_key_env_name_takes_precedence(
-        self, isolated_env: Path, monkeypatch
-    ):
+    def test_get_api_key_env_name_takes_precedence(self, isolated_env: Path, monkeypatch):
         monkeypatch.setenv("DASHSCOPE_API_KEY", "sk-primary")
         monkeypatch.setenv("QWEN_API_KEY", "sk-secondary")
         assert get_api_key("qwen") == "sk-primary"
@@ -412,9 +403,7 @@ class TestApiKeyManagement:
         invalidate_cache()
         assert get_api_key("openai") == "sk-from-config"
 
-    def test_get_api_key_returns_encrypted_if_decrypt_fails(
-        self, isolated_env: Path, monkeypatch
-    ):
+    def test_get_api_key_returns_encrypted_if_decrypt_fails(self, isolated_env: Path, monkeypatch):
         # 配置中有加密 key，但解密失败时返回原加密字符串
         save_config({"provider": {"api_keys": {"openai": "invalid-encrypted"}}})
         invalidate_cache()
@@ -438,9 +427,7 @@ class TestApiKeyManagement:
         # 验证 env var 已设置
         assert os.environ.get("DEEPSEEK_API_KEY") == "sk-test-12345"
 
-    def test_set_api_key_without_setting_default(
-        self, isolated_env: Path, monkeypatch
-    ):
+    def test_set_api_key_without_setting_default(self, isolated_env: Path, monkeypatch):
         # 预设 default 防止被覆盖
         save_config({"provider": {"default": "glm"}})
         result = set_api_key("deepseek", "sk-test", set_default=False)
@@ -460,7 +447,7 @@ class TestCheckAllKeys:
     def test_no_keys_configured(self, isolated_env: Path):
         status = check_all_keys()
         assert set(status.keys()) == set(MODEL_REGISTRY.keys())
-        for pid, info in status.items():
+        for _pid, info in status.items():
             assert info["configured"] is False
             assert info["key_preview"] == "N/A"
 

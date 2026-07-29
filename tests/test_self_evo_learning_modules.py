@@ -12,12 +12,17 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
+
+# ── ErrorClassifier ─────────────────────────────────────────
+from pycoder.capabilities.self_evo.learning.error_classifier import (
+    ErrorCategory,
+    ErrorClassifier,
+)
 
 # ── EvoCache ────────────────────────────────────────────────
 from pycoder.capabilities.self_evo.learning.evo_cache import (
@@ -26,7 +31,6 @@ from pycoder.capabilities.self_evo.learning.evo_cache import (
     MAX_HOT_RULES,
     CachedScan,
     EvoCache,
-    HotRule,
 )
 
 # ── EvoEvaluator ────────────────────────────────────────────
@@ -35,19 +39,11 @@ from pycoder.capabilities.self_evo.learning.evo_evaluator import (
     EvolutionGrade,
 )
 
-# ── ErrorClassifier ─────────────────────────────────────────
-from pycoder.capabilities.self_evo.learning.error_classifier import (
-    ErrorCategory,
-    ErrorClassifier,
-    ErrorTicket,
-)
-
 # ── EvoOrchestrator ─────────────────────────────────────────
 from pycoder.capabilities.self_evo.learning.evo_orchestrator import (
     EvolutionCycleReport,
     EvoOrchestrator,
 )
-
 
 # ════════════════════════════════════════════════════════════
 # EvoCache 测试
@@ -538,9 +534,7 @@ class TestEvoOrchestratorIntegration:
         mock_engine.generate_fix = MagicMock(return_value=None)
 
         orch = EvoOrchestrator(engine=mock_engine)
-        report = asyncio.run(
-            orch.run_evolution_cycle(str(tmp_path), max_fixes=2, use_llm=False)
-        )
+        report = asyncio.run(orch.run_evolution_cycle(str(tmp_path), max_fixes=2, use_llm=False))
         assert isinstance(report, EvolutionCycleReport)
         # 应该至少扫描到一个文件
         assert report.files_scanned >= 0  # 容错

@@ -20,6 +20,7 @@ class VisionClient:
         """分析图片内容"""
         try:
             from PIL import Image
+
             img = Image.open(BytesIO(image_data))
             return await self._call_vision(img, prompt)
         except Exception as exc:
@@ -52,8 +53,9 @@ class VisionClient:
 
     async def _call_openai_vision(self, image, prompt: str, api_key: str) -> str:
         """调用 GPT-4V"""
-        import io
         import base64
+        import io
+
         import httpx
 
         buf = io.BytesIO()
@@ -67,13 +69,15 @@ class VisionClient:
                 headers={"Authorization": f"Bearer {api_key}"},
                 json={
                     "model": "gpt-4o-mini",
-                    "messages": [{
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {"type": "image_url", "image_url": url_content},
-                        ],
-                    }],
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {"type": "image_url", "image_url": url_content},
+                            ],
+                        }
+                    ],
                     "max_tokens": 1024,
                 },
             )

@@ -3,10 +3,10 @@
 目标: 行覆盖率 >= 80%
 覆盖端点: GET /api/diff-list/list
 """
+
 from __future__ import annotations
 
 import sys
-import types
 from unittest.mock import MagicMock
 
 import pytest
@@ -32,8 +32,7 @@ def _make_mock_blob(content: str):
     return blob
 
 
-def _make_diff_item(change_type, a_path="old.txt", b_path="new.txt",
-                    a_content="", b_content=""):
+def _make_diff_item(change_type, a_path="old.txt", b_path="new.txt", a_content="", b_content=""):
     """构造 mock diff item"""
     item = MagicMock()
     item.change_type = change_type
@@ -69,9 +68,7 @@ class TestListDiffs:
 
     def test_unstaged_added(self, client, monkeypatch):
         """未暂存的添加文件 (change_type A)"""
-        item = _make_diff_item(
-            change_type="A", b_path="new_file.py", b_content="line1\nline2\n"
-        )
+        item = _make_diff_item(change_type="A", b_path="new_file.py", b_content="line1\nline2\n")
         mock_repo = _make_mock_repo([item])
         mock_git_module = MagicMock()
         mock_git_module.Repo.return_value = mock_repo
@@ -87,9 +84,7 @@ class TestListDiffs:
 
     def test_unstaged_deleted(self, client, monkeypatch):
         """未暂存的删除文件 (change_type D)"""
-        item = _make_diff_item(
-            change_type="D", a_path="deleted.py", a_content="old line\n"
-        )
+        item = _make_diff_item(change_type="D", a_path="deleted.py", a_content="old line\n")
         mock_repo = _make_mock_repo([item])
         mock_git_module = MagicMock()
         mock_git_module.Repo.return_value = mock_repo
@@ -257,8 +252,11 @@ class TestListDiffs:
         item_a = _make_diff_item("A", b_path="added.py", b_content="new\n")
         item_d = _make_diff_item("D", a_path="removed.py", a_content="old\n")
         item_m = _make_diff_item(
-            "M", a_path="mod.py", b_path="mod.py",
-            a_content="x=1\n", b_content="x=2\n",
+            "M",
+            a_path="mod.py",
+            b_path="mod.py",
+            a_content="x=1\n",
+            b_content="x=2\n",
         )
         mock_repo = _make_mock_repo([item_a, item_d, item_m])
         mock_git_module = MagicMock()

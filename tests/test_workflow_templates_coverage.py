@@ -10,8 +10,6 @@ workflow_templates.py 模块单元测试 — 覆盖率目标 ≥80%
 
 from __future__ import annotations
 
-import pytest
-
 from pycoder.server.services.workflow_templates import (
     WORKFLOW_TEMPLATES,
     WorkflowStage,
@@ -22,8 +20,8 @@ from pycoder.server.services.workflow_templates import (
     list_workflows,
 )
 
-
 # ── 数据类 ──
+
 
 def test_workflow_stage_defaults():
     """WorkflowStage 默认值: deliverables/parallel_with 空列表, timeout 300, retries 2"""
@@ -71,6 +69,7 @@ def test_workflow_template_defaults():
 
 
 # ── 预定义模板 ──
+
 
 def test_workflow_templates_keys():
     """WORKFLOW_TEMPLATES 至少包含四个预定义工作流"""
@@ -126,6 +125,7 @@ def test_get_workflow_unknown_returns_none():
 
 # ── list_workflows ──
 
+
 def test_list_workflows_returns_summary_list():
     """list_workflows 返回所有模板的概要字典"""
     items = list_workflows()
@@ -138,6 +138,7 @@ def test_list_workflows_returns_summary_list():
 
 
 # ── estimate_budget ──
+
 
 def test_estimate_budget_default_scale():
     """estimate_budget 默认 scale=1.0 返回原始预算"""
@@ -171,6 +172,7 @@ def test_estimate_budget_unknown_workflow():
 
 
 # ── get_workflow_stages_parallel_map ──
+
 
 def test_parallel_map_fullstack_dev_groups_parallel_stages():
     """fullstack-dev 的并行阶段应被合并为同一组"""

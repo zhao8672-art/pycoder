@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FetchResult:
     """抓取结果"""
+
     url: str
     html: str = ""
     text: str = ""
@@ -26,6 +27,7 @@ class FetchResult:
 
 class NeedJSError(Exception):
     """页面需要 JS 渲染才能获取内容"""
+
     pass
 
 
@@ -61,6 +63,7 @@ class FetchEngine:
         try:
             if self._client is None:
                 import httpx
+
                 self._client = httpx.AsyncClient(
                     follow_redirects=True,
                     timeout=timeout,

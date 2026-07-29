@@ -122,9 +122,7 @@ class MessageRouter:
         if self._ai_brain is not None:
             try:
                 context = self._build_context(gateway_msg)
-                result = await self._ai_brain.process_message(
-                    gateway_msg.content, context
-                )
+                result = await self._ai_brain.process_message(gateway_msg.content, context)
                 return result if isinstance(result, str) else str(result)
             except Exception as e:
                 logger.error("AI 大脑处理命令失败: %s", e)
@@ -147,9 +145,7 @@ class MessageRouter:
         # 通过 AI 大脑处理
         if self._ai_brain is not None:
             try:
-                result = await self._ai_brain.process_message(
-                    gateway_msg.content, context
-                )
+                result = await self._ai_brain.process_message(gateway_msg.content, context)
                 return result if isinstance(result, str) else str(result)
             except Exception as e:
                 logger.error("AI 大脑处理对话失败: %s", e)
@@ -187,9 +183,7 @@ class MessageRouter:
 
         # 添加会话历史
         if self._session_manager is not None:
-            session = self._session_manager.get_session(
-                gateway_msg.platform, gateway_msg.user_id
-            )
+            session = self._session_manager.get_session(gateway_msg.platform, gateway_msg.user_id)
             if session is not None:
                 context["recent_messages"] = session.get_recent_messages(20)
 
@@ -233,17 +227,13 @@ class MessageRouter:
             f"  会话: {gateway_msg.session_id}",
         ]
         if self._session_manager is not None:
-            session = self._session_manager.get_session(
-                gateway_msg.platform, gateway_msg.user_id
-            )
+            session = self._session_manager.get_session(gateway_msg.platform, gateway_msg.user_id)
             if session is not None:
                 info_lines.append(f"  消息数: {len(session.messages)}")
-                info_lines.append(
-                    f"  创建时间: {time.strftime(
+                info_lines.append(f"  创建时间: {time.strftime(
                         '%Y-%m-%d %H:%M:%S',
                         time.localtime(session.created_at),
-                    )}"
-                )
+                    )}")
         return "\n".join(info_lines)
 
 

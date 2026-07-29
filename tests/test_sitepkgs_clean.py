@@ -1,10 +1,9 @@
 """P2-修复: site-packages ~ 残留清理工具单元测试"""
+
 from __future__ import annotations
 
 import site
 from pathlib import Path
-
-import pytest
 
 
 def _has_residual_tilde() -> list[Path]:

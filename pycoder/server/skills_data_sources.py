@@ -152,7 +152,7 @@ def make_github_request(
                 raise RuntimeError(f"GitHub API 404: {url}") from e
             elif status >= 500:
                 last_error = e
-                wait = min(2 ** attempt * 5, 60)
+                wait = min(2**attempt * 5, 60)
                 log.warning("github_http_5xx", status=status, attempt=attempt, wait=wait)
                 if attempt < max_retries:
                     time.sleep(wait)
@@ -163,7 +163,7 @@ def make_github_request(
 
         except (urllib.error.URLError, OSError, TimeoutError) as e:
             last_error = e
-            wait = min(2 ** attempt * 3, 30)
+            wait = min(2**attempt * 3, 30)
             log.warning("github_network_error", error=str(e)[:60], attempt=attempt, wait=wait)
             if attempt < max_retries:
                 time.sleep(wait)
@@ -184,19 +184,27 @@ ONET_TAXONOMY_MAP: dict[str, dict[str, Any]] = {
         "onet_name": "Software Developers",
         "description": "编程语言技能",
         "subcategories": {
-            "python": {"keywords": ["python", "django", "flask", "fastapi", "pytorch"],
-                       "onet_skill": "2.C.4.a"},
-            "javascript": {"keywords": ["javascript", "typescript", "node.js", "nodejs",
-                                        "react", "vue", "angular", "svelte"],
-                           "onet_skill": "2.C.4.a"},
-            "rust": {"keywords": ["rust", "cargo", "wasm"],
-                     "onet_skill": "2.C.4.a"},
-            "go": {"keywords": ["golang", "go-lang", "go language"],
-                   "onet_skill": "2.C.4.a"},
-            "java": {"keywords": ["java", "spring", "kotlin", "jvm"],
-                     "onet_skill": "2.C.4.a"},
-            "cpp": {"keywords": ["c++", "cpp", "c-plus-plus"],
-                    "onet_skill": "2.C.4.a"},
+            "python": {
+                "keywords": ["python", "django", "flask", "fastapi", "pytorch"],
+                "onet_skill": "2.C.4.a",
+            },
+            "javascript": {
+                "keywords": [
+                    "javascript",
+                    "typescript",
+                    "node.js",
+                    "nodejs",
+                    "react",
+                    "vue",
+                    "angular",
+                    "svelte",
+                ],
+                "onet_skill": "2.C.4.a",
+            },
+            "rust": {"keywords": ["rust", "cargo", "wasm"], "onet_skill": "2.C.4.a"},
+            "go": {"keywords": ["golang", "go-lang", "go language"], "onet_skill": "2.C.4.a"},
+            "java": {"keywords": ["java", "spring", "kotlin", "jvm"], "onet_skill": "2.C.4.a"},
+            "cpp": {"keywords": ["c++", "cpp", "c-plus-plus"], "onet_skill": "2.C.4.a"},
         },
     },
     # === AI/ML ===
@@ -205,18 +213,54 @@ ONET_TAXONOMY_MAP: dict[str, dict[str, Any]] = {
         "onet_name": "Data Scientists",
         "description": "人工智能与机器学习",
         "subcategories": {
-            "llm": {"keywords": ["llm", "gpt", "deepseek", "claude", "gemini",
-                                 "openai", "anthropic", "language model"],
-                    "onet_skill": "2.C.4.a"},
-            "ml-framework": {"keywords": ["pytorch", "tensorflow", "jax", "keras",
-                                          "scikit-learn", "transformers"],
-                             "onet_skill": "2.C.4.a"},
-            "agent": {"keywords": ["agent", "autonomous", "agentic", "multi-agent",
-                                   "react", "tool-use", "function calling"],
-                      "onet_skill": "2.C.4.a"},
-            "rag": {"keywords": ["rag", "retrieval", "vector-search", "embedding",
-                                 "chroma", "pinecone", "weaviate"],
-                    "onet_skill": "2.C.4.a"},
+            "llm": {
+                "keywords": [
+                    "llm",
+                    "gpt",
+                    "deepseek",
+                    "claude",
+                    "gemini",
+                    "openai",
+                    "anthropic",
+                    "language model",
+                ],
+                "onet_skill": "2.C.4.a",
+            },
+            "ml-framework": {
+                "keywords": [
+                    "pytorch",
+                    "tensorflow",
+                    "jax",
+                    "keras",
+                    "scikit-learn",
+                    "transformers",
+                ],
+                "onet_skill": "2.C.4.a",
+            },
+            "agent": {
+                "keywords": [
+                    "agent",
+                    "autonomous",
+                    "agentic",
+                    "multi-agent",
+                    "react",
+                    "tool-use",
+                    "function calling",
+                ],
+                "onet_skill": "2.C.4.a",
+            },
+            "rag": {
+                "keywords": [
+                    "rag",
+                    "retrieval",
+                    "vector-search",
+                    "embedding",
+                    "chroma",
+                    "pinecone",
+                    "weaviate",
+                ],
+                "onet_skill": "2.C.4.a",
+            },
         },
     },
     # === Web 开发 ===
@@ -225,14 +269,38 @@ ONET_TAXONOMY_MAP: dict[str, dict[str, Any]] = {
         "onet_name": "Web Developers",
         "description": "Web 开发技术与框架",
         "subcategories": {
-            "frontend": {"keywords": ["react", "vue", "angular", "svelte", "next.js",
-                                      "nuxt", "css", "html", "tailwind", "bootstrap"],
-                         "onet_skill": "2.C.4.a"},
-            "backend": {"keywords": ["fastapi", "express", "spring", "django", "flask",
-                                     "gin", "echo", "actix"],
-                        "onet_skill": "2.C.4.a"},
-            "api": {"keywords": ["rest", "graphql", "grpc", "openapi", "swagger"],
-                    "onet_skill": "2.C.4.a"},
+            "frontend": {
+                "keywords": [
+                    "react",
+                    "vue",
+                    "angular",
+                    "svelte",
+                    "next.js",
+                    "nuxt",
+                    "css",
+                    "html",
+                    "tailwind",
+                    "bootstrap",
+                ],
+                "onet_skill": "2.C.4.a",
+            },
+            "backend": {
+                "keywords": [
+                    "fastapi",
+                    "express",
+                    "spring",
+                    "django",
+                    "flask",
+                    "gin",
+                    "echo",
+                    "actix",
+                ],
+                "onet_skill": "2.C.4.a",
+            },
+            "api": {
+                "keywords": ["rest", "graphql", "grpc", "openapi", "swagger"],
+                "onet_skill": "2.C.4.a",
+            },
         },
     },
     # === 数据库 ===
@@ -241,15 +309,25 @@ ONET_TAXONOMY_MAP: dict[str, dict[str, Any]] = {
         "onet_name": "Database Administrators",
         "description": "数据库技术与存储",
         "subcategories": {
-            "relational": {"keywords": ["postgresql", "mysql", "sqlite", "mariadb",
-                                        "oracle", "sql-server"],
-                           "onet_skill": "2.C.4.a"},
-            "nosql": {"keywords": ["mongodb", "redis", "cassandra", "dynamodb",
-                                   "couchbase", "neo4j"],
-                      "onet_skill": "2.C.4.a"},
-            "vector": {"keywords": ["vector-database", "chroma", "pinecone",
-                                    "weaviate", "qdrant", "milvus"],
-                       "onet_skill": "2.C.4.a"},
+            "relational": {
+                "keywords": ["postgresql", "mysql", "sqlite", "mariadb", "oracle", "sql-server"],
+                "onet_skill": "2.C.4.a",
+            },
+            "nosql": {
+                "keywords": ["mongodb", "redis", "cassandra", "dynamodb", "couchbase", "neo4j"],
+                "onet_skill": "2.C.4.a",
+            },
+            "vector": {
+                "keywords": [
+                    "vector-database",
+                    "chroma",
+                    "pinecone",
+                    "weaviate",
+                    "qdrant",
+                    "milvus",
+                ],
+                "onet_skill": "2.C.4.a",
+            },
         },
     },
     # === DevOps/云原生 ===
@@ -258,15 +336,25 @@ ONET_TAXONOMY_MAP: dict[str, dict[str, Any]] = {
         "onet_name": "DevOps Engineers",
         "description": "DevOps 与云原生技术",
         "subcategories": {
-            "container": {"keywords": ["docker", "kubernetes", "k8s", "containerd",
-                                       "podman"],
-                          "onet_skill": "2.C.4.a"},
-            "ci-cd": {"keywords": ["ci/cd", "github-actions", "gitlab-ci", "jenkins",
-                                   "argocd", "terraform"],
-                      "onet_skill": "2.C.4.a"},
-            "cloud": {"keywords": ["aws", "azure", "gcp", "cloud", "serverless",
-                                   "lambda"],
-                      "onet_skill": "2.C.4.a"},
+            "container": {
+                "keywords": ["docker", "kubernetes", "k8s", "containerd", "podman"],
+                "onet_skill": "2.C.4.a",
+            },
+            "ci-cd": {
+                "keywords": [
+                    "ci/cd",
+                    "github-actions",
+                    "gitlab-ci",
+                    "jenkins",
+                    "argocd",
+                    "terraform",
+                ],
+                "onet_skill": "2.C.4.a",
+            },
+            "cloud": {
+                "keywords": ["aws", "azure", "gcp", "cloud", "serverless", "lambda"],
+                "onet_skill": "2.C.4.a",
+            },
         },
     },
     # === 安全 ===
@@ -275,12 +363,21 @@ ONET_TAXONOMY_MAP: dict[str, dict[str, Any]] = {
         "onet_name": "Information Security Analysts",
         "description": "信息安全与渗透测试",
         "subcategories": {
-            "appsec": {"keywords": ["security", "appsec", "owasp", "vulnerability",
-                                    "penetration", "pentest"],
-                       "onet_skill": "2.C.4.a"},
-            "crypto": {"keywords": ["cryptography", "encryption", "tls", "ssl",
-                                    "zero-knowledge"],
-                       "onet_skill": "2.C.4.a"},
+            "appsec": {
+                "keywords": [
+                    "security",
+                    "appsec",
+                    "owasp",
+                    "vulnerability",
+                    "penetration",
+                    "pentest",
+                ],
+                "onet_skill": "2.C.4.a",
+            },
+            "crypto": {
+                "keywords": ["cryptography", "encryption", "tls", "ssl", "zero-knowledge"],
+                "onet_skill": "2.C.4.a",
+            },
         },
     },
     # === MCP/工具 ===
@@ -289,11 +386,20 @@ ONET_TAXONOMY_MAP: dict[str, dict[str, Any]] = {
         "onet_name": "Web and Digital Interface Designers",
         "description": "MCP 服务器与 AI 工具链",
         "subcategories": {
-            "mcp-server": {"keywords": ["mcp", "model-context-protocol", "mcp-server",
-                                        "mcp-client", "tool-server"],
-                           "onet_skill": "2.C.4.a"},
-            "prompt": {"keywords": ["prompt", "prompt-engineer", "prompt-template"],
-                       "onet_skill": "2.C.4.a"},
+            "mcp-server": {
+                "keywords": [
+                    "mcp",
+                    "model-context-protocol",
+                    "mcp-server",
+                    "mcp-client",
+                    "tool-server",
+                ],
+                "onet_skill": "2.C.4.a",
+            },
+            "prompt": {
+                "keywords": ["prompt", "prompt-engineer", "prompt-template"],
+                "onet_skill": "2.C.4.a",
+            },
         },
     },
     # === 测试 ===
@@ -302,11 +408,14 @@ ONET_TAXONOMY_MAP: dict[str, dict[str, Any]] = {
         "onet_name": "Software Quality Assurance Analysts",
         "description": "软件测试与质量保证",
         "subcategories": {
-            "unit-test": {"keywords": ["pytest", "jest", "unittest", "vitest",
-                                       "mocha", "junit"],
-                          "onet_skill": "2.C.4.a"},
-            "e2e-test": {"keywords": ["playwright", "cypress", "selenium", "puppeteer"],
-                         "onet_skill": "2.C.4.a"},
+            "unit-test": {
+                "keywords": ["pytest", "jest", "unittest", "vitest", "mocha", "junit"],
+                "onet_skill": "2.C.4.a",
+            },
+            "e2e-test": {
+                "keywords": ["playwright", "cypress", "selenium", "puppeteer"],
+                "onet_skill": "2.C.4.a",
+            },
         },
     },
 }
@@ -328,7 +437,7 @@ def classify_with_onet(name: str, description: str, tags: list[str] = None) -> s
         text += " " + " ".join(t.lower() for t in tags)
 
     for category_id, category_info in ONET_TAXONOMY_MAP.items():
-        for sub_id, sub_info in category_info["subcategories"].items():
+        for _sub_id, sub_info in category_info["subcategories"].items():
             if any(kw in text for kw in sub_info["keywords"]):
                 return category_id
 
@@ -353,6 +462,7 @@ def classify_with_onet(name: str, description: str, tags: list[str] = None) -> s
 # 3. OSSInsight 分类排名 API
 # ──────────────────────────────────────────────
 
+
 @dataclass
 class OssinsightCollection:
     """OSSInsight 集合/分类"""
@@ -364,44 +474,71 @@ class OssinsightCollection:
 
 # 与 PyCoder 技能市场相关的 OSSInsight 分类
 OSSINSIGHT_COLLECTIONS = [
-    OssinsightCollection("ai-agent-frameworks", "AI Agent 框架",
-                         "https://ossinsight.io/collections/ai-agent-frameworks"),
-    OssinsightCollection("llm-devtools", "LLM 开发工具",
-                         "https://ossinsight.io/collections/llm-devtools"),
-    OssinsightCollection("llm-tools", "LLM 工具",
-                         "https://ossinsight.io/collections/llm-tools"),
-    OssinsightCollection("model-context-protocol-mcp-client", "MCP 客户端",
-                         "https://ossinsight.io/collections/model-context-protocol-mcp-client"),
-    OssinsightCollection("artificial-intelligence", "人工智能",
-                         "https://ossinsight.io/collections/artificial-intelligence"),
-    OssinsightCollection("programming-language", "编程语言",
-                         "https://ossinsight.io/collections/programming-language"),
-    OssinsightCollection("web-framework", "Web 框架",
-                         "https://ossinsight.io/collections/web-framework"),
-    OssinsightCollection("testing-tools", "测试工具",
-                         "https://ossinsight.io/collections/testing-tools"),
-    OssinsightCollection("security-tool", "安全工具",
-                         "https://ossinsight.io/collections/security-tool"),
-    OssinsightCollection("database", "数据库",
-                         "https://ossinsight.io/collections/database"),
-    OssinsightCollection("vector-database--vector-store", "向量数据库",
-                         "https://ossinsight.io/collections/vector-database--vector-store"),
-    OssinsightCollection("cicd", "CI/CD",
-                         "https://ossinsight.io/collections/cicd"),
-    OssinsightCollection("documentation-generator", "文档生成器",
-                         "https://ossinsight.io/collections/documentation-generator"),
-    OssinsightCollection("static-site-generator", "静态站点生成器",
-                         "https://ossinsight.io/collections/static-site-generator"),
-    OssinsightCollection("graphrag---knowledge-graph-based-rag", "GraphRAG",
-                         "https://ossinsight.io/collections/graphrag---knowledge-graph-based-rag"),
-    OssinsightCollection("chatgpt-alternatives", "ChatGPT 替代方案",
-                         "https://ossinsight.io/collections/chatgpt-alternatives"),
+    OssinsightCollection(
+        "ai-agent-frameworks",
+        "AI Agent 框架",
+        "https://ossinsight.io/collections/ai-agent-frameworks",
+    ),
+    OssinsightCollection(
+        "llm-devtools", "LLM 开发工具", "https://ossinsight.io/collections/llm-devtools"
+    ),
+    OssinsightCollection("llm-tools", "LLM 工具", "https://ossinsight.io/collections/llm-tools"),
+    OssinsightCollection(
+        "model-context-protocol-mcp-client",
+        "MCP 客户端",
+        "https://ossinsight.io/collections/model-context-protocol-mcp-client",
+    ),
+    OssinsightCollection(
+        "artificial-intelligence",
+        "人工智能",
+        "https://ossinsight.io/collections/artificial-intelligence",
+    ),
+    OssinsightCollection(
+        "programming-language", "编程语言", "https://ossinsight.io/collections/programming-language"
+    ),
+    OssinsightCollection(
+        "web-framework", "Web 框架", "https://ossinsight.io/collections/web-framework"
+    ),
+    OssinsightCollection(
+        "testing-tools", "测试工具", "https://ossinsight.io/collections/testing-tools"
+    ),
+    OssinsightCollection(
+        "security-tool", "安全工具", "https://ossinsight.io/collections/security-tool"
+    ),
+    OssinsightCollection("database", "数据库", "https://ossinsight.io/collections/database"),
+    OssinsightCollection(
+        "vector-database--vector-store",
+        "向量数据库",
+        "https://ossinsight.io/collections/vector-database--vector-store",
+    ),
+    OssinsightCollection("cicd", "CI/CD", "https://ossinsight.io/collections/cicd"),
+    OssinsightCollection(
+        "documentation-generator",
+        "文档生成器",
+        "https://ossinsight.io/collections/documentation-generator",
+    ),
+    OssinsightCollection(
+        "static-site-generator",
+        "静态站点生成器",
+        "https://ossinsight.io/collections/static-site-generator",
+    ),
+    OssinsightCollection(
+        "graphrag---knowledge-graph-based-rag",
+        "GraphRAG",
+        "https://ossinsight.io/collections/graphrag---knowledge-graph-based-rag",
+    ),
+    OssinsightCollection(
+        "chatgpt-alternatives",
+        "ChatGPT 替代方案",
+        "https://ossinsight.io/collections/chatgpt-alternatives",
+    ),
 ]
 
 
 @dataclass
 class OssinsightRankItem:
     """OSSInsight 排名项"""
+
     rank: int
     repo_name: str
     stars_28d: int
@@ -443,18 +580,25 @@ class OssinsightClient:
             if isinstance(rows, list):
                 for i, row in enumerate(rows):
                     if isinstance(row, dict):
-                        items.append(OssinsightRankItem(
-                            rank=i + 1,
-                            repo_name=row.get("repo_name", row.get("name", "")),
-                            stars_28d=int(row.get("stars", row.get("stars_28d", 0))),
-                            stars_total=int(row.get("stars_total", 0)),
-                            change_pct=float(row.get("change_pct", row.get("change", 0))),
-                            collection_id=collection_id,
-                        ))
+                        items.append(
+                            OssinsightRankItem(
+                                rank=i + 1,
+                                repo_name=row.get("repo_name", row.get("name", "")),
+                                stars_28d=int(row.get("stars", row.get("stars_28d", 0))),
+                                stars_total=int(row.get("stars_total", 0)),
+                                change_pct=float(row.get("change_pct", row.get("change", 0))),
+                                collection_id=collection_id,
+                            )
+                        )
             return items[:50]
 
-        except (urllib.error.HTTPError, urllib.error.URLError, OSError,
-                json.JSONDecodeError, TimeoutError) as e:
+        except (
+            urllib.error.HTTPError,
+            urllib.error.URLError,
+            OSError,
+            json.JSONDecodeError,
+            TimeoutError,
+        ) as e:
             log.debug("ossinsight_fetch_failed", collection=collection_id, error=str(e)[:60])
             return []
 
@@ -478,7 +622,7 @@ class OssinsightClient:
             self.fetch_all_collections()
 
         all_items = []
-        for collection_id, items in self._cache.items():
+        for _collection_id, items in self._cache.items():
             for item in items:
                 if item.stars_28d >= min_stars_28d:
                     all_items.append(item)

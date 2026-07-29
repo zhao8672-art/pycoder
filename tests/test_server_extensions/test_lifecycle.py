@@ -1,14 +1,8 @@
 from __future__ import annotations
 
-import json
-import os
 import sys
 import time
-import sqlite3
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 # ══════════════════════════════════════════════════════════
 # 第二部分: app_lifecycle.py 模块测试
@@ -27,7 +21,6 @@ class TestAppLifecycle:
 
     def test_get_uptime_increases(self):
         """get_uptime 随时间增加"""
-        import time
 
         from pycoder.server.app_lifecycle import get_uptime
 
@@ -197,5 +190,3 @@ class TestAppLifecycle:
         captured = capsys.readouterr()
         assert "升级检测跳过" in captured.out
         assert "测试异常" in captured.out
-
-

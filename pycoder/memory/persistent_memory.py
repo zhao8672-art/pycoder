@@ -11,17 +11,17 @@
 - 启动时加载 + 自动注入到 system prompt
 - LLM 摘要提炼（可选）
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import re
 import threading
-import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -72,10 +72,7 @@ def sanitize_dict(data: dict, *, _depth: int = 0) -> dict:
         elif isinstance(v, dict):
             out[k] = sanitize_dict(v, _depth=_depth + 1)
         elif isinstance(v, list):
-            out[k] = [
-                sanitize_dict(x, _depth=_depth + 1) if isinstance(x, dict) else x
-                for x in v
-            ]
+            out[k] = [sanitize_dict(x, _depth=_depth + 1) if isinstance(x, dict) else x for x in v]
         elif is_sensitive_value(v):
             out[k] = "[REDACTED]"
         else:
@@ -117,11 +114,11 @@ class UserMemory:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "UserMemory":
+    def from_dict(cls, data: dict) -> UserMemory:
         # 过滤敏感字段
         clean = sanitize_dict(data)
         # 仅保留已知字段，其余放入 custom
-        known_fields = {f for f in cls.__dataclass_fields__}
+        known_fields = set(cls.__dataclass_fields__)
         custom = {k: v for k, v in clean.items() if k not in known_fields}
         clean_main = {k: v for k, v in clean.items() if k in known_fields}
         clean_main["custom"] = custom
@@ -166,9 +163,9 @@ class ProjectMemory:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ProjectMemory":
+    def from_dict(cls, data: dict) -> ProjectMemory:
         clean = sanitize_dict(data)
-        known_fields = {f for f in cls.__dataclass_fields__}
+        known_fields = set(cls.__dataclass_fields__)
         custom = {k: v for k, v in clean.items() if k not in known_fields}
         clean_main = {k: v for k, v in clean.items() if k in known_fields}
         clean_main["custom"] = custom

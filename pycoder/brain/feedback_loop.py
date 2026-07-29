@@ -26,8 +26,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from pycoder.brain.intent_analyzer import IntentAnalysis
 from pycoder.brain.agent_selector import AgentSelection
+from pycoder.brain.intent_analyzer import IntentAnalysis
 from pycoder.brain.tool_planner import ToolPlan
 
 logger = logging.getLogger(__name__)
@@ -182,17 +182,27 @@ class AdaptiveWeights:
         aw = cls()
         if "agent_weights" in data:
             aw.agent_domain_weight = data["agent_weights"].get("domain", aw.agent_domain_weight)
-            aw.agent_task_type_weight = data["agent_weights"].get("task_type", aw.agent_task_type_weight)
-            aw.agent_complexity_weight = data["agent_weights"].get("complexity", aw.agent_complexity_weight)
+            aw.agent_task_type_weight = data["agent_weights"].get(
+                "task_type", aw.agent_task_type_weight
+            )
+            aw.agent_complexity_weight = data["agent_weights"].get(
+                "complexity", aw.agent_complexity_weight
+            )
             aw.agent_history_weight = data["agent_weights"].get("history", aw.agent_history_weight)
             aw.agent_speed_weight = data["agent_weights"].get("speed", aw.agent_speed_weight)
         if "tool" in data:
-            aw.tool_parallel_threshold = data["tool"].get("parallel_threshold", aw.tool_parallel_threshold)
+            aw.tool_parallel_threshold = data["tool"].get(
+                "parallel_threshold", aw.tool_parallel_threshold
+            )
             aw.tool_retry_max = data["tool"].get("retry_max", aw.tool_retry_max)
             aw.tool_timeout_scale = data["tool"].get("timeout_scale", aw.tool_timeout_scale)
         if "thresholds" in data:
-            aw.min_confidence_threshold = data["thresholds"].get("min_confidence", aw.min_confidence_threshold)
-            aw.deep_analysis_threshold = data["thresholds"].get("deep_analysis", aw.deep_analysis_threshold)
+            aw.min_confidence_threshold = data["thresholds"].get(
+                "min_confidence", aw.min_confidence_threshold
+            )
+            aw.deep_analysis_threshold = data["thresholds"].get(
+                "deep_analysis", aw.deep_analysis_threshold
+            )
             aw.max_iter_buffer = data["thresholds"].get("max_iter_buffer", aw.max_iter_buffer)
         if "learning_rate" in data:
             aw.learning_rate = data["learning_rate"]
@@ -392,7 +402,7 @@ class FeedbackLoop:
 
         # 维护最近信号窗口
         if len(self._recent_signals) > self._recent_max:
-            self._recent_signals = self._recent_signals[-self._recent_max:]
+            self._recent_signals = self._recent_signals[-self._recent_max :]
 
         # 批量持久化
         if len(self._pending_signals) >= self._signal_buffer_max:
@@ -400,8 +410,10 @@ class FeedbackLoop:
 
         logger.debug(
             "signal_recorded: agent=%s completed=%s tools=%d/%d time=%.0fms",
-            signal.agent_id, signal.task_completed,
-            signal.tool_success_calls, signal.tool_actual_calls,
+            signal.agent_id,
+            signal.task_completed,
+            signal.tool_success_calls,
+            signal.tool_actual_calls,
             signal.execution_time_ms,
         )
 
@@ -426,7 +438,9 @@ class FeedbackLoop:
 
         logger.info(
             "user_feedback: rating=%d reaction=%s text=%s",
-            rating, reaction, text[:100] if text else "",
+            rating,
+            reaction,
+            text[:100] if text else "",
         )
 
     # ── 学习与优化 ─────────────────────────────────
@@ -599,15 +613,13 @@ class FeedbackLoop:
                 rate = data["completed"] / data["total"]
                 if rate < 0.6:
                     recommendations.append(
-                        f"策略 '{st}' 完成率偏低 ({rate:.0%})，"
-                        "建议调整策略配置或增加工具预算"
+                        f"策略 '{st}' 完成率偏低 ({rate:.0%})，" "建议调整策略配置或增加工具预算"
                     )
 
         # 用户满意度
         if stats.avg_user_rating < 3.0 and stats.avg_user_rating > 0:
             recommendations.append(
-                f"用户满意度偏低 ({stats.avg_user_rating:.1f}/5)，"
-                "建议优化回答质量和交互体验"
+                f"用户满意度偏低 ({stats.avg_user_rating:.1f}/5)，" "建议优化回答质量和交互体验"
             )
 
         if not recommendations:
@@ -633,9 +645,8 @@ class FeedbackLoop:
                 agent_perf[a]["completed"] += 1
             if s.user_rating > 0:
                 agent_perf[a]["avg_rating"] = (
-                    (agent_perf[a]["avg_rating"] * (agent_perf[a]["total"] - 1) + s.user_rating)
-                    / agent_perf[a]["total"]
-                )
+                    agent_perf[a]["avg_rating"] * (agent_perf[a]["total"] - 1) + s.user_rating
+                ) / agent_perf[a]["total"]
 
         result: dict[str, float] = {}
         for a, perf in agent_perf.items():
@@ -694,9 +705,15 @@ class FeedbackLoop:
             if avg_acc < 0.6:
                 # 准确率低 → 增加历史权重（更依赖经验）
                 delta = lr * 0.05
-                self.weights.agent_history_weight = min(0.35, self.weights.agent_history_weight + delta)
-                self.weights.agent_domain_weight = max(0.15, self.weights.agent_domain_weight - delta / 2)
-                self.weights.agent_task_type_weight = max(0.10, self.weights.agent_task_type_weight - delta / 2)
+                self.weights.agent_history_weight = min(
+                    0.35, self.weights.agent_history_weight + delta
+                )
+                self.weights.agent_domain_weight = max(
+                    0.15, self.weights.agent_domain_weight - delta / 2
+                )
+                self.weights.agent_task_type_weight = max(
+                    0.10, self.weights.agent_task_type_weight - delta / 2
+                )
                 changes = {
                     "action": "increase_history_weight",
                     "reason": f"Agent 准确率 ({avg_acc:.1%}) 偏低，增加历史成功率权重",
@@ -705,9 +722,15 @@ class FeedbackLoop:
             elif avg_acc > 0.85:
                 # 准确率高 → 降低历史权重，更多信任实时分析
                 delta = lr * 0.03
-                self.weights.agent_history_weight = max(0.10, self.weights.agent_history_weight - delta)
-                self.weights.agent_domain_weight = min(0.40, self.weights.agent_domain_weight + delta / 2)
-                self.weights.agent_task_type_weight = min(0.35, self.weights.agent_task_type_weight + delta / 2)
+                self.weights.agent_history_weight = max(
+                    0.10, self.weights.agent_history_weight - delta
+                )
+                self.weights.agent_domain_weight = min(
+                    0.40, self.weights.agent_domain_weight + delta / 2
+                )
+                self.weights.agent_task_type_weight = min(
+                    0.35, self.weights.agent_task_type_weight + delta / 2
+                )
                 changes = {
                     "action": "decrease_history_weight",
                     "reason": f"Agent 准确率 ({avg_acc:.1%}) 高，减少历史依赖",
@@ -769,13 +792,17 @@ class FeedbackLoop:
 
         if low_rate < 0.4 and confidence_analysis.get("low_conf_count", 0) >= 3:
             # 低置信度任务成功率低 → 降低触发深度分析的阈值
-            self.weights.deep_analysis_threshold = min(0.85, self.weights.deep_analysis_threshold + 0.05)
+            self.weights.deep_analysis_threshold = min(
+                0.85, self.weights.deep_analysis_threshold + 0.05
+            )
             changes["deep_analysis_threshold"] = self.weights.deep_analysis_threshold
             changes["reason"] = "低置信度任务成功率低，更多触发深度分析"
 
         if high_rate > 0.9 and confidence_analysis.get("high_conf_count", 0) >= 3:
             # 高置信度任务成功率高 → 可适当提高阈值，减少不必要的深度分析
-            self.weights.deep_analysis_threshold = max(0.5, self.weights.deep_analysis_threshold - 0.02)
+            self.weights.deep_analysis_threshold = max(
+                0.5, self.weights.deep_analysis_threshold - 0.02
+            )
             changes["deep_analysis_threshold"] = self.weights.deep_analysis_threshold
             changes["reason"] = "高置信度准确率高，减少不必要的深度分析"
 
@@ -828,7 +855,7 @@ class FeedbackLoop:
         if not self._signals_path.exists():
             return signals
         try:
-            with open(self._signals_path, "r", encoding="utf-8") as f:
+            with open(self._signals_path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if line:

@@ -13,15 +13,15 @@
 """
 
 from pycoder.capabilities.editor import register_editor_capabilities
-from pycoder.capabilities.self_evo import register_self_evo_capabilities
-from pycoder.capabilities.system import register_system_capabilities
+from pycoder.capabilities.extension import register_extension_capabilities
+from pycoder.capabilities.gateway import register_gateway_capabilities
 
 # 新增能力域
 from pycoder.capabilities.lifecycle import register_lifecycle_capabilities
-from pycoder.capabilities.gateway import register_gateway_capabilities
 from pycoder.capabilities.memory import register_memory_capabilities
-from pycoder.capabilities.extension import register_extension_capabilities
 from pycoder.capabilities.observability import register_observability_capabilities
+from pycoder.capabilities.self_evo import register_self_evo_capabilities
+from pycoder.capabilities.system import register_system_capabilities
 
 __all__ = [
     # 既有能力域

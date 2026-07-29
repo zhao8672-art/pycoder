@@ -1,12 +1,7 @@
 from __future__ import annotations
 
-import json
-import os
-import sys
 import time
-import sqlite3
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -35,8 +30,13 @@ class TestLearningObservation:
         from pycoder.capabilities.self_evo.learning.closed_loop import LearningObservation
 
         obs = LearningObservation(
-            task_id="T002", task_description="测试任务", success=True, steps_taken=5,
-            errors_encountered=["err1"], patterns_used=["pat1"], patterns_failed=["pat2"],
+            task_id="T002",
+            task_description="测试任务",
+            success=True,
+            steps_taken=5,
+            errors_encountered=["err1"],
+            patterns_used=["pat1"],
+            patterns_failed=["pat2"],
             metadata={"key": "val"},
         )
         assert obs.success is True
@@ -130,9 +130,17 @@ class TestClosedLearningLoopInit:
         from pycoder.capabilities.self_evo.learning.closed_loop import ClosedLearningLoop
 
         row = {
-            "id": "s1", "name": "test", "description": "", "pattern": "", "strategy": "",
-            "success_rate": 0.8, "usage_count": 5, "created_at": 0.0, "updated_at": 0.0,
-            "source_task_id": "", "pruned": 0,
+            "id": "s1",
+            "name": "test",
+            "description": "",
+            "pattern": "",
+            "strategy": "",
+            "success_rate": 0.8,
+            "usage_count": 5,
+            "created_at": 0.0,
+            "updated_at": 0.0,
+            "source_task_id": "",
+            "pruned": 0,
         }
         skill = ClosedLearningLoop._row_to_skill(row)
         assert skill.id == "s1"
@@ -150,10 +158,17 @@ class TestClosedLearningLoopObserve:
 
         db_path = tmp_path / "obs.db"
         loop = ClosedLearningLoop(db_path=db_path)
-        obs = await loop.observe("T001", {
-            "description": "测试", "success": True, "steps": 3,
-            "errors": [], "patterns_used": ["pat1"], "patterns_failed": [],
-        })
+        obs = await loop.observe(
+            "T001",
+            {
+                "description": "测试",
+                "success": True,
+                "steps": 3,
+                "errors": [],
+                "patterns_used": ["pat1"],
+                "patterns_failed": [],
+            },
+        )
         assert obs.task_id == "T001"
         assert obs.success is True
         assert obs.steps_taken == 3
@@ -165,9 +180,13 @@ class TestClosedLearningLoopObserve:
 
         db_path = tmp_path / "obs2.db"
         loop = ClosedLearningLoop(db_path=db_path)
-        obs = await loop.observe("T002", {
-            "success": False, "errors": ["NameError"],
-        })
+        obs = await loop.observe(
+            "T002",
+            {
+                "success": False,
+                "errors": ["NameError"],
+            },
+        )
         assert obs.success is False
         assert obs.errors_encountered == ["NameError"]
 
@@ -179,14 +198,18 @@ class TestClosedLearningLoopReflect:
     async def test_reflect_success(self, tmp_path):
         """反思成功任务"""
         from pycoder.capabilities.self_evo.learning.closed_loop import (
-            ClosedLearningLoop, LearningObservation,
+            ClosedLearningLoop,
+            LearningObservation,
         )
 
         db_path = tmp_path / "reflect.db"
         loop = ClosedLearningLoop(db_path=db_path)
         obs = LearningObservation(
-            task_id="T001", success=True, steps_taken=2,
-            patterns_used=["pattern_a"], patterns_failed=[],
+            task_id="T001",
+            success=True,
+            steps_taken=2,
+            patterns_used=["pattern_a"],
+            patterns_failed=[],
         )
         reflection = await loop.reflect(obs)
         assert reflection["task_id"] == "T001"
@@ -198,13 +221,16 @@ class TestClosedLearningLoopReflect:
     async def test_reflect_failure(self, tmp_path):
         """反思失败任务"""
         from pycoder.capabilities.self_evo.learning.closed_loop import (
-            ClosedLearningLoop, LearningObservation,
+            ClosedLearningLoop,
+            LearningObservation,
         )
 
         db_path = tmp_path / "reflect2.db"
         loop = ClosedLearningLoop(db_path=db_path)
         obs = LearningObservation(
-            task_id="T002", success=False, errors_encountered=["TypeError"],
+            task_id="T002",
+            success=False,
+            errors_encountered=["TypeError"],
         )
         reflection = await loop.reflect(obs)
         assert reflection["success"] is False
@@ -224,8 +250,11 @@ class TestClosedLearningLoopGenerateSkill:
         reflection = {
             "task_id": "T001",
             "patterns_found": [
-                {"pattern": "fix_bare_except", "confidence": 0.9,
-                 "suggestion": "使用 except Exception"},
+                {
+                    "pattern": "fix_bare_except",
+                    "confidence": 0.9,
+                    "suggestion": "使用 except Exception",
+                },
             ],
             "patterns_avoid": [],
         }
@@ -298,10 +327,15 @@ class TestClosedLearningLoopRunCycle:
 
         db_path = tmp_path / "cycle.db"
         loop = ClosedLearningLoop(db_path=db_path)
-        result = await loop.run_cycle("T001", {
-            "description": "测试任务", "success": True, "steps": 2,
-            "patterns_used": ["pattern_a"],
-        })
+        result = await loop.run_cycle(
+            "T001",
+            {
+                "description": "测试任务",
+                "success": True,
+                "steps": 2,
+                "patterns_used": ["pattern_a"],
+            },
+        )
         assert result["task_id"] == "T001"
         assert "cycle_duration_ms" in result
         assert result["observation"]["success"] is True
@@ -331,5 +365,3 @@ class TestGetClosedLoop:
         loop1 = get_closed_loop()
         loop2 = get_closed_loop()
         assert loop1 is loop2
-
-

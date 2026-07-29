@@ -3,6 +3,7 @@
 验证 GitHub Actions security-scan workflow 和 pre-commit 配置
 存在且包含关键安全扫描步骤与回归防护钩子。
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -19,6 +20,7 @@ def _read_yaml_or_text(path: Path) -> str:
     content = path.read_text(encoding="utf-8")
     try:
         import yaml  # type: ignore
+
         return yaml.safe_load(content)
     except ImportError:
         return content
@@ -109,12 +111,15 @@ class TestPreCommitConfig:
 class TestArchitectureRegressionGuard:
     """架构回归防护 — 确保关键文件无裸 except: pass"""
 
-    @pytest.mark.parametrize("critical_file", [
-        "pycoder/server/app.py",
-        "pycoder/server/chat_handler.py",
-        "pycoder/server/services/agent_orchestrator.py",
-        "pycoder/server/self_evolution.py",
-    ])
+    @pytest.mark.parametrize(
+        "critical_file",
+        [
+            "pycoder/server/app.py",
+            "pycoder/server/chat_handler.py",
+            "pycoder/server/services/agent_orchestrator.py",
+            "pycoder/server/self_evolution.py",
+        ],
+    )
     def test_no_bare_except_pass(self, critical_file):
         """关键文件中不应有 except Exception: pass"""
         p = PROJECT_ROOT / critical_file
@@ -124,6 +129,5 @@ class TestArchitectureRegressionGuard:
         forbidden = ["except Exception: pass", "except Exception as e: pass"]
         for pattern in forbidden:
             assert pattern not in content, (
-                f"{critical_file} 中仍存在 '{pattern}'，"
-                "应替换为具体异常类型 + 日志记录"
+                f"{critical_file} 中仍存在 '{pattern}'，" "应替换为具体异常类型 + 日志记录"
             )

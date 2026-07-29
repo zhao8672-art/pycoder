@@ -9,8 +9,8 @@ import time
 
 from fastapi import APIRouter
 
-from pycoder.python.env_detector import detect_environment
 from pycoder.core.services.log import log
+from pycoder.python.env_detector import detect_environment
 
 router = APIRouter()
 
@@ -45,10 +45,14 @@ async def config_setup(req: dict):
 
     # ── 日志: 记录保存请求的原始数据 ──
     import logging
+
     _log = logging.getLogger(__name__)
     _log.info(
         "config_setup provider=%s key_len=%d key_prefix=%s model=%s",
-        provider, len(api_key), api_key[:12] if api_key else "(empty)", model,
+        provider,
+        len(api_key),
+        api_key[:12] if api_key else "(empty)",
+        model,
     )
 
     # ── 后端安全网: 根据 model 自动纠错 provider ──
@@ -57,7 +61,9 @@ async def config_setup(req: dict):
         if model_provider != provider and model_provider in PROVIDER_DEFS:
             _log.warning(
                 "provider_auto_correct: frontend=%s -> corrected=%s (model=%s)",
-                provider, model_provider, model,
+                provider,
+                model_provider,
+                model,
             )
             provider = model_provider
 
@@ -75,6 +81,7 @@ async def config_setup(req: dict):
         cfg_path = get_config_path()
         if cfg_path.exists():
             import json
+
             cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
         cfg["default_model"] = default_model
         save_config(cfg)
@@ -96,16 +103,18 @@ async def config_keys():
         if has:
             k = detected[pid]
             key_preview = f"{k[:10]}...{k[-4:]}" if len(k) > 14 else "****"
-        providers.append({
-            "id": pid,
-            "name": defs["name"],
-            "has_key": has,
-            "key_preview": key_preview,
-            "recommended_model": defs["recommended_model"],
-            "register_url": defs["register_url"],
-            "free_trial": defs.get("free_trial", ""),
-            "price_summary": defs.get("price_summary", ""),
-        })
+        providers.append(
+            {
+                "id": pid,
+                "name": defs["name"],
+                "has_key": has,
+                "key_preview": key_preview,
+                "recommended_model": defs["recommended_model"],
+                "register_url": defs["register_url"],
+                "free_trial": defs.get("free_trial", ""),
+                "price_summary": defs.get("price_summary", ""),
+            }
+        )
     return {
         "providers": providers,
         "any_key": len(detected) > 0,
@@ -124,14 +133,16 @@ async def config_status():
     providers = []
     for pid, defs in PROVIDER_DEFS.items():
         has = pid in detected
-        providers.append({
-            "id": pid,
-            "name": defs["name"],
-            "has_key": has,
-            "recommended_model": defs["recommended_model"],
-            "register_url": defs["register_url"],
-            "free_trial": defs.get("free_trial", ""),
-        })
+        providers.append(
+            {
+                "id": pid,
+                "name": defs["name"],
+                "has_key": has,
+                "recommended_model": defs["recommended_model"],
+                "register_url": defs["register_url"],
+                "free_trial": defs.get("free_trial", ""),
+            }
+        )
 
     recommended_id, recommended_provider = mgr.recommend()
     user_model = mgr.load_model_preference()

@@ -10,10 +10,10 @@ from pathlib import Path
 from typing import Any
 
 from pycoder.memory.deep_memory_models import (
-    MemoryEntry,
     _CHROMA_AVAILABLE,
-    chromadb,
     ChromaSettings,
+    MemoryEntry,
+    chromadb,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,9 @@ class ProjectMemory:
                     name=self.COLLECTION_NAME,
                     metadata={"hnsw:space": "cosine"},
                 )
-                logger.info("project_memory_chroma_initialized path=%s", self._memory_dir / "chroma")
+                logger.info(
+                    "project_memory_chroma_initialized path=%s", self._memory_dir / "chroma"
+                )
             except (OSError, RuntimeError, ValueError) as e:
                 logger.warning("project_memory_chroma_init_failed: %s，回退到 SQLite 模式", e)
                 self._chroma_client = None
@@ -59,26 +61,36 @@ class ProjectMemory:
     def _get_sqlite_conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self._sqlite_path), check_same_thread=False)
         conn.row_factory = sqlite3.Row
-        conn.execute(
-            """CREATE TABLE IF NOT EXISTS project_entries (
+        conn.execute("""CREATE TABLE IF NOT EXISTS project_entries (
                 id TEXT PRIMARY KEY, key TEXT NOT NULL, content TEXT NOT NULL,
                 metadata TEXT DEFAULT '{}', timestamp REAL NOT NULL, ttl REAL
-            )"""
-        )
+            )""")
         conn.execute(
             """CREATE INDEX IF NOT EXISTS idx_project_entries_key ON project_entries(key)"""
         )
         conn.commit()
         return conn
 
-    async def store(self, key: str, content: str, metadata: dict[str, Any] | None = None,
-                    embedding: list[float] | None = None) -> MemoryEntry:
-        entry = MemoryEntry(level=3, key=key, content=content, embedding=embedding,
-                            metadata=metadata or {}, ttl=None)
+    async def store(
+        self,
+        key: str,
+        content: str,
+        metadata: dict[str, Any] | None = None,
+        embedding: list[float] | None = None,
+    ) -> MemoryEntry:
+        entry = MemoryEntry(
+            level=3,
+            key=key,
+            content=content,
+            embedding=embedding,
+            metadata=metadata or {},
+            ttl=None,
+        )
         if self._chroma_collection is not None:
             try:
                 self._chroma_collection.upsert(
-                    ids=[entry.id], documents=[content],
+                    ids=[entry.id],
+                    documents=[content],
                     metadatas=[{**entry.metadata, "key": key}],
                     embeddings=[embedding] if embedding else None,
                 )
@@ -88,32 +100,53 @@ class ProjectMemory:
         conn.execute(
             """INSERT OR REPLACE INTO project_entries (id, key, content, metadata, timestamp, ttl)
                VALUES (?, ?, ?, ?, ?, ?)""",
-            (entry.id, entry.key, entry.content,
-             json.dumps(entry.metadata, ensure_ascii=False), entry.timestamp, entry.ttl),
+            (
+                entry.id,
+                entry.key,
+                entry.content,
+                json.dumps(entry.metadata, ensure_ascii=False),
+                entry.timestamp,
+                entry.ttl,
+            ),
         )
         conn.commit()
         conn.close()
         logger.debug("project_memory_store key=%s", key)
         return entry
 
-    async def search(self, query: str, k: int = 5, embedding: list[float] | None = None) -> list[MemoryEntry]:
+    async def search(
+        self, query: str, k: int = 5, embedding: list[float] | None = None
+    ) -> list[MemoryEntry]:
         results: list[MemoryEntry] = []
         if self._chroma_collection is not None:
             try:
                 chroma_results = self._chroma_collection.query(
-                    query_texts=[query], n_results=k,
+                    query_texts=[query],
+                    n_results=k,
                     query_embeddings=[embedding] if embedding else None,
                 )
                 if chroma_results and chroma_results.get("ids"):
                     for i, doc_id in enumerate(chroma_results["ids"][0]):
-                        doc = chroma_results["documents"][0][i] if chroma_results.get("documents") else ""
-                        meta = chroma_results["metadatas"][0][i] if chroma_results.get("metadatas") else {}
+                        doc = (
+                            chroma_results["documents"][0][i]
+                            if chroma_results.get("documents")
+                            else ""
+                        )
+                        meta = (
+                            chroma_results["metadatas"][0][i]
+                            if chroma_results.get("metadatas")
+                            else {}
+                        )
                         key = meta.get("key", "") if isinstance(meta, dict) else ""
-                        results.append(MemoryEntry(
-                            id=doc_id, level=3, key=key,
-                            content=doc if doc else "",
-                            metadata=meta if isinstance(meta, dict) else {},
-                        ))
+                        results.append(
+                            MemoryEntry(
+                                id=doc_id,
+                                level=3,
+                                key=key,
+                                content=doc if doc else "",
+                                metadata=meta if isinstance(meta, dict) else {},
+                            )
+                        )
                     return results
             except (OSError, RuntimeError, ValueError) as e:
                 logger.warning("project_memory_chroma_search_failed: %s", e)
@@ -127,11 +160,17 @@ class ProjectMemory:
         ).fetchall()
         conn.close()
         for row in rows:
-            results.append(MemoryEntry(
-                id=row["id"], level=3, key=row["key"], content=row["content"],
-                metadata=json.loads(row["metadata"]) if row["metadata"] else {},
-                timestamp=row["timestamp"], ttl=row["ttl"],
-            ))
+            results.append(
+                MemoryEntry(
+                    id=row["id"],
+                    level=3,
+                    key=row["key"],
+                    content=row["content"],
+                    metadata=json.loads(row["metadata"]) if row["metadata"] else {},
+                    timestamp=row["timestamp"],
+                    ttl=row["ttl"],
+                )
+            )
         return results
 
     async def get(self, key: str) -> MemoryEntry | None:
@@ -141,22 +180,37 @@ class ProjectMemory:
                 if chroma_results and chroma_results.get("ids"):
                     i = 0
                     return MemoryEntry(
-                        id=chroma_results["ids"][i], level=3, key=key,
-                        content=chroma_results["documents"][i] if chroma_results.get("documents") else "",
-                        metadata=chroma_results["metadatas"][i] if chroma_results.get("metadatas") else {},
+                        id=chroma_results["ids"][i],
+                        level=3,
+                        key=key,
+                        content=(
+                            chroma_results["documents"][i]
+                            if chroma_results.get("documents")
+                            else ""
+                        ),
+                        metadata=(
+                            chroma_results["metadatas"][i]
+                            if chroma_results.get("metadatas")
+                            else {}
+                        ),
                     )
             except (OSError, RuntimeError, ValueError) as e:
                 logger.warning("project_memory_chroma_get_failed: %s", e)
         conn = self._get_sqlite_conn()
         row = conn.execute(
-            "SELECT * FROM project_entries WHERE key = ? ORDER BY timestamp DESC LIMIT 1", (key,),
+            "SELECT * FROM project_entries WHERE key = ? ORDER BY timestamp DESC LIMIT 1",
+            (key,),
         ).fetchone()
         conn.close()
         if row:
             return MemoryEntry(
-                id=row["id"], level=3, key=row["key"], content=row["content"],
+                id=row["id"],
+                level=3,
+                key=row["key"],
+                content=row["content"],
                 metadata=json.loads(row["metadata"]) if row["metadata"] else {},
-                timestamp=row["timestamp"], ttl=row["ttl"],
+                timestamp=row["timestamp"],
+                ttl=row["ttl"],
             )
         return None
 
@@ -221,7 +275,11 @@ class ProjectMemory:
                 chroma_count = self._chroma_collection.count()
             except (OSError, RuntimeError, ValueError):
                 pass
-        return {"total_sqlite": total, "total_chroma": chroma_count, "chroma_available": _CHROMA_AVAILABLE}
+        return {
+            "total_sqlite": total,
+            "total_chroma": chroma_count,
+            "chroma_available": _CHROMA_AVAILABLE,
+        }
 
     @property
     def chroma_available(self) -> bool:

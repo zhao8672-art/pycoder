@@ -1,7 +1,6 @@
 """P0-1: 跨平台命令翻译器单元测试"""
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from pycoder.core.shell_translator import (
     COMMAND_MAP,
@@ -118,6 +117,7 @@ class TestShellTranslatorArgs:
 class TestCustomMapping:
     def test_add_custom_mapping(self):
         from pycoder.core.shell_translator import add_custom_mapping
+
         add_custom_mapping("myapp", {"windows": "myapp.exe", "linux": "myapp"})
         t = ShellTranslator()
         r = t.translate("myapp --run", source="linux", target="windows")

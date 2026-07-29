@@ -5,13 +5,12 @@ Extracted from rest_routes.py for modularity.
 BUG-011 修复：ChatRequest.message 改为 Any 字符串以兼容 UTF-8 + emoji；
 增加 catch-all 异常处理返回 422 而非 500。
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from fastapi import APIRouter, Request
-from pydantic import BaseModel, Field
 
 from pycoder.server.chat_handler import ChatRequest, _resolve_model, _run_chat_stream
 from pycoder.server.session_store import get_session_store
@@ -32,6 +31,7 @@ async def inline_completion(req: Request):
         # Layer 1: FIM 引擎（零 token）
         try:
             from pycoder.ai.completion.fim_engine import FIMCodeCompleter
+
             fim = FIMCodeCompleter()
             result = await fim.complete(prefix, suffix, language)
             if result and len(result) > 3:
@@ -40,6 +40,7 @@ async def inline_completion(req: Request):
             pass
         # Layer 2: ChatBridge 降级
         from pycoder.server.chat_bridge import ChatBridge
+
         bridge = ChatBridge()
         bridge.config.max_tokens = max_tokens
         bridge.config.temperature = 0.2

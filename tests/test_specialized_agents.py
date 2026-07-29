@@ -765,8 +765,18 @@ class TestRoleValidation:
 
     def test_valid_role_strings(self) -> None:
         """测试有效角色字符串"""
-        valid = ["architect", "developer", "tester", "debugger", "reviewer",
-                 "security", "devops", "documenter", "optimizer", "orchestrator"]
+        valid = [
+            "architect",
+            "developer",
+            "tester",
+            "debugger",
+            "reviewer",
+            "security",
+            "devops",
+            "documenter",
+            "optimizer",
+            "orchestrator",
+        ]
         for v in valid:
             role = AgentRole(v)
             assert isinstance(role, AgentRole)

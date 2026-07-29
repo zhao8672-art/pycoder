@@ -319,11 +319,13 @@ class SelfHealer:
         """调用 AI 生成精确修复"""
         try:
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.chat_bridge")
-            ChatBridge = getattr(_mod, "ChatBridge")
+            ChatBridge = _mod.ChatBridge
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.chat_handler")
-            _get_api_key_for_model = getattr(_mod, "_get_api_key_for_model")
+            _get_api_key_for_model = _mod._get_api_key_for_model
 
             bridge = ChatBridge()
             api_key = _get_api_key_for_model("deepseek-reasoner")
@@ -524,8 +526,9 @@ class UsageAnalyzer:
     def _analyze_sessions(self, report: UsageReport, days: int) -> None:
         """分析会话数据"""
         import importlib as _il
+
         _mod = _il.import_module("pycoder.server.session_store")
-        get_session_store = getattr(_mod, "get_session_store")
+        get_session_store = _mod.get_session_store
 
         store = get_session_store()
 
@@ -660,8 +663,9 @@ class PromptOptimizer:
 
         try:
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.services.agent_definitions")
-            AGENT_ROLES = getattr(_mod, "AGENT_ROLES")
+            AGENT_ROLES = _mod.AGENT_ROLES
 
             role = AGENT_ROLES.get(agent_id)
             if not role:

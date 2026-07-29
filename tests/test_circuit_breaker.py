@@ -9,10 +9,10 @@
   - CircuitBreakerRegistry: 注册表管理
   - CircuitBreakerOpenError: 异常类
 """
+
 from __future__ import annotations
 
 import time
-from unittest.mock import patch
 
 import pytest
 
@@ -23,7 +23,6 @@ from pycoder.safety.circuit_breaker import (
     CircuitConfig,
     CircuitState,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 辅助函数
@@ -92,9 +91,13 @@ class TestCircuitBreakerStateTransitions:
 
     def test_transition_to_half_open_after_timeout(self):
         """超时后从 OPEN 进入 HALF_OPEN"""
-        breaker = CircuitBreaker("test", CircuitConfig(
-            failure_threshold=1, timeout_seconds=0.01,
-        ))
+        breaker = CircuitBreaker(
+            "test",
+            CircuitConfig(
+                failure_threshold=1,
+                timeout_seconds=0.01,
+            ),
+        )
         breaker.before_call()
         breaker.record_failure()
         assert breaker.state == CircuitState.OPEN
@@ -105,10 +108,15 @@ class TestCircuitBreakerStateTransitions:
 
     def test_transition_back_to_closed_on_success_in_half_open(self):
         """HALF_OPEN 状态下连续成功恢复到 CLOSED"""
-        breaker = CircuitBreaker("test", CircuitConfig(
-            failure_threshold=1, success_threshold=2,
-            timeout_seconds=0.01, half_open_max_requests=3,
-        ))
+        breaker = CircuitBreaker(
+            "test",
+            CircuitConfig(
+                failure_threshold=1,
+                success_threshold=2,
+                timeout_seconds=0.01,
+                half_open_max_requests=3,
+            ),
+        )
         # 触发熔断
         breaker.before_call()
         breaker.record_failure()
@@ -126,9 +134,13 @@ class TestCircuitBreakerStateTransitions:
 
     def test_reopen_on_failure_in_half_open(self):
         """HALF_OPEN 状态下失败重新进入 OPEN"""
-        breaker = CircuitBreaker("test", CircuitConfig(
-            failure_threshold=1, timeout_seconds=0.01,
-        ))
+        breaker = CircuitBreaker(
+            "test",
+            CircuitConfig(
+                failure_threshold=1,
+                timeout_seconds=0.01,
+            ),
+        )
         breaker.before_call()
         breaker.record_failure()
         assert breaker.state == CircuitState.OPEN
@@ -164,9 +176,14 @@ class TestCircuitBreakerCallControl:
 
     def test_half_open_limits_requests(self):
         """HALF_OPEN 状态限制探测请求数"""
-        breaker = CircuitBreaker("test", CircuitConfig(
-            failure_threshold=1, timeout_seconds=0.01, half_open_max_requests=2,
-        ))
+        breaker = CircuitBreaker(
+            "test",
+            CircuitConfig(
+                failure_threshold=1,
+                timeout_seconds=0.01,
+                half_open_max_requests=2,
+            ),
+        )
         breaker.before_call()
         breaker.record_failure()
         assert breaker.state == CircuitState.OPEN
@@ -199,9 +216,13 @@ class TestCircuitBreakerCallControl:
 
     def test_record_failure_with_non_matching_error_type(self):
         """不匹配的异常类型不计入失败"""
-        breaker = CircuitBreaker("test", CircuitConfig(
-            failure_threshold=2, error_types=(ValueError,),
-        ))
+        breaker = CircuitBreaker(
+            "test",
+            CircuitConfig(
+                failure_threshold=2,
+                error_types=(ValueError,),
+            ),
+        )
         for _ in range(3):
             breaker.before_call()
             breaker.record_failure(CustomError("非标准错误"))
@@ -211,9 +232,13 @@ class TestCircuitBreakerCallControl:
 
     def test_record_failure_with_matching_error_type(self):
         """匹配的异常类型计入失败"""
-        breaker = CircuitBreaker("test", CircuitConfig(
-            failure_threshold=2, error_types=(ValueError, CustomError),
-        ))
+        breaker = CircuitBreaker(
+            "test",
+            CircuitConfig(
+                failure_threshold=2,
+                error_types=(ValueError, CustomError),
+            ),
+        )
         for _ in range(2):
             breaker.before_call()
             breaker.record_failure(CustomError("匹配错误"))

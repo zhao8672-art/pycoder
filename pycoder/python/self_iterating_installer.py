@@ -13,22 +13,18 @@
 - 沙箱试运行：导入前在临时命名空间执行
 - 完整性校验：记录 SHA-256 哈希
 """
+
 from __future__ import annotations
 
 import ast
-import asyncio
 import hashlib
 import importlib
 import importlib.util
 import json
 import logging
-import os
 import shutil
-import site
 import sys
-import tempfile
 import time
-import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -193,7 +189,14 @@ class SecurityValidator:
                 if matched:
                     continue
                 # 模糊匹配
-                for danger in ["os.system", "os.popen", "subprocess.run", "subprocess.Popen", "eval(", "exec("]:
+                for danger in [
+                    "os.system",
+                    "os.popen",
+                    "subprocess.run",
+                    "subprocess.Popen",
+                    "eval(",
+                    "exec(",
+                ]:
                     if danger in resolved_name:
                         if call_name not in dangerous:
                             dangerous.append(call_name)
@@ -255,9 +258,7 @@ class SelfIteratingInstaller:
         if self.metadata_file.exists():
             try:
                 data = json.loads(self.metadata_file.read_text(encoding="utf-8"))
-                self._installed = {
-                    name: ModuleInfo(**info) for name, info in data.items()
-                }
+                self._installed = {name: ModuleInfo(**info) for name, info in data.items()}
             except (json.JSONDecodeError, TypeError) as e:
                 logger.warning("metadata_load_failed error=%s", e)
                 self._installed = {}

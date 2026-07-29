@@ -25,9 +25,7 @@ from pycoder.server.services.evolution_report import (
     RiskItem,
     TestSummary,
     generate_change_report,
-    register_capabilities,
 )
-
 
 # ── Fixtures ──────────────────────────────────────────────
 
@@ -255,9 +253,7 @@ class TestEvolutionReport:
 
     def test_test_results(self) -> None:
         """测试测试结果统计"""
-        report = EvolutionReport(
-            test_results=TestSummary(passed=3, failed=1, skipped=1, errors=0)
-        )
+        report = EvolutionReport(test_results=TestSummary(passed=3, failed=1, skipped=1, errors=0))
         assert report.test_results.passed == 3
         assert report.test_results.failed == 1
         assert report.test_results.total == 5
@@ -492,7 +488,12 @@ class TestReportGenerator:
         report = generator.generate(
             task="大范围变更",
             changes=[
-                {"file": f"src/file_{i}.py", "action": "modified", "lines_added": 10, "lines_removed": 5}
+                {
+                    "file": f"src/file_{i}.py",
+                    "action": "modified",
+                    "lines_added": 10,
+                    "lines_removed": 5,
+                }
                 for i in range(15)
             ],
             success=False,
@@ -524,7 +525,13 @@ class TestReportGenerator:
     def test_parse_file_changes(self, generator: ReportGenerator) -> None:
         """测试解析文件变更"""
         changes = [
-            {"file": "a.py", "action": "added", "lines_added": 10, "lines_removed": 0, "description": "新文件"},
+            {
+                "file": "a.py",
+                "action": "added",
+                "lines_added": 10,
+                "lines_removed": 0,
+                "description": "新文件",
+            },
             {"file_path": "b.py", "action": "modified", "added": 5, "removed": 3, "desc": "修改"},
         ]
         result = generator._parse_file_changes(changes)
@@ -557,9 +564,9 @@ class TestReportGenerator:
 
     def test_generate_summary_success(self, generator: ReportGenerator) -> None:
         """测试成功摘要"""
-        fc = generator._parse_file_changes([
-            {"file": "a.py", "lines_added": 10, "lines_removed": 2}
-        ])
+        fc = generator._parse_file_changes(
+            [{"file": "a.py", "lines_added": 10, "lines_removed": 2}]
+        )
         ts = TestSummary(passed=10, failed=0)
         summary = generator._generate_summary(
             task="测试任务",
@@ -576,9 +583,7 @@ class TestReportGenerator:
 
     def test_generate_summary_failure(self, generator: ReportGenerator) -> None:
         """测试失败摘要"""
-        fc = generator._parse_file_changes([
-            {"file": "a.py", "lines_added": 5, "lines_removed": 0}
-        ])
+        fc = generator._parse_file_changes([{"file": "a.py", "lines_added": 5, "lines_removed": 0}])
         ts = TestSummary(passed=1, failed=1)
         summary = generator._generate_summary(
             task="失败任务",

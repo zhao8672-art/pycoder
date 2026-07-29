@@ -410,7 +410,9 @@ async def _install_package(params: dict[str, Any], context: dict[str, Any]) -> d
     else:
         cmd = ["pip", "install"] + packages
 
-    result = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True, timeout=300)
+    result = await asyncio.to_thread(
+        subprocess.run, cmd, capture_output=True, text=True, timeout=300
+    )
     return {
         "success": result.returncode == 0,
         "output": result.stdout[-2000:] + result.stderr[-2000:],
@@ -455,7 +457,7 @@ async def _detect_environment(params: dict[str, Any], context: dict[str, Any]) -
 
 def _register_html_builder_operations(registry: Any) -> None:
     """注册 HTML 页面构建能力（head/body）
-    
+
     AI Agent 在生成 HTML 页面时，会使用 <head> 和 <body> XML 工具
     来构建页面结构和样式。
     """
@@ -528,7 +530,21 @@ async def _handle_html_head(params: dict[str, Any], context: dict[str, Any]) -> 
 async def _handle_html_body(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理 HTML <body> 构建"""
     body_parts = []
-    for key in ("div", "h1", "h2", "h3", "p", "span", "section", "article", "main", "header", "footer", "nav", "aside"):
+    for key in (
+        "div",
+        "h1",
+        "h2",
+        "h3",
+        "p",
+        "span",
+        "section",
+        "article",
+        "main",
+        "header",
+        "footer",
+        "nav",
+        "aside",
+    ):
         val = params.get(key)
         if val:
             body_parts.append(f"<{key}>{val}</{key}>")

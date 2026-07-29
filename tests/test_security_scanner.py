@@ -1,16 +1,13 @@
 """P1-1: 依赖安全扫描器单元测试"""
+
 from __future__ import annotations
 
-import json
 import tempfile
 from pathlib import Path
-
-import pytest
 
 from pycoder.python.security_scanner import (
     DependencySecurityScanner,
     ScanResult,
-    scan_project,
 )
 
 
@@ -51,10 +48,7 @@ class TestParseRequirements:
 
     def test_parse_simple_requirements(self):
         (self.tmp_path / "requirements.txt").write_text(
-            "django==3.0.0\n"
-            "flask>=1.0.0\n"
-            "# comment\n"
-            "requests\n",
+            "django==3.0.0\n" "flask>=1.0.0\n" "# comment\n" "requests\n",
             encoding="utf-8",
         )
         scanner = DependencySecurityScanner(project_root=self.tmp_path)
@@ -89,13 +83,13 @@ class TestParsePyproject:
 
     def test_parse_pyproject(self):
         (self.tmp_path / "pyproject.toml").write_text(
-            '[project]\n'
+            "[project]\n"
             'name = "myproject"\n'
             'version = "0.1.0"\n'
-            'dependencies = [\n'
+            "dependencies = [\n"
             '    "django>=3.0.0",\n'
             '    "fastapi==0.100.0",\n'
-            ']\n',
+            "]\n",
             encoding="utf-8",
         )
         scanner = DependencySecurityScanner(project_root=self.tmp_path)
@@ -115,14 +109,14 @@ class TestParseSetup:
 
     def test_parse_setup_py(self):
         (self.tmp_path / "setup.py").write_text(
-            'from setuptools import setup\n'
-            'setup(\n'
+            "from setuptools import setup\n"
+            "setup(\n"
             '    name="mypkg",\n'
-            '    install_requires=[\n'
+            "    install_requires=[\n"
             '        "django>=2.0",\n'
             '        "flask",\n'
-            '    ],\n'
-            ')\n',
+            "    ],\n"
+            ")\n",
             encoding="utf-8",
         )
         scanner = DependencySecurityScanner(project_root=self.tmp_path)
@@ -167,17 +161,19 @@ class TestEndToEndScan:
 
     def test_add_custom_vuln(self):
         scanner = DependencySecurityScanner()
-        scanner.add_vulnerability({
-            "package": "my-internal-pkg",
-            "affected_patterns": [r"^0\."],
-            "fixed_version": "1.0.0",
-            "severity": "HIGH",
-            "cve_id": "INTERNAL-001",
-            "title": "Test vulnerability",
-            "description": "Custom vuln",
-            "cwe": "CWE-89",
-            "cvss": 7.0,
-        })
+        scanner.add_vulnerability(
+            {
+                "package": "my-internal-pkg",
+                "affected_patterns": [r"^0\."],
+                "fixed_version": "1.0.0",
+                "severity": "HIGH",
+                "cve_id": "INTERNAL-001",
+                "title": "Test vulnerability",
+                "description": "Custom vuln",
+                "cwe": "CWE-89",
+                "cvss": 7.0,
+            }
+        )
         vulns = scanner._match_vulnerabilities(
             [{"name": "my-internal-pkg", "version_spec": ""}],
             {"my-internal-pkg": "0.5.0"},

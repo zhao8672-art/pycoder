@@ -1,9 +1,9 @@
 """意识引擎测试 — ConsciousnessEngine 与 SystemEvent"""
+
 from __future__ import annotations
 
 import asyncio
-import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -12,7 +12,6 @@ from pycoder.brain.consciousness import (
     OperatingMode,
     SystemEvent,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # SystemEvent 数据类测试

@@ -8,10 +8,10 @@
 
 from __future__ import annotations
 
-from pycoder.ai.nlu.rule_classifier import RuleClassifier
-from pycoder.ai.nlu.embedding_matcher import EmbeddingMatcher
-from pycoder.ai.nlu.deep_analyzer import DeepAnalyzer
 from pycoder.ai.nlu.composite_nlu import CompositeNLUEngine, get_nlu_engine
+from pycoder.ai.nlu.deep_analyzer import DeepAnalyzer
+from pycoder.ai.nlu.embedding_matcher import EmbeddingMatcher
+from pycoder.ai.nlu.rule_classifier import RuleClassifier
 
 __all__ = [
     "RuleClassifier",

@@ -49,15 +49,35 @@ _PROJECT_INDICATORS: list[str] = [
 ]
 
 # ── 需要排除的临时/系统目录名 ──
-_TEMP_DIR_PATTERNS: frozenset[str] = frozenset({
-    "tmp", "temp", "cache", ".cache", "__pycache__",
-    "node_modules", ".npm", ".yarn",
-    "AppData", "Application Data",
-    "Downloads", "Desktop",
-    "System32", "Windows", "Program Files", "Program Files (x86)",
-    "usr", "bin", "sbin", "etc", "var", "opt",
-    ".vscode", ".idea", ".git",
-})
+_TEMP_DIR_PATTERNS: frozenset[str] = frozenset(
+    {
+        "tmp",
+        "temp",
+        "cache",
+        ".cache",
+        "__pycache__",
+        "node_modules",
+        ".npm",
+        ".yarn",
+        "AppData",
+        "Application Data",
+        "Downloads",
+        "Desktop",
+        "System32",
+        "Windows",
+        "Program Files",
+        "Program Files (x86)",
+        "usr",
+        "bin",
+        "sbin",
+        "etc",
+        "var",
+        "opt",
+        ".vscode",
+        ".idea",
+        ".git",
+    }
+)
 
 
 # ══════════════════════════════════════════════════════════
@@ -288,9 +308,7 @@ class WorkspaceDetector:
         """从 .pycoder/config.json 读取默认项目路径"""
         try:
             if self._config_file.exists():
-                data = __import__("json").loads(
-                    self._config_file.read_text(encoding="utf-8")
-                )
+                data = __import__("json").loads(self._config_file.read_text(encoding="utf-8"))
                 return data.get("default_project_path")
         except (OSError, ValueError, KeyError) as e:
             logger.debug("config_load_failed error=%s", e)
@@ -300,9 +318,7 @@ class WorkspaceDetector:
         """加载最近工作区历史"""
         try:
             if self._history_file.exists():
-                data = __import__("json").loads(
-                    self._history_file.read_text(encoding="utf-8")
-                )
+                data = __import__("json").loads(self._history_file.read_text(encoding="utf-8"))
                 return data.get("workspaces", [])
         except (OSError, ValueError, KeyError) as e:
             logger.debug("history_load_failed error=%s", e)
@@ -384,11 +400,7 @@ class WorkspaceDetector:
             "/tmp",
             "/var/tmp",
         ]
-        return any(
-            tr and path_str.startswith(tr)
-            for tr in temp_roots
-            if tr
-        )
+        return any(tr and path_str.startswith(tr) for tr in temp_roots if tr)
 
     # ── 配置持久化 ──────────────────────────────────────
 
@@ -399,9 +411,7 @@ class WorkspaceDetector:
             data = {}
             if self._config_file.exists():
                 try:
-                    data = __import__("json").loads(
-                        self._config_file.read_text(encoding="utf-8")
-                    )
+                    data = __import__("json").loads(self._config_file.read_text(encoding="utf-8"))
                 except (OSError, ValueError):
                     pass
             data["default_project_path"] = path
@@ -422,9 +432,7 @@ class WorkspaceDetector:
             data = {"workspaces": []}
             if self._history_file.exists():
                 try:
-                    data = __import__("json").loads(
-                        self._history_file.read_text(encoding="utf-8")
-                    )
+                    data = __import__("json").loads(self._history_file.read_text(encoding="utf-8"))
                 except (OSError, ValueError):
                     pass
             workspaces: list[str] = data.get("workspaces", [])

@@ -22,7 +22,7 @@ from pycoder.server.chat_bridge import ChatBridge
 from pycoder.server.session_store import get_session_store
 
 if TYPE_CHECKING:
-    from typing import Any, Callable
+    from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # 1. 常量与预编译资源（统一管理，杜绝散落在函数中）
 # =============================================================================
+
 
 class ChatConstants:
     """聊天处理器全局常量，所有硬编码集中在此"""
@@ -52,7 +53,7 @@ class ChatConstants:
         "## 简洁输出（强制执行）\n"
         "- 能短则短：能用 1-3 句话回复就这样做，不要输出不必要的开场白或收尾语\n"
         "- 不要解释你做了什么：完成任务后直接停止\n"
-        "- 直接回答：避免\"答案是...\"、\"根据信息...\"等冗余前缀\n"
+        '- 直接回答：避免"答案是..."、"根据信息..."等冗余前缀\n'
     )
 
     _COMMON_COMMUNICATION: str = (
@@ -104,7 +105,7 @@ class ChatConstants:
     SELF_KNOWLEDGE: str = (
         "## 核心能力清单（禁止工具验证本表）\n\n"
         "你是 PyCoder 的 AI 编程助手。PyCoder 源码位于 `pycoder/` 目录。\n"
-        "**铁律**: 用户问\"有什么功能\"时，直接引用下表回答，禁止调用工具验证。\n\n"
+        '**铁律**: 用户问"有什么功能"时，直接引用下表回答，禁止调用工具验证。\n\n'
         "| 模块 | 文件数 | 核心能力 |\n"
         "|------|:------:|----------|\n"
         "| **AI 推理管线** | 223 | chat_bridge.py(2400行), chat_handler.py, ws_handler_v2 — LLM 对话/工具调用/流式响应 |\n"
@@ -161,26 +162,108 @@ class ChatConstants:
     )
 
     # 琐碎探测消息（跳过会话保存）
-    TRIVIAL_MESSAGES: frozenset[str] = frozenset({
-        "ok", "ping", "test", "hello", "hi", "hey", "1", "?", "你好", "测试",
-    })
+    TRIVIAL_MESSAGES: frozenset[str] = frozenset(
+        {
+            "ok",
+            "ping",
+            "test",
+            "hello",
+            "hi",
+            "hey",
+            "1",
+            "?",
+            "你好",
+            "测试",
+        }
+    )
 
     # XML 工具调用时忽略的标签（HTML 标签 + 内部标签）
-    IGNORED_XML_TAGS: frozenset[str] = frozenset({
-        "code", "thinking", "reasoning", "thought", "file", "summary",
-        "result", "output", "response", "answer", "WRITE", "write",
-        "python", "bash", "json", "xml", "html",
-        "head", "body", "title", "style", "script", "link", "meta",
-        "h1", "h2", "h3", "h4", "h5", "h6",
-        "p", "div", "span", "a", "br", "hr", "img", "input", "button",
-        "ul", "ol", "li", "dl", "dt", "dd",
-        "table", "tr", "td", "th", "thead", "tbody", "tfoot",
-        "form", "label", "select", "option", "textarea",
-        "nav", "header", "footer", "main", "section", "article", "aside",
-        "iframe", "canvas", "video", "audio", "source",
-        "strong", "em", "b", "i", "u", "s", "small", "mark", "pre",
-        "blockquote", "kbd", "sub", "sup",
-    })
+    IGNORED_XML_TAGS: frozenset[str] = frozenset(
+        {
+            "code",
+            "thinking",
+            "reasoning",
+            "thought",
+            "file",
+            "summary",
+            "result",
+            "output",
+            "response",
+            "answer",
+            "WRITE",
+            "write",
+            "python",
+            "bash",
+            "json",
+            "xml",
+            "html",
+            "head",
+            "body",
+            "title",
+            "style",
+            "script",
+            "link",
+            "meta",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "p",
+            "div",
+            "span",
+            "a",
+            "br",
+            "hr",
+            "img",
+            "input",
+            "button",
+            "ul",
+            "ol",
+            "li",
+            "dl",
+            "dt",
+            "dd",
+            "table",
+            "tr",
+            "td",
+            "th",
+            "thead",
+            "tbody",
+            "tfoot",
+            "form",
+            "label",
+            "select",
+            "option",
+            "textarea",
+            "nav",
+            "header",
+            "footer",
+            "main",
+            "section",
+            "article",
+            "aside",
+            "iframe",
+            "canvas",
+            "video",
+            "audio",
+            "source",
+            "strong",
+            "em",
+            "b",
+            "i",
+            "u",
+            "s",
+            "small",
+            "mark",
+            "pre",
+            "blockquote",
+            "kbd",
+            "sub",
+            "sup",
+        }
+    )
 
     # 项目关键模块文件（用于上下文发现）
     KEY_MODULE_FILES: list[str] = [
@@ -225,8 +308,14 @@ class ChatConstants:
     ]
 
     TOP_LEVEL_CONFIG_FILES: list[str] = [
-        ".gitignore", "pyproject.toml", "README.md", "requirements.txt",
-        "start.bat", "start.ps1", "Dockerfile", "Makefile",
+        ".gitignore",
+        "pyproject.toml",
+        "README.md",
+        "requirements.txt",
+        "start.bat",
+        "start.ps1",
+        "Dockerfile",
+        "Makefile",
     ]
 
 
@@ -274,7 +363,8 @@ class RegexPatterns:
 # 2. 通用工具函数
 # =============================================================================
 
-def _safe_import(import_path: str, default: "Any" = None) -> "Any":
+
+def _safe_import(import_path: str, default: Any = None) -> Any:
     """安全延迟导入，统一处理导入异常，避免散落的 try/except ImportError
 
     Args:
@@ -296,6 +386,7 @@ def _safe_import(import_path: str, default: "Any" = None) -> "Any":
 # =============================================================================
 # 3. 上下文构建层（并行加载，降低首字延迟）
 # =============================================================================
+
 
 class ContextBuilder:
     """系统提示词构建器，使用 asyncio.gather 并行加载各类上下文
@@ -322,8 +413,10 @@ class ContextBuilder:
         """
         base = system_prompt or (
             ChatConstants.DEFAULT_SYSTEM_PROMPT
-            + ChatConstants._COMMON_CONCISE_OUTPUT + "\n"
-            + ChatConstants._COMMON_COMMUNICATION + "\n"
+            + ChatConstants._COMMON_CONCISE_OUTPUT
+            + "\n"
+            + ChatConstants._COMMON_COMMUNICATION
+            + "\n"
             + ChatConstants._COMMON_SECURITY
             + ChatConstants._COMMON_TOOL_NAMES
             + ChatConstants.WINDOWS_GUIDANCE
@@ -415,9 +508,7 @@ class ContextBuilder:
     async def _build_self_evo_feedback() -> str:
         """注入自进化经验反馈"""
         try:
-            get_live_learner = _safe_import(
-                "pycoder.capabilities.self_evo.live.get_live_learner"
-            )
+            get_live_learner = _safe_import("pycoder.capabilities.self_evo.live.get_live_learner")
             if not get_live_learner:
                 return ""
             learner = get_live_learner()
@@ -461,6 +552,7 @@ class ContextBuilder:
 # 4. 会话管理层（封装 CRUD，减少主流程行数）
 # =============================================================================
 
+
 class SessionManager:
     """会话管理封装，统一处理会话的增删改查"""
 
@@ -480,9 +572,7 @@ class SessionManager:
                 bridge.add_message(msg.role, msg.content)
                 history.append(msg)
         except (OSError, ValueError, RuntimeError) as e:
-            logger.warning(
-                "history_load_failed", extra={"session_id": session_id, "error": str(e)}
-            )
+            logger.warning("history_load_failed", extra={"session_id": session_id, "error": str(e)})
         return history
 
     def add_user_message(self, session_id: str | None, message: str) -> bool:
@@ -918,22 +1008,28 @@ async def _extract_error_patterns(ai_response: str, user_message: str) -> None:
         _err_type = _match.group(1)
         _err_msg = _match.group(2)[:200]
         _sig = hashlib.md5((_err_type + _err_msg[:60]).encode()).hexdigest()[:16]
-        _errors_found.append({
-            "signature": _sig, "type": _err_type,
-            "pattern": user_message[:80] if user_message else "",
-            "fix": ai_response[_match.end():_match.end()+300],
-        })
+        _errors_found.append(
+            {
+                "signature": _sig,
+                "type": _err_type,
+                "pattern": user_message[:80] if user_message else "",
+                "fix": ai_response[_match.end() : _match.end() + 300],
+            }
+        )
 
-    # 模式2: 包含 "Traceback" 
+    # 模式2: 包含 "Traceback"
     if "Traceback" in ai_response or "报错" in user_message or "error" in user_message.lower():
         # 通用错误签名
         _sig = hashlib.md5((user_message[:100] + "error").encode()).hexdigest()[:16]
         if not any(e["signature"] == _sig for e in _errors_found):
-            _errors_found.append({
-                "signature": _sig, "type": "General",
-                "pattern": user_message[:80] if user_message else "",
-                "fix": ai_response[:500],
-            })
+            _errors_found.append(
+                {
+                    "signature": _sig,
+                    "type": "General",
+                    "pattern": user_message[:80] if user_message else "",
+                    "fix": ai_response[:500],
+                }
+            )
 
     if not _errors_found:
         return
@@ -949,13 +1045,19 @@ async def _extract_error_patterns(ai_response: str, user_message: str) -> None:
                     "success_count, fail_count, last_seen, created_at) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     (
-                        _ef["signature"], _ef["type"],
-                        _ef["fix"], _ef["pattern"],
-                        1, 0, time.time(), time.time(),
+                        _ef["signature"],
+                        _ef["type"],
+                        _ef["fix"],
+                        _ef["pattern"],
+                        1,
+                        0,
+                        time.time(),
+                        time.time(),
                     ),
                 )
             _conn.commit()
             _conn.close()
+
         await asyncio.to_thread(_write)
         logger.debug("error_patterns_extracted count=%d", len(_errors_found))
     except (sqlite3.Error, OSError, ValueError) as e:
@@ -1021,7 +1123,9 @@ async def _run_chat_stream(
     bridge.configure(model=model, api_key=api_key)
     # 使用 ContextBuilder 并行加载所有上下文（文件/项目状态/记忆/自进化/跨会话）
     bridge.config.system_prompt = await ContextBuilder.build_full_prompt(
-        system_prompt, files, session_id,
+        system_prompt,
+        files,
+        session_id,
     )
     bridge.config.reasoning_effort = reasoning_effort
     bridge.config.enable_thinking = True
@@ -1067,6 +1171,7 @@ async def _run_chat_stream(
     if not hermes and not agent_mode:
         try:
             from pycoder.core.services.task_grader import get_task_grader
+
             _grader = get_task_grader()
             # 快速预评估：基于任务描述关键词 + 长度
             _quick_ctx: dict[str, str] = {"domain": ""}
@@ -1081,7 +1186,9 @@ async def _run_chat_stream(
                 agent_mode = True
                 logger.info(
                     "agent_auto_routed level=%s score=%.0f msg=%.60s",
-                    _pre_grade.level, _pre_grade.score, message,
+                    _pre_grade.level,
+                    _pre_grade.score,
+                    message,
                 )
         except (ImportError, RuntimeError, ValueError, TypeError, AttributeError) as e:
             logger.debug("agent_auto_route_skipped error=%s", e)

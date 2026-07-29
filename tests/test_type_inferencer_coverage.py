@@ -11,8 +11,6 @@ type_inferencer.py 模块单元测试 — 覆盖率目标 >=80%
 from __future__ import annotations
 
 import ast
-import textwrap
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -26,7 +24,6 @@ from pycoder.python.type_inferencer import (
     check_types,
     infer_types,
 )
-
 
 # ── 数据模型 ──────────────────────────────────────────────
 
@@ -621,6 +618,7 @@ def test_add_type_hints_to_file_multiple_functions(tmp_path):
 def mock_mypy_available(monkeypatch):
     """让 _check_mypy 返回 True"""
     import pycoder.python.type_inferencer as mod
+
     mock_run = MagicMock(returncode=0, stdout="mypy 1.0.0", stderr="")
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: mock_run)
     return mock_run
@@ -628,6 +626,7 @@ def mock_mypy_available(monkeypatch):
 
 def test_type_checker_init_mypy_available(monkeypatch):
     import pycoder.python.type_inferencer as mod
+
     mock_run = MagicMock(returncode=0, stdout="mypy 1.0.0", stderr="")
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: mock_run)
     checker = TypeChecker()
@@ -635,10 +634,13 @@ def test_type_checker_init_mypy_available(monkeypatch):
 
 
 def test_type_checker_init_mypy_not_available(monkeypatch):
-    import pycoder.python.type_inferencer as mod
     import subprocess as sp
+
+    import pycoder.python.type_inferencer as mod
+
     def raise_error(*a, **k):
         raise sp.SubprocessError("fail")
+
     monkeypatch.setattr(mod.subprocess, "run", raise_error)
     checker = TypeChecker()
     assert checker._mypy_available is False
@@ -646,8 +648,10 @@ def test_type_checker_init_mypy_not_available(monkeypatch):
 
 def test_type_checker_init_mypy_oserror(monkeypatch):
     import pycoder.python.type_inferencer as mod
+
     def raise_oserror(*a, **k):
         raise OSError("not found")
+
     monkeypatch.setattr(mod.subprocess, "run", raise_oserror)
     checker = TypeChecker()
     assert checker._mypy_available is False
@@ -655,6 +659,7 @@ def test_type_checker_init_mypy_oserror(monkeypatch):
 
 def test_type_checker_init_mypy_returncode_nonzero(monkeypatch):
     import pycoder.python.type_inferencer as mod
+
     mock_run = MagicMock(returncode=1, stdout="", stderr="error")
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: mock_run)
     checker = TypeChecker()
@@ -671,6 +676,7 @@ def test_check_file_mypy_not_available():
 
 def test_check_file_success_with_errors(monkeypatch):
     import pycoder.python.type_inferencer as mod
+
     # 先让 __init__ 中的 _check_mypy 返回 True
     mock_run = MagicMock(returncode=0, stdout="mypy 1.0.0", stderr="")
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: mock_run)
@@ -690,6 +696,7 @@ def test_check_file_success_with_errors(monkeypatch):
 
 def test_check_file_success_no_errors(monkeypatch):
     import pycoder.python.type_inferencer as mod
+
     mock_run = MagicMock(returncode=0, stdout="mypy 1.0.0", stderr="")
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: mock_run)
     checker = TypeChecker()
@@ -704,6 +711,7 @@ def test_check_file_success_no_errors(monkeypatch):
 
 def test_check_file_with_warning(monkeypatch):
     import pycoder.python.type_inferencer as mod
+
     mock_run = MagicMock(returncode=0, stdout="mypy 1.0.0", stderr="")
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: mock_run)
     checker = TypeChecker()
@@ -719,12 +727,14 @@ def test_check_file_with_warning(monkeypatch):
 
 def test_check_file_exception(monkeypatch):
     import pycoder.python.type_inferencer as mod
+
     mock_run = MagicMock(returncode=0, stdout="mypy 1.0.0", stderr="")
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: mock_run)
     checker = TypeChecker()
 
     def raise_error(*a, **k):
         raise RuntimeError("boom")
+
     monkeypatch.setattr(mod.subprocess, "run", raise_error)
 
     result = checker.check_file("dummy.py")
@@ -734,6 +744,7 @@ def test_check_file_exception(monkeypatch):
 
 def test_check_file_malformed_line(monkeypatch):
     import pycoder.python.type_inferencer as mod
+
     mock_run = MagicMock(returncode=0, stdout="mypy 1.0.0", stderr="")
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: mock_run)
     checker = TypeChecker()
@@ -749,6 +760,7 @@ def test_check_file_malformed_line(monkeypatch):
 
 def test_check_code_writes_temp_file(monkeypatch):
     import pycoder.python.type_inferencer as mod
+
     mock_run = MagicMock(returncode=0, stdout="mypy 1.0.0", stderr="")
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: mock_run)
     checker = TypeChecker()
@@ -791,6 +803,7 @@ def test_module_add_type_hints_failure():
 
 def test_module_check_types(monkeypatch):
     import pycoder.python.type_inferencer as mod
+
     mock_run = MagicMock(returncode=0, stdout="mypy 1.0.0", stderr="")
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: mock_run)
     result = check_types("dummy.py")

@@ -14,50 +14,33 @@ IntelligentRouter, FeedbackLoop, ContextEnhancer
 from __future__ import annotations
 
 import asyncio
-import json
-import tempfile
-from pathlib import Path
 
-import pytest
-
-from pycoder.brain.intent_analyzer import (
-    IntentAnalysis,
-    IntentAnalyzer,
-    get_intent_analyzer,
-)
 from pycoder.brain.agent_selector import (
-    AgentSelection,
     AgentSelector,
-    get_agent_selector,
 )
-from pycoder.brain.tool_planner import (
-    ToolPlan,
-    ToolPlanner,
-    get_tool_planner,
-    COMPLEXITY_TOOL_PLAN,
-    TASK_TOOL_MAP,
-)
-from pycoder.brain.intelligent_router import (
-    ExecutionConfig,
-    IntelligentRouter,
-    RoutingDecision,
-    get_intelligent_router,
-    COMPLEXITY_EXECUTION_CONFIG,
+from pycoder.brain.context_enhancer import (
+    ContextEnhancer,
+    ConversationTurn,
+    EnhancedContext,
 )
 from pycoder.brain.feedback_loop import (
     AdaptiveWeights,
     AggregatedStats,
     ExecutionSignal,
     FeedbackLoop,
-    get_feedback_loop,
 )
-from pycoder.brain.context_enhancer import (
-    ContextEnhancer,
-    ConversationTurn,
-    EnhancedContext,
-    get_context_enhancer,
+from pycoder.brain.intelligent_router import (
+    COMPLEXITY_EXECUTION_CONFIG,
+    IntelligentRouter,
+    RoutingDecision,
 )
-
+from pycoder.brain.intent_analyzer import (
+    IntentAnalysis,
+    IntentAnalyzer,
+)
+from pycoder.brain.tool_planner import (
+    ToolPlanner,
+)
 
 # ══════════════════════════════════════════════════════════
 # IntentAnalyzer 测试
@@ -136,9 +119,7 @@ class TestIntentAnalyzer:
     def test_complexity_scoring_medium_length(self):
         """中等长度消息复杂度评分"""
         analyzer = IntentAnalyzer()
-        result = analyzer.analyze(
-            "请帮我重构这个模块，优化性能并添加错误处理"
-        )
+        result = analyzer.analyze("请帮我重构这个模块，优化性能并添加错误处理")
         assert result.complexity_score >= 0
         assert isinstance(result.complexity_score, int)
 
@@ -279,15 +260,18 @@ class TestAgentSelector:
     def test_register_agent_adds_to_matrix(self):
         """注册新 Agent 应添加到能力矩阵"""
         selector = AgentSelector()
-        selector.register_agent("data_scientist", {
-            "name": "数据科学家",
-            "description": "数据分析",
-            "domains": ["data", "python"],
-            "task_types": ["code_gen", "qa"],
-            "complexity_range": (20, 70),
-            "model_tier": "standard",
-            "suitable_for": "数据分析",
-        })
+        selector.register_agent(
+            "data_scientist",
+            {
+                "name": "数据科学家",
+                "description": "数据分析",
+                "domains": ["data", "python"],
+                "task_types": ["code_gen", "qa"],
+                "complexity_range": (20, 70),
+                "model_tier": "standard",
+                "suitable_for": "数据分析",
+            },
+        )
         info = selector.get_agent_info("data_scientist")
         assert info is not None
         assert info["name"] == "数据科学家"
@@ -507,8 +491,12 @@ class TestFeedbackLoop:
         signal = loop.start_signal(session_id="test_session")
         assert signal.session_id == "test_session"
         loop.end_signal(
-            signal, completed=True, completion_reason="done",
-            iterations=5, tool_calls=3, tool_success=3,
+            signal,
+            completed=True,
+            completion_reason="done",
+            iterations=5,
+            tool_calls=3,
+            tool_success=3,
             execution_time_ms=1000,
         )
         assert signal.task_completed is True
@@ -556,8 +544,13 @@ class TestFeedbackLoop:
         loop = FeedbackLoop()
         signal = loop.start_signal(session_id="test")
         loop.end_signal(
-            signal, completed=True, iterations=3, tool_calls=2, tool_success=2,
-            execution_time_ms=500, total_tokens=1000,
+            signal,
+            completed=True,
+            iterations=3,
+            tool_calls=2,
+            tool_success=2,
+            execution_time_ms=500,
+            total_tokens=1000,
         )
         stats = loop.get_stats()
         assert stats.total_executions >= 1
@@ -820,13 +813,15 @@ class TestIntegration:
         """完整决策链 - 复杂任务"""
         router = IntelligentRouter()
         decision = router.decide(
-            "重构整个微服务架构，迁移到 FastAPI，"
-            "包含认证和权限系统，支持高并发和分布式部署"
+            "重构整个微服务架构，迁移到 FastAPI，" "包含认证和权限系统，支持高并发和分布式部署"
         )
         # 复杂任务应为 medium 或 complex
         assert decision.intent.complexity in ("medium", "complex")
         assert decision.execution_config.max_iterations >= 15
-        assert decision.execution_config.enable_qa_review is True or decision.execution_config.strategy in ("team", "auto")
+        assert (
+            decision.execution_config.enable_qa_review is True
+            or decision.execution_config.strategy in ("team", "auto")
+        )
 
     def test_feedback_loop_integration(self):
         """反馈学习集成"""
@@ -841,7 +836,11 @@ class TestIntegration:
             tool_plan=decision.tool_plan,
         )
         feedback.end_signal(
-            signal, completed=True, iterations=3, tool_calls=2, tool_success=2,
+            signal,
+            completed=True,
+            iterations=3,
+            tool_calls=2,
+            tool_success=2,
         )
         feedback.record_user_rating(signal, rating=4)
         stats = feedback.get_stats()
@@ -910,6 +909,7 @@ class TestExtensibility:
     def test_register_new_domain_keyword(self):
         """注册新领域关键词"""
         from pycoder.brain.intent_analyzer import DOMAIN_KEYWORDS
+
         DOMAIN_KEYWORDS["kotlin"] = ["kotlin", "ktor", "android"]
         analyzer = IntentAnalyzer()
         result = analyzer.analyze("用 Kotlin 写一个 Android 应用")
@@ -920,6 +920,7 @@ class TestExtensibility:
     def test_register_new_task_type(self):
         """注册新任务类型"""
         from pycoder.brain.intent_analyzer import TASK_TYPE_KEYWORDS
+
         TASK_TYPE_KEYWORDS["data_analysis"] = ["分析数据", "数据可视化", "图表"]
         analyzer = IntentAnalyzer()
         result = analyzer.analyze("分析数据并生成可视化图表")
@@ -939,6 +940,7 @@ class TestPerformance:
     def test_router_decision_under_10ms(self):
         """路由决策应在 10ms 内完成"""
         import time
+
         router = IntelligentRouter()
         start = time.monotonic()
         for _ in range(20):
@@ -950,6 +952,7 @@ class TestPerformance:
     def test_intent_analyzer_under_5ms(self):
         """意图分析应在 5ms 内完成"""
         import time
+
         analyzer = IntentAnalyzer()
         start = time.monotonic()
         for _ in range(50):
@@ -960,6 +963,7 @@ class TestPerformance:
     def test_agent_selector_under_3ms(self):
         """Agent 选择应在 3ms 内完成"""
         import time
+
         selector = AgentSelector()
         intent = IntentAnalysis(
             raw_input="test",
@@ -977,6 +981,7 @@ class TestPerformance:
     def test_tool_planner_under_2ms(self):
         """工具规划应在 2ms 内完成"""
         import time
+
         planner = ToolPlanner()
         intent = IntentAnalysis(
             raw_input="test",

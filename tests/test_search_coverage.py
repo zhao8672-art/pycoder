@@ -17,9 +17,9 @@
     - TestClient + monkeypatch _RG_PATH / _search_with_rg / _search_python
     - tmp_path 隔离工作区
 """
+
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -29,7 +29,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pycoder.server.routers import search as search_mod
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -73,8 +72,10 @@ class TestSearchWithRg:
         mock_result.stdout = sample_output
         mock_result.returncode = 0
 
-        with patch.object(search_mod, "_RG_PATH", "/fake/rg"), \
-             patch("subprocess.run", return_value=mock_result):
+        with (
+            patch.object(search_mod, "_RG_PATH", "/fake/rg"),
+            patch("subprocess.run", return_value=mock_result),
+        ):
             results = search_mod._search_with_rg("hello", workspace, limit=10)
 
         assert len(results) == 2
@@ -88,30 +89,40 @@ class TestSearchWithRg:
         mock_result.stdout = ""
         mock_result.returncode = 0
 
-        with patch.object(search_mod, "_RG_PATH", "/fake/rg"), \
-             patch("subprocess.run", return_value=mock_result) as mock_run:
+        with (
+            patch.object(search_mod, "_RG_PATH", "/fake/rg"),
+            patch("subprocess.run", return_value=mock_result) as mock_run,
+        ):
             search_mod._search_with_rg(
-                "Hello", workspace, limit=5,
-                file_type=".py", regex=True,
-                case_sensitive=True, whole_word=True,
+                "Hello",
+                workspace,
+                limit=5,
+                file_type=".py",
+                regex=True,
+                case_sensitive=True,
+                whole_word=True,
             )
             cmd = mock_run.call_args[0][0]
             assert "--fixed-strings" not in cmd  # regex=True 时不加 fixed-strings
-            assert "--ignore-case" not in cmd      # case_sensitive=True 时不加
+            assert "--ignore-case" not in cmd  # case_sensitive=True 时不加
             assert "--word-regexp" in cmd
             assert "--glob" in cmd
 
     def test_subprocess_error(self, workspace):
         """子进程异常 → 返回空列表"""
-        with patch.object(search_mod, "_RG_PATH", "/fake/rg"), \
-             patch("subprocess.run", side_effect=subprocess.SubprocessError("boom")):
+        with (
+            patch.object(search_mod, "_RG_PATH", "/fake/rg"),
+            patch("subprocess.run", side_effect=subprocess.SubprocessError("boom")),
+        ):
             results = search_mod._search_with_rg("hello", workspace)
         assert results == []
 
     def test_oserror(self, workspace):
         """OSError → 返回空列表"""
-        with patch.object(search_mod, "_RG_PATH", "/fake/rg"), \
-             patch("subprocess.run", side_effect=OSError("denied")):
+        with (
+            patch.object(search_mod, "_RG_PATH", "/fake/rg"),
+            patch("subprocess.run", side_effect=OSError("denied")),
+        ):
             results = search_mod._search_with_rg("hello", workspace)
         assert results == []
 
@@ -123,8 +134,10 @@ class TestSearchWithRg:
         mock_result.stdout = "\n".join(lines) + "\n"
         mock_result.returncode = 0
 
-        with patch.object(search_mod, "_RG_PATH", "/fake/rg"), \
-             patch("subprocess.run", return_value=mock_result):
+        with (
+            patch.object(search_mod, "_RG_PATH", "/fake/rg"),
+            patch("subprocess.run", return_value=mock_result),
+        ):
             results = search_mod._search_with_rg("match", workspace, limit=2)
         assert len(results) == 2
 
@@ -133,8 +146,10 @@ class TestSearchWithRg:
         mock_result = MagicMock()
         mock_result.stdout = ""
         mock_result.returncode = 0
-        with patch.object(search_mod, "_RG_PATH", "/fake/rg"), \
-             patch("subprocess.run", return_value=mock_result):
+        with (
+            patch.object(search_mod, "_RG_PATH", "/fake/rg"),
+            patch("subprocess.run", return_value=mock_result),
+        ):
             results = search_mod._search_with_rg("nothing", workspace)
         assert results == []
 
@@ -145,8 +160,10 @@ class TestSearchWithRg:
         good_line = f"{_abs(workspace, 'file.py')}:10:match"
         mock_result.stdout = f"no_colons_here\n{good_line}\n"
         mock_result.returncode = 0
-        with patch.object(search_mod, "_RG_PATH", "/fake/rg"), \
-             patch("subprocess.run", return_value=mock_result):
+        with (
+            patch.object(search_mod, "_RG_PATH", "/fake/rg"),
+            patch("subprocess.run", return_value=mock_result),
+        ):
             results = search_mod._search_with_rg("q", workspace)
         assert len(results) == 1
         assert results[0]["file"].replace("\\", "/") == "file.py"
@@ -157,8 +174,10 @@ class TestSearchWithRg:
         mock_result = MagicMock()
         mock_result.stdout = "/other/root/file.py:10:match\n"
         mock_result.returncode = 0
-        with patch.object(search_mod, "_RG_PATH", "/fake/rg"), \
-             patch("subprocess.run", return_value=mock_result):
+        with (
+            patch.object(search_mod, "_RG_PATH", "/fake/rg"),
+            patch("subprocess.run", return_value=mock_result),
+        ):
             results = search_mod._search_with_rg("q", workspace)
         assert results == []
 
@@ -225,6 +244,7 @@ class TestSearchPython:
             if "broken.py" in str(path):
                 raise OSError("denied")
             return original_open(path, *args, **kwargs)
+
         monkeypatch.setattr("builtins.open", selective_open)
 
         results = search_mod._search_python("query_match", workspace, limit=10)
@@ -283,7 +303,8 @@ class TestSearchCodePost:
         fake_results = [{"file": "a.py", "line": 1, "match": "hello"}]
         monkeypatch.setattr(search_mod, "_RG_PATH", "/fake/rg")
         monkeypatch.setattr(
-            search_mod, "_search_with_rg",
+            search_mod,
+            "_search_with_rg",
             lambda *a, **kw: fake_results,
         )
         resp = app_client.post("/api/search/query", json={"query": "hello"})
@@ -298,7 +319,8 @@ class TestSearchCodePost:
         fake_results = [{"file": "a.py", "line": 1, "match": "hello"}]
         monkeypatch.setattr(search_mod, "_RG_PATH", None)
         monkeypatch.setattr(
-            search_mod, "_search_python",
+            search_mod,
+            "_search_python",
             lambda *a, **kw: fake_results,
         )
         resp = app_client.post("/api/search/query", json={"query": "hello"})
@@ -314,9 +336,13 @@ class TestSearchCodePost:
         (custom_dir / "f.py").write_text("found\n", encoding="utf-8")
         monkeypatch.setattr(search_mod, "_RG_PATH", None)
 
-        resp = app_client.post("/api/search/query", json={
-            "query": "found", "path": str(custom_dir),
-        })
+        resp = app_client.post(
+            "/api/search/query",
+            json={
+                "query": "found",
+                "path": str(custom_dir),
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["count"] >= 1
 
@@ -331,7 +357,8 @@ class TestSearchCodeGet:
         """ripgrep 引擎"""
         monkeypatch.setattr(search_mod, "_RG_PATH", "/fake/rg")
         monkeypatch.setattr(
-            search_mod, "_search_with_rg",
+            search_mod,
+            "_search_with_rg",
             lambda *a, **kw: [{"file": "x.py", "line": 1, "match": "m"}],
         )
         resp = app_client.get("/api/search", params={"query": "m"})
@@ -344,7 +371,8 @@ class TestSearchCodeGet:
         """python 引擎"""
         monkeypatch.setattr(search_mod, "_RG_PATH", None)
         monkeypatch.setattr(
-            search_mod, "_search_python",
+            search_mod,
+            "_search_python",
             lambda *a, **kw: [],
         )
         resp = app_client.get("/api/search", params={"query": "m"})
@@ -375,9 +403,13 @@ class TestSearchFilesEndpoint:
         sub = tmp_path / "sub"
         sub.mkdir()
         (sub / "x.md").write_text("", encoding="utf-8")
-        resp = app_client.get("/api/search/files", params={
-            "pattern": "*.md", "path": str(sub),
-        })
+        resp = app_client.get(
+            "/api/search/files",
+            params={
+                "pattern": "*.md",
+                "path": str(sub),
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["count"] == 1
         assert "x.md" in resp.json()["results"]

@@ -38,15 +38,14 @@ EVOLUTION_DB_DIR = Path.home() / ".pycoder" / "evolution"
 EVOLUTION_HISTORY_FILE = EVOLUTION_DB_DIR / "evolution_history.json"
 
 # 从拆分后的模块导入数据模型
+from pycoder.evolution.metrics import EvolutionMetrics
 from pycoder.evolution.models import (
-    EvolutionPhase,
-    EvolutionTask,
-    EvolutionReport,
     EvolutionConfig,
+    EvolutionPhase,
+    EvolutionReport,
+    EvolutionTask,
 )
 from pycoder.evolution.pipeline import EvolutionPipeline
-from pycoder.evolution.metrics import EvolutionMetrics
-
 
 # ══════════════════════════════════════════════════════════
 # EvolutionBrain — LLM 驱动的进化决策核心
@@ -80,44 +79,53 @@ class EvolutionBrain:
         # 1.1 从 memory 模块采集历史错误
         try:
             from pycoder.memory import SessionMemoryEngine
+
             engine = SessionMemoryEngine(workspace=PYCODER_ROOT)
             memories = engine.search_sessions("error", limit=50)
             if memories:
                 for m in memories:
                     summary = str(m.get("summary", ""))
                     if summary:
-                        errors.append({
-                            "source": "memory",
-                            "content": summary[:500],
-                            "timestamp": m.get("created_at", 0),
-                        })
+                        errors.append(
+                            {
+                                "source": "memory",
+                                "content": summary[:500],
+                                "timestamp": m.get("created_at", 0),
+                            }
+                        )
         except (ImportError, AttributeError) as e:
             logger.debug("memory 模块不可用: %s", e)
 
         # 1.2 从 observability 模块采集错误
         try:
             from pycoder.observability.sentry import status
+
             sentry_status = status()
             if sentry_status.get("enabled"):
-                errors.append({
-                    "source": "observability",
-                    "content": "Sentry 监控已启用，错误自动上报",
-                    "timestamp": time.time(),
-                })
+                errors.append(
+                    {
+                        "source": "observability",
+                        "content": "Sentry 监控已启用，错误自动上报",
+                        "timestamp": time.time(),
+                    }
+                )
         except ImportError:
             logger.debug("observability 模块不可用")
 
         # 1.3 从 knowledge_base 采集历史错误模式
         try:
             from pycoder.capabilities.self_evo.learning.knowledge_base import get_knowledge_base
+
             kb = get_knowledge_base()
             top_errors = kb.get_top_errors(limit=20)
             for e in top_errors:
-                errors.append({
-                    "source": "knowledge_base",
-                    "content": str(e)[:500],
-                    "timestamp": time.time(),
-                })
+                errors.append(
+                    {
+                        "source": "knowledge_base",
+                        "content": str(e)[:500],
+                        "timestamp": time.time(),
+                    }
+                )
         except (ImportError, AttributeError) as e:
             logger.debug("knowledge_base 不可用: %s", e)
 
@@ -126,13 +134,17 @@ class EvolutionBrain:
             log_file = PYCODER_ROOT / "backend.log"
             if log_file.exists():
                 log_content = log_file.read_text(encoding="utf-8", errors="replace")
-                error_lines = [l for l in log_content.split("\n") if "ERROR" in l or "error" in l.lower()]
+                error_lines = [
+                    l for l in log_content.split("\n") if "ERROR" in l or "error" in l.lower()
+                ]
                 for line in error_lines[-20:]:
-                    errors.append({
-                        "source": "backend_log",
-                        "content": line[:500],
-                        "timestamp": time.time(),
-                    })
+                    errors.append(
+                        {
+                            "source": "backend_log",
+                            "content": line[:500],
+                            "timestamp": time.time(),
+                        }
+                    )
         except OSError:
             pass
 
@@ -200,9 +212,7 @@ class EvolutionBrain:
         kb_fixes = self._query_knowledge_base(task)
         kb_context = ""
         if kb_fixes:
-            kb_context = "\n## 历史类似修复方案\n" + "\n".join(
-                f"- {f}" for f in kb_fixes[:5]
-            )
+            kb_context = "\n## 历史类似修复方案\n" + "\n".join(f"- {f}" for f in kb_fixes[:5])
 
         prompt = f"""你是 PyCoder 的自动修复工程师。根据分析结果生成精确的代码修复方案。
 
@@ -243,7 +253,7 @@ class EvolutionBrain:
             )
         except (ImportError, ValueError, TypeError, RuntimeError, OSError) as e:
             logger.warning("LLM 生成失败: %s", e)
-            fix_plan = f"[FIX:unknown:0]\n问题描述: LLM不可用\n修复方案: 需要人工介入\n[END:FIX]"
+            fix_plan = "[FIX:unknown:0]\n问题描述: LLM不可用\n修复方案: 需要人工介入\n[END:FIX]"
         task.fix_plan = fix_plan
         logger.info("generate_done task=%s plan_len=%d", task.id, len(fix_plan))
         return task
@@ -310,6 +320,7 @@ class EvolutionBrain:
                 code = block.strip()
             try:
                 import ast
+
                 ast.parse(code)
                 validation["checks"].append("syntax: ok")
             except SyntaxError as e:
@@ -360,9 +371,10 @@ class EvolutionBrain:
                 logger.warning("apply_missing_file task=%s path=%s", task.id, file_path)
                 continue
 
-            if any(skip in str(full_path) for skip in [
-                "__pycache__", ".git", "node_modules", "venv", ".venv", ".env"
-            ]):
+            if any(
+                skip in str(full_path)
+                for skip in ["__pycache__", ".git", "node_modules", "venv", ".venv", ".env"]
+            ):
                 logger.warning("apply_protected_path task=%s path=%s", task.id, file_path)
                 continue
 
@@ -390,7 +402,9 @@ class EvolutionBrain:
                         new_source = source.replace(old_code, new_code, 1)
                         full_path.write_text(new_source, encoding="utf-8")
                         applied_count += 1
-                        logger.info("apply_fix task=%s file=%s method=exact_replace", task.id, file_path)
+                        logger.info(
+                            "apply_fix task=%s file=%s method=exact_replace", task.id, file_path
+                        )
                 else:
                     # 行号替换模式
                     lines = source.split("\n")
@@ -399,7 +413,12 @@ class EvolutionBrain:
                         lines[line_num - 1] = new_code.split("\n")[0]  # 替换第一行
                         full_path.write_text("\n".join(lines), encoding="utf-8")
                         applied_count += 1
-                        logger.info("apply_fix task=%s file=%s line=%s method=line_replace", task.id, file_path, line_no)
+                        logger.info(
+                            "apply_fix task=%s file=%s line=%s method=line_replace",
+                            task.id,
+                            file_path,
+                            line_no,
+                        )
             except OSError as e:
                 logger.error("apply_fix_error task=%s file=%s: %s", task.id, file_path, e)
 
@@ -414,10 +433,14 @@ class EvolutionBrain:
                 # 记录到 safety rollback
                 try:
                     from pycoder.safety.rollback import RollbackManager
-                    RollbackManager().create_snapshot(task.id, {
-                        "files": [f[0] for f in fix_blocks],
-                        "timestamp": time.time(),
-                    })
+
+                    RollbackManager().create_snapshot(
+                        task.id,
+                        {
+                            "files": [f[0] for f in fix_blocks],
+                            "timestamp": time.time(),
+                        },
+                    )
                 except ImportError:
                     pass
         else:
@@ -451,6 +474,7 @@ class EvolutionBrain:
         # 6.2 记录到 LearningEngine
         try:
             from pycoder.capabilities.self_evo.learning import get_learning_engine
+
             engine = get_learning_engine()
             engine.on_task_complete(
                 task_id=task.id,
@@ -470,6 +494,7 @@ class EvolutionBrain:
         # 6.3 记录到 memory 模块
         try:
             from pycoder.memory import SessionMemoryEngine
+
             engine = SessionMemoryEngine(workspace=PYCODER_ROOT)
             await engine.record_decision(
                 f"evolution:{task.id}:{outcome}:{task.llm_analysis[:200]}:{task.fix_plan[:200]}"
@@ -486,6 +511,7 @@ class EvolutionBrain:
         # 6.5 记录到 observability
         try:
             from pycoder.observability.sentry import capture_message
+
             capture_message(
                 f"evolution_learned: task={task.id} outcome={outcome} grade={task.grade}",
                 level="info",
@@ -499,6 +525,7 @@ class EvolutionBrain:
         # 6.6 记录进化指标
         try:
             from pycoder.evolution.core import get_evolution_metrics
+
             metrics = get_evolution_metrics()
             metrics.record(task)
             lessons_parts.append("已记录进化指标")
@@ -508,7 +535,9 @@ class EvolutionBrain:
         task.lessons = " | ".join(lessons_parts)
         self._history.append(task)
         self._save_history()
-        logger.info("learn_done task=%s outcome=%s patterns=%d", task.id, outcome, len(knowledge_patterns))
+        logger.info(
+            "learn_done task=%s outcome=%s patterns=%d", task.id, outcome, len(knowledge_patterns)
+        )
         return task
 
     # ══════════════════════════════════════════════════════
@@ -534,52 +563,61 @@ class EvolutionBrain:
                 # 提取错误类型签名
                 signature = self._extract_error_signature(content)
                 if signature:
-                    patterns.append({
-                        "type": "error_pattern",
-                        "signature": signature,
-                        "source": source,
-                        "frequency": 1,
-                        "last_seen": time.time(),
-                    })
+                    patterns.append(
+                        {
+                            "type": "error_pattern",
+                            "signature": signature,
+                            "source": source,
+                            "frequency": 1,
+                            "last_seen": time.time(),
+                        }
+                    )
 
         # 从 LLM 分析中提取修复策略
         if task.llm_analysis and len(task.llm_analysis) > 50:
             strategies = self._extract_fix_strategies(task.llm_analysis)
             for strategy in strategies:
-                patterns.append({
-                    "type": "fix_strategy",
-                    "strategy": strategy[:200],
-                    "outcome": "success" if task.test_passed else "failed",
-                    "task_id": task.id,
-                })
+                patterns.append(
+                    {
+                        "type": "fix_strategy",
+                        "strategy": strategy[:200],
+                        "outcome": "success" if task.test_passed else "failed",
+                        "task_id": task.id,
+                    }
+                )
 
         # 从 fix_plan 中提取具体的修复规则
         if task.fix_plan and task.applied:
             import re
+
             fix_blocks = re.findall(
                 r"\[FIX:(.+?):\d+\]\n问题描述:\s*(.+?)\n修复方案:\s*(.+?)\n",
                 task.fix_plan,
                 re.DOTALL,
             )
             for file_path, problem, solution in fix_blocks[:5]:
-                patterns.append({
-                    "type": "fix_rule",
-                    "file_pattern": file_path.strip(),
-                    "problem": problem.strip()[:200],
-                    "solution": solution.strip()[:300],
-                    "verified": task.test_passed,
-                    "task_id": task.id,
-                })
+                patterns.append(
+                    {
+                        "type": "fix_rule",
+                        "file_pattern": file_path.strip(),
+                        "problem": problem.strip()[:200],
+                        "solution": solution.strip()[:300],
+                        "verified": task.test_passed,
+                        "task_id": task.id,
+                    }
+                )
 
         # 从验证结果中提取安全规则
         if task.validation_result:
             warnings = task.validation_result.get("warnings", [])
             for warning in warnings:
-                patterns.append({
-                    "type": "safety_rule",
-                    "warning": str(warning)[:200],
-                    "task_id": task.id,
-                })
+                patterns.append(
+                    {
+                        "type": "safety_rule",
+                        "warning": str(warning)[:200],
+                        "task_id": task.id,
+                    }
+                )
 
         return patterns
 
@@ -602,11 +640,20 @@ class EvolutionBrain:
 
         # 匹配常见错误关键词
         error_keywords = [
-            "timeout", "connection refused", "permission denied",
-            "not found", "out of memory", "disk full",
-            "import error", "syntax error", "type error",
-            "key error", "value error", "attribute error",
-            "rate limit", "too many requests",
+            "timeout",
+            "connection refused",
+            "permission denied",
+            "not found",
+            "out of memory",
+            "disk full",
+            "import error",
+            "syntax error",
+            "type error",
+            "key error",
+            "value error",
+            "attribute error",
+            "rate limit",
+            "too many requests",
         ]
         for keyword in error_keywords:
             if keyword in content.lower():
@@ -658,6 +705,7 @@ class EvolutionBrain:
         # 更新结构化知识库
         try:
             from pycoder.capabilities.self_evo.learning.knowledge_base import get_knowledge_base
+
             kb = get_knowledge_base()
 
             for pattern in patterns:
@@ -667,7 +715,10 @@ class EvolutionBrain:
                     kb.add_error_pattern(
                         signature=pattern.get("signature", ""),
                         source=pattern.get("source", "evolution"),
-                        metadata={"task_id": task.id, "outcome": "success" if task.test_passed else "failed"},
+                        metadata={
+                            "task_id": task.id,
+                            "outcome": "success" if task.test_passed else "failed",
+                        },
                     )
 
                 elif ptype == "fix_rule" and pattern.get("verified"):
@@ -754,21 +805,29 @@ class EvolutionBrain:
         if ktype in ("all", "error_pattern"):
             try:
                 from pycoder.capabilities.self_evo.learning.knowledge_base import get_knowledge_base
+
                 kb = get_knowledge_base()
                 kb_results = kb.search(query)
                 if kb_results:
-                    results.extend([
-                        {"type": "error_pattern", "content": str(r)[:300]}
-                        for r in kb_results[:limit]
-                    ])
+                    results.extend(
+                        [
+                            {"type": "error_pattern", "content": str(r)[:300]}
+                            for r in kb_results[:limit]
+                        ]
+                    )
             except (ImportError, AttributeError):
                 pass
 
         # 查询历史进化任务
         if ktype in ("all", "fix_strategy"):
             matching_history = [
-                {"type": "evolution_history", "task_id": t.id, "outcome": "success" if t.test_passed else "failed",
-                 "analysis": t.llm_analysis[:200], "lessons": t.lessons[:200]}
+                {
+                    "type": "evolution_history",
+                    "task_id": t.id,
+                    "outcome": "success" if t.test_passed else "failed",
+                    "analysis": t.llm_analysis[:200],
+                    "lessons": t.lessons[:200],
+                }
                 for t in self._history[-20:]
                 if query.lower() in t.llm_analysis.lower() or query.lower() in t.description.lower()
             ][:limit]
@@ -793,11 +852,10 @@ class EvolutionBrain:
         # 统计知识库条目
         try:
             from pycoder.capabilities.self_evo.learning.knowledge_base import get_knowledge_base
+
             kb = get_knowledge_base()
             stats["total_patterns"] = kb.get_total_count()
-            stats["top_errors"] = [
-                str(e)[:200] for e in kb.get_top_errors(limit=5)
-            ]
+            stats["top_errors"] = [str(e)[:200] for e in kb.get_top_errors(limit=5)]
         except (ImportError, AttributeError):
             pass
 
@@ -845,6 +903,7 @@ class EvolutionBrain:
 
         try:
             from pycoder.capabilities.self_evo.learning.metrics_tracker import get_metrics_tracker
+
             tracker = get_metrics_tracker()
             metrics["historical_success_rate"] = tracker.get_success_rate()
         except (ImportError, AttributeError):
@@ -912,7 +971,7 @@ class EvolutionBrain:
         ]
 
         try:
-            for stage_id, stage_name, stage_func in pipeline_stages:
+            for stage_id, _stage_name, stage_func in pipeline_stages:
                 logger.info("pipeline_stage task=%s stage=%s", task.id, stage_id)
                 task = await stage_func(task)
                 report.phases_completed.append(stage_id)
@@ -964,7 +1023,9 @@ class EvolutionBrain:
 
         logger.info(
             "stage_design task=%s level=%s errors=%d",
-            task.id, task_level, error_count,
+            task.id,
+            task_level,
+            error_count,
         )
         return task
 
@@ -980,7 +1041,9 @@ class EvolutionBrain:
             result = await asyncio.to_thread(
                 subprocess.run,
                 ["git", "--version"],
-                capture_output=True, text=True, timeout=5,
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             checks.append({"component": "git", "available": result.returncode == 0})
         except (subprocess.TimeoutExpired, OSError):
@@ -991,18 +1054,22 @@ class EvolutionBrain:
             result = await asyncio.to_thread(
                 subprocess.run,
                 ["pytest", "--version"],
-                capture_output=True, text=True, timeout=5,
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             checks.append({"component": "pytest", "available": result.returncode == 0})
         except (subprocess.TimeoutExpired, OSError):
             checks.append({"component": "pytest", "available": False})
 
         # 检查 Python 版本
-        checks.append({
-            "component": "python",
-            "version": f"{sys.version_info.major}.{sys.version_info.minor}",
-            "available": True,
-        })
+        checks.append(
+            {
+                "component": "python",
+                "version": f"{sys.version_info.major}.{sys.version_info.minor}",
+                "available": True,
+            }
+        )
 
         all_available = all(c.get("available", True) for c in checks)
         if not all_available:
@@ -1012,7 +1079,9 @@ class EvolutionBrain:
 
         logger.info(
             "stage_env_setup task=%s all_ok=%s checks=%d",
-            task.id, all_available, len(checks),
+            task.id,
+            all_available,
+            len(checks),
         )
         return task
 
@@ -1033,9 +1102,9 @@ class EvolutionBrain:
             import importlib as _il
 
             _cb_mod = _il.import_module("pycoder.server.chat_bridge")
-            ChatBridge = getattr(_cb_mod, "ChatBridge")
+            ChatBridge = _cb_mod.ChatBridge
             _ch_mod = _il.import_module("pycoder.server.chat_handler")
-            _get_api_key_for_model = getattr(_ch_mod, "_get_api_key_for_model")
+            _get_api_key_for_model = _ch_mod._get_api_key_for_model
 
             bridge = ChatBridge()
             api_key = _get_api_key_for_model(self._config.llm_model)
@@ -1090,6 +1159,7 @@ class EvolutionBrain:
         """从知识库查询类似修复方案"""
         try:
             from pycoder.capabilities.self_evo.learning.knowledge_base import get_knowledge_base
+
             kb = get_knowledge_base()
             fixes = []
             for e in task.errors_collected[:5]:
@@ -1109,7 +1179,11 @@ class EvolutionBrain:
         """运行测试套件"""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "pytest", "tests/", "-x", "--tb=short", "-q",
+                "pytest",
+                "tests/",
+                "-x",
+                "--tb=short",
+                "-q",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(PYCODER_ROOT),
@@ -1119,7 +1193,7 @@ class EvolutionBrain:
                 timeout=self._config.test_timeout_seconds,
             )
             return proc.returncode == 0
-        except (asyncio.TimeoutError, OSError) as e:
+        except (TimeoutError, OSError) as e:
             logger.error("test_run_error: %s", e)
             return False
 
@@ -1127,7 +1201,10 @@ class EvolutionBrain:
         """回滚修改"""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "git", "checkout", "--", ".",
+                "git",
+                "checkout",
+                "--",
+                ".",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(PYCODER_ROOT),

@@ -24,18 +24,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from pycoder.brain.feedback_loop import ExecutionSignal, FeedbackLoop, get_feedback_loop
 from pycoder.brain.intelligent_router import (
     IntelligentRouter,
     RoutingDecision,
-    ExecutionConfig,
     get_intelligent_router,
 )
-from pycoder.brain.intent_analyzer import IntentAnalysis
-from pycoder.brain.agent_selector import AgentSelection
-from pycoder.brain.tool_planner import ToolPlan
-from pycoder.brain.feedback_loop import FeedbackLoop, ExecutionSignal, get_feedback_loop
-from pycoder.core.services.agent_parser import parse_response
 from pycoder.core.services.agent_parser import WRITE_TOOLS as WRITE_SAFE_TOOLS
+from pycoder.core.services.agent_parser import parse_response
 
 # P2-D: execute_agent_tool 通过 importlib 动态加载，避免 brain → server 的静态依赖
 # （agent_tools 依赖 server 层多个模块，不适合下沉到 core）
@@ -47,8 +43,9 @@ async def _execute_agent_tool(*args, **kwargs):
     import importlib
 
     _mod = importlib.import_module("pycoder.server.services.agent_tools")
-    _fn = getattr(_mod, "execute_agent_tool")
+    _fn = _mod.execute_agent_tool
     return await _fn(*args, **kwargs)
+
 
 WORKSPACE = Path(
     __import__("os").environ.get(
@@ -102,11 +99,26 @@ class ExecutionContext:
 ERROR_RETRY_POLICY: dict[str, dict] = {
     "timeout": {"retry": True, "max_retries": 2, "backoff": 2.0, "reason": "超时错误，可重试"},
     "connection": {"retry": True, "max_retries": 3, "backoff": 1.5, "reason": "连接错误，可重试"},
-    "rate_limit": {"retry": True, "max_retries": 2, "backoff": 5.0, "reason": "频率限制，等待后重试"},
+    "rate_limit": {
+        "retry": True,
+        "max_retries": 2,
+        "backoff": 5.0,
+        "reason": "频率限制，等待后重试",
+    },
     "permission": {"retry": False, "max_retries": 0, "backoff": 0, "reason": "权限错误，不应重试"},
     "not_found": {"retry": False, "max_retries": 0, "backoff": 0, "reason": "资源不存在，不应重试"},
-    "validation": {"retry": False, "max_retries": 0, "backoff": 0, "reason": "参数验证失败，不应重试"},
-    "unknown": {"retry": True, "max_retries": 1, "backoff": 1.0, "reason": "未知错误，尝试重试一次"},
+    "validation": {
+        "retry": False,
+        "max_retries": 0,
+        "backoff": 0,
+        "reason": "参数验证失败，不应重试",
+    },
+    "unknown": {
+        "retry": True,
+        "max_retries": 1,
+        "backoff": 1.0,
+        "reason": "未知错误，尝试重试一次",
+    },
 }
 
 
@@ -285,7 +297,7 @@ class AdaptiveExecutor:
                 "type": "done",
                 "status": "completed",
                 "summary": f"已理解您的问题（{ctx.decision.intent.technical_domain}/{ctx.decision.intent.task_type}），"
-                          f"但由于未配置 LLM，无法直接回答。",
+                f"但由于未配置 LLM，无法直接回答。",
                 "iterations": 1,
                 "tool_count": 0,
                 "decision_time_ms": ctx.decision.decision_time_ms,
@@ -293,7 +305,11 @@ class AdaptiveExecutor:
             return
 
         try:
-            system_prompt = f"你是 PyCoder AI 助手。请用中文简洁回答用户问题。\n\n## 上下文\n{context}" if context else "你是 PyCoder AI 助手。请用中文简洁回答用户问题。"
+            system_prompt = (
+                f"你是 PyCoder AI 助手。请用中文简洁回答用户问题。\n\n## 上下文\n{context}"
+                if context
+                else "你是 PyCoder AI 助手。请用中文简洁回答用户问题。"
+            )
             bridge.configure(system_prompt=system_prompt, max_tokens=2048)
 
             response_text = ""
@@ -330,7 +346,8 @@ class AdaptiveExecutor:
             "type": "clarification_needed",
             "questions": questions,
             "ambiguity_notes": ctx.decision.intent.ambiguity_notes,
-            "summary": f"为了更好地帮助您，请确认以下信息：\n" + "\n".join(f"- {q}" for q in questions),
+            "summary": "为了更好地帮助您，请确认以下信息：\n"
+            + "\n".join(f"- {q}" for q in questions),
         }
 
     # ── 自适应执行循环 ─────────────────────────────
@@ -605,7 +622,11 @@ class AdaptiveExecutor:
 
                 return {"success": False, "output": error_msg, "attempts": attempt + 1}
 
-        return {"success": False, "output": f"❌ 工具 {tool_name} 重试 {max_retries} 次后仍失败", "attempts": max_retries + 1}
+        return {
+            "success": False,
+            "output": f"❌ 工具 {tool_name} 重试 {max_retries} 次后仍失败",
+            "attempts": max_retries + 1,
+        }
 
     # ── Prompt 构建 ────────────────────────────────
 
@@ -618,7 +639,7 @@ class AdaptiveExecutor:
         lines = [
             "你是 PyCoder 智能 AI 编程助手，运行在用户的本地开发环境中。",
             "",
-            f"## 当前任务分析",
+            "## 当前任务分析",
             f"- 技术领域: {intent.technical_domain}",
             f"- 任务类型: {intent.task_type}",
             f"- 复杂度: {intent.complexity} (评分: {intent.complexity_score}/100)",
@@ -635,7 +656,9 @@ class AdaptiveExecutor:
         else:
             lines.append("## 工具调用要求")
             lines.append("请使用 JSON 格式调用工具完成任务。")
-            lines.append(f"预计需要 {tool_plan.estimated_tool_calls}-{tool_plan.max_tool_calls} 次工具调用。")
+            lines.append(
+                f"预计需要 {tool_plan.estimated_tool_calls}-{tool_plan.max_tool_calls} 次工具调用。"
+            )
             lines.append(f"推荐工具类别: {', '.join(tool_plan.tool_categories)}")
             if tool_plan.preferred_tools:
                 lines.append(f"推荐工具: {', '.join(tool_plan.preferred_tools[:8])}")
@@ -671,8 +694,7 @@ class AdaptiveExecutor:
         """构建每轮 prompt"""
         if iteration == 1:
             return (
-                f"请根据以下任务开始执行:\n\n{ctx.message}\n\n"
-                f"请使用 JSON 格式的工具调用。"
+                f"请根据以下任务开始执行:\n\n{ctx.message}\n\n" f"请使用 JSON 格式的工具调用。"
                 if not decision.tool_plan.allow_direct_answer
                 else f"请回答以下问题:\n\n{ctx.message}\n\n如需工具操作，请使用 JSON 格式调用。"
             )

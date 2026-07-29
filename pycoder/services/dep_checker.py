@@ -53,7 +53,6 @@ COMMON_MAP: dict[str, str] = {
     "seaborn": "seaborn",
     "wordcloud": "wordcloud",
     "jieba": "jieba",
-    "PIL": "pillow",
     "pyarrow": "pyarrow",
 }
 
@@ -101,7 +100,11 @@ class DependencyChecker:
         for pkg in packages:
             try:
                 proc = await asyncio.create_subprocess_exec(
-                    sys.executable, "-m", "pip", "install", pkg,
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    pkg,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
@@ -122,6 +125,7 @@ class DependencyChecker:
         """检查包是否已安装"""
         try:
             import importlib.metadata
+
             importlib.metadata.distribution(package)
             return True
         except (importlib.metadata.PackageNotFoundError, ImportError):

@@ -16,14 +16,15 @@ from typing import Any
 
 class EvolutionPhase(StrEnum):
     """进化阶段"""
-    OBSERVE = "observe"       # 采集数据
-    ANALYZE = "analyze"       # LLM 分析
-    GENERATE = "generate"     # 生成方案
-    VALIDATE = "validate"     # 安全验证
-    APPLY = "apply"           # 应用修改
-    LEARN = "learn"           # 经验沉淀
-    DONE = "done"             # 完成
-    FAILED = "failed"         # 失败
+
+    OBSERVE = "observe"  # 采集数据
+    ANALYZE = "analyze"  # LLM 分析
+    GENERATE = "generate"  # 生成方案
+    VALIDATE = "validate"  # 安全验证
+    APPLY = "apply"  # 应用修改
+    LEARN = "learn"  # 经验沉淀
+    DONE = "done"  # 完成
+    FAILED = "failed"  # 失败
 
 
 @dataclass
@@ -58,7 +59,9 @@ class EvolutionTask:
             "target": self.target,
             "description": self.description,
             "phase": phase_value,
-            "errors_collected": self.errors_collected if isinstance(self.errors_collected, list) else [],
+            "errors_collected": (
+                self.errors_collected if isinstance(self.errors_collected, list) else []
+            ),
             "llm_analysis": self.llm_analysis[:500],
             "fix_plan": self.fix_plan[:500],
             "applied": self.applied,

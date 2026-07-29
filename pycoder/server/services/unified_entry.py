@@ -32,7 +32,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
-_logger = logging.getLogger('pycoder.server.services.unified_entry')
+_logger = logging.getLogger("pycoder.server.services.unified_entry")
 
 from enum import Enum
 
@@ -339,6 +339,7 @@ class UnifiedEntryAgent:
 
         # ── P2: 解析 @file:path 引用并加载文件内容 ──
         import re as _re2
+
         mentioned_files = _re2.findall(r"@file:(\S+)", user_message)
         file_context = ""
         if mentioned_files:
@@ -346,16 +347,14 @@ class UnifiedEntryAgent:
                 from pathlib import Path as _P2
 
                 from pycoder.server.routers.files import get_workspace_root
+
                 work_dir = _P2(get_workspace_root())
                 for mf in mentioned_files[:5]:
                     target = (work_dir / mf).resolve()
                     if target.is_relative_to(work_dir) and target.exists():
                         content = target.read_text(encoding="utf-8")
-                        file_context += (
-                            f"\n## 文件 {mf}\n"
-                            f"```\n{content[:1000]}\n```\n"
-                        )
-            except Exception as e:
+                        file_context += f"\n## 文件 {mf}\n" f"```\n{content[:1000]}\n```\n"
+            except Exception:
                 _logger.warning("silently_swallowed: {err}", exc_info=False)
                 pass
 
@@ -463,9 +462,7 @@ class UnifiedEntryAgent:
             mode_name = "chat"
 
         # ── 发送模式切换状态 ──
-        mode_emoji = {
-            "chat": "💬", "hermes": "🔧", "agent": "👥"
-        }
+        mode_emoji = {"chat": "💬", "hermes": "🔧", "agent": "👥"}
         mode_label = {
             "chat": "AI 对话模式",
             "hermes": "Hermes 结构化工作模式",
@@ -475,13 +472,10 @@ class UnifiedEntryAgent:
             "type": "agent_status",
             "status": "started",
             "message": (
-                f"{mode_emoji.get(mode_name, '🔧')} "
-                f"启用 {mode_label.get(mode_name, mode_name)}"
+                f"{mode_emoji.get(mode_name, '🔧')} " f"启用 {mode_label.get(mode_name, mode_name)}"
             ),
         }
-        await progress_reporter.advance(
-            "route", f"已路由至 {mode_name} 模式"
-        )
+        await progress_reporter.advance("route", f"已路由至 {mode_name} 模式")
         async for ev in flush_progress():
             yield ev
 
@@ -523,16 +517,15 @@ class UnifiedEntryAgent:
                     yield ev
                 else:
                     if etype == "token":
-                        mode_content += ev.get("data") or ev.get(
-                            "content", ""
-                        )
+                        mode_content += ev.get("data") or ev.get("content", "")
                     yield ev
 
             await bridge.close()
         except Exception as e:
             logger.error(
                 "execution_pipeline_failed mode=%s error=%s",
-                mode_name, str(e),
+                mode_name,
+                str(e),
             )
             yield {
                 "type": "error",
@@ -603,9 +596,7 @@ class UnifiedEntryAgent:
 
         enriched_content = merged
         if summary_line:
-            enriched_content = (
-                f"{merged}\n\n---\n📊 **执行摘要**\n{summary_line}"
-            )
+            enriched_content = f"{merged}\n\n---\n📊 **执行摘要**\n{summary_line}"
 
         yield {
             "type": "done",

@@ -7,11 +7,13 @@
 已迁移至 V2 引擎。V2 引擎使用 _static_scan_async 和 _run_tests_async。
 V1 的同步版本 _static_scan() 和 _run_tests() 已被移除。
 """
+
 from __future__ import annotations
 
 import asyncio
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 def _get_engine(tmp_path: Path | None = None):
@@ -22,9 +24,11 @@ def _get_engine(tmp_path: Path | None = None):
     """
     if tmp_path is None:
         from pycoder.server.self_evolution import get_evolution_engine
+
         return get_evolution_engine()
 
     from pycoder.server.self_evolution import SelfEvolutionEngine
+
     return SelfEvolutionEngine(project_root=tmp_path)
 
 
@@ -53,9 +57,7 @@ class TestStaticScanAsync:
 
         # 即使 ruff/pyflakes 未安装快速返回，心跳也应推进多次
         # （若阻塞事件循环，心跳次数会显著小于 20）
-        assert heartbeat_count >= 10, (
-            f"心跳仅推进 {heartbeat_count}/20 次，事件循环可能被阻塞"
-        )
+        assert heartbeat_count >= 10, f"心跳仅推进 {heartbeat_count}/20 次，事件循环可能被阻塞"
 
     @pytest.mark.skip(reason="V2 引擎 _static_scan_async 在 Windows 子进程中可能挂起")
     async def test_returns_list_on_empty_project(self, tmp_path: Path):
@@ -86,9 +88,7 @@ class TestRunTestsAsync:
     async def test_does_not_block_event_loop(self, tmp_path: Path):
         """测试执行期间事件循环应保持响应"""
         (tmp_path / "tests").mkdir()
-        (tmp_path / "tests" / "test_dummy.py").write_text(
-            "def test_ok():\n    assert True\n"
-        )
+        (tmp_path / "tests" / "test_dummy.py").write_text("def test_ok():\n    assert True\n")
         engine = _get_engine(tmp_path)
 
         heartbeat_count = 0
@@ -104,9 +104,7 @@ class TestRunTestsAsync:
         await hb
 
         # 心跳应继续推进（异步执行不阻塞）
-        assert heartbeat_count >= 5, (
-            f"心跳仅推进 {heartbeat_count}/20 次，事件循环可能被阻塞"
-        )
+        assert heartbeat_count >= 5, f"心跳仅推进 {heartbeat_count}/20 次，事件循环可能被阻塞"
         assert isinstance(ok, bool)
         assert isinstance(output, str)
 

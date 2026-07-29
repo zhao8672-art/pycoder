@@ -273,7 +273,8 @@ class TestExecute:
         """执行返回非零退出码的代码"""
         mock_container = _make_mock_container(
             exec_result=_make_mock_exec_result(
-                exit_code=1, output="NameError: name 'x' is not defined\n",
+                exit_code=1,
+                output="NameError: name 'x' is not defined\n",
             ),
         )
         mock_client = _make_mock_docker_client(mock_container)
@@ -433,9 +434,7 @@ class TestFallbackExecute:
         async def _run() -> SandboxResult:
             return await executor.execute("print('hello fallback')", language="python")
 
-        with patch(
-            "pycoder.safety.sandbox.ProcessSandbox"
-        ) as mock_process_sandbox:
+        with patch("pycoder.safety.sandbox.ProcessSandbox") as mock_process_sandbox:
             mock_instance = MagicMock()
             mock_fallback_result = SandboxResult(
                 success=True,
@@ -466,9 +465,7 @@ class TestFallbackExecute:
         async def _run() -> SandboxResult:
             return await executor.execute("print('fallback')", language="python")
 
-        with patch(
-            "pycoder.safety.sandbox.ProcessSandbox"
-        ) as mock_process_sandbox:
+        with patch("pycoder.safety.sandbox.ProcessSandbox") as mock_process_sandbox:
             mock_instance = MagicMock()
 
             async def _mock_execute(*args: object, **kwargs: object) -> SandboxResult:
@@ -546,7 +543,8 @@ class TestSandboxResultValidation:
         """失败执行时 error 包含 stderr 输出"""
         mock_container = _make_mock_container(
             exec_result=_make_mock_exec_result(
-                exit_code=1, output="Traceback (most recent call last):\nError\n",
+                exit_code=1,
+                output="Traceback (most recent call last):\nError\n",
             ),
         )
         mock_client = _make_mock_docker_client(mock_container)
@@ -584,9 +582,7 @@ class TestErrorHandling:
         async def _run() -> SandboxResult:
             return await executor.execute("print('hello')", language="python")
 
-        with patch(
-            "pycoder.safety.sandbox.ProcessSandbox"
-        ) as mock_process_sandbox:
+        with patch("pycoder.safety.sandbox.ProcessSandbox") as mock_process_sandbox:
             mock_instance = MagicMock()
 
             async def _mock_execute(*args: object, **kwargs: object) -> SandboxResult:
@@ -1069,6 +1065,7 @@ class TestTimeoutHandling:
             return _t[0]
 
         with patch.object(time_module, "monotonic", _fake_monotonic):
+
             async def _run() -> SandboxResult:
                 return await executor.execute(
                     "print('hello')",

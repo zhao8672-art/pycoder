@@ -213,7 +213,7 @@ class EvolutionReport:
         lines: list[str] = []
 
         # 标题
-        lines.append(f"# 工程进化报告")
+        lines.append("# 工程进化报告")
         lines.append("")
         lines.append(f"**任务**: {self.task}")
         lines.append(f"**报告 ID**: {self.report_id}")
@@ -253,8 +253,8 @@ class EvolutionReport:
         lines.append("## 测试结果")
         lines.append("")
         tr = self.test_results
-        lines.append(f"| 指标 | 值 |")
-        lines.append(f"|------|----|")
+        lines.append("| 指标 | 值 |")
+        lines.append("|------|----|")
         lines.append(f"| 通过 | {tr.passed} |")
         lines.append(f"| 失败 | {tr.failed} |")
         lines.append(f"| 跳过 | {tr.skipped} |")
@@ -453,9 +453,7 @@ class ReportGenerator:
 
     # ── 内部解析方法 ──────────────────────────────
 
-    def _parse_file_changes(
-        self, changes: list[dict[str, Any]]
-    ) -> list[FileChange]:
+    def _parse_file_changes(self, changes: list[dict[str, Any]]) -> list[FileChange]:
         """解析文件变更列表"""
         result: list[FileChange] = []
         for c in changes:
@@ -471,9 +469,7 @@ class ReportGenerator:
             )
         return result
 
-    def _parse_test_results(
-        self, results: dict[str, Any]
-    ) -> TestSummary:
+    def _parse_test_results(self, results: dict[str, Any]) -> TestSummary:
         """解析测试结果"""
         return TestSummary(
             passed=results.get("passed", 0),
@@ -485,9 +481,7 @@ class ReportGenerator:
             failed_tests=results.get("failed_tests", []),
         )
 
-    def _parse_risks(
-        self, risks: list[dict[str, Any]]
-    ) -> list[RiskItem]:
+    def _parse_risks(self, risks: list[dict[str, Any]]) -> list[RiskItem]:
         """解析风险列表"""
         return [
             RiskItem(
@@ -652,17 +646,19 @@ class ReportGenerator:
         for f in files[:limit]:
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
-                result.append({
-                    "report_id": data.get("report_id", f.stem),
-                    "task": data.get("task", ""),
-                    "timestamp": data.get("timestamp", ""),
-                    "success": data.get("success", False),
-                    "file_count": len(data.get("file_changes", [])),
-                    "lines_added": data.get("total_lines_added", 0),
-                    "lines_removed": data.get("total_lines_removed", 0),
-                    "file_name": f.name,
-                    "size_bytes": f.stat().st_size,
-                })
+                result.append(
+                    {
+                        "report_id": data.get("report_id", f.stem),
+                        "task": data.get("task", ""),
+                        "timestamp": data.get("timestamp", ""),
+                        "success": data.get("success", False),
+                        "file_count": len(data.get("file_changes", [])),
+                        "lines_added": data.get("total_lines_added", 0),
+                        "lines_removed": data.get("total_lines_removed", 0),
+                        "file_name": f.name,
+                        "size_bytes": f.stat().st_size,
+                    }
+                )
             except (json.JSONDecodeError, OSError) as e:
                 logger.warning("report_parse_error", file=str(f), error=str(e))
         return result
@@ -698,24 +694,39 @@ class ReportGenerator:
         return self.generate(
             task=getattr(result, "task_id", "EVO-UNKNOWN"),
             changes=[
-                {"file": c.get("file", c.get("path", "")), "action": c.get("action", "modified"),
-                 "lines_added": c.get("lines_added", 0), "lines_removed": c.get("lines_removed", 0),
-                 "description": c.get("description", "")}
+                {
+                    "file": c.get("file", c.get("path", "")),
+                    "action": c.get("action", "modified"),
+                    "lines_added": c.get("lines_added", 0),
+                    "lines_removed": c.get("lines_removed", 0),
+                    "description": c.get("description", ""),
+                }
                 for c in (getattr(result, "changes", []) or [])
             ],
             test_results={
-                "passed": sum(1 for t in (getattr(result, "test_results", []) or [])
-                            if isinstance(t, dict) and t.get("passed", False)),
-                "failed": sum(1 for t in (getattr(result, "test_results", []) or [])
-                            if isinstance(t, dict) and not t.get("passed", False)),
+                "passed": sum(
+                    1
+                    for t in (getattr(result, "test_results", []) or [])
+                    if isinstance(t, dict) and t.get("passed", False)
+                ),
+                "failed": sum(
+                    1
+                    for t in (getattr(result, "test_results", []) or [])
+                    if isinstance(t, dict) and not t.get("passed", False)
+                ),
             },
             risks=[
-                {"risk": r.get("risk", r.get("description", "")), "severity": r.get("severity", "medium")}
+                {
+                    "risk": r.get("risk", r.get("description", "")),
+                    "severity": r.get("severity", "medium"),
+                }
                 for r in (getattr(result, "risk_analysis", []) or [])
             ],
             rollback_plan=getattr(result, "rollback_plan", {}) or {},
             lessons=getattr(result, "lessons_learned", []) or [],
-            success=getattr(result, "success", getattr(result, "final_status", "unknown") == "success"),
+            success=getattr(
+                result, "success", getattr(result, "final_status", "unknown") == "success"
+            ),
             steps_completed=getattr(result, "steps_completed", 0),
             total_steps=getattr(result, "steps_completed", 0),
             duration_seconds=getattr(result, "duration", 0.0),
@@ -736,7 +747,9 @@ class ReportGenerator:
         try:
             result = subprocess.run(
                 ["git", "diff", "--stat", base_branch],
-                capture_output=True, text=True, cwd=str(self._workspace),
+                capture_output=True,
+                text=True,
+                cwd=str(self._workspace),
                 timeout=30,
             )
             if result.returncode == 0 and result.stdout:
@@ -744,12 +757,14 @@ class ReportGenerator:
                     if "|" in line:
                         parts = line.split("|")
                         file_path = parts[0].strip()
-                        changes.append({
-                            "file": file_path,
-                            "action": "modified",
-                            "lines_added": 0,
-                            "lines_removed": 0,
-                        })
+                        changes.append(
+                            {
+                                "file": file_path,
+                                "action": "modified",
+                                "lines_added": 0,
+                                "lines_removed": 0,
+                            }
+                        )
         except Exception as e:
             logger.warning("git_diff_failed", error=str(e))
 

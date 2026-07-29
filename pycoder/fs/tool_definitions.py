@@ -15,8 +15,7 @@ FS_TOOLS: list[dict] = [
     {
         "name": "fs_read",
         "description": (
-            "读取文件内容。支持工作区外路径，格式: fs://别名/路径。"
-            "例如 fs://documents/readme.md"
+            "读取文件内容。支持工作区外路径，格式: fs://别名/路径。" "例如 fs://documents/readme.md"
         ),
         "parameters": {
             "type": "object",
@@ -77,24 +76,29 @@ FS_TOOLS: list[dict] = [
 
 async def execute_fs_read(path: str) -> dict:
     from pycoder.fs.unified_ops import UnifiedFileOps
+
     return await UnifiedFileOps().read_file(path)
 
 
 async def execute_fs_write(path: str, content: str) -> dict:
     from pycoder.fs.unified_ops import UnifiedFileOps
+
     return await UnifiedFileOps().write_file(path, content)
 
 
 async def execute_fs_list(path: str) -> dict:
     from pycoder.fs.unified_ops import UnifiedFileOps
+
     return await UnifiedFileOps().list_dir(path)
 
 
 async def execute_fs_search(pattern: str, root: str = "") -> dict:
     from pycoder.fs.unified_ops import UnifiedFileOps
+
     return await UnifiedFileOps().search_files(pattern, root)
 
 
 async def execute_fs_info(path: str) -> dict:
     from pycoder.fs.unified_ops import UnifiedFileOps
+
     return await UnifiedFileOps().get_info(path)

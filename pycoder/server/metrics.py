@@ -126,16 +126,17 @@ async def get_metrics(request: Request) -> Response:
         lines.append(f"{metric_name}_sum {total:.6f}")
 
         if count > 0:
-            lines.append(f"{metric_name}_bucket{{le=\"0.1\"}} {_count_le(sorted_values, 0.1)}")
-            lines.append(f"{metric_name}_bucket{{le=\"0.5\"}} {_count_le(sorted_values, 0.5)}")
-            lines.append(f"{metric_name}_bucket{{le=\"1.0\"}} {_count_le(sorted_values, 1.0)}")
-            lines.append(f"{metric_name}_bucket{{le=\"5.0\"}} {_count_le(sorted_values, 5.0)}")
-            lines.append(f"{metric_name}_bucket{{le=\"+Inf\"}} {count}")
+            lines.append(f'{metric_name}_bucket{{le="0.1"}} {_count_le(sorted_values, 0.1)}')
+            lines.append(f'{metric_name}_bucket{{le="0.5"}} {_count_le(sorted_values, 0.5)}')
+            lines.append(f'{metric_name}_bucket{{le="1.0"}} {_count_le(sorted_values, 1.0)}')
+            lines.append(f'{metric_name}_bucket{{le="5.0"}} {_count_le(sorted_values, 5.0)}')
+            lines.append(f'{metric_name}_bucket{{le="+Inf"}} {count}')
 
     # 进程信息
     import os
-    lines.append(f"# TYPE pycoder_process_info gauge")
-    lines.append(f"pycoder_process_info{{pid=\"{os.getpid()}\"}} 1")
+
+    lines.append("# TYPE pycoder_process_info gauge")
+    lines.append(f'pycoder_process_info{{pid="{os.getpid()}"}} 1')
 
     return Response(
         content="\n".join(lines) + "\n",
@@ -145,12 +146,12 @@ async def get_metrics(request: Request) -> Response:
 
 def _collect_runtime_metrics() -> None:
     """收集运行时指标"""
-    import os
     import sys
 
     # 内存使用
     try:
         import psutil
+
         process = psutil.Process()
         gauge_set("pycoder_memory_rss_bytes", process.memory_info().rss)
         gauge_set("pycoder_cpu_percent", process.cpu_percent())

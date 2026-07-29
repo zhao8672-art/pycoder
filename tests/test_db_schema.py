@@ -10,6 +10,7 @@
   - 索引创建验证
   - 外键约束验证
 """
+
 from __future__ import annotations
 
 import os
@@ -27,7 +28,6 @@ from pycoder.core.db_schema import (
     Tables,
     _get_env_db_path,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -101,17 +101,13 @@ class TestSchemaSQL:
     def test_schema_executes_without_error(self, schema_db: sqlite3.Connection):
         """SCHEMA_SQL 在空数据库中执行不应报错"""
         # 如果 executescript 失败，fixture 会抛异常
-        tables = schema_db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
+        tables = schema_db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         assert len(tables) > 0
 
     def test_schema_is_idempotent(self, schema_db: sqlite3.Connection):
         """重复执行 SCHEMA_SQL 不应报错（IF NOT EXISTS）"""
         schema_db.executescript(SCHEMA_SQL)  # 第二次执行
-        tables = schema_db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
+        tables = schema_db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         assert len(tables) > 0
 
 
@@ -221,8 +217,7 @@ class TestForeignKeys:
         """team_members 表应有外键引用 team_workspaces"""
         with pytest.raises(sqlite3.IntegrityError):
             schema_db.execute(
-                "INSERT INTO team_members (id, workspace_id, display_name) "
-                "VALUES (?, ?, ?)",
+                "INSERT INTO team_members (id, workspace_id, display_name) " "VALUES (?, ?, ?)",
                 ("m1", "nonexistent_ws", "测试成员"),
             )
 
@@ -256,17 +251,15 @@ class TestTables:
 
     def test_tables_all_match_schema(self, schema_db: sqlite3.Connection):
         """所有 Tables 常量对应的表应在 Schema 中存在"""
-        existing = schema_db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
+        existing = schema_db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         existing_names = {r[0] for r in existing}
 
         for attr_name in dir(Tables):
             if attr_name.isupper() and not attr_name.startswith("_"):
                 table_name = getattr(Tables, attr_name)
-                assert table_name in existing_names, (
-                    f"Tables.{attr_name} = '{table_name}' 不在 Schema 中"
-                )
+                assert (
+                    table_name in existing_names
+                ), f"Tables.{attr_name} = '{table_name}' 不在 Schema 中"
 
 
 # ══════════════════════════════════════════════════════════
@@ -307,27 +300,18 @@ class TestColumnStructure:
 
     def test_sessions_has_required_columns(self, schema_db: sqlite3.Connection):
         """sessions 表应有核心列"""
-        columns = {
-            r[1]
-            for r in schema_db.execute("PRAGMA table_info(sessions)").fetchall()
-        }
+        columns = {r[1] for r in schema_db.execute("PRAGMA table_info(sessions)").fetchall()}
         required = {"id", "created_at", "updated_at", "model", "title", "message_count"}
         assert required.issubset(columns), f"缺少列: {required - columns}"
 
     def test_messages_has_required_columns(self, schema_db: sqlite3.Connection):
         """messages 表应有核心列"""
-        columns = {
-            r[1]
-            for r in schema_db.execute("PRAGMA table_info(messages)").fetchall()
-        }
+        columns = {r[1] for r in schema_db.execute("PRAGMA table_info(messages)").fetchall()}
         required = {"id", "session_id", "role", "content", "timestamp"}
         assert required.issubset(columns), f"缺少列: {required - columns}"
 
     def test_app_config_has_required_columns(self, schema_db: sqlite3.Connection):
         """app_config 表应有核心列"""
-        columns = {
-            r[1]
-            for r in schema_db.execute("PRAGMA table_info(app_config)").fetchall()
-        }
+        columns = {r[1] for r in schema_db.execute("PRAGMA table_info(app_config)").fetchall()}
         required = {"key", "value", "kind", "updated_at"}
         assert required.issubset(columns), f"缺少列: {required - columns}"

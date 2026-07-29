@@ -18,12 +18,11 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -34,7 +33,6 @@ from pycoder.capabilities.self_evo.engine import (
     FixProposal,
     SelfEvolutionEngine,
 )
-
 
 # ════════════════════════════════════════════════════════════
 # 共享 fixture
@@ -66,12 +64,8 @@ def engine(tmp_project: Path, monkeypatch: pytest.MonkeyPatch) -> SelfEvolutionE
 
     # 隔离令牌文件
     token_file = tmp_project / "evolution_token.json"
-    monkeypatch.setattr(
-        SelfEvolutionEngine, "_EVOLUTION_TOKEN_FILE", token_file
-    )
-    monkeypatch.setattr(
-        SelfEvolutionEngine, "_EVOLUTION_TOKEN_DIR", tmp_project
-    )
+    monkeypatch.setattr(SelfEvolutionEngine, "_EVOLUTION_TOKEN_FILE", token_file)
+    monkeypatch.setattr(SelfEvolutionEngine, "_EVOLUTION_TOKEN_DIR", tmp_project)
 
     return engine
 
@@ -177,9 +171,7 @@ new = 1
         assert len(result) == 1
         assert result[0]["file"] == "pycoder/format3_js.py"
 
-    def test_format3_skipped_when_file_not_exists(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_format3_skipped_when_file_not_exists(self, engine: SelfEvolutionEngine) -> None:
         """格式3 文件不存在时跳过"""
         analysis = """
 # file: pycoder/nonexistent.py
@@ -217,9 +209,7 @@ c = 3
         assert "pycoder/multi2.py" in files
         assert "pycoder/multi.py" in files
 
-    def test_duplicate_file_only_kept_once(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_duplicate_file_only_kept_once(self, engine: SelfEvolutionEngine) -> None:
         """同文件多次出现，格式1优先，后续去重"""
         analysis = """
 [FILE:pycoder/dup.py]
@@ -237,9 +227,7 @@ b = 2
         assert len(result) == 1
         assert result[0]["file"] == "pycoder/dup.py"
 
-    def test_existing_file_includes_original(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_existing_file_includes_original(self, engine: SelfEvolutionEngine) -> None:
         """修改已存在的文件时，original 字段应包含原内容前100字符"""
         target = engine._project_root / "pycoder" / "exist.py"
         original_content = "old_code_line\n" * 5
@@ -267,9 +255,7 @@ class TestBuildScanPrompt:
 
     def test_custom_takes_priority(self, engine: SelfEvolutionEngine) -> None:
         """custom 参数优先级最高"""
-        result = engine._build_scan_prompt(
-            "fix", "target", "请按特殊要求处理", "## 快照"
-        )
+        result = engine._build_scan_prompt("fix", "target", "请按特殊要求处理", "## 快照")
         assert "请按特殊要求处理" in result
         assert "## 快照" in result
 
@@ -290,9 +276,7 @@ class TestBuildScanPrompt:
         result = engine._build_scan_prompt("quality", "", "", "## 项目代码")
         assert "重构" in result or "代码异味" in result
 
-    def test_unknown_type_falls_back_to_fix(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_unknown_type_falls_back_to_fix(self, engine: SelfEvolutionEngine) -> None:
         """未知任务类型降级为 fix"""
         result = engine._build_scan_prompt("unknown_type", "", "", "## 项目代码")
         # 应与 fix 类型相同
@@ -354,16 +338,12 @@ class TestEvolutionToken:
         SelfEvolutionEngine.generate_evolution_token(["pycoder/core.py"])
         assert SelfEvolutionEngine._EVOLUTION_TOKEN_FILE.exists()
 
-        data = json.loads(
-            SelfEvolutionEngine._EVOLUTION_TOKEN_FILE.read_text(encoding="utf-8")
-        )
+        data = json.loads(SelfEvolutionEngine._EVOLUTION_TOKEN_FILE.read_text(encoding="utf-8"))
         assert data["files"] == ["pycoder/core.py"]
         assert data["used"] is False
         assert data["expires_at"] > time.time()
 
-    def test_validate_token_no_file_returns_false(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_validate_token_no_file_returns_false(self, engine: SelfEvolutionEngine) -> None:
         """令牌文件不存在时验证失败"""
         SelfEvolutionEngine.clear_evolution_token()
         assert SelfEvolutionEngine._validate_evolution_token("any.py") is False
@@ -378,9 +358,7 @@ class TestEvolutionToken:
         result2 = SelfEvolutionEngine._validate_evolution_token("pycoder/core.py")
         assert result2 is False
 
-    def test_validate_token_wrong_file_returns_false(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_validate_token_wrong_file_returns_false(self, engine: SelfEvolutionEngine) -> None:
         """令牌不匹配目标文件"""
         SelfEvolutionEngine.generate_evolution_token(["pycoder/core.py"])
         result = SelfEvolutionEngine._validate_evolution_token("pycoder/other.py")
@@ -390,32 +368,22 @@ class TestEvolutionToken:
         """过期令牌应被删除并返回 False"""
         SelfEvolutionEngine.generate_evolution_token(["pycoder/core.py"])
         # 修改 expires_at 为过去时间
-        data = json.loads(
-            SelfEvolutionEngine._EVOLUTION_TOKEN_FILE.read_text(encoding="utf-8")
-        )
+        data = json.loads(SelfEvolutionEngine._EVOLUTION_TOKEN_FILE.read_text(encoding="utf-8"))
         data["expires_at"] = time.time() - 100
-        SelfEvolutionEngine._EVOLUTION_TOKEN_FILE.write_text(
-            json.dumps(data), encoding="utf-8"
-        )
+        SelfEvolutionEngine._EVOLUTION_TOKEN_FILE.write_text(json.dumps(data), encoding="utf-8")
 
         result = SelfEvolutionEngine._validate_evolution_token("pycoder/core.py")
         assert result is False
         # 过期令牌文件应被删除
         assert not SelfEvolutionEngine._EVOLUTION_TOKEN_FILE.exists()
 
-    def test_validate_token_corrupted_file_returns_false(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_validate_token_corrupted_file_returns_false(self, engine: SelfEvolutionEngine) -> None:
         """损坏的令牌文件返回 False"""
-        SelfEvolutionEngine._EVOLUTION_TOKEN_FILE.write_text(
-            "not valid json", encoding="utf-8"
-        )
+        SelfEvolutionEngine._EVOLUTION_TOKEN_FILE.write_text("not valid json", encoding="utf-8")
         result = SelfEvolutionEngine._validate_evolution_token("pycoder/core.py")
         assert result is False
 
-    def test_clear_token_when_not_exists(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_clear_token_when_not_exists(self, engine: SelfEvolutionEngine) -> None:
         """清除不存在的令牌不报错"""
         SelfEvolutionEngine.clear_evolution_token()
         # 再次清除也不应报错
@@ -452,16 +420,12 @@ class TestIsCoreModification:
         fixes = [{"file": "pycoder/capabilities/evolution.py"}]
         assert engine._is_core_modification(fixes) is True
 
-    def test_self_optimizer_file_returns_true(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_self_optimizer_file_returns_true(self, engine: SelfEvolutionEngine) -> None:
         """self_optimizer.py 也是核心文件"""
         fixes = [{"file": "pycoder/capabilities/self_optimizer.py"}]
         assert engine._is_core_modification(fixes) is True
 
-    def test_non_core_file_returns_false(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_non_core_file_returns_false(self, engine: SelfEvolutionEngine) -> None:
         fixes = [{"file": "pycoder/server/app.py"}]
         assert engine._is_core_modification(fixes) is False
 
@@ -493,9 +457,7 @@ class TestLoadGithubToken:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """无文件无环境变量返回空"""
-        monkeypatch.setattr(
-            engine, "GITHUB_TOKEN_FILE", engine._project_root / "nonexistent_token"
-        )
+        monkeypatch.setattr(engine, "GITHUB_TOKEN_FILE", engine._project_root / "nonexistent_token")
         monkeypatch.delenv("GITHUB_TOKEN", raising=False)
         assert engine._load_github_token() == ""
 
@@ -519,9 +481,7 @@ class TestLoadGithubToken:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """文件不存在时降级到环境变量"""
-        monkeypatch.setattr(
-            engine, "GITHUB_TOKEN_FILE", engine._project_root / "nonexistent"
-        )
+        monkeypatch.setattr(engine, "GITHUB_TOKEN_FILE", engine._project_root / "nonexistent")
         monkeypatch.setenv("GITHUB_TOKEN", "ghp_env_token")
         assert engine._load_github_token() == "ghp_env_token"
 
@@ -588,9 +548,7 @@ class TestIssuesToPrompt:
 class TestCountByField:
     """_count_by_field 按字段统计"""
 
-    def test_empty_records_returns_empty(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_empty_records_returns_empty(self, engine: SelfEvolutionEngine) -> None:
         result = engine._count_by_field("action")
         assert result == {}
 
@@ -610,9 +568,7 @@ class TestCountByField:
         result = engine._count_by_field("issue_type")
         assert result == {"bug": 2, "security": 1}
 
-    def test_count_nonexistent_field_returns_empty(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_count_nonexistent_field_returns_empty(self, engine: SelfEvolutionEngine) -> None:
         """字段不存在返回空字典"""
         engine._records.append(EvolutionRecord(action="fix"))
         result = engine._count_by_field("nonexistent_field")
@@ -688,9 +644,7 @@ class TestApplyPatch:
         engine._apply_patch(proposal)
         assert target.read_text(encoding="utf-8") == "x = 1\n"
 
-    def test_file_not_exists_returns_silently(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_file_not_exists_returns_silently(self, engine: SelfEvolutionEngine) -> None:
         """文件不存在时静默返回"""
         proposal = FixProposal(
             issue=CodeIssue(file="x", line=1, severity="low", issue_type="style", title="t"),
@@ -772,9 +726,7 @@ class TestGetModifiedInSession:
         """成功时返回文件列表"""
         mock_run = MagicMock()
         mock_run.stdout = "file1.py\nfile2.py\n"
-        monkeypatch.setattr(
-            subprocess, "run", MagicMock(return_value=mock_run)
-        )
+        monkeypatch.setattr(subprocess, "run", MagicMock(return_value=mock_run))
 
         result = engine._get_modified_in_session()
         assert "file1.py" in result
@@ -788,9 +740,7 @@ class TestGetModifiedInSession:
         """空输出返回空列表"""
         mock_run = MagicMock()
         mock_run.stdout = ""
-        monkeypatch.setattr(
-            subprocess, "run", MagicMock(return_value=mock_run)
-        )
+        monkeypatch.setattr(subprocess, "run", MagicMock(return_value=mock_run))
 
         result = engine._get_modified_in_session()
         assert result == []
@@ -801,6 +751,7 @@ class TestGetModifiedInSession:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """subprocess 异常返回空列表"""
+
         def raise_timeout(*args, **kwargs):
             raise subprocess.TimeoutExpired(cmd="git", timeout=10)
 
@@ -815,6 +766,7 @@ class TestGetModifiedInSession:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """OSError 返回空列表"""
+
         def raise_oserror(*args, **kwargs):
             raise OSError("command not found")
 
@@ -841,9 +793,7 @@ class TestHistoryPersistence:
         engine._load_history()
         assert engine._records == []
 
-    def test_load_history_corrupted_file(
-        self, engine: SelfEvolutionEngine, tmp_path: Path
-    ) -> None:
+    def test_load_history_corrupted_file(self, engine: SelfEvolutionEngine, tmp_path: Path) -> None:
         """损坏的 JSON 文件静默失败"""
         persist = tmp_path / "history.json"
         persist.write_text("not valid json", encoding="utf-8")
@@ -852,9 +802,7 @@ class TestHistoryPersistence:
         engine._load_history()
         assert engine._records == []
 
-    def test_load_history_valid_file(
-        self, engine: SelfEvolutionEngine, tmp_path: Path
-    ) -> None:
+    def test_load_history_valid_file(self, engine: SelfEvolutionEngine, tmp_path: Path) -> None:
         """有效 JSON 加载成功"""
         persist = tmp_path / "history.json"
         records_data = [
@@ -869,9 +817,7 @@ class TestHistoryPersistence:
                 "lessons": "lesson-1",
             }
         ]
-        persist.write_text(
-            json.dumps(records_data, ensure_ascii=False), encoding="utf-8"
-        )
+        persist.write_text(json.dumps(records_data, ensure_ascii=False), encoding="utf-8")
         engine._persist_path = persist
         engine._records.clear()
         engine._load_history()
@@ -880,9 +826,7 @@ class TestHistoryPersistence:
         assert engine._records[0].file == "a.py"
         assert engine._records[0].success is True
 
-    def test_save_history_creates_file(
-        self, engine: SelfEvolutionEngine, tmp_path: Path
-    ) -> None:
+    def test_save_history_creates_file(self, engine: SelfEvolutionEngine, tmp_path: Path) -> None:
         """保存历史创建文件"""
         persist = tmp_path / "saved_history.json"
         engine._persist_path = persist
@@ -898,18 +842,14 @@ class TestHistoryPersistence:
         assert data[0]["action"] == "fix"
         assert data[0]["lessons"] == "learned"
 
-    def test_save_history_handles_error(
-        self, engine: SelfEvolutionEngine, tmp_path: Path
-    ) -> None:
+    def test_save_history_handles_error(self, engine: SelfEvolutionEngine, tmp_path: Path) -> None:
         """保存到不可写路径静默失败"""
         engine._persist_path = tmp_path / "no_permission" / "deep" / "history.json"
         # 父目录不存在且无法创建（mock）
         with patch.object(Path, "mkdir", side_effect=OSError("denied")):
             engine._save_history()  # 不应抛出异常
 
-    def test_save_and_load_roundtrip(
-        self, engine: SelfEvolutionEngine, tmp_path: Path
-    ) -> None:
+    def test_save_and_load_roundtrip(self, engine: SelfEvolutionEngine, tmp_path: Path) -> None:
         """保存后再加载应一致"""
         persist = tmp_path / "roundtrip.json"
         engine._persist_path = persist
@@ -942,9 +882,7 @@ class TestHistoryPersistence:
 class TestBuildAstScanFallback:
     """_build_ast_scan_fallback 离线降级扫描"""
 
-    def test_no_issues_returns_empty(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_no_issues_returns_empty(self, engine: SelfEvolutionEngine) -> None:
         engine._last_issues = []
         assert engine._build_ast_scan_fallback() == ""
 
@@ -997,9 +935,7 @@ class TestBuildAstScanFallback:
     def test_includes_template_format(self, engine: SelfEvolutionEngine) -> None:
         """输出应包含修复模板格式说明"""
         engine._last_issues = [
-            CodeIssue(
-                file="x.py", line=1, severity="low", issue_type="style", title="x"
-            )
+            CodeIssue(file="x.py", line=1, severity="low", issue_type="style", title="x")
         ]
         result = engine._build_ast_scan_fallback()
         assert "修复方案" in result or "修复格式" in result
@@ -1014,9 +950,7 @@ class TestBuildAstScanFallback:
 class TestCollectSnapshot:
     """_collect_snapshot 收集项目结构快照"""
 
-    def test_empty_target_uses_default_dirs(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_empty_target_uses_default_dirs(self, engine: SelfEvolutionEngine) -> None:
         """空 target 使用默认目录 (server, capabilities)"""
         # 创建默认目录和文件
         server_dir = engine._project_root / "pycoder" / "server"
@@ -1037,9 +971,7 @@ class TestCollectSnapshot:
         result = engine._collect_snapshot("modules")
         assert "mod.py" in result
 
-    def test_skips_self_evolution_files(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_skips_self_evolution_files(self, engine: SelfEvolutionEngine) -> None:
         """跳过 self_evolution 文件"""
         server_dir = engine._project_root / "pycoder" / "server"
         server_dir.mkdir(parents=True, exist_ok=True)
@@ -1096,9 +1028,7 @@ class TestCollectSnapshot:
 class TestRecordLearning:
     """_record_learning 记录学习经验"""
 
-    def test_handles_import_error_silently(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_handles_import_error_silently(self, engine: SelfEvolutionEngine) -> None:
         """LearningEngine 不可用时静默失败"""
         task = EvolutionTask(type="fix", description="测试任务", status="done")
         fixes = [{"file": "x.py", "modified": "y = 1"}]
@@ -1107,9 +1037,7 @@ class TestRecordLearning:
         engine._record_learning(task, fixes, test_passed=True, test_output="")
         # 内部调用被 try/except 包裹
 
-    def test_calls_learning_engine_when_available(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_calls_learning_engine_when_available(self, engine: SelfEvolutionEngine) -> None:
         """LearningEngine 可用时应调用 on_task_complete"""
         task = EvolutionTask(type="fix", description="测试任务", status="done")
         fixes = [{"file": "x.py", "modified": "y = 1"}]
@@ -1120,9 +1048,7 @@ class TestRecordLearning:
         mock_module.get_learning_engine = MagicMock(return_value=mock_engine)
 
         with patch("importlib.import_module", return_value=mock_module):
-            engine._record_learning(
-                task, fixes, test_passed=True, test_output="", quality_score=80
-            )
+            engine._record_learning(task, fixes, test_passed=True, test_output="", quality_score=80)
 
         mock_engine.on_task_complete.assert_called_once()
         call_kwargs = mock_engine.on_task_complete.call_args
@@ -1131,13 +1057,9 @@ class TestRecordLearning:
         assert call_kwargs.kwargs["test_passed"] is True
         assert call_kwargs.kwargs["quality_score"] == 80
 
-    def test_outcome_rolled_back_when_status_rolled_back(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_outcome_rolled_back_when_status_rolled_back(self, engine: SelfEvolutionEngine) -> None:
         """task.status='rolled_back' 时 outcome='rolled_back'"""
-        task = EvolutionTask(
-            type="fix", description="失败任务", status="rolled_back"
-        )
+        task = EvolutionTask(type="fix", description="失败任务", status="rolled_back")
         fixes = [{"file": "x.py", "modified": "y = 1"}]
 
         mock_engine = MagicMock()
@@ -1145,16 +1067,12 @@ class TestRecordLearning:
         mock_module.get_learning_engine = MagicMock(return_value=mock_engine)
 
         with patch("importlib.import_module", return_value=mock_module):
-            engine._record_learning(
-                task, fixes, test_passed=False, test_output="error"
-            )
+            engine._record_learning(task, fixes, test_passed=False, test_output="error")
 
         call_kwargs = mock_engine.on_task_complete.call_args
         assert call_kwargs.kwargs["outcome"] == "rolled_back"
 
-    def test_outcome_failure_when_test_failed(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_outcome_failure_when_test_failed(self, engine: SelfEvolutionEngine) -> None:
         """测试失败时 outcome='failure'"""
         task = EvolutionTask(type="fix", description="测试失败", status="done")
         fixes = [{"file": "x.py", "modified": "y = 1"}]
@@ -1164,16 +1082,12 @@ class TestRecordLearning:
         mock_module.get_learning_engine = MagicMock(return_value=mock_engine)
 
         with patch("importlib.import_module", return_value=mock_module):
-            engine._record_learning(
-                task, fixes, test_passed=False, test_output="test failed"
-            )
+            engine._record_learning(task, fixes, test_passed=False, test_output="test failed")
 
         call_kwargs = mock_engine.on_task_complete.call_args
         assert call_kwargs.kwargs["outcome"] == "failure"
 
-    def test_records_error_msg_on_failure(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    def test_records_error_msg_on_failure(self, engine: SelfEvolutionEngine) -> None:
         """失败时记录错误信息"""
         task = EvolutionTask(type="fix", description="测试", status="done")
         fixes = [{"file": "x.py", "modified": "y = 1"}]
@@ -1241,9 +1155,7 @@ class TestApplyFixV2:
         assert success is False
 
     @pytest.mark.asyncio
-    async def test_nonexistent_file_rejected(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    async def test_nonexistent_file_rejected(self, engine: SelfEvolutionEngine) -> None:
         """目标文件不存在返回失败"""
         fix = {
             "file": "pycoder/nonexistent_target.py",
@@ -1254,9 +1166,7 @@ class TestApplyFixV2:
         assert "不存在" in err or "not exist" in err.lower()
 
     @pytest.mark.asyncio
-    async def test_empty_modified_rejected(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    async def test_empty_modified_rejected(self, engine: SelfEvolutionEngine) -> None:
         """空的 modified 内容被拒绝"""
         target = engine._project_root / "pycoder" / "target.py"
         target.write_text("x = 1\n", encoding="utf-8")
@@ -1267,9 +1177,7 @@ class TestApplyFixV2:
         assert "空" in err
 
     @pytest.mark.asyncio
-    async def test_core_file_rejected_without_v2(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    async def test_core_file_rejected_without_v2(self, engine: SelfEvolutionEngine) -> None:
         """核心文件（无 v2 引擎）被拒绝"""
         # engine.v2 是 None
         target = engine._project_root / "pycoder" / "server" / "self_evolution.py"
@@ -1285,9 +1193,7 @@ class TestApplyFixV2:
         assert "核心文件" in err or "core" in err.lower()
 
     @pytest.mark.asyncio
-    async def test_search_replace_success(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    async def test_search_replace_success(self, engine: SelfEvolutionEngine) -> None:
         """search/replace 模式成功"""
         target = engine._project_root / "pycoder" / "searchable.py"
         target.write_text("def foo():\n    return 1\n", encoding="utf-8")
@@ -1317,9 +1223,7 @@ class TestApplyFixV2:
         assert "占位符" in err
 
     @pytest.mark.asyncio
-    async def test_syntax_error_rejected(
-        self, engine: SelfEvolutionEngine
-    ) -> None:
+    async def test_syntax_error_rejected(self, engine: SelfEvolutionEngine) -> None:
         """语法错误的修改被拒绝"""
         target = engine._project_root / "pycoder" / "syntax_target.py"
         target.write_text("x = 1\n", encoding="utf-8")

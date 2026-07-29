@@ -15,7 +15,7 @@ MCP 协议适配器单元测试 — 覆盖 MCPProtocolAdapter 核心功能
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -27,7 +27,6 @@ from pycoder.bus.mcp_adapter import (
     _capability_to_mcp_tool,
     _mcp_name_to_capability_id,
     get_mcp_adapter,
-    register_capabilities,
 )
 from pycoder.bus.protocol import (
     CapabilityCategory,
@@ -37,7 +36,6 @@ from pycoder.bus.protocol import (
     SideEffect,
     TrustLevel,
 )
-
 
 # ── Fixtures ──────────────────────────────────────────────
 
@@ -627,10 +625,13 @@ class TestGetPrompt:
     async def test_get_prompt_code_review(self, adapter: MCPProtocolAdapter) -> None:
         """测试获取代码审查提示词"""
         await adapter.initialize()
-        result = await adapter.get_prompt("code_review", {
-            "code": "def foo():\n    pass",
-            "language": "python",
-        })
+        result = await adapter.get_prompt(
+            "code_review",
+            {
+                "code": "def foo():\n    pass",
+                "language": "python",
+            },
+        )
         assert "messages" in result
         assert len(result["messages"]) == 1
         msg = result["messages"][0]
@@ -642,43 +643,55 @@ class TestGetPrompt:
     async def test_get_prompt_refactor(self, adapter: MCPProtocolAdapter) -> None:
         """测试获取重构提示词"""
         await adapter.initialize()
-        result = await adapter.get_prompt("refactor", {
-            "code": "x = 1",
-            "language": "python",
-            "goal": "提取函数",
-        })
+        result = await adapter.get_prompt(
+            "refactor",
+            {
+                "code": "x = 1",
+                "language": "python",
+                "goal": "提取函数",
+            },
+        )
         assert "提取函数" in result["messages"][0]["content"]["text"]
 
     @pytest.mark.asyncio
     async def test_get_prompt_generate_tests(self, adapter: MCPProtocolAdapter) -> None:
         """测试获取测试生成提示词"""
         await adapter.initialize()
-        result = await adapter.get_prompt("generate_tests", {
-            "code": "def add(a, b): return a + b",
-            "language": "python",
-            "framework": "pytest",
-        })
+        result = await adapter.get_prompt(
+            "generate_tests",
+            {
+                "code": "def add(a, b): return a + b",
+                "language": "python",
+                "framework": "pytest",
+            },
+        )
         assert "pytest" in result["messages"][0]["content"]["text"]
 
     @pytest.mark.asyncio
     async def test_get_prompt_explain_code(self, adapter: MCPProtocolAdapter) -> None:
         """测试获取代码解释提示词"""
         await adapter.initialize()
-        result = await adapter.get_prompt("explain_code", {
-            "code": "print('hello')",
-            "language": "python",
-        })
+        result = await adapter.get_prompt(
+            "explain_code",
+            {
+                "code": "print('hello')",
+                "language": "python",
+            },
+        )
         assert "解释" in result["messages"][0]["content"]["text"]
 
     @pytest.mark.asyncio
     async def test_get_prompt_debug(self, adapter: MCPProtocolAdapter) -> None:
         """测试获取调试提示词"""
         await adapter.initialize()
-        result = await adapter.get_prompt("debug", {
-            "code": "1/0",
-            "language": "python",
-            "error_message": "ZeroDivisionError",
-        })
+        result = await adapter.get_prompt(
+            "debug",
+            {
+                "code": "1/0",
+                "language": "python",
+                "error_message": "ZeroDivisionError",
+            },
+        )
         assert "ZeroDivisionError" in result["messages"][0]["content"]["text"]
 
     @pytest.mark.asyncio

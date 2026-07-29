@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
 
 from pycoder.brain.intent_analyzer import IntentAnalysis
 
@@ -54,27 +53,50 @@ class ToolPlan:
 
 TOOL_CATEGORIES: dict[str, list[str]] = {
     "read": [
-        "read_file", "list_files", "search_code", "git_status",
-        "git_log", "git_diff", "git_branch",
+        "read_file",
+        "list_files",
+        "search_code",
+        "git_status",
+        "git_log",
+        "git_diff",
+        "git_branch",
     ],
     "write": [
-        "write_file", "patch_file", "create_file", "overwrite_file",
+        "write_file",
+        "patch_file",
+        "create_file",
+        "overwrite_file",
     ],
     "execute": [
-        "run_command", "run_terminal", "execute_python",
+        "run_command",
+        "run_terminal",
+        "execute_python",
     ],
     "git": [
-        "git_add", "git_commit", "git_push", "git_pull",
-        "git_stash", "git_branch_create", "git_checkout",
+        "git_add",
+        "git_commit",
+        "git_push",
+        "git_pull",
+        "git_stash",
+        "git_branch_create",
+        "git_checkout",
     ],
     "package": [
-        "install_package", "search_package", "ensure_tool", "install_deps",
+        "install_package",
+        "search_package",
+        "ensure_tool",
+        "install_deps",
     ],
     "quality": [
-        "code_review", "format_code", "security_scan", "dependency_analysis",
+        "code_review",
+        "format_code",
+        "security_scan",
+        "dependency_analysis",
     ],
     "system": [
-        "docker_status", "python_env", "list_agent_configs",
+        "docker_status",
+        "python_env",
+        "list_agent_configs",
     ],
 }
 
@@ -141,13 +163,25 @@ class ToolPlanner:
         self._available_tools = {
             "read_file": {"category": "read", "params": ["path"], "desc": "读取文件"},
             "write_file": {"category": "write", "params": ["path", "content"], "desc": "写入文件"},
-            "patch_file": {"category": "write", "params": ["path", "search", "replace"], "desc": "精准替换"},
+            "patch_file": {
+                "category": "write",
+                "params": ["path", "search", "replace"],
+                "desc": "精准替换",
+            },
             "create_file": {"category": "write", "params": ["path", "content"], "desc": "创建文件"},
-            "search_code": {"category": "read", "params": ["query", "file_type?"], "desc": "搜索代码"},
+            "search_code": {
+                "category": "read",
+                "params": ["query", "file_type?"],
+                "desc": "搜索代码",
+            },
             "list_files": {"category": "read", "params": ["path?", "depth?"], "desc": "列出目录"},
             "run_command": {"category": "execute", "params": ["command"], "desc": "执行命令"},
             "run_terminal": {"category": "execute", "params": ["command"], "desc": "终端命令"},
-            "execute_python": {"category": "execute", "params": ["code"], "desc": "沙箱执行 Python"},
+            "execute_python": {
+                "category": "execute",
+                "params": ["code"],
+                "desc": "沙箱执行 Python",
+            },
             "git_status": {"category": "read", "params": [], "desc": "Git 状态"},
             "git_diff": {"category": "read", "params": ["file?"], "desc": "Git 变更"},
             "git_log": {"category": "read", "params": [], "desc": "提交历史"},
@@ -207,8 +241,7 @@ class ToolPlanner:
         tools: list[str] = []
         for cat in categories:
             cat_tools = [
-                name for name, info in self._available_tools.items()
-                if info.get("category") == cat
+                name for name, info in self._available_tools.items() if info.get("category") == cat
             ]
             tools.extend(cat_tools)
 
@@ -234,8 +267,7 @@ class ToolPlanner:
     def get_tools_for_category(self, category: str) -> list[str]:
         """获取指定类别的工具列表"""
         return [
-            name for name, info in self._available_tools.items()
-            if info.get("category") == category
+            name for name, info in self._available_tools.items() if info.get("category") == category
         ]
 
     def register_tool(self, name: str, category: str, params: list[str], desc: str = "") -> None:

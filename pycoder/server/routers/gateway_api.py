@@ -325,13 +325,15 @@ async def gateway_websocket(ws: WebSocket):
     try:
         # 发送欢迎消息
         gw = _get_gateway()
-        await ws.send_json({
-            "type": "connected",
-            "client_id": client_id,
-            "platforms": gw.available_platforms,
-            "gateway_running": gw.is_running,
-            "timestamp": time.time(),
-        })
+        await ws.send_json(
+            {
+                "type": "connected",
+                "client_id": client_id,
+                "platforms": gw.available_platforms,
+                "gateway_running": gw.is_running,
+                "timestamp": time.time(),
+            }
+        )
 
         # 保持连接，接收客户端消息
         while True:
@@ -347,15 +349,21 @@ async def gateway_websocket(ws: WebSocket):
                     platforms_info = []
                     for name in gw.available_platforms:
                         adapter = gw.get_adapter(name)
-                        platforms_info.append({
-                            "name": name,
-                            "status": "running" if (adapter and adapter.is_running) else "stopped",
-                        })
-                    await ws.send_json({
-                        "type": "platforms",
-                        "platforms": platforms_info,
-                        "timestamp": time.time(),
-                    })
+                        platforms_info.append(
+                            {
+                                "name": name,
+                                "status": (
+                                    "running" if (adapter and adapter.is_running) else "stopped"
+                                ),
+                            }
+                        )
+                    await ws.send_json(
+                        {
+                            "type": "platforms",
+                            "platforms": platforms_info,
+                            "timestamp": time.time(),
+                        }
+                    )
 
                 elif msg_type == "get_sessions":
                     gw = _get_gateway()
@@ -363,25 +371,31 @@ async def gateway_websocket(ws: WebSocket):
                     sessions = []
                     if sm is not None:
                         for (platform, user_id), s in sm._sessions.items():
-                            sessions.append({
-                                "session_id": s.session_id,
-                                "platform": platform,
-                                "user_id": user_id,
-                                "message_count": len(s.messages),
-                                "is_active": s.session_id == sm._active_session_id,
-                            })
-                    await ws.send_json({
-                        "type": "sessions",
-                        "sessions": sessions,
-                        "total": len(sessions),
-                        "timestamp": time.time(),
-                    })
+                            sessions.append(
+                                {
+                                    "session_id": s.session_id,
+                                    "platform": platform,
+                                    "user_id": user_id,
+                                    "message_count": len(s.messages),
+                                    "is_active": s.session_id == sm._active_session_id,
+                                }
+                            )
+                    await ws.send_json(
+                        {
+                            "type": "sessions",
+                            "sessions": sessions,
+                            "total": len(sessions),
+                            "timestamp": time.time(),
+                        }
+                    )
 
                 else:
-                    await ws.send_json({
-                        "type": "unknown",
-                        "message": f"未知消息类型: {msg_type}",
-                    })
+                    await ws.send_json(
+                        {
+                            "type": "unknown",
+                            "message": f"未知消息类型: {msg_type}",
+                        }
+                    )
 
             except (WebSocketDisconnect, RuntimeError):
                 break
@@ -415,11 +429,13 @@ async def broadcast_gateway_event(event_type: str, data: dict[str, Any]) -> None
     disconnected: list[str] = []
     for client_id, ws in _ws_clients.items():
         try:
-            await ws.send_json({
-                "type": event_type,
-                "data": data,
-                "timestamp": time.time(),
-            })
+            await ws.send_json(
+                {
+                    "type": event_type,
+                    "data": data,
+                    "timestamp": time.time(),
+                }
+            )
         except Exception as exc:
             logger.debug("gateway_broadcast_failed client=%s: %s", client_id, exc)
             disconnected.append(client_id)

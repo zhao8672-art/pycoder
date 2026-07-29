@@ -17,8 +17,8 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
-from typing import ClassVar
 from pathlib import Path
+from typing import ClassVar
 
 from pycoder.core.services.log import log
 

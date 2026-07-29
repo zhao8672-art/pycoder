@@ -21,25 +21,25 @@
 - 使用 tmp_path 构造项目目录
 - 使用 monkeypatch 替换 subprocess.run
 """
+
 from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 from unittest.mock import MagicMock
 
 import pytest
 
 from pycoder.python import dep_analyzer as da_mod
 from pycoder.python.dep_analyzer import (
-    DependencyInfo,
     DepAnalyzer,
+    DependencyInfo,
     ProjectDependencies,
     analyze_project_deps,
     inject_deps_to_prompt,
 )
-
 
 # ── 公共 fixtures ──────────────────────────────────────────
 
@@ -117,16 +117,12 @@ class TestDepAnalyzerInit:
 
 class TestDetectPackageManager:
     def test_poetry(self, project: Path):
-        (project / "pyproject.toml").write_text(
-            "[tool.poetry]\nname = \"test\"\n", encoding="utf-8"
-        )
+        (project / "pyproject.toml").write_text('[tool.poetry]\nname = "test"\n', encoding="utf-8")
         a = DepAnalyzer(project)
         assert a._detect_package_manager() == "poetry"
 
     def test_pdm(self, project: Path):
-        (project / "pyproject.toml").write_text(
-            "[project]\nname = \"test\"\n", encoding="utf-8"
-        )
+        (project / "pyproject.toml").write_text('[project]\nname = "test"\n', encoding="utf-8")
         a = DepAnalyzer(project)
         assert a._detect_package_manager() == "pdm"
 
@@ -149,9 +145,7 @@ class TestDetectPackageManager:
         a = DepAnalyzer(project)
         assert a._detect_package_manager() == "unknown"
 
-    def test_pyproject_read_error_falls_back_to_pdm(
-        self, project: Path, monkeypatch
-    ):
+    def test_pyproject_read_error_falls_back_to_pdm(self, project: Path, monkeypatch):
         (project / "pyproject.toml").write_text("xxx", encoding="utf-8")
 
         def raise_error(*args, **kwargs):
@@ -554,9 +548,7 @@ django = "^5.0"
         assert result.total_deps == 1
         assert result.production_deps[0].name == "django"
 
-    def test_deduplication_keeps_version_from_second(
-        self, project: Path, mock_subprocess
-    ):
+    def test_deduplication_keeps_version_from_second(self, project: Path, mock_subprocess):
         # 第一个无版本，第二个有版本 -> 保留第二个
         (project / "requirements.txt").write_text("django\n", encoding="utf-8")
         (project / "pyproject.toml").write_text(
@@ -802,9 +794,7 @@ class TestShortcutFunctions:
         result = analyze_project_deps()
         assert isinstance(result, ProjectDependencies)
 
-    def test_inject_deps_to_prompt_default_path(
-        self, mock_subprocess, monkeypatch
-    ):
+    def test_inject_deps_to_prompt_default_path(self, mock_subprocess, monkeypatch):
         monkeypatch.chdir(Path(__file__).parent)
         result = inject_deps_to_prompt()
         assert isinstance(result, str)

@@ -1,9 +1,11 @@
 """
 测试P0修复 - 验证问题#1和#2的修复是否有效
 """
+
 import asyncio
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 
 @pytest.mark.asyncio
@@ -16,7 +18,7 @@ async def test_p0_fix1_code_exec_async_no_blocking():
 
     验证方法：并发提交两个请求，确保并行执行而非串行
     """
-    from pycoder.server.routers.code_exec import execute_code, CodeExecRequest
+    from pycoder.server.routers.code_exec import CodeExecRequest, execute_code
 
     # Mock _run_in_subprocess 让其返回指定延迟的结果
     # 第一个请求延迟2秒，第二个请求延迟1秒
@@ -30,6 +32,7 @@ async def test_p0_fix1_code_exec_async_no_blocking():
         coroutine 而非结果，故此处必须为 sync + time.sleep。
         """
         import time as _time
+
         idx = call_count[0]
         call_count[0] += 1
         delay = delays[idx] if idx < len(delays) else 1.0
@@ -50,6 +53,7 @@ async def test_p0_fix1_code_exec_async_no_blocking():
     with patch("pycoder.server.routers.code_exec._run_in_subprocess", new=mock_subprocess):
         # 并发提交两个请求
         import time
+
         start = time.time()
 
         results = await asyncio.gather(
@@ -58,11 +62,11 @@ async def test_p0_fix1_code_exec_async_no_blocking():
         )
 
         elapsed = time.time() - start
-        print(f"\n✅ 两个请求并行执行完成")
-        print(f"   第1个请求延迟: 2.0s")
-        print(f"   第2个请求延迟: 1.0s")
+        print("\n✅ 两个请求并行执行完成")
+        print("   第1个请求延迟: 2.0s")
+        print("   第2个请求延迟: 1.0s")
         print(f"   总耗时: {elapsed:.1f}s")
-        print(f"   预期: ~2.1s（并行）vs ~3s（串行）")
+        print("   预期: ~2.1s（并行）vs ~3s（串行）")
 
         # 如果是真正的并行，总耗时应该约为 max(2, 1) = 2 秒
         # 如果是串行阻塞，总耗时应该约为 2 + 1 = 3 秒
@@ -106,6 +110,7 @@ async def test_p0_fix2_mobile_status_fallback():
     print("\n[Test 2] 模块正常可用时的返回")
 
     from pycoder.python.mobile_integration import get_mobile_status as real_get_status
+
     status = await real_get_status()
 
     assert "ios" in status

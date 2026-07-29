@@ -10,6 +10,7 @@
   - 单例: get_dal, reset_dal
   - 错误路径: 无效表名、重复键冲突
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -18,8 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from pycoder.core.dal import DAL, get_dal, reset_dal
-
+from pycoder.core.dal import DAL, reset_dal
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -69,9 +69,7 @@ class TestDALInit:
 
     def test_init_db_sets_db_version(self, dal: DAL):
         """初始化应将版本号写入 db_version 表"""
-        version = dal.execute_value(
-            "SELECT version FROM db_version ORDER BY version DESC LIMIT 1"
-        )
+        version = dal.execute_value("SELECT version FROM db_version ORDER BY version DESC LIMIT 1")
         assert version is not None
         assert version >= 1
 
@@ -281,9 +279,7 @@ class TestUpsert:
             conflict_columns=["id"],
             update_columns=["title"],  # 只更新 title
         )
-        row = dal.execute_one(
-            "SELECT title, model FROM sessions WHERE id = ?", ("s72",)
-        )
+        row = dal.execute_one("SELECT title, model FROM sessions WHERE id = ?", ("s72",))
         assert row["title"] == "新标题"
         # model 不在 update_columns 中，应保持原值
         assert row["model"] == "gpt"
@@ -332,12 +328,15 @@ class TestTransaction:
         """事务成功时应提交"""
         with dal.transaction():
             dal.insert("sessions", {"id": "t1", "title": "事务内"})
-            dal.insert("messages", {
-                "session_id": "t1",
-                "role": "user",
-                "content": "你好",
-                "timestamp": 1000.0,
-            })
+            dal.insert(
+                "messages",
+                {
+                    "session_id": "t1",
+                    "role": "user",
+                    "content": "你好",
+                    "timestamp": 1000.0,
+                },
+            )
         # 事务提交后数据应可见
         count = dal.execute_value("SELECT COUNT(*) FROM sessions WHERE id = ?", ("t1",))
         assert count == 1
@@ -451,13 +450,16 @@ class TestSingleton:
         """reset_dal 应清除全局单例"""
         # 保存当前状态
         from pycoder.core.dal import _dal_instance
+
         old = _dal_instance
         reset_dal()
         from pycoder.core.dal import _dal_instance as _dal_after
+
         assert _dal_after is None
         # 恢复
         if old is not None:
             import pycoder.core.dal as dal_mod
+
             dal_mod._dal_instance = old
 
 

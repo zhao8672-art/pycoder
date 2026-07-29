@@ -53,22 +53,14 @@ class SkillsReportGenerator:
         ]
 
         if so_stats:
-            lines.append(
-                f"| Stack Overflow 技术追踪 | {so_stats.get('technologies', 0)} 项 |"
-            )
-            lines.append(
-                f"| 其中上升技术 | {so_stats.get('rising', 0)} 项 |"
-            )
-            lines.append(
-                f"| 其中下降技术 | {so_stats.get('declining', 0)} 项 |"
-            )
+            lines.append(f"| Stack Overflow 技术追踪 | {so_stats.get('technologies', 0)} 项 |")
+            lines.append(f"| 其中上升技术 | {so_stats.get('rising', 0)} 项 |")
+            lines.append(f"| 其中下降技术 | {so_stats.get('declining', 0)} 项 |")
 
         if lifecycle_stats:
             for cat, stages in lifecycle_stats.items():
                 total = sum(s["count"] for s in stages)
-                stage_summary = ", ".join(
-                    f"{s['stage']}: {s['count']}" for s in stages
-                )
+                stage_summary = ", ".join(f"{s['stage']}: {s['count']}" for s in stages)
                 lines.append(f"| {cat} ({total}) | {stage_summary} |")
 
         lines += [
@@ -86,9 +78,7 @@ class SkillsReportGenerator:
             cat = skill.get("category", "")
             stars = skill.get("stars_28d", 0)
             rate = skill.get("growth_rate_28d", 0)
-            lines.append(
-                f"| {i} | {name} | {cat} | {stars} | {rate:.1%} |"
-            )
+            lines.append(f"| {i} | {name} | {cat} | {stars} | {rate:.1%} |")
 
         lines += [
             "",
@@ -105,9 +95,7 @@ class SkillsReportGenerator:
             cat = skill.get("category", "")
             stars = skill.get("stars_28d", 0)
             momentum = skill.get("momentum", 0)
-            lines.append(
-                f"| {i} | {name} | {cat} | {stars} | {momentum:+.2%} |"
-            )
+            lines.append(f"| {i} | {name} | {cat} | {stars} | {momentum:+.2%} |")
 
         if so_trends:
             lines += [
@@ -182,9 +170,7 @@ class SkillsReportGenerator:
         return str(file_path)
 
 
-def generate_skills_report(
-    engine=None, report_generator=None
-) -> dict:
+def generate_skills_report(engine=None, report_generator=None) -> dict:
     """便捷函数: 生成并保存技能月报
 
     Args:
@@ -196,6 +182,7 @@ def generate_skills_report(
     """
     if engine is None:
         from pycoder.server.skills_lifecycle import get_lifecycle_engine
+
         engine = get_lifecycle_engine()
 
     if report_generator is None:
@@ -220,6 +207,7 @@ def generate_skills_report(
     # 5. 获取生命周期标签中的新兴技能
     try:
         import sqlite3
+
         conn = sqlite3.connect(str(engine._db_path), timeout=5)
         cursor = conn.execute(
             "SELECT skill_id, skill_name, category, growth_rate_28d, "
@@ -231,9 +219,15 @@ def generate_skills_report(
         emerging_rows = cursor.fetchall()
         conn.close()
         emerging = [
-            {"skill_id": r[0], "skill_name": r[1], "category": r[2],
-             "growth_rate_28d": r[3], "stars_28d": r[4], "stars_total": r[5],
-             "momentum": r[6]}
+            {
+                "skill_id": r[0],
+                "skill_name": r[1],
+                "category": r[2],
+                "growth_rate_28d": r[3],
+                "stars_28d": r[4],
+                "stars_total": r[5],
+                "momentum": r[6],
+            }
             for r in emerging_rows
         ]
     except Exception:
@@ -252,9 +246,15 @@ def generate_skills_report(
         trending_rows = cursor.fetchall()
         conn.close()
         trending = [
-            {"skill_id": r[0], "skill_name": r[1], "category": r[2],
-             "growth_rate_28d": r[3], "stars_28d": r[4], "stars_total": r[5],
-             "momentum": r[6]}
+            {
+                "skill_id": r[0],
+                "skill_name": r[1],
+                "category": r[2],
+                "growth_rate_28d": r[3],
+                "stars_28d": r[4],
+                "stars_total": r[5],
+                "momentum": r[6],
+            }
             for r in trending_rows
         ]
     except Exception:

@@ -15,7 +15,6 @@ Web 搜索插件 — 为 AI Agent 提供联网搜索能力
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 from dataclasses import dataclass, field
@@ -29,6 +28,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SearchResult:
     """搜索结果"""
+
     title: str
     url: str
     snippet: str
@@ -48,6 +48,7 @@ class SearchResult:
 @dataclass
 class SearchResponse:
     """搜索响应"""
+
     query: str
     results: list[SearchResult] = field(default_factory=list)
     total_results: int = 0
@@ -97,6 +98,7 @@ class WebSearchPlugin:
             SearchResponse 搜索结果
         """
         import time
+
         start = time.time()
 
         if engine:
@@ -147,9 +149,7 @@ class WebSearchPlugin:
         engines.append("duckduckgo")  # 免费回退
         return engines
 
-    async def _search_bing(
-        self, query: str, num: int, lang: str
-    ) -> list[SearchResult]:
+    async def _search_bing(self, query: str, num: int, lang: str) -> list[SearchResult]:
         """Bing Web Search API"""
         resp = await self._client.get(
             "https://api.bing.microsoft.com/v7.0/search",
@@ -160,17 +160,17 @@ class WebSearchPlugin:
         data = resp.json()
         results = []
         for item in data.get("webPages", {}).get("value", []):
-            results.append(SearchResult(
-                title=item.get("name", ""),
-                url=item.get("url", ""),
-                snippet=item.get("snippet", ""),
-                source="bing",
-            ))
+            results.append(
+                SearchResult(
+                    title=item.get("name", ""),
+                    url=item.get("url", ""),
+                    snippet=item.get("snippet", ""),
+                    source="bing",
+                )
+            )
         return results
 
-    async def _search_serpapi(
-        self, query: str, num: int, lang: str
-    ) -> list[SearchResult]:
+    async def _search_serpapi(self, query: str, num: int, lang: str) -> list[SearchResult]:
         """SerpAPI (Google Search)"""
         resp = await self._client.get(
             "https://serpapi.com/search",
@@ -186,17 +186,17 @@ class WebSearchPlugin:
         data = resp.json()
         results = []
         for item in data.get("organic_results", []):
-            results.append(SearchResult(
-                title=item.get("title", ""),
-                url=item.get("link", ""),
-                snippet=item.get("snippet", ""),
-                source="serpapi",
-            ))
+            results.append(
+                SearchResult(
+                    title=item.get("title", ""),
+                    url=item.get("link", ""),
+                    snippet=item.get("snippet", ""),
+                    source="serpapi",
+                )
+            )
         return results
 
-    async def _search_duckduckgo(
-        self, query: str, num: int
-    ) -> list[SearchResult]:
+    async def _search_duckduckgo(self, query: str, num: int) -> list[SearchResult]:
         """DuckDuckGo Instant Answer API（免费，无需 API Key）"""
         resp = await self._client.get(
             "https://api.duckduckgo.com/",
@@ -208,22 +208,26 @@ class WebSearchPlugin:
 
         # Abstract / Answer
         if data.get("AbstractText"):
-            results.append(SearchResult(
-                title=data.get("Heading", query),
-                url=data.get("AbstractURL", ""),
-                snippet=data.get("AbstractText", ""),
-                source="duckduckgo",
-            ))
+            results.append(
+                SearchResult(
+                    title=data.get("Heading", query),
+                    url=data.get("AbstractURL", ""),
+                    snippet=data.get("AbstractText", ""),
+                    source="duckduckgo",
+                )
+            )
 
         # Related Topics
         for topic in data.get("RelatedTopics", [])[:num]:
             if isinstance(topic, dict) and topic.get("Text"):
-                results.append(SearchResult(
-                    title=topic.get("FirstURL", "").split("/")[-1].replace("_", " "),
-                    url=topic.get("FirstURL", ""),
-                    snippet=topic.get("Text", ""),
-                    source="duckduckgo",
-                ))
+                results.append(
+                    SearchResult(
+                        title=topic.get("FirstURL", "").split("/")[-1].replace("_", " "),
+                        url=topic.get("FirstURL", ""),
+                        snippet=topic.get("Text", ""),
+                        source="duckduckgo",
+                    )
+                )
 
         return results
 
@@ -233,9 +237,7 @@ class WebSearchPlugin:
 
     # ── RAG 上下文增强 ──
 
-    async def search_for_context(
-        self, query: str, num: int = 3
-    ) -> str:
+    async def search_for_context(self, query: str, num: int = 3) -> str:
         """搜索并返回格式化上下文（用于 RAG 增强）
 
         Args:

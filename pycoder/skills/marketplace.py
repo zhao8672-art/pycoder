@@ -8,8 +8,7 @@ import shutil
 import sqlite3
 import time
 import uuid
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import Any
 
 from pycoder.skills.db import DATA_DIR, SkillDatabase
@@ -44,10 +43,18 @@ class SkillMarketplace:
         """预安装内置技能（如果尚未安装）"""
         try:
             builtin_ids = [
-                "code-review", "test-generator", "doc-generator", "refactor-helper",
-                "security-scanner", "performance-analyzer", "git-helper",
-                "dependency-checker", "lint-fixer", "api-doc-generator",
-                "code-explainer", "project-scaffolder",
+                "code-review",
+                "test-generator",
+                "doc-generator",
+                "refactor-helper",
+                "security-scanner",
+                "performance-analyzer",
+                "git-helper",
+                "dependency-checker",
+                "lint-fixer",
+                "api-doc-generator",
+                "code-explainer",
+                "project-scaffolder",
             ]
             now = datetime.now().isoformat()
             with sqlite3.connect(str(self._db.db_path)) as conn:
@@ -170,7 +177,7 @@ class SkillMarketplace:
             return {"success": False, "error": "技能 Markdown 内容不能为空"}
 
         skill_def.markdown_content = markdown_content
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         if not skill_def.created_at:
             skill_def.created_at = now
         skill_def.updated_at = now
@@ -203,15 +210,15 @@ class SkillMarketplace:
         """安装技能到本地（V2 — 递归安装依赖 + 失败回滚）"""
         with sqlite3.connect(str(self._db.db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT * FROM skills WHERE id = ?", (skill_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM skills WHERE id = ?", (skill_id,)).fetchone()
             if not row:
                 return {"success": False, "error": f"技能 '{skill_id}' 不存在"}
             if row["installed_at"]:
                 return {
-                    "success": True, "skill_id": skill_id,
-                    "message": "技能已安装", "action": "skip",
+                    "success": True,
+                    "skill_id": skill_id,
+                    "message": "技能已安装",
+                    "action": "skip",
                 }
 
         if install_dependencies:
@@ -242,7 +249,7 @@ class SkillMarketplace:
                     "installed_ids": installed_ids,
                 }
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         target_row = None
         with sqlite3.connect(str(self._db.db_path)) as conn:
             conn.row_factory = sqlite3.Row
@@ -299,17 +306,17 @@ class SkillMarketplace:
         """安装单个技能（不含依赖处理）"""
         with sqlite3.connect(str(self._db.db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT * FROM skills WHERE id = ?", (skill_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM skills WHERE id = ?", (skill_id,)).fetchone()
             if not row:
                 return {"success": False, "error": f"技能 '{skill_id}' 不存在"}
             if row["installed_at"]:
                 return {
-                    "success": True, "skill_id": skill_id,
-                    "action": "skip", "message": "已安装",
+                    "success": True,
+                    "skill_id": skill_id,
+                    "action": "skip",
+                    "message": "已安装",
                 }
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
             local_v = row["local_version"] if "local_version" in row.keys() else ""
             if not local_v:
                 local_v = row["version"]
@@ -361,8 +368,10 @@ class SkillMarketplace:
                 return {"success": False, "error": "内置技能不可卸载"}
             if not row["installed_at"]:
                 return {
-                    "success": True, "skill_id": skill_id,
-                    "message": "技能未安装", "action": "skip",
+                    "success": True,
+                    "skill_id": skill_id,
+                    "message": "技能未安装",
+                    "action": "skip",
                 }
             conn.execute(
                 "UPDATE skills SET installed_at = '', "
@@ -484,8 +493,8 @@ class SkillMarketplace:
             conditions.append("install_count <= ?")
             params.append(max_downloads)
         if updated_within_days > 0:
-            cutoff = (datetime.now(timezone.utc).timestamp() - updated_within_days * 86400)
-            cutoff_iso = datetime.fromtimestamp(cutoff, tz=timezone.utc).isoformat()
+            cutoff = datetime.now(UTC).timestamp() - updated_within_days * 86400
+            cutoff_iso = datetime.fromtimestamp(cutoff, tz=UTC).isoformat()
             conditions.append("updated_at >= ?")
             params.append(cutoff_iso)
         if author:
@@ -495,7 +504,9 @@ class SkillMarketplace:
         if verified_only:
             conditions.append("verified = 1")
         if has_update_only:
-            conditions.append("remote_version != '' AND local_version != '' AND remote_version != local_version")
+            conditions.append(
+                "remote_version != '' AND local_version != '' AND remote_version != local_version"
+            )
         if installed_only is True:
             conditions.append("installed_at != ''")
         elif installed_only is False:
@@ -552,7 +563,8 @@ class SkillMarketplace:
             with sqlite3.connect(str(self._db.db_path)) as conn:
                 match_expr = " AND ".join(
                     f'"{w}"*' if " " not in w and not w.startswith('"') else w
-                    for w in fts_query.split() if w
+                    for w in fts_query.split()
+                    if w
                 )
                 rows = conn.execute(
                     "SELECT skill_id FROM skills_fts "
@@ -571,10 +583,12 @@ class SkillMarketplace:
         """分词（中文用 jieba，英文按空格）"""
         try:
             import jieba  # type: ignore[import-not-found]
+
             tokens = [t for t in jieba.cut(query, cut_all=False) if t.strip()]
             return " ".join(tokens)
         except ImportError:
             import re
+
             tokens = re.split(r"[\s,，。、;；:：!！?？/\\]+", query)
             return " ".join(t for t in tokens if t)
 
@@ -617,9 +631,7 @@ class SkillMarketplace:
         """获取技能详情（含 Markdown 内容 + V2 扩展数据）"""
         with sqlite3.connect(str(self._db.db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT * FROM skills WHERE id = ?", (skill_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM skills WHERE id = ?", (skill_id,)).fetchone()
             if not row:
                 return {"error": f"技能 '{skill_id}' 不存在"}
 
@@ -726,7 +738,7 @@ class SkillMarketplace:
         released_at: str = "",
     ) -> dict[str, Any]:
         """添加版本历史记录"""
-        released_at = released_at or datetime.now(timezone.utc).isoformat()
+        released_at = released_at or datetime.now(UTC).isoformat()
         with sqlite3.connect(str(self._db.db_path)) as conn:
             try:
                 conn.execute(
@@ -749,8 +761,14 @@ class SkillMarketplace:
     async def update_skill(self, skill_id: str, updates: dict[str, Any]) -> dict[str, Any]:
         """更新技能信息"""
         allowed_fields = {
-            "name", "version", "description", "author", "category",
-            "tags", "dependencies", "markdown_content",
+            "name",
+            "version",
+            "description",
+            "author",
+            "category",
+            "tags",
+            "dependencies",
+            "markdown_content",
         }
         update_fields = {k: v for k, v in updates.items() if k in allowed_fields}
         if not update_fields:
@@ -763,7 +781,7 @@ class SkillMarketplace:
                 update_fields["dependencies"], ensure_ascii=False
             )
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         set_clauses = [f"{k} = ?" for k in update_fields]
         set_clauses.append("updated_at = ?")
         params = list(update_fields.values()) + [now, skill_id]
@@ -801,7 +819,7 @@ class SkillMarketplace:
         if rating < 1 or rating > 5:
             return {"success": False, "error": "评分必须在 1-5 之间"}
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         is_update = False
         old_rating = 0
         enforce_unique = user_id != "anonymous"
@@ -811,17 +829,14 @@ class SkillMarketplace:
             conn.execute("BEGIN IMMEDIATE")
 
             try:
-                row = conn.execute(
-                    "SELECT id FROM skills WHERE id = ?", (skill_id,)
-                ).fetchone()
+                row = conn.execute("SELECT id FROM skills WHERE id = ?", (skill_id,)).fetchone()
                 if not row:
                     conn.execute("ROLLBACK")
                     return {"success": False, "error": f"技能 '{skill_id}' 不存在"}
 
                 if enforce_unique:
                     existing = conn.execute(
-                        "SELECT rating FROM skill_reviews "
-                        "WHERE skill_id = ? AND user_id = ?",
+                        "SELECT rating FROM skill_reviews " "WHERE skill_id = ? AND user_id = ?",
                         (skill_id, user_id),
                     ).fetchone()
                     if existing:
@@ -910,8 +925,11 @@ class SkillMarketplace:
     ) -> dict[str, Any]:
         """提交评价（评分 + 评论正文）— rate_skill 的别名"""
         return await self.rate_skill(
-            skill_id, rating,
-            user_id=user_id, user_name=user_name, review_text=review_text,
+            skill_id,
+            rating,
+            user_id=user_id,
+            user_name=user_name,
+            review_text=review_text,
         )
 
     async def get_reviews(
@@ -978,9 +996,7 @@ class SkillMarketplace:
             )
             conn.commit()
 
-        await self._run_install_task(
-            task_id, skill_id, install_dependencies=install_dependencies
-        )
+        await self._run_install_task(task_id, skill_id, install_dependencies=install_dependencies)
         return {"task_id": task_id, "skill_id": skill_id, "status": "pending"}
 
     async def _run_install_task(
@@ -995,8 +1011,12 @@ class SkillMarketplace:
                     order = self._topological_sort(skill_id)
                 except ValueError as e:
                     self._update_task(
-                        task_id, status="failed", error=str(e), progress=0,
-                        step="❌ 依赖环检测失败", completed=True,
+                        task_id,
+                        status="failed",
+                        error=str(e),
+                        progress=0,
+                        step="❌ 依赖环检测失败",
+                        completed=True,
                     )
                     return
             else:
@@ -1007,7 +1027,8 @@ class SkillMarketplace:
             for i, sid in enumerate(order):
                 pct = 20 + int((i / max(total, 1)) * 70)
                 self._update_task(
-                    task_id, progress=pct,
+                    task_id,
+                    progress=pct,
                     step=f"📥 安装 {sid} ({i + 1}/{total})",
                 )
                 result = self._install_single(sid)
@@ -1016,22 +1037,30 @@ class SkillMarketplace:
                         if rb != skill_id:
                             self._rollback_install(rb)
                     self._update_task(
-                        task_id, status="failed",
+                        task_id,
+                        status="failed",
                         error=f"安装 {sid} 失败: {result.get('error', '')}",
-                        progress=pct, step="❌ 安装失败（已回滚）",
+                        progress=pct,
+                        step="❌ 安装失败（已回滚）",
                         completed=True,
                     )
                     return
                 installed.append(sid)
 
             self._update_task(
-                task_id, status="done", progress=100,
-                step=f"✅ 安装完成（{total} 个技能）", completed=True,
+                task_id,
+                status="done",
+                progress=100,
+                step=f"✅ 安装完成（{total} 个技能）",
+                completed=True,
             )
         except Exception as e:
             self._update_task(
-                task_id, status="failed", error=str(e),
-                step="❌ 内部错误", completed=True,
+                task_id,
+                status="failed",
+                error=str(e),
+                step="❌ 内部错误",
+                completed=True,
             )
 
     def _update_task(
@@ -1061,7 +1090,7 @@ class SkillMarketplace:
             params.append(error)
         if completed:
             sets.append("completed_at = ?")
-            params.append(datetime.now(timezone.utc).isoformat())
+            params.append(datetime.now(UTC).isoformat())
         if not sets:
             return
         params.append(task_id)
@@ -1122,7 +1151,8 @@ class SkillMarketplace:
                 "source_url": r["source_url"],
             }
             for r in rows
-            if r["remote_version"] and r["local_version"]
+            if r["remote_version"]
+            and r["local_version"]
             and r["remote_version"] != r["local_version"]
         ]
         return {"updates": updates, "count": len(updates)}
@@ -1134,8 +1164,7 @@ class SkillMarketplace:
         with sqlite3.connect(str(self._db.db_path)) as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
-                "SELECT local_version, remote_version, installed_at "
-                "FROM skills WHERE id = ?",
+                "SELECT local_version, remote_version, installed_at " "FROM skills WHERE id = ?",
                 (skill_id,),
             ).fetchone()
             if not row:
@@ -1150,7 +1179,7 @@ class SkillMarketplace:
             conn.execute(
                 "UPDATE skills SET local_version = remote_version, "
                 "version = remote_version, updated_at = ? WHERE id = ?",
-                (datetime.now(timezone.utc).isoformat(), skill_id),
+                (datetime.now(UTC).isoformat(), skill_id),
             )
             conn.commit()
 
@@ -1221,7 +1250,7 @@ class SkillMarketplace:
 
     async def _upsert_from_registry(self, remote: Any) -> None:
         """将远程技能 upsert 到本地数据库"""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         with sqlite3.connect(str(self._db.db_path)) as conn:
             conn.row_factory = sqlite3.Row
@@ -1320,9 +1349,7 @@ class SkillMarketplace:
 
     # ── 收藏 ──────────────────────────────────────
 
-    async def toggle_favorite(
-        self, skill_id: str, user_id: str = "anonymous"
-    ) -> dict[str, Any]:
+    async def toggle_favorite(self, skill_id: str, user_id: str = "anonymous") -> dict[str, Any]:
         """收藏/取消收藏"""
         with sqlite3.connect(str(self._db.db_path)) as conn:
             existing = conn.execute(
@@ -1390,15 +1417,17 @@ class SkillMarketplace:
             builtin = conn.execute(
                 "SELECT COUNT(*) as cnt FROM skills WHERE is_builtin = 1"
             ).fetchone()["cnt"]
-            avg_rating = conn.execute(
-                "SELECT ROUND(AVG(rating), 1) as avg_r FROM skills WHERE rating_count > 0"
-            ).fetchone()["avg_r"] or 0.0
-            total_installs = conn.execute(
-                "SELECT SUM(install_count) as total FROM skills"
-            ).fetchone()["total"] or 0
-            total_ratings = conn.execute(
-                "SELECT COUNT(*) as cnt FROM ratings"
-            ).fetchone()["cnt"]
+            avg_rating = (
+                conn.execute(
+                    "SELECT ROUND(AVG(rating), 1) as avg_r FROM skills WHERE rating_count > 0"
+                ).fetchone()["avg_r"]
+                or 0.0
+            )
+            total_installs = (
+                conn.execute("SELECT SUM(install_count) as total FROM skills").fetchone()["total"]
+                or 0
+            )
+            total_ratings = conn.execute("SELECT COUNT(*) as cnt FROM ratings").fetchone()["cnt"]
             categories = conn.execute(
                 "SELECT category, COUNT(*) as cnt FROM skills GROUP BY category ORDER BY cnt DESC"
             ).fetchall()

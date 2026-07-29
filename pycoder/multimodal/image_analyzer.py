@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-_logger = logging.getLogger('pycoder.multimodal.image_analyzer')
+_logger = logging.getLogger("pycoder.multimodal.image_analyzer")
 
 from io import BytesIO
 
@@ -22,6 +22,7 @@ class ImageAnalyzer:
         """完整图像分析"""
         try:
             from PIL import Image, ImageStat
+
             img = Image.open(BytesIO(image_data))
         except Exception as exc:
             return {"error": f"无法打开图片: {exc}"}
@@ -48,7 +49,7 @@ class ImageAnalyzer:
             r, g, b = stat.mean[:3]
             result["has_red_tint"] = r > 200 and g < 100
             result["has_yellow_tint"] = r > 200 and g > 180 and b < 100
-        except Exception as e:
+        except Exception:
             _logger.warning("silently_swallowed: {err}", exc_info=False)
             pass
 
@@ -56,7 +57,7 @@ class ImageAnalyzer:
         try:
             dpi = img.info.get("dpi", (72, 72))
             result["dpi"] = dpi
-        except Exception as e:
+        except Exception:
             _logger.warning("silently_swallowed: {err}", exc_info=False)
             pass
 
@@ -66,12 +67,13 @@ class ImageAnalyzer:
         """检测是否为截图"""
         try:
             from PIL import Image
+
             img = Image.open(BytesIO(image_data))
 
             # 截图通常有特定尺寸比例
             if img.width > 800 and img.height > 400:
                 return True
             return False
-        except Exception as e:
+        except Exception:
             _logger.warning("silently_swallowed: {err}", exc_info=False)
             return False

@@ -7,15 +7,13 @@
     PluginSandbox, SandboxManager
   - safety/audit.py: AuditRecord 和 AuditTrail 补充测试
 """
+
 from __future__ import annotations
 
-import asyncio
-import json
 import sys
-import time
 import uuid
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -80,7 +78,6 @@ class TestSideEffect:
 
     def test_values(self):
         """验证所有副作用值"""
-        from pycoder.bus.protocol import SideEffect
 
         assert SideEffect.NONE == "none"
         assert SideEffect.FILE_READ == "file_read"
@@ -93,7 +90,6 @@ class TestSideEffect:
 
     def test_count(self):
         """验证 9 种副作用类型"""
-        from pycoder.bus.protocol import SideEffect
 
         assert len(list(SideEffect)) == 9
 
@@ -136,7 +132,7 @@ class TestPermissionSideEffectMap:
 
     def test_read_only_permissions(self):
         """只读级别仅允许 NONE 和 FILE_READ"""
-        from pycoder.bus.protocol import PERMISSION_SIDE_EFFECT_MAP, SideEffect, TrustLevel
+        from pycoder.bus.protocol import PERMISSION_SIDE_EFFECT_MAP, TrustLevel
 
         allowed = PERMISSION_SIDE_EFFECT_MAP[TrustLevel.READ_ONLY]
         assert SideEffect.NONE in allowed
@@ -147,7 +143,7 @@ class TestPermissionSideEffectMap:
 
     def test_workspace_write_permissions(self):
         """工作区写入级别允许读/写"""
-        from pycoder.bus.protocol import PERMISSION_SIDE_EFFECT_MAP, SideEffect, TrustLevel
+        from pycoder.bus.protocol import PERMISSION_SIDE_EFFECT_MAP, TrustLevel
 
         allowed = PERMISSION_SIDE_EFFECT_MAP[TrustLevel.WORKSPACE_WRITE]
         assert SideEffect.FILE_WRITE in allowed
@@ -156,7 +152,7 @@ class TestPermissionSideEffectMap:
 
     def test_project_write_permissions(self):
         """项目写入级别允许删除和进程"""
-        from pycoder.bus.protocol import PERMISSION_SIDE_EFFECT_MAP, SideEffect, TrustLevel
+        from pycoder.bus.protocol import PERMISSION_SIDE_EFFECT_MAP, TrustLevel
 
         allowed = PERMISSION_SIDE_EFFECT_MAP[TrustLevel.PROJECT_WRITE]
         assert SideEffect.FILE_DELETE in allowed
@@ -165,7 +161,7 @@ class TestPermissionSideEffectMap:
 
     def test_system_access_permissions(self):
         """系统访问级别允许网络"""
-        from pycoder.bus.protocol import PERMISSION_SIDE_EFFECT_MAP, SideEffect, TrustLevel
+        from pycoder.bus.protocol import PERMISSION_SIDE_EFFECT_MAP, TrustLevel
 
         allowed = PERMISSION_SIDE_EFFECT_MAP[TrustLevel.SYSTEM_ACCESS]
         assert SideEffect.NETWORK in allowed
@@ -173,7 +169,7 @@ class TestPermissionSideEffectMap:
 
     def test_full_autonomy_all_permissions(self):
         """完全自主级别允许所有副作用"""
-        from pycoder.bus.protocol import PERMISSION_SIDE_EFFECT_MAP, SideEffect, TrustLevel
+        from pycoder.bus.protocol import PERMISSION_SIDE_EFFECT_MAP, TrustLevel
 
         allowed = PERMISSION_SIDE_EFFECT_MAP[TrustLevel.FULL_AUTONOMY]
         assert SideEffect.SELF_MODIFY in allowed
@@ -252,7 +248,6 @@ class TestCapabilityDefinition:
             CapabilityDefinition,
             ExecutionMode,
             RetryPolicy,
-            SideEffect,
             TrustLevel,
         )
 
@@ -288,11 +283,17 @@ class TestCapabilityDefinition:
         from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, TrustLevel
 
         cap1 = CapabilityDefinition(
-            id="test.op", name="A", description="desc", category=CapabilityCategory.EDITOR,
+            id="test.op",
+            name="A",
+            description="desc",
+            category=CapabilityCategory.EDITOR,
             permission=TrustLevel.READ_ONLY,
         )
         cap2 = CapabilityDefinition(
-            id="test.op", name="B", description="other", category=CapabilityCategory.SYSTEM,
+            id="test.op",
+            name="B",
+            description="other",
+            category=CapabilityCategory.SYSTEM,
             permission=TrustLevel.FULL_AUTONOMY,
         )
         assert hash(cap1) == hash(cap2)
@@ -386,7 +387,9 @@ class TestCapabilityResult:
         from pycoder.bus.protocol import CapabilityResult
 
         result = CapabilityResult(
-            trace_id="trace-1", capability_id="test.op", success=True,
+            trace_id="trace-1",
+            capability_id="test.op",
+            success=True,
         )
         assert result.trace_id == "trace-1"
         assert result.success is True
@@ -435,7 +438,10 @@ class TestCapabilityEvent:
         from pycoder.bus.protocol import CapabilityEvent
 
         event = CapabilityEvent(
-            trace_id="t1", event_type="progress", progress_pct=50.0, message="处理中...",
+            trace_id="t1",
+            event_type="progress",
+            progress_pct=50.0,
+            message="处理中...",
         )
         assert event.event_type == "progress"
         assert event.progress_pct == 50.0
@@ -531,7 +537,10 @@ class TestMCPAdapter:
 
         adapter = MCPAdapter()
         result = CapabilityResult(
-            trace_id="t1", capability_id="test", success=True, data="hello",
+            trace_id="t1",
+            capability_id="test",
+            success=True,
+            data="hello",
         )
         response = await adapter.translate_response(result)
         assert "content" in response
@@ -545,7 +554,10 @@ class TestMCPAdapter:
 
         adapter = MCPAdapter()
         result = CapabilityResult(
-            trace_id="t1", capability_id="test", success=False, error="失败",
+            trace_id="t1",
+            capability_id="test",
+            success=False,
+            error="失败",
         )
         response = await adapter.translate_response(result)
         assert response["isError"] is True
@@ -597,7 +609,10 @@ class TestGRPCAdapter:
 
         adapter = GRPCAdapter()
         result = CapabilityResult(
-            trace_id="t1", capability_id="test", success=True, data={"k": "v"},
+            trace_id="t1",
+            capability_id="test",
+            success=True,
+            data={"k": "v"},
         )
         response = await adapter.translate_response(result)
         assert response["success"] is True
@@ -652,7 +667,6 @@ class TestPermissionEngineAdvanced:
     def test_custom_rule_require_confirm_no_match(self, engine):
         """自定义规则 REQUIRE_CONFIRM：当更早的规则匹配 AUTO_ALLOW 时优先返回"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType, PermissionRule
 
         # 添加一个 REQUIRE_CONFIRM 规则，但默认规则中已有更宽泛的匹配
         rule = PermissionRule(
@@ -672,7 +686,6 @@ class TestPermissionEngineAdvanced:
     def test_default_rules_editor_code_read(self, engine):
         """默认规则：editor.code.read 始终允许"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check("editor.code.read", TrustLevel.FULL_AUTONOMY)
         assert result.allowed is True
@@ -681,7 +694,6 @@ class TestPermissionEngineAdvanced:
     def test_default_rules_lsp_wildcard(self, engine):
         """默认规则：editor.lsp.* 通配符匹配"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check("editor.lsp.completion", TrustLevel.FULL_AUTONOMY)
         assert result.allowed is True
@@ -690,7 +702,6 @@ class TestPermissionEngineAdvanced:
     def test_default_rules_self_evo(self, engine):
         """默认规则：self_evo.* 完全放开"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check("self_evo.scan", TrustLevel.FULL_AUTONOMY)
         assert result.allowed is True
@@ -699,7 +710,6 @@ class TestPermissionEngineAdvanced:
     def test_default_rules_tools_agent(self, engine):
         """默认规则：tools.agent.* 完全放开"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check("tools.agent.scan", TrustLevel.FULL_AUTONOMY)
         assert result.allowed is True
@@ -708,7 +718,6 @@ class TestPermissionEngineAdvanced:
     def test_default_rules_marketplace(self, engine):
         """默认规则：tools.marketplace.* 完全放开"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check("tools.marketplace.install", TrustLevel.FULL_AUTONOMY)
         assert result.allowed is True
@@ -717,7 +726,6 @@ class TestPermissionEngineAdvanced:
     def test_default_rules_docker_execute(self, engine):
         """默认规则：tools.env.docker_execute 完全放开"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check("tools.env.docker_execute", TrustLevel.FULL_AUTONOMY)
         assert result.allowed is True
@@ -726,7 +734,6 @@ class TestPermissionEngineAdvanced:
     def test_default_rules_self_evo_deploy_confirm(self, engine):
         """默认规则：self_evo.deploy.* 被 self_evo.* 规则先匹配，返回 AUTO_ALLOW"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         # self_evo.* 规则在列表中排在 self_evo.deploy.* 前面，先匹配
         result = engine.check("self_evo.deploy.staging", TrustLevel.FULL_AUTONOMY)
@@ -735,7 +742,6 @@ class TestPermissionEngineAdvanced:
     def test_default_rules_self_evo_arch_implement_confirm(self, engine):
         """默认规则：self_evo.arch.implement 被 self_evo.* 规则先匹配，返回 AUTO_ALLOW"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check("self_evo.arch.implement", TrustLevel.FULL_AUTONOMY)
         assert result.decision_type == DecisionType.AUTO_ALLOW
@@ -745,7 +751,6 @@ class TestPermissionEngineAdvanced:
     def test_batch_approval_first_call(self, engine):
         """批量批准：第一次调用是 AUTO_ALLOW"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         # 设置高信任级别
         engine.set_trust_level(TrustLevel.FULL_AUTONOMY)
@@ -755,7 +760,6 @@ class TestPermissionEngineAdvanced:
     def test_batch_approval_second_call(self, engine):
         """批量批准：第二次同类调用是 ALLOW_BATCH"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         engine.set_trust_level(TrustLevel.FULL_AUTONOMY)
         engine.check("custom.op", TrustLevel.PROJECT_WRITE)
@@ -766,7 +770,6 @@ class TestPermissionEngineAdvanced:
     def test_batch_approval_different_levels(self, engine):
         """不同信任级别的批量批准分开计数"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         engine.set_trust_level(TrustLevel.FULL_AUTONOMY)
         # 第一次调用 PROJECT_WRITE
@@ -778,7 +781,6 @@ class TestPermissionEngineAdvanced:
     def test_batch_approval_below_threshold(self, engine):
         """低于 PROJECT_WRITE 的操作不触发批量批准"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         engine.set_trust_level(TrustLevel.FULL_AUTONOMY)
         # WORKSPACE_WRITE < PROJECT_WRITE，不进入批量批准逻辑
@@ -792,10 +794,10 @@ class TestPermissionEngineAdvanced:
     def test_dangerous_params_command_key(self, engine):
         """危险参数：command 键"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "shell.exec", TrustLevel.READ_ONLY,
+            "shell.exec",
+            TrustLevel.READ_ONLY,
             params={"command": "shutdown now"},
         )
         assert result.allowed is False
@@ -804,10 +806,10 @@ class TestPermissionEngineAdvanced:
     def test_dangerous_params_cmd_rm_rf(self, engine):
         """危险参数：rm -rf 变体"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "shell.exec", TrustLevel.READ_ONLY,
+            "shell.exec",
+            TrustLevel.READ_ONLY,
             params={"cmd": "rm -rf /home/user"},
         )
         assert result.allowed is False
@@ -816,10 +818,10 @@ class TestPermissionEngineAdvanced:
     def test_dangerous_params_fork_bomb(self, engine):
         """危险参数：fork 炸弹"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "shell.exec", TrustLevel.READ_ONLY,
+            "shell.exec",
+            TrustLevel.READ_ONLY,
             params={"cmd": ":(){ :|:& };:"},
         )
         assert result.allowed is False
@@ -827,10 +829,10 @@ class TestPermissionEngineAdvanced:
     def test_dangerous_params_format_c(self, engine):
         """危险参数：format c: (Windows)"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "shell.exec", TrustLevel.READ_ONLY,
+            "shell.exec",
+            TrustLevel.READ_ONLY,
             params={"cmd": "format c: /q"},
         )
         assert result.allowed is False
@@ -838,10 +840,10 @@ class TestPermissionEngineAdvanced:
     def test_dangerous_params_windows_system32(self, engine):
         """危险参数：Windows 系统路径"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.write", TrustLevel.READ_ONLY,
+            "file.write",
+            TrustLevel.READ_ONLY,
             params={"path": "C:\\Windows\\System32\\drivers\\etc\\hosts"},
         )
         assert result.allowed is False
@@ -850,10 +852,10 @@ class TestPermissionEngineAdvanced:
     def test_dangerous_params_shadow_file(self, engine):
         """危险参数：/etc/shadow"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.read", TrustLevel.READ_ONLY,
+            "file.read",
+            TrustLevel.READ_ONLY,
             params={"file": "/etc/shadow"},
         )
         assert result.allowed is False
@@ -861,10 +863,10 @@ class TestPermissionEngineAdvanced:
     def test_dangerous_params_source_key(self, engine):
         """危险参数：source 键"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.copy", TrustLevel.READ_ONLY,
+            "file.copy",
+            TrustLevel.READ_ONLY,
             params={"source": "/etc/passwd", "target": "/tmp/out"},
         )
         assert result.allowed is False
@@ -872,10 +874,10 @@ class TestPermissionEngineAdvanced:
     def test_dangerous_params_target_key(self, engine):
         """危险参数：target 键"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.move", TrustLevel.READ_ONLY,
+            "file.move",
+            TrustLevel.READ_ONLY,
             params={"target": "/etc/passwd"},
         )
         assert result.allowed is False
@@ -883,10 +885,10 @@ class TestPermissionEngineAdvanced:
     def test_dangerous_params_case_insensitive(self, engine):
         """危险参数：大小写不敏感"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "shell.exec", TrustLevel.READ_ONLY,
+            "shell.exec",
+            TrustLevel.READ_ONLY,
             params={"cmd": "SHUTDOWN /s"},
         )
         assert result.allowed is False
@@ -896,10 +898,10 @@ class TestPermissionEngineAdvanced:
     def test_critical_path_env_file(self, engine):
         """关键路径：.env 文件"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.write", TrustLevel.SYSTEM_ACCESS,
+            "file.write",
+            TrustLevel.SYSTEM_ACCESS,
             params={"path": ".env"},
         )
         assert result.allowed is False
@@ -908,10 +910,10 @@ class TestPermissionEngineAdvanced:
     def test_critical_path_env_production(self, engine):
         """关键路径：.env.production"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.write", TrustLevel.SYSTEM_ACCESS,
+            "file.write",
+            TrustLevel.SYSTEM_ACCESS,
             params={"path": ".env.production"},
         )
         assert result.allowed is False
@@ -919,10 +921,10 @@ class TestPermissionEngineAdvanced:
     def test_critical_path_git_config(self, engine):
         """关键路径：.git/config"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.write", TrustLevel.SYSTEM_ACCESS,
+            "file.write",
+            TrustLevel.SYSTEM_ACCESS,
             params={"path": ".git/config"},
         )
         assert result.allowed is False
@@ -930,10 +932,10 @@ class TestPermissionEngineAdvanced:
     def test_critical_path_pycoder_config(self, engine):
         """关键路径：.pycoder/config.json"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.write", TrustLevel.SYSTEM_ACCESS,
+            "file.write",
+            TrustLevel.SYSTEM_ACCESS,
             params={"path": ".pycoder/config.json"},
         )
         assert result.allowed is False
@@ -941,10 +943,10 @@ class TestPermissionEngineAdvanced:
     def test_critical_path_pycoder_api_key(self, engine):
         """关键路径：.pycoder/.api_key"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.write", TrustLevel.SYSTEM_ACCESS,
+            "file.write",
+            TrustLevel.SYSTEM_ACCESS,
             params={"path": ".pycoder/.api_key"},
         )
         assert result.allowed is False
@@ -952,10 +954,10 @@ class TestPermissionEngineAdvanced:
     def test_critical_path_node_modules(self, engine):
         """关键路径：node_modules"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.write", TrustLevel.SYSTEM_ACCESS,
+            "file.write",
+            TrustLevel.SYSTEM_ACCESS,
             params={"path": "node_modules/react/index.js"},
         )
         assert result.allowed is False
@@ -963,11 +965,11 @@ class TestPermissionEngineAdvanced:
     def test_critical_path_allowed_at_full_autonomy(self, engine):
         """完全自主级别允许操作关键路径"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         engine.set_trust_level(TrustLevel.FULL_AUTONOMY)
         result = engine.check(
-            "file.write", TrustLevel.FULL_AUTONOMY,
+            "file.write",
+            TrustLevel.FULL_AUTONOMY,
             params={"path": ".env"},
         )
         # 关键路径检查在 FULL_AUTONOMY 时通过
@@ -977,10 +979,10 @@ class TestPermissionEngineAdvanced:
     def test_critical_path_file_path_key(self, engine):
         """关键路径：file_path 键"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.write", TrustLevel.SYSTEM_ACCESS,
+            "file.write",
+            TrustLevel.SYSTEM_ACCESS,
             params={"file_path": ".env"},
         )
         assert result.allowed is False
@@ -988,10 +990,10 @@ class TestPermissionEngineAdvanced:
     def test_critical_path_source_key(self, engine):
         """关键路径：source 键"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.copy", TrustLevel.SYSTEM_ACCESS,
+            "file.copy",
+            TrustLevel.SYSTEM_ACCESS,
             params={"source": ".env"},
         )
         assert result.allowed is False
@@ -999,10 +1001,10 @@ class TestPermissionEngineAdvanced:
     def test_critical_path_not_touched(self, engine):
         """非关键路径不被拦截"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.write", TrustLevel.WORKSPACE_WRITE,
+            "file.write",
+            TrustLevel.WORKSPACE_WRITE,
             params={"path": "src/main.py"},
         )
         # 信任级别足够，不应该被关键路径拦截
@@ -1013,7 +1015,6 @@ class TestPermissionEngineAdvanced:
     def test_check_without_params(self, engine):
         """无参数调用的权限检查"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check("editor.code.read", TrustLevel.READ_ONLY)
         assert result.allowed is True
@@ -1022,7 +1023,6 @@ class TestPermissionEngineAdvanced:
     def test_check_with_empty_params(self, engine):
         """空字典参数"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check("test.op", TrustLevel.READ_ONLY, params={})
         # 空参数不匹配任何危险参数或关键路径
@@ -1033,7 +1033,6 @@ class TestPermissionEngineAdvanced:
     def test_blacklist_overrides_whitelist(self, engine):
         """黑名单优先级高于白名单"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         engine.add_whitelist("dangerous.op")
         engine.add_blacklist("dangerous.op")
@@ -1044,14 +1043,15 @@ class TestPermissionEngineAdvanced:
     def test_blacklist_overrides_custom_rule(self, engine):
         """黑名单优先级高于自定义规则"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType, PermissionRule
 
-        engine.add_rule(PermissionRule(
-            pattern="blocked.*",
-            trust_level=TrustLevel.READ_ONLY,
-            action=DecisionType.AUTO_ALLOW,
-            description="应被允许",
-        ))
+        engine.add_rule(
+            PermissionRule(
+                pattern="blocked.*",
+                trust_level=TrustLevel.READ_ONLY,
+                action=DecisionType.AUTO_ALLOW,
+                description="应被允许",
+            )
+        )
         engine.add_blacklist("blocked.op")
         result = engine.check("blocked.op", TrustLevel.READ_ONLY)
         assert result.allowed is False
@@ -1062,21 +1062,24 @@ class TestPermissionEngineAdvanced:
     def test_deny_rule_before_allow_rule(self, engine):
         """deny 规则（前面）的优先级高于 allow 规则（后面）"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType, PermissionRule
 
         # deny 规则添加得早，在列表中靠前
-        engine.add_rule(PermissionRule(
-            pattern="dangerous.*",
-            trust_level=TrustLevel.READ_ONLY,
-            action=DecisionType.AUTO_DENY,
-            description="拒绝危险操作",
-        ))
-        engine.add_rule(PermissionRule(
-            pattern="dangerous.edit",
-            trust_level=TrustLevel.READ_ONLY,
-            action=DecisionType.AUTO_ALLOW,
-            description="允许危险编辑",
-        ))
+        engine.add_rule(
+            PermissionRule(
+                pattern="dangerous.*",
+                trust_level=TrustLevel.READ_ONLY,
+                action=DecisionType.AUTO_DENY,
+                description="拒绝危险操作",
+            )
+        )
+        engine.add_rule(
+            PermissionRule(
+                pattern="dangerous.edit",
+                trust_level=TrustLevel.READ_ONLY,
+                action=DecisionType.AUTO_ALLOW,
+                description="允许危险编辑",
+            )
+        )
         # 第一个匹配的规则是 deny
         result = engine.check("dangerous.edit", TrustLevel.READ_ONLY)
         assert result.allowed is False
@@ -1087,51 +1090,64 @@ class TestPermissionEngineAdvanced:
     def test_escalate_trust_exact_50_records(self, engine):
         """恰好 50 条记录时的提升"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import BehaviorRecord
 
-        for i in range(50):
-            engine.record_behavior(BehaviorRecord(
-                capability_id="test.op", success=True, decision="auto_allow", trust_level=1,
-            ))
+        for _i in range(50):
+            engine.record_behavior(
+                BehaviorRecord(
+                    capability_id="test.op",
+                    success=True,
+                    decision="auto_allow",
+                    trust_level=1,
+                )
+            )
         ok, msg = engine.escalate_trust()
         assert ok is True
         assert engine.current_trust == TrustLevel.PROJECT_WRITE
 
     def test_escalate_trust_49_records(self, engine):
         """49 条记录拒绝提升"""
-        from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import BehaviorRecord
 
-        for i in range(49):
-            engine.record_behavior(BehaviorRecord(
-                capability_id="test.op", success=True, decision="auto_allow", trust_level=1,
-            ))
+        for _i in range(49):
+            engine.record_behavior(
+                BehaviorRecord(
+                    capability_id="test.op",
+                    success=True,
+                    decision="auto_allow",
+                    trust_level=1,
+                )
+            )
         ok, msg = engine.escalate_trust()
         assert ok is False
         assert "50" in msg
 
     def test_escalate_trust_exact_95_percent(self, engine):
         """恰好 95% 成功率可以通过"""
-        from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import BehaviorRecord
 
         # 100 条记录，95 条成功，5 条失败 = 95%
         for i in range(100):
-            engine.record_behavior(BehaviorRecord(
-                capability_id="test.op", success=(i < 95), decision="auto_allow", trust_level=1,
-            ))
+            engine.record_behavior(
+                BehaviorRecord(
+                    capability_id="test.op",
+                    success=(i < 95),
+                    decision="auto_allow",
+                    trust_level=1,
+                )
+            )
         ok, msg = engine.escalate_trust()
         assert ok is True
 
     def test_escalate_trust_94_percent(self, engine):
         """94% 成功率被拒绝"""
-        from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import BehaviorRecord
 
         for i in range(100):
-            engine.record_behavior(BehaviorRecord(
-                capability_id="test.op", success=(i < 94), decision="auto_allow", trust_level=1,
-            ))
+            engine.record_behavior(
+                BehaviorRecord(
+                    capability_id="test.op",
+                    success=(i < 94),
+                    decision="auto_allow",
+                    trust_level=1,
+                )
+            )
         ok, msg = engine.escalate_trust()
         assert ok is False
         assert "成功率" in msg
@@ -1169,7 +1185,6 @@ class TestPermissionEngineAdvanced:
     def test_load_behavior_from_corrupted_file(self, tmp_path, monkeypatch):
         """从损坏的文件加载行为历史"""
         import pycoder.safety.permission as perm_mod
-        from pycoder.bus.protocol import TrustLevel
         from pycoder.safety.permission import PermissionEngine
 
         perm_dir = tmp_path / ".pycoder" / "permission"
@@ -1178,7 +1193,7 @@ class TestPermissionEngineAdvanced:
         # 写入一些损坏的行
         behavior_file.write_text(
             '{"capability_id": "good", "success": true}\n'
-            'not valid json\n'
+            "not valid json\n"
             '{"capability_id": "also_good", "success": false}\n',
             encoding="utf-8",
         )
@@ -1192,8 +1207,7 @@ class TestPermissionEngineAdvanced:
     def test_persist_behavior_os_error(self, tmp_path, monkeypatch):
         """持久化写入 OS 错误时不崩溃"""
         import pycoder.safety.permission as perm_mod
-        from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import BehaviorRecord, PermissionEngine
+        from pycoder.safety.permission import PermissionEngine
 
         perm_dir = tmp_path / ".pycoder" / "permission"
         monkeypatch.setattr(perm_mod, "_PERMISSION_DIR", perm_dir)
@@ -1203,9 +1217,13 @@ class TestPermissionEngineAdvanced:
 
         with patch("builtins.open", side_effect=OSError("磁盘满")):
             # 不应抛出异常
-            engine.record_behavior(BehaviorRecord(
-                capability_id="test.op", success=True, decision="auto_allow",
-            ))
+            engine.record_behavior(
+                BehaviorRecord(
+                    capability_id="test.op",
+                    success=True,
+                    decision="auto_allow",
+                )
+            )
 
         # 行为仍被记录到内存
         report = engine.get_trust_report()
@@ -1243,13 +1261,16 @@ class TestPermissionEngineAdvanced:
 
     def test_escalate_trust_with_reason(self, engine):
         """带原因提升信任"""
-        from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import BehaviorRecord
 
-        for i in range(100):
-            engine.record_behavior(BehaviorRecord(
-                capability_id="test.op", success=True, decision="auto_allow", trust_level=1,
-            ))
+        for _i in range(100):
+            engine.record_behavior(
+                BehaviorRecord(
+                    capability_id="test.op",
+                    success=True,
+                    decision="auto_allow",
+                    trust_level=1,
+                )
+            )
         ok, msg = engine.escalate_trust("连续良好表现")
         assert ok is True
         assert "提升" in msg
@@ -1259,10 +1280,10 @@ class TestPermissionEngineAdvanced:
     def test_critical_path_with_non_matching_key(self, engine):
         """非路径键不触发关键路径检查"""
         from pycoder.bus.protocol import TrustLevel
-        from pycoder.safety.permission import DecisionType
 
         result = engine.check(
-            "file.write", TrustLevel.WORKSPACE_WRITE,
+            "file.write",
+            TrustLevel.WORKSPACE_WRITE,
             params={"content": "hello", "encoding": "utf-8"},
         )
         assert "关键路径" not in result.reason
@@ -1398,7 +1419,9 @@ class TestProcessSandbox:
 
         sandbox = ProcessSandbox()
         monkeypatch.setattr(sandbox, "_get_interpreter", lambda lang: sys.executable)
-        result = await sandbox.execute("import sys; print('ok'); print('err', file=sys.stderr)", language="python")
+        result = await sandbox.execute(
+            "import sys; print('ok'); print('err', file=sys.stderr)", language="python"
+        )
         assert result.success is True
         assert "ok" in result.output
         # exit_code 可能为 0 或 -1（取决于 process.returncode or -1 的语义）
@@ -1432,9 +1455,9 @@ class TestProcessSandbox:
 
     def test_prepare_code_python(self):
         """准备 Python 代码文件"""
-        from pycoder.safety.sandbox import ProcessSandbox
-        from pathlib import Path
         import tempfile
+
+        from pycoder.safety.sandbox import ProcessSandbox
 
         sandbox = ProcessSandbox()
         with tempfile.TemporaryDirectory() as work_dir:
@@ -1444,9 +1467,9 @@ class TestProcessSandbox:
 
     def test_prepare_code_javascript(self):
         """准备 JavaScript 代码文件"""
-        from pycoder.safety.sandbox import ProcessSandbox
-        from pathlib import Path
         import tempfile
+
+        from pycoder.safety.sandbox import ProcessSandbox
 
         sandbox = ProcessSandbox()
         with tempfile.TemporaryDirectory() as work_dir:
@@ -1455,9 +1478,9 @@ class TestProcessSandbox:
 
     def test_prepare_code_unknown_language(self):
         """未知语言使用 .txt 后缀"""
-        from pycoder.safety.sandbox import ProcessSandbox
-        from pathlib import Path
         import tempfile
+
+        from pycoder.safety.sandbox import ProcessSandbox
 
         sandbox = ProcessSandbox()
         with tempfile.TemporaryDirectory() as work_dir:
@@ -1747,7 +1770,7 @@ class TestCrossModuleIntegration:
     def test_protocol_side_effect_in_permission_check(self, tmp_path, monkeypatch):
         """SideEffect 作为参数传入 check 方法"""
         import pycoder.safety.permission as perm_mod
-        from pycoder.bus.protocol import SideEffect, TrustLevel
+        from pycoder.bus.protocol import TrustLevel
         from pycoder.safety.permission import PermissionEngine
 
         perm_dir = tmp_path / ".pycoder" / "permission"
@@ -1756,15 +1779,15 @@ class TestCrossModuleIntegration:
 
         engine = PermissionEngine(initial_trust=TrustLevel.READ_ONLY)
         result = engine.check(
-            "file.read", TrustLevel.READ_ONLY,
+            "file.read",
+            TrustLevel.READ_ONLY,
             side_effects=[SideEffect.FILE_READ],
         )
         assert result.allowed is True
 
     def test_permission_decision_with_side_effects(self):
         """PermissionDecision 与 SideEffect 配合使用"""
-        from pycoder.bus.protocol import SideEffect
-        from pycoder.safety.permission import DecisionType, PermissionDecision
+        from pycoder.safety.permission import DecisionType
 
         decision = PermissionDecision(
             allowed=True,

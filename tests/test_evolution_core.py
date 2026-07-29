@@ -13,11 +13,9 @@ PyCoder 进化引擎全面测试 — 单元/集成/压力/安全
 from __future__ import annotations
 
 import asyncio
-import json
 import time
-import uuid
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -33,7 +31,6 @@ from pycoder.evolution.core import (
     get_evolution_metrics,
     get_evolution_pipeline,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -69,8 +66,16 @@ def sample_task():
         target="pycoder/server/",
         description="测试进化任务",
         errors_collected=[
-            {"source": "test", "content": "NameError: name 'x' is not defined", "timestamp": time.time()},
-            {"source": "test", "content": "ImportError: cannot import 'foo'", "timestamp": time.time()},
+            {
+                "source": "test",
+                "content": "NameError: name 'x' is not defined",
+                "timestamp": time.time(),
+            },
+            {
+                "source": "test",
+                "content": "ImportError: cannot import 'foo'",
+                "timestamp": time.time(),
+            },
         ],
     )
 
@@ -95,7 +100,10 @@ from pycoder.core import runner
 from pycoder.core import runner, log
 [END:FIX]
 """
-    sample_task_with_analysis.validation_result = {"passed": True, "checks": ["sandbox: ok", "syntax: ok"]}
+    sample_task_with_analysis.validation_result = {
+        "passed": True,
+        "checks": ["sandbox: ok", "syntax: ok"],
+    }
     return sample_task_with_analysis
 
 
@@ -190,7 +198,9 @@ class TestEvolutionBrainGenerate:
     async def test_generate_with_analysis(self, brain, sample_task_with_analysis):
         """有分析结果时生成修复方案"""
         with patch.object(brain, "_call_llm", new_callable=AsyncMock) as mock_llm:
-            mock_llm.return_value = "[FIX:test.py:1]\n--- 旧代码 ---\nold\n--- 新代码 ---\nnew\n[END:FIX]"
+            mock_llm.return_value = (
+                "[FIX:test.py:1]\n--- 旧代码 ---\nold\n--- 新代码 ---\nnew\n[END:FIX]"
+            )
             result = await brain.generate(sample_task_with_analysis)
             assert "[FIX:" in result.fix_plan
             assert result.phase == EvolutionPhase.GENERATE
@@ -348,7 +358,9 @@ class TestEvolutionPipeline:
             mock_llm.return_value = "根因分析: 测试错误"
             with patch.object(pipeline._brain, "observe", new_callable=AsyncMock) as mock_obs:
                 mock_obs.return_value = EvolutionTask(
-                    errors_collected=[{"source": "test", "content": "Error: test", "timestamp": time.time()}],
+                    errors_collected=[
+                        {"source": "test", "content": "Error: test", "timestamp": time.time()}
+                    ],
                     task_type="auto_fix",
                 )
                 report = await pipeline.run(task_type="auto_fix")
@@ -503,9 +515,11 @@ class TestEvolutionIntegration:
             for phase in expected_order:
                 if phase in phases:
                     idx = phases.index(phase)
-                    for later_phase in expected_order[expected_order.index(phase) + 1:]:
+                    for later_phase in expected_order[expected_order.index(phase) + 1 :]:
                         if later_phase in phases:
-                            assert phases.index(later_phase) > idx, f"{phase} 应在 {later_phase} 之前"
+                            assert (
+                                phases.index(later_phase) > idx
+                            ), f"{phase} 应在 {later_phase} 之前"
 
     def test_task_serialization(self, sample_task):
         """任务序列化"""
@@ -529,6 +543,7 @@ class TestEvolutionIntegrationWithModules:
         """memory 模块可导入"""
         try:
             from pycoder.memory import SessionMemoryEngine
+
             engine = SessionMemoryEngine(workspace=Path.cwd())
             assert engine is not None
         except ImportError:
@@ -538,6 +553,7 @@ class TestEvolutionIntegrationWithModules:
         """plugins 模块可导入"""
         try:
             from pycoder.plugins.base import BasePlugin, PluginRegistry
+
             assert BasePlugin is not None
             assert PluginRegistry is not None
         except ImportError:
@@ -547,6 +563,7 @@ class TestEvolutionIntegrationWithModules:
         """observability 模块可导入"""
         try:
             from pycoder.observability.sentry import SentryIntegration
+
             assert SentryIntegration is not None
         except ImportError:
             pytest.skip("observability 模块不可用")
@@ -557,6 +574,7 @@ class TestEvolutionIntegrationWithModules:
             from pycoder.safety import SandboxManager
             from pycoder.safety.circuit_breaker import CircuitBreakerRegistry
             from pycoder.safety.rollback import RollbackManager
+
             assert SandboxManager is not None
             assert CircuitBreakerRegistry is not None
             assert RollbackManager is not None
@@ -570,6 +588,7 @@ class TestEvolutionIntegrationWithModules:
                 LearningEngine,
                 get_learning_engine,
             )
+
             assert LearningEngine is not None
         except ImportError:
             pytest.skip("learning 模块不可用")
@@ -627,6 +646,7 @@ class TestEvolutionSafety:
         # 模拟熔断器打开
         try:
             from pycoder.safety.circuit_breaker import CircuitBreaker, CircuitBreakerRegistry
+
             registry = CircuitBreakerRegistry()
             cb = registry.get_or_create("self_evo")
             # 连续失败触发熔断
@@ -650,7 +670,11 @@ class TestEvolutionStress:
         """大量错误数据"""
         task = EvolutionTask()
         task.errors_collected = [
-            {"source": "test", "content": f"Error #{i}: something went wrong", "timestamp": time.time()}
+            {
+                "source": "test",
+                "content": f"Error #{i}: something went wrong",
+                "timestamp": time.time(),
+            }
             for i in range(500)
         ]
         result = await brain.analyze(task)
@@ -674,6 +698,7 @@ class TestEvolutionStress:
     @pytest.mark.asyncio
     async def test_concurrent_evolutions(self, pipeline):
         """并发进化请求"""
+
         async def run_one():
             with patch.object(pipeline._brain, "_call_llm", new_callable=AsyncMock) as m:
                 m.return_value = "分析结果"
@@ -723,9 +748,9 @@ class TestEvolutionPerformance:
     @pytest.mark.asyncio
     async def test_analyze_performance(self, brain):
         """分析阶段性能"""
-        task = EvolutionTask(errors_collected=[
-            {"source": "test", "content": "error", "timestamp": time.time()}
-        ])
+        task = EvolutionTask(
+            errors_collected=[{"source": "test", "content": "error", "timestamp": time.time()}]
+        )
         t0 = time.time()
         result = await brain.analyze(task)
         duration = time.time() - t0
@@ -734,7 +759,9 @@ class TestEvolutionPerformance:
     @pytest.mark.asyncio
     async def test_validate_performance(self, brain):
         """验证阶段性能 (< 1s)"""
-        task = EvolutionTask(fix_plan="[FIX:test.py:1]\n--- 新代码 ---\ndef foo():\n    pass\n[END:FIX]")
+        task = EvolutionTask(
+            fix_plan="[FIX:test.py:1]\n--- 新代码 ---\ndef foo():\n    pass\n[END:FIX]"
+        )
         t0 = time.time()
         result = await brain.validate(task)
         duration = time.time() - t0

@@ -11,6 +11,7 @@
 - events (拦截)
 - stop
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -20,7 +21,6 @@ from pycoder.server.services.agent_bus import (
     BusMessage,
     MessageType,
 )
-
 
 # ── MessageType ──────────────────────────────────────────
 

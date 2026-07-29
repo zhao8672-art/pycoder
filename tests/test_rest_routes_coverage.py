@@ -31,17 +31,16 @@
     - mock get_session_store 返回 MagicMock
     - 对函数内 import 的类，用 monkeypatch 替换模块属性
 """
+
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pycoder.server.routers import rest_routes
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -76,8 +75,9 @@ def client(mock_store, monkeypatch):
     app = FastAPI()
     app.include_router(rest_routes.router)
     # 包含从 rest_routes 迁移出去的路由
-    from pycoder.server.routers.refactor_api import router as refactor_router
     from pycoder.server.routers.context import router as context_router
+    from pycoder.server.routers.refactor_api import router as refactor_router
+
     app.include_router(refactor_router)
     app.include_router(context_router)
     with TestClient(app) as c:
@@ -359,9 +359,7 @@ class TestCodeRun:
             return result
 
         monkeypatch.setattr(code_exec, "_run_in_subprocess", fake_run)
-        resp = client.post(
-            "/api/code/run", json={"code": "x=1", "timeout": 5}
-        )
+        resp = client.post("/api/code/run", json={"code": "x=1", "timeout": 5})
         assert resp.status_code == 200
         assert captured["timeout"] == 5
 
@@ -383,9 +381,7 @@ class TestCodeRun:
             return result
 
         monkeypatch.setattr(code_exec, "_run_in_subprocess", fake_run)
-        resp = client.post(
-            "/api/code/run", json={"code": "x=1", "timeout": 999999}
-        )
+        resp = client.post("/api/code/run", json={"code": "x=1", "timeout": 999999})
         assert resp.status_code == 200
         # timeout 应被 cap 到 max_timeout
         cfg = code_exec._sandbox_config
@@ -566,6 +562,7 @@ class TestRefactor:
         engine.extract_function.return_value = result
         # patch 在 refactor_api 模块中已导入的引用
         from pycoder.server.routers import refactor_api
+
         monkeypatch.setattr(refactor_api, "get_refactor_engine", lambda: engine)
 
         resp = client.post(
@@ -585,6 +582,7 @@ class TestRefactor:
         engine = MagicMock()
         engine.rename_symbol.return_value = result
         from pycoder.server.routers import refactor_api
+
         monkeypatch.setattr(refactor_api, "get_refactor_engine", lambda: engine)
 
         resp = client.post(

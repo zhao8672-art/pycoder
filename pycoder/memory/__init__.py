@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from pycoder.memory.deep_memory import DeepMemorySystem, get_deep_memory
 from pycoder.memory.session_memory import SessionMemory, SessionMemoryEngine
-from pycoder.memory.deep_memory import get_deep_memory, DeepMemorySystem
 
 __all__ = [
     "SessionMemoryEngine",

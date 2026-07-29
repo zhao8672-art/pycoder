@@ -1,10 +1,11 @@
 """
 PyCoder v0.6.0 全功能验收测试脚本
 """
+
 import json
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 
 BASE = "http://127.0.0.1:8423"
 results = []
@@ -68,7 +69,10 @@ def t_git_status():
 
 def t_git_branches():
     s, d = call("GET", "/api/git/branches")
-    return s == 200 and "branches" in d, f"{len(d.get('branches', []))} branches, active={d.get('active')}"
+    return (
+        s == 200 and "branches" in d,
+        f"{len(d.get('branches', []))} branches, active={d.get('active')}",
+    )
 
 
 def t_git_log():
@@ -94,7 +98,10 @@ def t_git_commit_gen_msg():
 # ── 3. 搜索功能 ──
 def t_search_query():
     s, d = call("POST", "/api/search/query", {"query": "def ", "limit": 5})
-    return s == 200 and "results" in d, f"engine={d.get('engine')}, {len(d.get('results', []))} results"
+    return (
+        s == 200 and "results" in d,
+        f"engine={d.get('engine')}, {len(d.get('results', []))} results",
+    )
 
 
 def t_search_files():
@@ -124,10 +131,15 @@ def t_ext_verify():
 
 
 def t_ext_run():
-    s, d = call("POST", "/api/extensions/run", {
-        "id": "pycoder.todo-tree", "function": "scan_directory",
-        "args": {"root_path": "pycoder/extensions"}
-    })
+    s, d = call(
+        "POST",
+        "/api/extensions/run",
+        {
+            "id": "pycoder.todo-tree",
+            "function": "scan_directory",
+            "args": {"root_path": "pycoder/extensions"},
+        },
+    )
     return s == 200 and d.get("success"), str(d.get("result", {}))[:150]
 
 
@@ -191,9 +203,22 @@ print("=" * 60)
 
 sections = [
     ("核心API", [t_health, t_models, t_env, t_sessions_list]),
-    ("Git功能", [t_git_status, t_git_branches, t_git_log, t_git_diff, t_git_stash_list, t_git_commit_gen_msg]),
+    (
+        "Git功能",
+        [
+            t_git_status,
+            t_git_branches,
+            t_git_log,
+            t_git_diff,
+            t_git_stash_list,
+            t_git_commit_gen_msg,
+        ],
+    ),
     ("搜索功能", [t_search_query, t_search_files]),
-    ("扩展系统", [t_ext_search, t_ext_installed, t_ext_install, t_ext_verify, t_ext_run, t_ext_uninstall]),
+    (
+        "扩展系统",
+        [t_ext_search, t_ext_installed, t_ext_install, t_ext_verify, t_ext_run, t_ext_uninstall],
+    ),
     ("Skills市场", [t_skills_list]),
     ("会话管理", [t_session_create, t_session_batch_delete]),
     ("工作区/文件", [t_workspace_current, t_files_list]),

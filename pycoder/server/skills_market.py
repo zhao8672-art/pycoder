@@ -24,8 +24,8 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pycoder.observability.tracing import traced
 from pycoder.core.services.log import log
+from pycoder.observability.tracing import traced
 
 REMOTE_REGISTRY_URL = (
     "https://raw.githubusercontent.com/zhao8672-art/pycoder-skills/main/registry.json"

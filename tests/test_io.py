@@ -1,12 +1,12 @@
 """io 模块测试 — 文件索引、智能读取、分段缓存"""
+
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 
-from pycoder.io.file_indexer import FileIndexer, FileIndex, SymbolDef
-from pycoder.io.smart_reader import SmartReader
 from pycoder.io.chunk_cache import ChunkCache
+from pycoder.io.file_indexer import FileIndexer
+from pycoder.io.smart_reader import SmartReader
 
 
 class TestFileIndexer:

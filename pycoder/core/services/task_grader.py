@@ -33,7 +33,6 @@ brain/capabilities/ai 层对 server 层的非法依赖（分层架构固化）�
 from __future__ import annotations
 
 import logging
-import math
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any
@@ -56,9 +55,10 @@ logger = logging.getLogger(__name__)
 
 class GradeLevel(IntEnum):
     """难度等级"""
-    LIGHT = 1   # 简单
+
+    LIGHT = 1  # 简单
     MEDIUM = 2  # 中等
-    HEAVY = 3   # 复杂
+    HEAVY = 3  # 复杂
 
 
 @dataclass
@@ -79,7 +79,11 @@ class TaskGrade:
         """中文标签（兼容 self_evo/engine.py，兼容 string/enum level）"""
         if isinstance(self.level, str):
             # level 是字符串 "low"/"medium"/"high"
-            level_map = {"low": GradeLevel.LIGHT, "medium": GradeLevel.MEDIUM, "high": GradeLevel.HEAVY}
+            level_map = {
+                "low": GradeLevel.LIGHT,
+                "medium": GradeLevel.MEDIUM,
+                "high": GradeLevel.HEAVY,
+            }
             gr = level_map.get(self.level, GradeLevel.MEDIUM)
             return GRADE_CONFIG[gr]["label"]
         return GRADE_CONFIG[self.level]["label"]
@@ -203,25 +207,56 @@ class TaskGrader:
 
     # 关键词 → 领域映射
     KEYWORD_DOMAIN_MAP: dict[str, str] = {
-        "react": "frontend", "vue": "frontend", "angular": "frontend",
-        "css": "frontend", "html": "frontend", "ui": "frontend",
-        "组件": "frontend", "页面": "frontend", "样式": "frontend",
-        "fastapi": "backend", "flask": "backend", "django": "backend",
-        "认证": "security", "授权": "security", "加密": "security",
-        "jwt": "security", "oauth": "security", "rbac": "security",
-        "xss": "security", "sql注入": "security", "csrf": "security",
-        "docker": "devops", "kubernetes": "devops", "k8s": "devops",
-        "ci": "devops", "cd": "devops", "部署": "devops",
-        "pandas": "data_science", "numpy": "data_science",
-        "matplotlib": "data_science", "sklearn": "machine_learning",
-        "pytorch": "machine_learning", "tensorflow": "machine_learning",
-        "模型": "machine_learning", "训练": "machine_learning",
-        "sql": "database", "数据库": "database", "orm": "database",
-        "迁移": "migration", "重构": "refactoring",
-        "架构": "architecture", "设计模式": "architecture",
-        "性能": "performance", "优化": "performance",
-        "测试": "testing", "pytest": "testing", "覆盖率": "testing",
-        "修复": "bug_fix", "bug": "bug_fix", "错误": "bug_fix",
+        "react": "frontend",
+        "vue": "frontend",
+        "angular": "frontend",
+        "css": "frontend",
+        "html": "frontend",
+        "ui": "frontend",
+        "组件": "frontend",
+        "页面": "frontend",
+        "样式": "frontend",
+        "fastapi": "backend",
+        "flask": "backend",
+        "django": "backend",
+        "认证": "security",
+        "授权": "security",
+        "加密": "security",
+        "jwt": "security",
+        "oauth": "security",
+        "rbac": "security",
+        "xss": "security",
+        "sql注入": "security",
+        "csrf": "security",
+        "docker": "devops",
+        "kubernetes": "devops",
+        "k8s": "devops",
+        "ci": "devops",
+        "cd": "devops",
+        "部署": "devops",
+        "pandas": "data_science",
+        "numpy": "data_science",
+        "matplotlib": "data_science",
+        "sklearn": "machine_learning",
+        "pytorch": "machine_learning",
+        "tensorflow": "machine_learning",
+        "模型": "machine_learning",
+        "训练": "machine_learning",
+        "sql": "database",
+        "数据库": "database",
+        "orm": "database",
+        "迁移": "migration",
+        "重构": "refactoring",
+        "架构": "architecture",
+        "设计模式": "architecture",
+        "性能": "performance",
+        "优化": "performance",
+        "测试": "testing",
+        "pytest": "testing",
+        "覆盖率": "testing",
+        "修复": "bug_fix",
+        "bug": "bug_fix",
+        "错误": "bug_fix",
     }
 
     def __init__(self, weights: dict[str, float] | None = None) -> None:
@@ -282,15 +317,16 @@ class TaskGrader:
 
         logger.info(
             "任务难度评估: level=%s score=%.1f max_iter=%d task=%.80s",
-            level.name, score, max_iter, task,
+            level.name,
+            score,
+            max_iter,
+            task,
         )
         return grade
 
     # ── 维度评分 ────────────────────────────────────
 
-    def _score_dimensions(
-        self, task: str, ctx: dict[str, Any]
-    ) -> dict[str, float]:
+    def _score_dimensions(self, task: str, ctx: dict[str, Any]) -> dict[str, float]:
         """计算 5 个维度的得分（0-100）"""
         dims: dict[str, float] = {}
 
@@ -311,9 +347,7 @@ class TaskGrader:
 
         return dims
 
-    def _score_code_volume(
-        self, task: str, ctx: dict[str, Any]
-    ) -> float:
+    def _score_code_volume(self, task: str, ctx: dict[str, Any]) -> float:
         """评估代码量维度
 
         依据:
@@ -358,9 +392,7 @@ class TaskGrader:
 
         return min(100.0, score)
 
-    def _score_dep_complexity(
-        self, task: str, ctx: dict[str, Any]
-    ) -> float:
+    def _score_dep_complexity(self, task: str, ctx: dict[str, Any]) -> float:
         """评估依赖复杂度
 
         依据:
@@ -385,10 +417,22 @@ class TaskGrader:
         task_lower = task.lower()
         # 集成/对接类关键词
         integration_keywords = [
-            "集成", "对接", "接入", "整合", "集成到",
-            "第三方", "外部服务", "微服务", "消息队列",
-            "redis", "rabbitmq", "kafka", "celery",
-            "数据库迁移", "数据迁移", "api对接",
+            "集成",
+            "对接",
+            "接入",
+            "整合",
+            "集成到",
+            "第三方",
+            "外部服务",
+            "微服务",
+            "消息队列",
+            "redis",
+            "rabbitmq",
+            "kafka",
+            "celery",
+            "数据库迁移",
+            "数据迁移",
+            "api对接",
         ]
         hits = sum(1 for kw in integration_keywords if kw in task_lower)
         score += hits * 15
@@ -399,9 +443,7 @@ class TaskGrader:
 
         return min(100.0, score)
 
-    def _score_domain_expertise(
-        self, task: str, ctx: dict[str, Any]
-    ) -> float:
+    def _score_domain_expertise(self, task: str, ctx: dict[str, Any]) -> float:
         """评估领域专业性
 
         依据:
@@ -425,9 +467,7 @@ class TaskGrader:
             return 30.0  # 通用任务
 
         # 取最高领域分
-        base_score = max(
-            self.DOMAIN_BASE_SCORES.get(d, 30.0) for d in domains
-        )
+        base_score = max(self.DOMAIN_BASE_SCORES.get(d, 30.0) for d in domains)
 
         # 多领域交叉加成
         if len(domains) >= 3:
@@ -437,9 +477,7 @@ class TaskGrader:
 
         return min(100.0, base_score)
 
-    def _score_change_scope(
-        self, task: str, ctx: dict[str, Any]
-    ) -> float:
+    def _score_change_scope(self, task: str, ctx: dict[str, Any]) -> float:
         """评估变更范围
 
         依据:
@@ -453,13 +491,26 @@ class TaskGrader:
 
         # 范围关键词
         scope_keywords: dict[str, float] = {
-            "单文件": 10, "单个文件": 10, "一个文件": 10,
-            "单模块": 20, "单个模块": 20,
-            "多模块": 40, "多个模块": 40, "跨模块": 45,
-            "架构": 70, "架构重构": 80, "架构升级": 80,
-            "全局": 60, "整个项目": 70, "整体": 55,
-            "公共接口": 40, "api变更": 45, "接口变更": 45,
-            "破坏性变更": 60, "不兼容": 55, "breaking": 60,
+            "单文件": 10,
+            "单个文件": 10,
+            "一个文件": 10,
+            "单模块": 20,
+            "单个模块": 20,
+            "多模块": 40,
+            "多个模块": 40,
+            "跨模块": 45,
+            "架构": 70,
+            "架构重构": 80,
+            "架构升级": 80,
+            "全局": 60,
+            "整个项目": 70,
+            "整体": 55,
+            "公共接口": 40,
+            "api变更": 45,
+            "接口变更": 45,
+            "破坏性变更": 60,
+            "不兼容": 55,
+            "breaking": 60,
         }
         for kw, bonus in scope_keywords.items():
             if kw in task_lower:
@@ -482,9 +533,7 @@ class TaskGrader:
 
         return min(100.0, score)
 
-    def _score_constraints(
-        self, task: str, ctx: dict[str, Any]
-    ) -> float:
+    def _score_constraints(self, task: str, ctx: dict[str, Any]) -> float:
         """评估约束条件
 
         依据:
@@ -498,13 +547,29 @@ class TaskGrader:
 
         # 约束关键词
         constraint_keywords: dict[str, float] = {
-            "性能": 15, "高性能": 25, "低延迟": 25, "高并发": 30,
-            "安全": 20, "加密": 20, "xss": 20, "注入": 20,
-            "兼容": 15, "向后兼容": 20, "向前兼容": 20,
-            "稳定": 15, "高可用": 25, "容错": 20,
-            "规范": 10, "标准": 10, "pep": 10,
-            "测试覆盖率": 15, "覆盖率": 15, "90%": 15,
-            "紧急": 20, "urgent": 20, "尽快": 15,
+            "性能": 15,
+            "高性能": 25,
+            "低延迟": 25,
+            "高并发": 30,
+            "安全": 20,
+            "加密": 20,
+            "xss": 20,
+            "注入": 20,
+            "兼容": 15,
+            "向后兼容": 20,
+            "向前兼容": 20,
+            "稳定": 15,
+            "高可用": 25,
+            "容错": 20,
+            "规范": 10,
+            "标准": 10,
+            "pep": 10,
+            "测试覆盖率": 15,
+            "覆盖率": 15,
+            "90%": 15,
+            "紧急": 20,
+            "urgent": 20,
+            "尽快": 15,
         }
         for kw, bonus in constraint_keywords.items():
             if kw in task_lower:
@@ -533,16 +598,14 @@ class TaskGrader:
                 return level
         return GradeLevel.HEAVY  # >= 70
 
-    def _interpolate_iterations(
-        self, score: float, iteration_range: tuple[int, int]
-    ) -> int:
+    def _interpolate_iterations(self, score: float, iteration_range: tuple[int, int]) -> int:
         """在迭代范围内按分数插值"""
         low, high = iteration_range
         if low == high:
             return low
 
         # 在当前等级范围内归一化
-        for level, (t_low, t_high) in SCORE_THRESHOLDS.items():
+        for _level, (t_low, t_high) in SCORE_THRESHOLDS.items():
             if t_low <= score < t_high:
                 ratio = (score - t_low) / (t_high - t_low)
                 return max(low, min(high, int(low + ratio * (high - low))))
@@ -576,9 +639,7 @@ class TaskGrader:
         ]
         if high_dims:
             reasons.append(
-                "主要难度来源: " + ", ".join(
-                    f"{name}({val:.0f})" for name, val in high_dims[:3]
-                )
+                "主要难度来源: " + ", ".join(f"{name}({val:.0f})" for name, val in high_dims[:3])
             )
 
         if level == GradeLevel.HEAVY:
@@ -595,9 +656,7 @@ class TaskGrader:
         self._stats["total_assessments"] += 1
         self._stats["level_distribution"][level.name] += 1
         n = self._stats["total_assessments"]
-        self._stats["average_score"] = (
-            (self._stats["average_score"] * (n - 1) + score) / n
-        )
+        self._stats["average_score"] = (self._stats["average_score"] * (n - 1) + score) / n
 
     def get_stats(self) -> dict[str, Any]:
         """获取统计信息"""

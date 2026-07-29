@@ -154,17 +154,18 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         # BUG-003/004 修复：缺少 Origin 头时（如 curl/server-to-server 调用）
         # 必须强制验证 API Key，不能再以"无 Origin"为由放行
         # 例外：OpenAPI 文档路径（GET 方法）免认证，方便用户查阅
-        if (
-            request.method == "GET"
-            and request.url.path in ("/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect")
+        if request.method == "GET" and request.url.path in (
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/docs/oauth2-redirect",
         ):
             return await call_next(request)
 
         api_key = request.headers.get("X-API-Key", "")
         if not api_key:
-            from fastapi.responses import JSONResponse
 
-            from pycoder.server.error_handlers import make_error_response, ErrorCode
+            from pycoder.server.error_handlers import ErrorCode, make_error_response
 
             return make_error_response(
                 code=ErrorCode.UNAUTHORIZED,
@@ -174,9 +175,8 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             )
 
         if not _secrets.compare_digest(api_key, _API_KEY):
-            from fastapi.responses import JSONResponse
 
-            from pycoder.server.error_handlers import make_error_response, ErrorCode
+            from pycoder.server.error_handlers import ErrorCode, make_error_response
 
             return make_error_response(
                 code=ErrorCode.UNAUTHORIZED,
@@ -251,22 +251,27 @@ async def lifespan(app: FastAPI):
     with profiler.measure("ports_registration"):
         try:
             from pycoder.core.ports.engine import register_engine_getter
+
             register_engine_getter(lambda: app.state.v2_engine)
         except Exception as e:
             _logger.warning("engine_port_register_failed: %s", e)
         try:
             from pycoder.core.ports.pipeline import register_pipeline_factory
             from pycoder.server.services.autonomous_pipeline import AutonomousPipeline
+
             register_pipeline_factory(AutonomousPipeline)
         except Exception as e:
             _logger.warning("pipeline_port_register_failed: %s", e)
         try:
             from pycoder.core.services.external_skills import (
-                register_skills_fetcher, register_roles_getter,
+                register_roles_getter,
+                register_skills_fetcher,
             )
             from pycoder.server.skills_external_sources import fetch_all_external_skills
+
             register_skills_fetcher(fetch_all_external_skills)
             from pycoder.server.services.agent_definitions import AGENT_ROLES
+
             register_roles_getter(lambda: AGENT_ROLES)
         except Exception as e:
             _logger.warning("skills_port_register_failed: %s", e)
@@ -313,12 +318,16 @@ async def lifespan(app: FastAPI):
                 detector.save_to_history(result.project_path)
                 _logger.info(
                     "workspace_auto_detected path=%s method=%s confidence=%.2f",
-                    result.project_path, result.method, result.confidence,
+                    result.project_path,
+                    result.method,
+                    result.confidence,
                 )
             else:
                 _logger.info(
                     "workspace_auto_detect_low_confidence path=%s method=%s confidence=%.2f",
-                    result.project_path, result.method, result.confidence,
+                    result.project_path,
+                    result.method,
+                    result.confidence,
                 )
         except Exception as e:
             _logger.warning("workspace_auto_detect_failed error=%s", e)
@@ -570,6 +579,8 @@ _permission_policy = get_permission_policy()
 
 # ── 阶段 2 架构升级：统一错误处理中间件 ──
 # 必须在最外层（add_middleware 后注册的最后执行最早）
+# 注册统一错误处理器（FastAPI exception_handler 会在中间件之后生效）
+from pycoder.server.error_handlers import register_error_handlers  # noqa: E402
 from pycoder.server.middleware import (  # noqa: E402
     ErrorHandlingMiddleware,
     ETagCacheMiddleware,
@@ -579,8 +590,6 @@ from pycoder.server.middleware import (  # noqa: E402
     SecurityHeadersMiddleware,
 )
 
-# 注册统一错误处理器（FastAPI exception_handler 会在中间件之后生效）
-from pycoder.server.error_handlers import register_error_handlers  # noqa: E402
 register_error_handlers(app)
 
 # 中间件注册顺序（从外到内执行）：
@@ -649,6 +658,7 @@ register_router_groups(app)
 
 # 注册统一错误处理器（标准错误响应格式，符合 API 规范）
 from pycoder.server.error_handlers import register_error_handlers  # noqa: E402
+
 register_error_handlers(app)
 
 
@@ -656,7 +666,6 @@ register_error_handlers(app)
 def _customize_openapi() -> dict:
     """自定义 OpenAPI 文档：添加安全方案、标签说明"""
     from fastapi.openapi.utils import get_openapi
-    import pycoder
 
     if app.openapi_schema:
         return app.openapi_schema
@@ -947,6 +956,7 @@ async def _scheduled_self_scan():
             from pycoder.capabilities.self_evo.learning.metrics_tracker import (
                 MetricsTracker,
             )
+
             mt = MetricsTracker()
             # ✅ BUGFIX: 使用 asyncio.to_thread 避免阻塞事件循环
             await asyncio.to_thread(mt.run_real_quality_snapshot)
@@ -1034,13 +1044,15 @@ async def _scheduled_lifecycle_analysis():
         all_items = []
         for col_id, items in collections.items():
             for item in items:
-                all_items.append({
-                    "id": f"ossinsight_{item.repo_name.replace('/', '_')}",
-                    "name": item.repo_name.split("/")[-1],
-                    "stars_28d": item.stars_28d,
-                    "stars_total": item.stars_total,
-                    "category": col_id,
-                })
+                all_items.append(
+                    {
+                        "id": f"ossinsight_{item.repo_name.replace('/', '_')}",
+                        "name": item.repo_name.split("/")[-1],
+                        "stars_28d": item.stars_28d,
+                        "stars_total": item.stars_total,
+                        "category": col_id,
+                    }
+                )
 
         if all_items:
             trends = engine.analyze_trends(all_items, source="ossinsight")
@@ -1051,7 +1063,8 @@ async def _scheduled_lifecycle_analysis():
 
             _logger.info(
                 "lifecycle_analysis_done: skills=%d trends=%d",
-                len(all_items), len(trends),
+                len(all_items),
+                len(trends),
             )
         else:
             _logger.info("lifecycle_analysis_skip: no ossinsight data")
@@ -1073,6 +1086,7 @@ async def _scheduled_skills_report():
 
         # 生成报告
         from pycoder.server.skills_report import generate_skills_report
+
         result = generate_skills_report(engine, generator)
 
         _logger.info(

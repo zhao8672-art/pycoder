@@ -6,9 +6,8 @@
     POST /api/file-transfer/upload/batch
     GET  /api/file-transfer/download/{file_path}
 """
-from __future__ import annotations
 
-from pathlib import Path
+from __future__ import annotations
 
 import pytest
 from fastapi import FastAPI

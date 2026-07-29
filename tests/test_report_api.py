@@ -9,7 +9,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,7 +18,6 @@ from pycoder.server.services.evolution_report import (
     EvolutionReport,
     ReportGenerator,
 )
-
 
 # ── 辅助函数 ──────────────────────────────────────────────
 
@@ -96,9 +95,7 @@ def mock_generator() -> MagicMock:
     gen.list_reports = AsyncMock(return_value=_make_report_list(3))
 
     # 获取报告
-    gen.get_report = AsyncMock(
-        return_value=_make_evolution_report("EVO-001", success=True)
-    )
+    gen.get_report = AsyncMock(return_value=_make_evolution_report("EVO-001", success=True))
 
     return gen
 
@@ -197,11 +194,11 @@ class TestGenerateReport:
         data = resp.json()
         assert data["success"] is True
 
-    def test_generate_generator_exception(self, client_with_generator: TestClient, mock_generator: MagicMock) -> None:
+    def test_generate_generator_exception(
+        self, client_with_generator: TestClient, mock_generator: MagicMock
+    ) -> None:
         """测试生成器异常返回 500"""
-        mock_generator.generate_from_git_diff = AsyncMock(
-            side_effect=Exception("Git 命令不可用")
-        )
+        mock_generator.generate_from_git_diff = AsyncMock(side_effect=Exception("Git 命令不可用"))
 
         resp = client_with_generator.post(
             "/api/report/generate",
@@ -252,7 +249,9 @@ class TestListReports:
         data = resp.json()
         assert data["total"] == 3
 
-    def test_list_reports_empty(self, client_with_generator: TestClient, mock_generator: MagicMock) -> None:
+    def test_list_reports_empty(
+        self, client_with_generator: TestClient, mock_generator: MagicMock
+    ) -> None:
         """测试空报告列表"""
         mock_generator.list_reports = AsyncMock(return_value=[])
 
@@ -271,7 +270,9 @@ class TestListReports:
         resp = client_with_generator.get("/api/report/list?limit=101")
         assert resp.status_code == 422
 
-    def test_list_reports_exception(self, client_with_generator: TestClient, mock_generator: MagicMock) -> None:
+    def test_list_reports_exception(
+        self, client_with_generator: TestClient, mock_generator: MagicMock
+    ) -> None:
         """测试列表异常返回 500"""
         mock_generator.list_reports = AsyncMock(side_effect=Exception("存储不可用"))
 
@@ -299,7 +300,9 @@ class TestGetReport:
         assert "net_lines" in data["report"]
         assert "highest_risk" in data["report"]
 
-    def test_get_report_not_found(self, client_with_generator: TestClient, mock_generator: MagicMock) -> None:
+    def test_get_report_not_found(
+        self, client_with_generator: TestClient, mock_generator: MagicMock
+    ) -> None:
         """测试获取不存在的报告"""
         mock_generator.get_report = AsyncMock(return_value=None)
 
@@ -310,7 +313,9 @@ class TestGetReport:
         assert data["report"] is None
         assert "未找到报告" in data["error"]
 
-    def test_get_report_exception(self, client_with_generator: TestClient, mock_generator: MagicMock) -> None:
+    def test_get_report_exception(
+        self, client_with_generator: TestClient, mock_generator: MagicMock
+    ) -> None:
         """测试获取报告异常返回 500"""
         mock_generator.get_report = AsyncMock(side_effect=Exception("读取失败"))
 
@@ -332,9 +337,18 @@ class TestGetReport:
         data = resp.json()
         report = data["report"]
         expected_fields = [
-            "task_id", "summary", "total_files_changed", "net_lines",
-            "highest_risk", "changes", "test_results", "risk_analysis",
-            "rollback_plan", "lessons_learned", "success", "metrics",
+            "task_id",
+            "summary",
+            "total_files_changed",
+            "net_lines",
+            "highest_risk",
+            "changes",
+            "test_results",
+            "risk_analysis",
+            "rollback_plan",
+            "lessons_learned",
+            "success",
+            "metrics",
         ]
         for field in expected_fields:
             assert field in report, f"缺少字段 {field}"

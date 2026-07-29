@@ -1,7 +1,9 @@
 """lsp 模块测试"""
+
 from __future__ import annotations
 
 import pytest
+
 from pycoder.lsp.lsp_manager import LSPManager, LSPStatus
 
 
@@ -63,6 +65,7 @@ class TestLSPDiagnostics:
     @pytest.mark.asyncio
     async def test_scan_file_unknown_language(self, tmp_path):
         from pycoder.lsp.diagnostics import DiagnosticsAggregator
+
         manager = LSPManager(workspace=tmp_path)
         agg = DiagnosticsAggregator(manager)
         diags = await agg.scan_file("README.md")
@@ -71,6 +74,7 @@ class TestLSPDiagnostics:
     @pytest.mark.asyncio
     async def test_scan_workspace(self, tmp_path):
         from pycoder.lsp.diagnostics import DiagnosticsAggregator
+
         manager = LSPManager(workspace=tmp_path)
         agg = DiagnosticsAggregator(manager)
         diags = await agg.scan_workspace()

@@ -6,6 +6,7 @@
   - 用 tmp_path 隔离文件 IO，mock subprocess.run / git.Repo 等外部副作用
   - MCPClientManager 走 mock 注入
 """
+
 from __future__ import annotations
 
 import os
@@ -20,22 +21,20 @@ import pytest
 
 # ── 在导入测试目标前预注入可选依赖，避免 mcp_tools_db 加载失败 ──
 # （mcp_tools 顶部 try/except 已容错，但显式注入更稳定）
-
-
 from pycoder.server import mcp_tools
 from pycoder.server.mcp_tools import (
-    MCPClientManager,
     MCPCallResult,
+    MCPClientManager,
     MCPToolDef,
     _builtin_tools,
     get_mcp_client_manager,
     list_builtin_tools,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # 辅助：异步运行工具处理器
 # ══════════════════════════════════════════════════════════
+
 
 async def _call(handler, args):
     """便捷调用异步处理器"""
@@ -45,9 +44,6 @@ async def _call(handler, args):
 # ══════════════════════════════════════════════════════════
 # 数据模型与注册表
 # ══════════════════════════════════════════════════════════
-
-
-
 
 
 def _do_raise_io(*a, **k):
@@ -91,7 +87,15 @@ class TestDataModels:
 class TestExecutePython:
     async def test_success(self, monkeypatch):
         from pycoder.server.routers import code_exec as ce_mod
-        fake_result = SimpleNamespace(success=True, stdout="42", stderr="", error_type="", error_message="", execution_time=0.01)
+
+        fake_result = SimpleNamespace(
+            success=True,
+            stdout="42",
+            stderr="",
+            error_type="",
+            error_message="",
+            execution_time=0.01,
+        )
         monkeypatch.setattr(ce_mod, "_run_in_subprocess", lambda code, timeout: fake_result)
 
         r = await mcp_tools._handle_execute_python({"code": "print(42)"})
@@ -100,8 +104,10 @@ class TestExecutePython:
 
     async def test_exception(self, monkeypatch):
         from pycoder.server.routers import code_exec as ce_mod
+
         def _raise(code, timeout):
             raise RuntimeError("exec fail")
+
         monkeypatch.setattr(ce_mod, "_run_in_subprocess", _raise)
 
         r = await mcp_tools._handle_execute_python({"code": "x"})
@@ -112,8 +118,10 @@ class TestExecutePython:
 class TestMultilang:
     async def test_execute_multilang(self, monkeypatch):
         from pycoder.python import multilang_executor as ml_mod
+
         async def fake_exec(language, code, timeout):
             return {"success": True, "language": language, "output": "ok"}
+
         monkeypatch.setattr(ml_mod, "execute_multilang", fake_exec)
 
         r = await mcp_tools._handle_multilang({"language": "go", "code": "package main"})
@@ -122,6 +130,7 @@ class TestMultilang:
 
     async def test_list_languages(self, monkeypatch):
         from pycoder.python import multilang_executor as ml_mod
+
         monkeypatch.setattr(ml_mod, "list_available", lambda: ["python", "go"])
         r = await mcp_tools._handle_list_languages({})
         assert r["success"] is True
@@ -133,8 +142,10 @@ class TestMultilang:
 # code_review / _get_mitigation_hint
 # ══════════════════════════════════════════════════════════
 
+
 class _FakeQualityResult:
     """模拟 CodeQualityAnalyzer.analyze 的返回（带 to_dict + 评分属性）"""
+
     overall = 85
     readability = 80
     maintainability = 82
@@ -165,6 +176,7 @@ class _FakeQualityResult:
 class TestCodeReview:
     async def test_review_with_issues(self, monkeypatch):
         from pycoder.python import code_quality as cq_mod
+
         issues = [
             {"type": "security", "severity": "high", "line": 10, "message": "sql inj"},
             {"type": "performance", "severity": "medium", "message": "slow loop"},  # 无 line
@@ -186,6 +198,7 @@ class TestCodeReview:
 
     async def test_review_no_issues(self, monkeypatch):
         from pycoder.python import code_quality as cq_mod
+
         fake_analyzer = MagicMock()
         fake_analyzer.return_value.analyze.return_value = _FakeQualityResult([])
         monkeypatch.setattr(cq_mod, "CodeQualityAnalyzer", fake_analyzer)
@@ -200,6 +213,7 @@ class TestCodeReview:
 # dependency_analysis / security_scan
 # ══════════════════════════════════════════════════════════
 
+
 class TestDepAnalysis:
     async def test_dep_analysis(self, monkeypatch):
         """_handle_dep_analysis 期望返回 dict-like，但 dep_analyzer.DependencyAnalyzer 不存在
@@ -209,12 +223,14 @@ class TestDepAnalysis:
         class FakeDep:
             name = "requests"
             version = "2.0"
+
             def to_dict(self):
                 return {"name": "requests", "version": "2.0"}
 
         class FakeAnalyzer:
             def __init__(self):
                 pass
+
             def analyze(self, path):
                 return {
                     "dependencies": [FakeDep(), SimpleNamespace(name="flask")],
@@ -234,6 +250,7 @@ class TestDepAnalysis:
 class TestSecurityScan:
     async def test_security_scan_success(self, monkeypatch):
         from pycoder.python import dep_analyzer as da_mod
+
         fake_deps = SimpleNamespace(total_deps=5)
         fake_instance = MagicMock()
         fake_instance.analyze.return_value = fake_deps
@@ -248,6 +265,7 @@ class TestSecurityScan:
 
     async def test_security_scan_no_scan_method(self, monkeypatch):
         from pycoder.python import dep_analyzer as da_mod
+
         fake_deps = SimpleNamespace(total_deps=3)
         fake_instance = MagicMock()
         fake_instance.analyze.return_value = fake_deps
@@ -263,8 +281,10 @@ class TestSecurityScan:
 
     async def test_security_scan_exception(self, monkeypatch):
         from pycoder.python import dep_analyzer as da_mod
+
         def boom(path):
             raise RuntimeError("scan failed")
+
         monkeypatch.setattr(da_mod, "DepAnalyzer", boom)
 
         r = await mcp_tools._handle_security_scan({"path": "."})
@@ -275,6 +295,7 @@ class TestSecurityScan:
 # ══════════════════════════════════════════════════════════
 # git_status
 # ══════════════════════════════════════════════════════════
+
 
 class TestGitStatus:
     async def test_git_status_success(self, monkeypatch):
@@ -321,6 +342,7 @@ class TestGitStatus:
 # file_read / file_list
 # ══════════════════════════════════════════════════════════
 
+
 class TestFileRead:
     async def test_read_existing(self, tmp_path):
         f = tmp_path / "a.txt"
@@ -348,8 +370,10 @@ class TestFileRead:
 class TestFileList:
     async def test_file_list_success(self, monkeypatch):
         from pycoder.server import project_helpers as ph_mod
+
         async def fake_tree(path, max_depth):
             return {"name": path, "depth": max_depth, "children": []}
+
         monkeypatch.setattr(ph_mod, "_get_project_tree", fake_tree)
 
         r = await mcp_tools._handle_file_list({"path": "/x", "max_depth": 3})
@@ -358,8 +382,10 @@ class TestFileList:
 
     async def test_file_list_exception(self, monkeypatch):
         from pycoder.server import project_helpers as ph_mod
+
         async def boom(*a, **k):
             raise RuntimeError("tree fail")
+
         monkeypatch.setattr(ph_mod, "_get_project_tree", boom)
 
         r = await mcp_tools._handle_file_list({"path": "/x"})
@@ -370,6 +396,7 @@ class TestFileList:
 # ══════════════════════════════════════════════════════════
 # search
 # ══════════════════════════════════════════════════════════
+
 
 class TestSearch:
     async def test_search_finds_matches(self, tmp_path, monkeypatch):
@@ -405,6 +432,7 @@ class TestSearch:
 # format_code
 # ══════════════════════════════════════════════════════════
 
+
 class TestFormatCode:
     async def test_missing_code(self):
         r = await mcp_tools._handle_format_code({"code": ""})
@@ -413,11 +441,13 @@ class TestFormatCode:
 
     async def test_black_format(self, monkeypatch):
         """模拟 black 修改临时文件内容后读取"""
+
         def fake_run(cmd, **kwargs):
             # black 会重写文件 — 模拟一下：找到临时文件并写入格式化内容
             tmp_file = cmd[-1]
             Path(tmp_file).write_text("formatted = True\n", encoding="utf-8")
             return SimpleNamespace(returncode=0)
+
         monkeypatch.setattr(subprocess, "run", fake_run)
 
         r = await mcp_tools._handle_format_code({"code": "x=1", "style": "black"})
@@ -430,6 +460,7 @@ class TestFormatCode:
             tmp_file = cmd[-1]
             Path(tmp_file).write_text("import os\n", encoding="utf-8")
             return SimpleNamespace(returncode=0)
+
         monkeypatch.setattr(subprocess, "run", fake_run)
 
         r = await mcp_tools._handle_format_code({"code": "import os", "style": "isort"})
@@ -441,6 +472,7 @@ class TestFormatCode:
             tmp_file = cmd[-1]
             Path(tmp_file).write_text("x = 1\n", encoding="utf-8")
             return SimpleNamespace(returncode=0)
+
         monkeypatch.setattr(subprocess, "run", fake_run)
 
         r = await mcp_tools._handle_format_code({"code": "x=1", "style": "ruff"})
@@ -448,8 +480,10 @@ class TestFormatCode:
 
     async def test_format_file_not_found(self, monkeypatch):
         """模拟格式化工具未安装"""
+
         def boom(*a, **k):
             raise FileNotFoundError("black not found")
+
         monkeypatch.setattr(subprocess, "run", boom)
 
         r = await mcp_tools._handle_format_code({"code": "x=1"})
@@ -459,6 +493,7 @@ class TestFormatCode:
     async def test_format_other_exception(self, monkeypatch):
         def boom(*a, **k):
             raise RuntimeError("disk full")
+
         monkeypatch.setattr(subprocess, "run", boom)
 
         r = await mcp_tools._handle_format_code({"code": "x=1"})
@@ -470,12 +505,19 @@ class TestFormatCode:
 # debug_python
 # ══════════════════════════════════════════════════════════
 
+
 class TestDebugPython:
     async def test_success_no_breakpoints(self, monkeypatch):
         from pycoder.server.routers import code_exec as ce_mod
+
         fake_result = SimpleNamespace(
-            success=True, stdout="out", stderr="", error_type="",
-            error_message="", execution_time=0.012, traceback="trace\ntrace2",
+            success=True,
+            stdout="out",
+            stderr="",
+            error_type="",
+            error_message="",
+            execution_time=0.012,
+            traceback="trace\ntrace2",
         )
         monkeypatch.setattr(ce_mod, "_run_in_subprocess", lambda code, timeout: fake_result)
 
@@ -487,47 +529,74 @@ class TestDebugPython:
 
     async def test_with_breakpoints(self, monkeypatch):
         from pycoder.server.routers import code_exec as ce_mod
+
         captured_code = []
         fake_result = SimpleNamespace(
-            success=True, stdout="", stderr="", error_type="",
-            error_message="", execution_time=0.001, traceback="",
+            success=True,
+            stdout="",
+            stderr="",
+            error_type="",
+            error_message="",
+            execution_time=0.001,
+            traceback="",
         )
+
         def fake_run(code, timeout):
             captured_code.append(code)
             return fake_result
+
         monkeypatch.setattr(ce_mod, "_run_in_subprocess", fake_run)
 
-        r = await mcp_tools._handle_debug_python({
-            "code": "line1\nline2\nline3",
-            "breakpoints": [2],
-        })
+        r = await mcp_tools._handle_debug_python(
+            {
+                "code": "line1\nline2\nline3",
+                "breakpoints": [2],
+            }
+        )
         assert r["success"] is True
         assert "pdb.set_trace" in captured_code[0]
 
     async def test_breakpoint_out_of_range(self, monkeypatch):
         from pycoder.server.routers import code_exec as ce_mod
+
         captured = []
         fake_result = SimpleNamespace(
-            success=True, stdout="o", stderr="", error_type="",
-            error_message="", execution_time=0.001, traceback="",
+            success=True,
+            stdout="o",
+            stderr="",
+            error_type="",
+            error_message="",
+            execution_time=0.001,
+            traceback="",
         )
+
         def fake_exec(code, timeout=30):
             captured.append(code)
             return fake_result
+
         monkeypatch.setattr(ce_mod, "_run_in_subprocess", fake_exec)
 
-        r = await mcp_tools._handle_debug_python({
-            "code": "only one line", "breakpoints": [99],
-        })
+        r = await mcp_tools._handle_debug_python(
+            {
+                "code": "only one line",
+                "breakpoints": [99],
+            }
+        )
         assert r["success"] is True
         assert "pdb" not in captured[0]
 
     async def test_no_traceback(self, monkeypatch):
         """traceback 为空 → stack_trace 为空列表"""
         from pycoder.server.routers import code_exec as ce_mod
+
         fake_result = SimpleNamespace(
-            success=True, stdout="sync", stderr="", error_type="",
-            error_message="", execution_time=0.005, traceback="",
+            success=True,
+            stdout="sync",
+            stderr="",
+            error_type="",
+            error_message="",
+            execution_time=0.005,
+            traceback="",
         )
         monkeypatch.setattr(ce_mod, "_run_in_subprocess", lambda code, timeout: fake_result)
 
@@ -538,8 +607,10 @@ class TestDebugPython:
 
     async def test_outer_exception(self, monkeypatch):
         from pycoder.server.routers import code_exec as ce_mod
+
         def _raise(code, timeout):
             raise RuntimeError("init fail")
+
         monkeypatch.setattr(ce_mod, "_run_in_subprocess", _raise)
         r = await mcp_tools._handle_debug_python({"code": "x"})
         assert r["success"] is False
@@ -549,6 +620,7 @@ class TestDebugPython:
 # ══════════════════════════════════════════════════════════
 # generate_tests
 # ══════════════════════════════════════════════════════════
+
 
 class TestGenerateTests:
     """generate_tests 测试
@@ -562,15 +634,14 @@ class TestGenerateTests:
     def _patch_ast_annotations(self, monkeypatch):
         """为 ast.arguments 注入 annotations 属性以兼容 Python 3.14"""
         import ast as _ast
+
         # 设为空 list — `p in []` 为 False，跳过类型注解推断分支
         monkeypatch.setattr(_ast.arguments, "annotations", [], raising=False)
 
     async def test_generate_for_simple_function(self, tmp_path):
         src = tmp_path / "calc.py"
         src.write_text(
-            "def add(a: int, b: int) -> int:\n"
-            "    '''Add two numbers'''\n"
-            "    return a + b\n",
+            "def add(a: int, b: int) -> int:\n" "    '''Add two numbers'''\n" "    return a + b\n",
             encoding="utf-8",
         )
         r = await mcp_tools._handle_generate_tests({"file": str(src)})
@@ -585,9 +656,7 @@ class TestGenerateTests:
     async def test_generate_for_function_no_params(self, tmp_path):
         src = tmp_path / "util.py"
         src.write_text(
-            "def hello():\n"
-            "    '''Say hi'''\n"
-            "    return 'hi'\n",
+            "def hello():\n" "    '''Say hi'''\n" "    return 'hi'\n",
             encoding="utf-8",
         )
         r = await mcp_tools._handle_generate_tests({"file": str(src)})
@@ -671,29 +740,39 @@ class TestGenerateTests:
 # generate_pipeline
 # ══════════════════════════════════════════════════════════
 
+
 class TestGeneratePipeline:
     async def test_python_app(self, tmp_path, monkeypatch):
         monkeypatch.setattr(os, "getcwd", lambda: str(tmp_path))
-        r = await mcp_tools._handle_generate_pipeline({
-            "project_type": "python-app", "platform": "github-actions",
-        })
+        r = await mcp_tools._handle_generate_pipeline(
+            {
+                "project_type": "python-app",
+                "platform": "github-actions",
+            }
+        )
         assert r["success"] is True
         assert r["file"] == ".github/workflows/ci.yml"
         assert (tmp_path / ".github" / "workflows" / "ci.yml").exists()
 
     async def test_fastapi_template(self, tmp_path, monkeypatch):
         monkeypatch.setattr(os, "getcwd", lambda: str(tmp_path))
-        r = await mcp_tools._handle_generate_pipeline({
-            "project_type": "fastapi", "platform": "github-actions",
-        })
+        r = await mcp_tools._handle_generate_pipeline(
+            {
+                "project_type": "fastapi",
+                "platform": "github-actions",
+            }
+        )
         assert r["success"] is True
         assert "PyCoder CI" not in r["content"]  # fastapi 模板不同
         assert "Deploy FastAPI" in r["content"]
 
     async def test_unsupported_combo(self):
-        r = await mcp_tools._handle_generate_pipeline({
-            "project_type": "unknown", "platform": "gitlab-ci",
-        })
+        r = await mcp_tools._handle_generate_pipeline(
+            {
+                "project_type": "unknown",
+                "platform": "gitlab-ci",
+            }
+        )
         assert r["success"] is False
         assert "不支持的组合" in r["error"]
 
@@ -709,9 +788,11 @@ class TestGeneratePipeline:
 # docker_status / docker_execute
 # ══════════════════════════════════════════════════════════
 
+
 class TestDocker:
     async def test_docker_status(self, monkeypatch):
         from pycoder.server import docker_backend as db_mod
+
         backend = MagicMock()
         backend.get_status = AsyncMock(return_value={"available": True})
         monkeypatch.setattr(db_mod, "get_docker_backend", lambda: backend)
@@ -721,6 +802,7 @@ class TestDocker:
 
     async def test_docker_execute_unavailable(self, monkeypatch):
         from pycoder.server import docker_backend as db_mod
+
         backend = MagicMock()
         backend.is_available = False
         monkeypatch.setattr(db_mod, "get_docker_backend", lambda: backend)
@@ -731,12 +813,18 @@ class TestDocker:
 
     async def test_docker_execute_success(self, monkeypatch):
         from pycoder.server import docker_backend as db_mod
+
         backend = MagicMock()
         backend.is_available = True
-        backend.execute = AsyncMock(return_value=SimpleNamespace(
-            success=True, output="ok", error="", duration_ms=10,
-            container_id="abcdef1234567890",
-        ))
+        backend.execute = AsyncMock(
+            return_value=SimpleNamespace(
+                success=True,
+                output="ok",
+                error="",
+                duration_ms=10,
+                container_id="abcdef1234567890",
+            )
+        )
         monkeypatch.setattr(db_mod, "get_docker_backend", lambda: backend)
 
         r = await mcp_tools._handle_docker_execute({"code": "print(1)"})
@@ -746,11 +834,18 @@ class TestDocker:
 
     async def test_docker_execute_no_container(self, monkeypatch):
         from pycoder.server import docker_backend as db_mod
+
         backend = MagicMock()
         backend.is_available = True
-        backend.execute = AsyncMock(return_value=SimpleNamespace(
-            success=True, output="", error="", duration_ms=1, container_id="",
-        ))
+        backend.execute = AsyncMock(
+            return_value=SimpleNamespace(
+                success=True,
+                output="",
+                error="",
+                duration_ms=1,
+                container_id="",
+            )
+        )
         monkeypatch.setattr(db_mod, "get_docker_backend", lambda: backend)
 
         r = await mcp_tools._handle_docker_execute({"code": "x"})
@@ -759,6 +854,7 @@ class TestDocker:
 
     async def test_docker_execute_exception(self, monkeypatch):
         from pycoder.server import docker_backend as db_mod
+
         backend = MagicMock()
         backend.is_available = True
         backend.execute = AsyncMock(side_effect=RuntimeError("container gone"))
@@ -773,11 +869,13 @@ class TestDocker:
 # profile_python
 # ══════════════════════════════════════════════════════════
 
+
 class TestProfilePython:
     async def test_success(self, monkeypatch):
         def fake_run(cmd, **kwargs):
             # 找到临时脚本，写入 stdout
             return SimpleNamespace(returncode=0, stdout="PROFILE OUTPUT", stderr="")
+
         monkeypatch.setattr(subprocess, "run", fake_run)
 
         r = await mcp_tools._handle_profile_python({"code": "x = 1"})
@@ -785,8 +883,11 @@ class TestProfilePython:
         assert "PROFILE OUTPUT" in r["profile"]
 
     async def test_nonzero_returncode(self, monkeypatch):
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
-            returncode=1, stdout="", stderr="syntax error"))
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **k: SimpleNamespace(returncode=1, stdout="", stderr="syntax error"),
+        )
         r = await mcp_tools._handle_profile_python({"code": "bad"})
         assert r["success"] is False
         assert "syntax error" in r["error"]
@@ -808,10 +909,12 @@ class TestProfilePython:
 # execute_code (多语言自动检测)
 # ══════════════════════════════════════════════════════════
 
+
 class TestExecuteCode:
     async def test_python_success(self, monkeypatch):
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
-            returncode=0, stdout="42", stderr=""))
+        monkeypatch.setattr(
+            subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=0, stdout="42", stderr="")
+        )
         r = await mcp_tools._handle_execute_code({"code": "print(42)", "language": "python"})
         assert r["success"] is True
         assert r["output"] == "42"
@@ -819,8 +922,10 @@ class TestExecuteCode:
 
     async def test_python_timeout(self, monkeypatch):
         """超时应返回 success=False"""
+
         def boom(*a, **k):
             raise subprocess.TimeoutExpired(cmd="python", timeout=30)
+
         monkeypatch.setattr(subprocess, "run", boom)
         r = await mcp_tools._handle_execute_code({"code": "while True: pass", "language": "python"})
         assert r["success"] is False
@@ -828,39 +933,49 @@ class TestExecuteCode:
 
     async def test_python_file_not_found(self, monkeypatch):
         """Python 未安装应返回 success=False"""
+
         def boom(*a, **k):
             raise FileNotFoundError("python not found")
+
         monkeypatch.setattr(subprocess, "run", boom)
         r = await mcp_tools._handle_execute_code({"code": "x", "language": "python"})
         assert r["success"] is False
         assert "运行时未找到" in r["error"]
 
     async def test_auto_detect_python_shebang(self, monkeypatch):
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
-            returncode=0, stdout="detected", stderr=""))
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **k: SimpleNamespace(returncode=0, stdout="detected", stderr=""),
+        )
         r = await mcp_tools._handle_execute_code({"code": "#!/usr/bin/env python\nprint(1)"})
         assert r["success"] is True
         assert r["language"] == "python"
 
     async def test_auto_detect_node_shebang(self, monkeypatch):
         """node shebang → language=javascript"""
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
-            returncode=0, stdout="js", stderr=""))
+        monkeypatch.setattr(
+            subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=0, stdout="js", stderr="")
+        )
         r = await mcp_tools._handle_execute_code({"code": "#!/usr/bin/env node\nconsole.log(1)"})
         assert r["success"] is True
         assert r["language"] == "javascript"
 
     async def test_auto_detect_bash_shebang(self, monkeypatch):
         """bash shebang → language=shell"""
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
-            returncode=0, stdout="sh", stderr=""))
+        monkeypatch.setattr(
+            subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=0, stdout="sh", stderr="")
+        )
         r = await mcp_tools._handle_execute_code({"code": "#!/bin/bash\necho hi"})
         assert r["success"] is True
         assert r["language"] == "shell"
 
     async def test_auto_detect_default_python(self, monkeypatch):
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
-            returncode=0, stdout="default", stderr=""))
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **k: SimpleNamespace(returncode=0, stdout="default", stderr=""),
+        )
         r = await mcp_tools._handle_execute_code({"code": "print(1)"})
         assert r["success"] is True
         assert r["language"] == "python"
@@ -873,25 +988,34 @@ class TestExecuteCode:
 
     async def test_javascript_explicit(self, monkeypatch):
         """显式 javascript → 走 javascript 分支"""
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
-            returncode=0, stdout="js", stderr=""))
-        r = await mcp_tools._handle_execute_code({"code": "console.log(1)", "language": "javascript"})
+        monkeypatch.setattr(
+            subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=0, stdout="js", stderr="")
+        )
+        r = await mcp_tools._handle_execute_code(
+            {"code": "console.log(1)", "language": "javascript"}
+        )
         assert r["success"] is True
         assert r["language"] == "javascript"
 
     async def test_javascript_timeout(self, monkeypatch):
         """javascript 超时分支有独立的返回（不依赖 _mkres）"""
+
         def boom(*a, **k):
             raise subprocess.TimeoutExpired(cmd="node", timeout=30)
+
         monkeypatch.setattr(subprocess, "run", boom)
-        r = await mcp_tools._handle_execute_code({"code": "while(true){}", "language": "javascript"})
+        r = await mcp_tools._handle_execute_code(
+            {"code": "while(true){}", "language": "javascript"}
+        )
         assert r["success"] is False
         assert "超时" in r["error"]
 
     async def test_javascript_not_found(self, monkeypatch):
         """javascript FileNotFoundError 分支有独立返回"""
+
         def boom(*a, **k):
             raise FileNotFoundError("node missing")
+
         monkeypatch.setattr(subprocess, "run", boom)
         r = await mcp_tools._handle_execute_code({"code": "x", "language": "javascript"})
         assert r["success"] is False
@@ -899,8 +1023,9 @@ class TestExecuteCode:
 
     async def test_shell_path_bug(self, monkeypatch):
         """shell 分支正常执行"""
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
-            returncode=0, stdout="sh", stderr=""))
+        monkeypatch.setattr(
+            subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=0, stdout="sh", stderr="")
+        )
         r = await mcp_tools._handle_execute_code({"code": "echo hi", "language": "shell"})
         assert r["success"] is True
         assert r["language"] == "shell"
@@ -909,6 +1034,7 @@ class TestExecuteCode:
 # ══════════════════════════════════════════════════════════
 # resolve_conflict
 # ══════════════════════════════════════════════════════════
+
 
 class TestResolveConflict:
     async def test_file_not_found(self):
@@ -969,6 +1095,7 @@ class TestResolveConflict:
 # test_integration / test_e2e / test_performance
 # ══════════════════════════════════════════════════════════
 
+
 class TestTestIntegration:
     async def test_file_not_found(self):
         r = await mcp_tools._handle_test_integration({"app_file": "/no/app.py"})
@@ -986,9 +1113,12 @@ class TestTestIntegration:
             "def create(): pass\n",
             encoding="utf-8",
         )
-        r = await mcp_tools._handle_test_integration({
-            "app_file": str(app), "output_dir": str(tmp_path / "tests"),
-        })
+        r = await mcp_tools._handle_test_integration(
+            {
+                "app_file": str(app),
+                "output_dir": str(tmp_path / "tests"),
+            }
+        )
         assert r["success"] is True
         assert r["route_count"] >= 2
         assert "test_get_api_users" in r["test_content"]
@@ -998,9 +1128,12 @@ class TestTestIntegration:
     async def test_no_routes(self, tmp_path):
         app = tmp_path / "plain.py"
         app.write_text("x = 1\n", encoding="utf-8")
-        r = await mcp_tools._handle_test_integration({
-            "app_file": str(app), "output_dir": str(tmp_path / "out"),
-        })
+        r = await mcp_tools._handle_test_integration(
+            {
+                "app_file": str(app),
+                "output_dir": str(tmp_path / "out"),
+            }
+        )
         assert r["success"] is True
         assert r["route_count"] == 0
 
@@ -1018,10 +1151,12 @@ class TestTestE2E:
         assert r["page_count"] == 1
 
     async def test_custom_pages(self):
-        r = await mcp_tools._handle_test_e2e({
-            "app_url": "http://myapp.com",
-            "pages": ["/", "/about", "/users"],
-        })
+        r = await mcp_tools._handle_test_e2e(
+            {
+                "app_url": "http://myapp.com",
+                "pages": ["/", "/about", "/users"],
+            }
+        )
         assert r["success"] is True
         assert r["page_count"] == 3
         assert "myapp.com" in r["test_content"]
@@ -1037,9 +1172,13 @@ class TestTestPerformance:
         assert "locust" in r["instructions"]
 
     async def test_custom(self):
-        r = await mcp_tools._handle_test_performance({
-            "target_url": "http://x.com", "users": 50, "spawn_rate": 5,
-        })
+        r = await mcp_tools._handle_test_performance(
+            {
+                "target_url": "http://x.com",
+                "users": 50,
+                "spawn_rate": 5,
+            }
+        )
         assert r["success"] is True
         assert "50" in r["test_content"]
         assert "5" in r["test_content"]
@@ -1049,14 +1188,18 @@ class TestTestPerformance:
 # python_env / quick_open / git_log / git_diff_branch / snippets
 # ══════════════════════════════════════════════════════════
 
+
 class TestPythonEnv:
     async def test_with_venv_env(self, monkeypatch, tmp_path):
         # 模拟 VIRTUAL_ENV
         monkeypatch.setenv("VIRTUAL_ENV", str(tmp_path / "venv"))
         monkeypatch.setattr(os, "getcwd", lambda: str(tmp_path))
         monkeypatch.delenv("CONDA_PREFIX", raising=False)
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
-            returncode=0, stdout="Python 3.14.0", stderr=""))
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **k: SimpleNamespace(returncode=0, stdout="Python 3.14.0", stderr=""),
+        )
 
         r = await mcp_tools._handle_python_env({})
         assert r["success"] is True
@@ -1068,8 +1211,11 @@ class TestPythonEnv:
         monkeypatch.setenv("CONDA_PREFIX", "/opt/conda")
         monkeypatch.setenv("CONDA_DEFAULT_ENV", "myenv")
         monkeypatch.setattr(os, "getcwd", lambda: str(tmp_path))
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
-            returncode=0, stdout="Python 3.12", stderr=""))
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **k: SimpleNamespace(returncode=0, stdout="Python 3.12", stderr=""),
+        )
 
         r = await mcp_tools._handle_python_env({})
         assert r["success"] is True
@@ -1126,8 +1272,11 @@ class TestQuickOpen:
 
 class TestGitLog:
     async def test_success(self, monkeypatch):
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
-            returncode=0, stdout="* abc\n* def\n", stderr=""))
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **k: SimpleNamespace(returncode=0, stdout="* abc\n* def\n", stderr=""),
+        )
         r = await mcp_tools._handle_git_log({"limit": 5})
         assert r["success"] is True
         assert r["count"] == 2
@@ -1145,6 +1294,7 @@ class TestGitDiffBranch:
             if "--name-only" in cmd:
                 return SimpleNamespace(returncode=0, stdout="a.py\nb.py\n", stderr="")
             return SimpleNamespace(returncode=0, stdout="2 files changed", stderr="")
+
         monkeypatch.setattr(subprocess, "run", fake_run)
 
         r = await mcp_tools._handle_git_diff_branch({"branch1": "main", "branch2": "dev"})
@@ -1162,9 +1312,14 @@ class TestGitDiffBranch:
 class TestSnippets:
     async def test_list(self, monkeypatch):
         from pycoder.prompts import snippets_loader as sl_mod
-        monkeypatch.setattr(sl_mod, "list_snippets", lambda lang: [
-            {"prefix": "fn", "body": "def f(): pass"},
-        ])
+
+        monkeypatch.setattr(
+            sl_mod,
+            "list_snippets",
+            lambda lang: [
+                {"prefix": "fn", "body": "def f(): pass"},
+            ],
+        )
         r = await mcp_tools._handle_snippets({"subcommand": "list", "language": "python"})
         assert r["success"] is True
         assert r["total"] == 1
@@ -1172,24 +1327,35 @@ class TestSnippets:
 
     async def test_get_found(self, monkeypatch):
         from pycoder.prompts import snippets_loader as sl_mod
+
         monkeypatch.setattr(sl_mod, "get_snippet", lambda lang, prefix: {"prefix": prefix})
-        r = await mcp_tools._handle_snippets({
-            "subcommand": "get", "language": "python", "prefix": "fn",
-        })
+        r = await mcp_tools._handle_snippets(
+            {
+                "subcommand": "get",
+                "language": "python",
+                "prefix": "fn",
+            }
+        )
         assert r["success"] is True
         assert r["snippet"]["prefix"] == "fn"
 
     async def test_get_not_found(self, monkeypatch):
         from pycoder.prompts import snippets_loader as sl_mod
+
         monkeypatch.setattr(sl_mod, "get_snippet", lambda lang, prefix: None)
-        r = await mcp_tools._handle_snippets({
-            "subcommand": "get", "language": "python", "prefix": "nope",
-        })
+        r = await mcp_tools._handle_snippets(
+            {
+                "subcommand": "get",
+                "language": "python",
+                "prefix": "nope",
+            }
+        )
         assert r["success"] is False
         assert "not found" in r["error"]
 
     async def test_default_subcommand(self, monkeypatch):
         from pycoder.prompts import snippets_loader as sl_mod
+
         monkeypatch.setattr(sl_mod, "list_snippets", lambda lang: [])
         r = await mcp_tools._handle_snippets({"language": "go"})
         assert r["success"] is True
@@ -1200,9 +1366,11 @@ class TestSnippets:
 # 工作区文件操作: write_file / create_directory / read_file / list_files / delete_file / run_terminal
 # ══════════════════════════════════════════════════════════
 
+
 def _patch_workspace(monkeypatch, tmp_path):
     """注入 get_workspace_root 返回 tmp_path"""
     from pycoder.server.routers import files as files_mod
+
     monkeypatch.setattr(files_mod, "get_workspace_root", lambda: tmp_path)
     # 由于源码使用 from ... import get_workspace_root，
     # 每次调用都会重新 import — 直接修改 sys.modules 中的属性即可
@@ -1356,8 +1524,11 @@ class TestRunTerminal:
 
     async def test_success(self, tmp_path, monkeypatch):
         _patch_workspace(monkeypatch, tmp_path)
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
-            returncode=0, stdout="output here", stderr=""))
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **k: SimpleNamespace(returncode=0, stdout="output here", stderr=""),
+        )
         r = await mcp_tools._handle_run_terminal({"command": "echo hi"})
         assert r["success"] is True
         assert r["exit_code"] == 0
@@ -1365,8 +1536,11 @@ class TestRunTerminal:
 
     async def test_nonzero_exit(self, tmp_path, monkeypatch):
         _patch_workspace(monkeypatch, tmp_path)
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(
-            returncode=1, stdout="", stderr="error msg"))
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **k: SimpleNamespace(returncode=1, stdout="", stderr="error msg"),
+        )
         r = await mcp_tools._handle_run_terminal({"command": "false"})
         assert r["success"] is False
         assert r["exit_code"] == 1
@@ -1393,9 +1567,11 @@ class TestRunTerminal:
 # Skills Market v2 handlers
 # ══════════════════════════════════════════════════════════
 
+
 class TestSkillsV2:
     async def test_search_v2(self, monkeypatch):
         from pycoder.server import skills_market_v2 as sm_mod
+
         market = MagicMock()
         market.search.return_value = {"total": 1, "skills": [{"id": "x"}]}
         monkeypatch.setattr(sm_mod, "get_enhanced_market", lambda: market)
@@ -1407,6 +1583,7 @@ class TestSkillsV2:
 
     async def test_search_v2_exception(self, monkeypatch):
         from pycoder.server import skills_market_v2 as sm_mod
+
         market = MagicMock()
         market.search.side_effect = RuntimeError("boom")
         monkeypatch.setattr(sm_mod, "get_enhanced_market", lambda: market)
@@ -1416,6 +1593,7 @@ class TestSkillsV2:
 
     async def test_recommendations_v2(self, monkeypatch):
         from pycoder.server import skills_market_v2 as sm_mod
+
         market = MagicMock()
         market.get_recommendations.return_value = [{"id": "r1"}]
         monkeypatch.setattr(sm_mod, "get_enhanced_market", lambda: market)
@@ -1425,6 +1603,7 @@ class TestSkillsV2:
 
     async def test_recommendations_v2_exception(self, monkeypatch):
         from pycoder.server import skills_market_v2 as sm_mod
+
         market = MagicMock()
         market.get_recommendations.side_effect = ValueError("bad")
         monkeypatch.setattr(sm_mod, "get_enhanced_market", lambda: market)
@@ -1433,6 +1612,7 @@ class TestSkillsV2:
 
     async def test_trending_v2(self, monkeypatch):
         from pycoder.server import skills_market_v2 as sm_mod
+
         market = MagicMock()
         market.get_trending.return_value = [{"id": "t1"}]
         monkeypatch.setattr(sm_mod, "get_enhanced_market", lambda: market)
@@ -1442,6 +1622,7 @@ class TestSkillsV2:
 
     async def test_trending_v2_exception(self, monkeypatch):
         from pycoder.server import skills_market_v2 as sm_mod
+
         market = MagicMock()
         market.get_trending.side_effect = RuntimeError("x")
         monkeypatch.setattr(sm_mod, "get_enhanced_market", lambda: market)
@@ -1450,6 +1631,7 @@ class TestSkillsV2:
 
     async def test_stats_v2(self, monkeypatch):
         from pycoder.server import skills_market_v2 as sm_mod
+
         market = MagicMock()
         market.get_stats.return_value = {"total": 100}
         monkeypatch.setattr(sm_mod, "get_enhanced_market", lambda: market)
@@ -1459,6 +1641,7 @@ class TestSkillsV2:
 
     async def test_stats_v2_exception(self, monkeypatch):
         from pycoder.server import skills_market_v2 as sm_mod
+
         market = MagicMock()
         market.get_stats.side_effect = RuntimeError("x")
         monkeypatch.setattr(sm_mod, "get_enhanced_market", lambda: market)
@@ -1467,10 +1650,14 @@ class TestSkillsV2:
 
     async def test_sync_v2(self, monkeypatch):
         from pycoder.server import skills_market_v2 as sm_mod
+
         market = MagicMock()
-        market.sync_from_all_sources = AsyncMock(return_value={
-            "total_skills": 10, "sources": {"github": 5},
-        })
+        market.sync_from_all_sources = AsyncMock(
+            return_value={
+                "total_skills": 10,
+                "sources": {"github": 5},
+            }
+        )
         monkeypatch.setattr(sm_mod, "get_enhanced_market", lambda: market)
         r = await mcp_tools._handle_skills_sync_v2({})
         assert r["success"] is True
@@ -1478,6 +1665,7 @@ class TestSkillsV2:
 
     async def test_sync_v2_exception(self, monkeypatch):
         from pycoder.server import skills_market_v2 as sm_mod
+
         market = MagicMock()
         market.sync_from_all_sources = AsyncMock(side_effect=RuntimeError("sync fail"))
         monkeypatch.setattr(sm_mod, "get_enhanced_market", lambda: market)
@@ -1490,13 +1678,19 @@ class TestSkillsV2:
 # skills_update / skills_market / system_upgrade
 # ══════════════════════════════════════════════════════════
 
+
 class TestSkillsUpdate:
     async def test_success(self, monkeypatch):
         from pycoder.server import skills_updater as su_mod
+
         fetcher = MagicMock()
-        fetcher.fetch_all_sources = AsyncMock(return_value={
-            "success": True, "total_skills": 8, "sources": {"a": 1, "b": 2},
-        })
+        fetcher.fetch_all_sources = AsyncMock(
+            return_value={
+                "success": True,
+                "total_skills": 8,
+                "sources": {"a": 1, "b": 2},
+            }
+        )
         monkeypatch.setattr(su_mod, "get_skills_fetcher", lambda: fetcher)
         r = await mcp_tools._handle_skills_update({})
         assert r["success"] is True
@@ -1507,6 +1701,7 @@ class TestSkillsUpdate:
 class TestSkillsMarket:
     async def test_list(self, monkeypatch):
         from pycoder.server import skills_market as sm_mod
+
         market = MagicMock()
         market.list_skills.return_value = {"items": [], "count": 0}
         monkeypatch.setattr(sm_mod, "get_skills_market", lambda: market)
@@ -1516,6 +1711,7 @@ class TestSkillsMarket:
 
     async def test_sync(self, monkeypatch):
         from pycoder.server import skills_market as sm_mod
+
         market = MagicMock()
         market.sync_from_remote = AsyncMock(return_value={"synced": True})
         monkeypatch.setattr(sm_mod, "get_skills_market", lambda: market)
@@ -1524,6 +1720,7 @@ class TestSkillsMarket:
 
     async def test_install(self, monkeypatch):
         from pycoder.server import skills_market as sm_mod
+
         market = MagicMock()
         market.install_skill.return_value = {"installed": True}
         monkeypatch.setattr(sm_mod, "get_skills_market", lambda: market)
@@ -1532,6 +1729,7 @@ class TestSkillsMarket:
 
     async def test_uninstall(self, monkeypatch):
         from pycoder.server import skills_market as sm_mod
+
         market = MagicMock()
         market.uninstall_skill.return_value = {"uninstalled": True}
         monkeypatch.setattr(sm_mod, "get_skills_market", lambda: market)
@@ -1540,6 +1738,7 @@ class TestSkillsMarket:
 
     async def test_update_all(self, monkeypatch):
         from pycoder.server import skills_market as sm_mod
+
         market = MagicMock()
         market.update_all_skills.return_value = {"updated": 3}
         monkeypatch.setattr(sm_mod, "get_skills_market", lambda: market)
@@ -1548,16 +1747,23 @@ class TestSkillsMarket:
 
     async def test_rate(self, monkeypatch):
         from pycoder.server import skills_market as sm_mod
+
         market = MagicMock()
         market.rate_skill.return_value = {"rated": True}
         monkeypatch.setattr(sm_mod, "get_skills_market", lambda: market)
-        r = await mcp_tools._handle_skills_market({
-            "subcommand": "rate", "skill_id": "x", "rating": 5, "review": "good",
-        })
+        r = await mcp_tools._handle_skills_market(
+            {
+                "subcommand": "rate",
+                "skill_id": "x",
+                "rating": 5,
+                "review": "good",
+            }
+        )
         assert r == {"rated": True}
 
     async def test_detail(self, monkeypatch):
         from pycoder.server import skills_market as sm_mod
+
         market = MagicMock()
         market.get_skill_detail.return_value = {"detail": True}
         monkeypatch.setattr(sm_mod, "get_skills_market", lambda: market)
@@ -1566,16 +1772,21 @@ class TestSkillsMarket:
 
     async def test_publish(self, monkeypatch):
         from pycoder.server import skills_market as sm_mod
+
         market = MagicMock()
         market.publish_skill.return_value = {"published": True}
         monkeypatch.setattr(sm_mod, "get_skills_market", lambda: market)
-        r = await mcp_tools._handle_skills_market({
-            "subcommand": "publish", "skill_data": {"name": "x"},
-        })
+        r = await mcp_tools._handle_skills_market(
+            {
+                "subcommand": "publish",
+                "skill_data": {"name": "x"},
+            }
+        )
         assert r == {"published": True}
 
     async def test_categories(self, monkeypatch):
         from pycoder.server import skills_market as sm_mod
+
         market = MagicMock()
         market.get_categories.return_value = ["ai", "web"]
         monkeypatch.setattr(sm_mod, "get_skills_market", lambda: market)
@@ -1587,8 +1798,14 @@ class TestSkillsMarket:
 class TestSystemUpgrade:
     async def test_check(self, monkeypatch):
         from pycoder.server import auto_upgrade as au_mod
-        monkeypatch.setattr(au_mod, "check_version", lambda: SimpleNamespace(
-            current="1.0", latest="1.1", has_update=True, release_notes="notes"))
+
+        monkeypatch.setattr(
+            au_mod,
+            "check_version",
+            lambda: SimpleNamespace(
+                current="1.0", latest="1.1", has_update=True, release_notes="notes"
+            ),
+        )
         r = await mcp_tools._handle_system_upgrade({"action": "check"})
         assert r["success"] is True
         assert r["has_update"] is True
@@ -1596,35 +1813,58 @@ class TestSystemUpgrade:
 
     async def test_upgrade(self, monkeypatch):
         from pycoder.server import auto_upgrade as au_mod
-        monkeypatch.setattr(au_mod, "run_upgrade", lambda to_version=None, dry_run=False: SimpleNamespace(
-            success=True, from_version="1.0", to_version="1.1", steps=[],
-            error="", duration_ms=100))
-        r = await mcp_tools._handle_system_upgrade({
-            "action": "upgrade", "target_version": "1.1", "dry_run": True,
-        })
+
+        monkeypatch.setattr(
+            au_mod,
+            "run_upgrade",
+            lambda to_version=None, dry_run=False: SimpleNamespace(
+                success=True,
+                from_version="1.0",
+                to_version="1.1",
+                steps=[],
+                error="",
+                duration_ms=100,
+            ),
+        )
+        r = await mcp_tools._handle_system_upgrade(
+            {
+                "action": "upgrade",
+                "target_version": "1.1",
+                "dry_run": True,
+            }
+        )
         assert r["success"] is True
         assert r["to_version"] == "1.1"
 
     async def test_health(self, monkeypatch):
         from pycoder.server import auto_upgrade as au_mod
-        monkeypatch.setattr(au_mod, "health_check", lambda: SimpleNamespace(
-            passed=True, checks={}, warnings=[], errors=[]))
+
+        monkeypatch.setattr(
+            au_mod,
+            "health_check",
+            lambda: SimpleNamespace(passed=True, checks={}, warnings=[], errors=[]),
+        )
         r = await mcp_tools._handle_system_upgrade({"action": "health"})
         assert r["success"] is True
         assert r["checks"] == {}
 
     async def test_status(self, monkeypatch):
         from pycoder.server import auto_upgrade as au_mod
+
         monkeypatch.setattr(au_mod, "get_upgrade_status", lambda: {"state": "idle"})
         r = await mcp_tools._handle_system_upgrade({"action": "status"})
         assert r == {"state": "idle"}
 
     async def test_diff(self, monkeypatch):
         from pycoder.server import auto_upgrade as au_mod
+
         monkeypatch.setattr(au_mod, "get_snapshot_diff", lambda sid: {"diff": True})
-        r = await mcp_tools._handle_system_upgrade({
-            "action": "diff", "snapshot_id": "snap1",
-        })
+        r = await mcp_tools._handle_system_upgrade(
+            {
+                "action": "diff",
+                "snapshot_id": "snap1",
+            }
+        )
         assert r == {"diff": True}
 
     async def test_unknown_action(self):
@@ -1637,6 +1877,7 @@ class TestSystemUpgrade:
 # MCPClientManager
 # ══════════════════════════════════════════════════════════
 
+
 class TestMCPClientManager:
     def test_connected_servers_empty(self):
         m = MCPClientManager()
@@ -1647,11 +1888,14 @@ class TestMCPClientManager:
         m = MCPClientManager()
         # 让 from mcp import ... 失败
         import builtins
+
         orig_import = builtins.__import__
+
         def fake_import(name, *args, **kwargs):
             if name == "mcp" or name.startswith("mcp."):
                 raise ImportError("no mcp")
             return orig_import(name, *args, **kwargs)
+
         monkeypatch.setattr(builtins, "__import__", fake_import)
 
         result = await m.connect_stdio("test", "some-command")
@@ -1665,6 +1909,7 @@ class TestMCPClientManager:
 
         async def boom_stdio(params):
             raise RuntimeError("connect failed")
+
         fake_client_mod.stdio_client = boom_stdio
         fake_client_mod.StdioServerParameters = MagicMock()
         fake_mcp_mod.ClientSession = MagicMock()
@@ -1684,8 +1929,7 @@ class TestMCPClientManager:
 
     async def test_list_remote_tools_success(self):
         m = MCPClientManager()
-        fake_tool = SimpleNamespace(
-            name="t1", description="d", inputSchema={"type": "object"})
+        fake_tool = SimpleNamespace(name="t1", description="d", inputSchema={"type": "object"})
         fake_session = MagicMock()
         fake_session.list_tools = AsyncMock(return_value=SimpleNamespace(tools=[fake_tool]))
         m._servers["srv"] = {"session": fake_session}
@@ -1764,6 +2008,7 @@ class TestMCPClientManager:
 # ══════════════════════════════════════════════════════════
 # get_mcp_client_manager singleton
 # ══════════════════════════════════════════════════════════
+
 
 class TestGetMCPClientManager:
     def test_singleton(self, monkeypatch):

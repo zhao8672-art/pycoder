@@ -13,10 +13,10 @@
 3. 反向亦然
 4. 跨平台 shell 脚本移植（处理 && / || / 管道 / 重定向）
 """
+
 from __future__ import annotations
 
 import re
-import shutil
 import sys
 from dataclasses import dataclass
 from typing import Literal
@@ -99,14 +99,26 @@ COMMAND_MAP: dict[str, dict[str, str]] = {
     "ip": {"windows": "ipconfig", "linux": "ip", "mac": "ifconfig"},
     "wget": {"windows": "curl -O", "linux": "wget", "mac": "curl -O"},
     # 文本处理
-    "head": {"windows": "powershell -Command \"Get-Content $FILE -Head 10\"", "linux": "head", "mac": "head"},
-    "tail": {"windows": "powershell -Command \"Get-Content $FILE -Tail 10\"", "linux": "tail", "mac": "tail"},
-    "wc": {"windows": "find /c /v \"\"", "linux": "wc", "mac": "wc"},
-    "uniq": {"windows": "powershell -Command \"Get-Content $FILE | Sort-Object -Unique\"", "linux": "uniq", "mac": "uniq"},
+    "head": {
+        "windows": 'powershell -Command "Get-Content $FILE -Head 10"',
+        "linux": "head",
+        "mac": "head",
+    },
+    "tail": {
+        "windows": 'powershell -Command "Get-Content $FILE -Tail 10"',
+        "linux": "tail",
+        "mac": "tail",
+    },
+    "wc": {"windows": 'find /c /v ""', "linux": "wc", "mac": "wc"},
+    "uniq": {
+        "windows": 'powershell -Command "Get-Content $FILE | Sort-Object -Unique"',
+        "linux": "uniq",
+        "mac": "uniq",
+    },
     "diff": {"windows": "fc", "linux": "diff", "mac": "diff"},
     # 压缩
-    "zip": {"windows": "powershell -Command \"Compress-Archive\"", "linux": "zip", "mac": "zip"},
-    "unzip": {"windows": "powershell -Command \"Expand-Archive\"", "linux": "unzip", "mac": "unzip"},
+    "zip": {"windows": 'powershell -Command "Compress-Archive"', "linux": "zip", "mac": "zip"},
+    "unzip": {"windows": 'powershell -Command "Expand-Archive"', "linux": "unzip", "mac": "unzip"},
     # 环境
     "export": {"windows": "set", "linux": "export", "mac": "export"},
 }
@@ -203,9 +215,7 @@ class ShellTranslator:
         tokens = self._tokenize(translated_cmd)
         translated_tokens: list[str] = []
         for token in tokens:
-            translated = self._translate_token(
-                token, source_platform, target_platform
-            )
+            translated = self._translate_token(token, source_platform, target_platform)
             if translated != token:
                 cmd_name = token.split()[0] if token else ""
                 if cmd_name in self._map:
@@ -241,9 +251,7 @@ class ShellTranslator:
             # 没有 &&/|| — 但若 source=windows, 需把 if/else 反向还原
             if source == "windows" and target in ("linux", "mac"):
                 # 直接返回, 避免 _translate_simple_operators 把 && / || 加多余空格
-                return self._collapse_windows_ifs(
-                    command, target, mappings_applied
-                )
+                return self._collapse_windows_ifs(command, target, mappings_applied)
             return self._translate_simple_operators(command, target)
 
         if target == "windows":
@@ -257,9 +265,7 @@ class ShellTranslator:
                     if i == 0:
                         expanded.append(part)
                     else:
-                        expanded.append(
-                            f"; if ($LASTEXITCODE -eq 0) {{ {part} }}"
-                        )
+                        expanded.append(f"; if ($LASTEXITCODE -eq 0) {{ {part} }}")
                 result = " ".join(expanded)
                 if "&&" in command:
                     mappings_applied.append("&&")
@@ -284,9 +290,7 @@ class ShellTranslator:
             if i == 0:
                 expanded.append(part)
             else:
-                expanded.append(
-                    f"; if ($LASTEXITCODE -ne 0) {{ {part} }}"
-                )
+                expanded.append(f"; if ($LASTEXITCODE -ne 0) {{ {part} }}")
         mappings_applied.append("||")
         return " ".join(expanded)
 

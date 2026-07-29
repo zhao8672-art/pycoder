@@ -451,6 +451,7 @@ class TokenEstimator:
         Returns:
             预估报告
         """
+
         # 简单估算：每字符 ~0.25 token
         # P2-D: 内联 estimate_tokens 避免循环依赖 (providers -> server)
         def _estimate_tokens(text: str) -> int:

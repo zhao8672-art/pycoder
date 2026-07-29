@@ -12,13 +12,12 @@
   - 直接调用方法，AsyncMock 模拟 send_func
   - 用 monkeypatch 重置全局单例避免污染
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock
-
-import pytest
 
 from pycoder.server import realtime_collab as rc_mod
 from pycoder.server.realtime_collab import (
@@ -26,10 +25,10 @@ from pycoder.server.realtime_collab import (
     get_collab_engine,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # create_room / join / leave
 # ══════════════════════════════════════════════════════════
+
 
 class TestRoomManagement:
     def test_create_room_with_content(self):
@@ -106,6 +105,7 @@ class TestRoomManagement:
 # apply_operation
 # ══════════════════════════════════════════════════════════
 
+
 class TestApplyOperation:
     async def test_room_not_exists(self):
         e = RealtimeCollabEngine()
@@ -116,9 +116,15 @@ class TestApplyOperation:
     async def test_insert_operation(self):
         e = RealtimeCollabEngine()
         e.create_room("r1", content="hello")
-        r = await e.apply_operation("r1", "c1", {
-            "type": "insert", "position": 2, "text": "XXX",
-        })
+        r = await e.apply_operation(
+            "r1",
+            "c1",
+            {
+                "type": "insert",
+                "position": 2,
+                "text": "XXX",
+            },
+        )
         assert r["success"] is True
         assert r["version"] == 1
         assert e._documents["r1"] == "heXXXllo"
@@ -134,9 +140,15 @@ class TestApplyOperation:
     async def test_delete_operation(self):
         e = RealtimeCollabEngine()
         e.create_room("r1", content="hello")
-        r = await e.apply_operation("r1", "c1", {
-            "type": "delete", "position": 0, "length": 2,
-        })
+        r = await e.apply_operation(
+            "r1",
+            "c1",
+            {
+                "type": "delete",
+                "position": 0,
+                "length": 2,
+            },
+        )
         assert r["success"] is True
         assert e._documents["r1"] == "llo"
 
@@ -152,18 +164,29 @@ class TestApplyOperation:
         """pos >= len(doc) → 不删除"""
         e = RealtimeCollabEngine()
         e.create_room("r1", content="hi")
-        r = await e.apply_operation("r1", "c1", {
-            "type": "delete", "position": 10, "length": 5,
-        })
+        r = await e.apply_operation(
+            "r1",
+            "c1",
+            {
+                "type": "delete",
+                "position": 10,
+                "length": 5,
+            },
+        )
         assert r["success"] is True
         assert e._documents["r1"] == "hi"  # 未变
 
     async def test_replace_operation(self):
         e = RealtimeCollabEngine()
         e.create_room("r1", content="old")
-        r = await e.apply_operation("r1", "c1", {
-            "type": "replace", "content": "brand new",
-        })
+        r = await e.apply_operation(
+            "r1",
+            "c1",
+            {
+                "type": "replace",
+                "content": "brand new",
+            },
+        )
         assert r["success"] is True
         assert e._documents["r1"] == "brand new"
 
@@ -262,6 +285,7 @@ class TestApplyOperation:
 # update_cursor
 # ══════════════════════════════════════════════════════════
 
+
 class TestUpdateCursor:
     def test_room_not_exists(self):
         """房间不存在 → 静默返回"""
@@ -328,6 +352,7 @@ class TestUpdateCursor:
     async def test_update_cursor_create_task_os_error(self, monkeypatch):
         """asyncio.create_task 抛 OSError → 静默捕获"""
         import asyncio as aio
+
         e = RealtimeCollabEngine()
         e.create_room("r1", content="x")
         e.join("r1", "c1", AsyncMock())
@@ -339,6 +364,7 @@ class TestUpdateCursor:
             # 先关闭协程避免警告
             coro.close()
             raise OSError("system err")
+
         monkeypatch.setattr(aio, "create_task", boom)
 
         # 不应抛出异常
@@ -349,6 +375,7 @@ class TestUpdateCursor:
 # ══════════════════════════════════════════════════════════
 # list_rooms
 # ══════════════════════════════════════════════════════════
+
 
 class TestListRooms:
     def test_empty(self):
@@ -374,6 +401,7 @@ class TestListRooms:
 # ══════════════════════════════════════════════════════════
 # get_collab_engine 单例
 # ══════════════════════════════════════════════════════════
+
 
 class TestGetCollabEngine:
     def test_singleton(self, monkeypatch):

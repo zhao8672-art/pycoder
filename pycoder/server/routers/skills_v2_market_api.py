@@ -515,7 +515,8 @@ async def publish_skill(payload: SkillPublishRequest = Body(...)) -> dict:
             tags=payload.tags,
             dependencies=payload.dependencies,
             version=payload.version,
-            markdown_content=payload.markdown_content or f"# {payload.name}\n\n{payload.description}",
+            markdown_content=payload.markdown_content
+            or f"# {payload.name}\n\n{payload.description}",
             source_url=payload.source_url,
             homepage_url=payload.homepage_url,
             license=payload.license,
@@ -528,7 +529,8 @@ async def publish_skill(payload: SkillPublishRequest = Body(...)) -> dict:
         # 注册首版本
         if payload.version:
             await marketplace.add_version(
-                payload.id, payload.version,
+                payload.id,
+                payload.version,
                 changelog="初始发布",
             )
         return _ok(result)

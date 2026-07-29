@@ -5,28 +5,29 @@
     2. PathValidator: 路径遍历防护
     3. safe_str_field: Pydantic Field 工厂
 """
+
 from __future__ import annotations
 
 import re
 import unicodedata
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field
 
 # ── 命令注入防护 ──────────────────────────────────────────────
 # 危险 shell 元字符集合（与 OWASP 保持一致）
 SHELL_METACHARACTERS = re.compile(r"[;|&`$<>\\!\n\r\t\x00-\x1f]")
 # 常见 shell 注入模式
 SHELL_INJECTION_PATTERNS = [
-    re.compile(r";\s*\w"),       # ; command
-    re.compile(r"\|\s*\w"),      # | command
-    re.compile(r"`[^`]*`"),      # `command`
+    re.compile(r";\s*\w"),  # ; command
+    re.compile(r"\|\s*\w"),  # | command
+    re.compile(r"`[^`]*`"),  # `command`
     re.compile(r"\$\([^)]*\)"),  # $(command)
-    re.compile(r"&&\s*\w"),      # && command
-    re.compile(r"\|\|\s*\w"),    # || command
-    re.compile(r">\s*[/\\]"),    # > redirect
-    re.compile(r"<\s*[/\\]"),    # < redirect
-    re.compile(r"\n\s*\w"),      # newline injection
+    re.compile(r"&&\s*\w"),  # && command
+    re.compile(r"\|\|\s*\w"),  # || command
+    re.compile(r">\s*[/\\]"),  # > redirect
+    re.compile(r"<\s*[/\\]"),  # < redirect
+    re.compile(r"\n\s*\w"),  # newline injection
 ]
 
 
@@ -59,15 +60,15 @@ def sanitize_shell_command(value: str, *, allow_shell: bool = False) -> str:
             )
         for pat in SHELL_INJECTION_PATTERNS:
             if pat.search(value):
-                raise ValueError(
-                    f"command matches injection pattern: {pat.pattern}"
-                )
+                raise ValueError(f"command matches injection pattern: {pat.pattern}")
 
     # Unicode 规范化（防止同形字符绕过）
     return unicodedata.normalize("NFKC", value).strip()
 
 
-def safe_command_field(*, default: str = "", description: str = "Shell command (no shell metacharacters allowed)"):
+def safe_command_field(
+    *, default: str = "", description: str = "Shell command (no shell metacharacters allowed)"
+):
     """Pydantic Field 工厂 — 自动应用 shell 注入校验。"""
     return Field(default, description=description)
 
@@ -128,19 +129,23 @@ def sanitize_path(value: str, allowed_roots: list[Path] | None = None) -> str:
 # ── Pydantic 验证器包装器 ──────────────────────────────────
 def command_validator(*, allow_shell: bool = False):
     """生成 Pydantic field_validator，自动调用 sanitize_shell_command。"""
+
     def _validator(cls, v):
         if v is None:
             return v
         return sanitize_shell_command(v, allow_shell=allow_shell)
+
     return _validator
 
 
 def path_validator(*, allowed_roots: list[Path] | None = None):
     """生成 Pydantic field_validator，自动调用 sanitize_path。"""
+
     def _validator(cls, v):
         if v is None:
             return v
         return sanitize_path(v, allowed_roots=allowed_roots)
+
     return _validator
 
 

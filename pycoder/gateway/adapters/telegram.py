@@ -57,9 +57,11 @@ class TelegramAdapter(PlatformAdapter):
         根据配置选择轮询或 Webhook 模式。
         """
         self._running = True
-        logger.info("Telegram 适配器已启动 (token=%s..., polling=%s)",
-                    self._bot_token[:8] if self._bot_token else "N/A",
-                    not self._use_webhook)
+        logger.info(
+            "Telegram 适配器已启动 (token=%s..., polling=%s)",
+            self._bot_token[:8] if self._bot_token else "N/A",
+            not self._use_webhook,
+        )
 
         if self._use_webhook and self._webhook_url:
             await self._start_webhook()

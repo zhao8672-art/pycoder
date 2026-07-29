@@ -21,6 +21,7 @@
     - 用 monkeypatch 替换模块级 _manager（ExtensionManager）与 search_extensions
     - 用 tmp_path / monkeypatch Path.home() 隔离文件系统副作用
 """
+
 from __future__ import annotations
 
 import json
@@ -32,7 +33,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pycoder.server.routers import extensions as ext_mod
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -91,6 +91,7 @@ class TestSearch:
 
     def test_search_default(self, client, monkeypatch):
         """默认搜索 — 返回的扩展会标记 installed=False"""
+
         async def fake_search(q, category, limit, offset):
             return {
                 "extensions": [
@@ -99,6 +100,7 @@ class TestSearch:
                 ],
                 "total": 2,
             }
+
         monkeypatch.setattr(ext_mod, "search_extensions", fake_search)
 
         resp = client.get("/api/extensions/search")
@@ -115,6 +117,7 @@ class TestSearch:
 
         async def fake_search(q, category, limit, offset):
             return {"extensions": [{"id": "ext.a", "name": "A"}], "total": 1}
+
         monkeypatch.setattr(ext_mod, "search_extensions", fake_search)
 
         resp = client.get("/api/extensions/search?q=test")
@@ -207,6 +210,7 @@ class TestInstall:
         # search_extensions 返回空（GitHub 不可用）
         async def fake_search(q):
             return {"extensions": []}
+
         monkeypatch.setattr(ext_mod, "search_extensions", fake_search)
 
         resp = client.post(
@@ -229,11 +233,8 @@ class TestInstall:
         mock_manager.install.return_value = True
 
         async def fake_search(q):
-            return {
-                "extensions": [
-                    {"id": "ext.found", "name": "Found", "version": "2.0.0"}
-                ]
-            }
+            return {"extensions": [{"id": "ext.found", "name": "Found", "version": "2.0.0"}]}
+
         monkeypatch.setattr(ext_mod, "search_extensions", fake_search)
 
         resp = client.post(
@@ -252,6 +253,7 @@ class TestInstall:
 
         async def fake_search(q):
             raise RuntimeError("network error")
+
         monkeypatch.setattr(ext_mod, "search_extensions", fake_search)
 
         resp = client.post(
@@ -269,6 +271,7 @@ class TestInstall:
 
         async def fake_search(q):
             return {"extensions": []}
+
         monkeypatch.setattr(ext_mod, "search_extensions", fake_search)
 
         resp = client.post(
@@ -284,6 +287,7 @@ class TestInstall:
 
         async def fake_search(q):
             return {"extensions": []}
+
         monkeypatch.setattr(ext_mod, "search_extensions", fake_search)
 
         # 关闭 raise_server_exceptions 让 FastAPI 返回 500 而非抛出

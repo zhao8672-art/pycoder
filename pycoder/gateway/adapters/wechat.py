@@ -69,7 +69,7 @@ class WeChatAdapter(PlatformAdapter):
         self._running = True
         mode_name = "企业微信" if self._mode == "wecom" else "公众号"
         logger.info(
-            "微信适配器已启动 (mode=%s, app_id=%s...)", 
+            "微信适配器已启动 (mode=%s, app_id=%s...)",
             mode_name,
             self._app_id[:8] if self._app_id else "N/A",
         )
@@ -250,6 +250,7 @@ class WeChatAdapter(PlatformAdapter):
         """
         try:
             import xml.etree.ElementTree as ET
+
             root = ET.fromstring(xml_str)
             msg_dict: dict[str, Any] = {}
             for child in root:
@@ -280,7 +281,9 @@ class WeChatAdapter(PlatformAdapter):
                 session_id=f"wx_{from_user}",
                 content=content,
                 message_type="text",
-                timestamp=float(create_time) if isinstance(create_time, (int, float)) else time.time(),
+                timestamp=(
+                    float(create_time) if isinstance(create_time, (int, float)) else time.time()
+                ),
                 metadata={
                     "msg_type": msg_type,
                     "msg_id": str(getattr(msg, "MsgId", "")),

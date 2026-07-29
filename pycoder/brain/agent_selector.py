@@ -16,7 +16,6 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Any
 
 from pycoder.brain.intent_analyzer import IntentAnalysis
 
@@ -260,11 +259,9 @@ class AgentSelector:
 
         # 辅助 Agent (得分 > 60% 的其他 Agent)
         threshold = primary_score * 0.6
-        secondaries = [
-            agent_id
-            for agent_id, scores in scored[1:]
-            if scores["total"] >= threshold
-        ][:2]  # 最多 2 个辅助
+        secondaries = [agent_id for agent_id, scores in scored[1:] if scores["total"] >= threshold][
+            :2
+        ]  # 最多 2 个辅助
 
         return AgentSelection(
             primary_agent=primary,
@@ -301,7 +298,9 @@ class AgentSelector:
         results.sort(key=lambda x: x[1]["total"], reverse=True)
         return results
 
-    def _calculate_scores(self, intent: IntentAnalysis, agent_id: str, capability: dict) -> dict[str, float]:
+    def _calculate_scores(
+        self, intent: IntentAnalysis, agent_id: str, capability: dict
+    ) -> dict[str, float]:
         """计算各维度得分"""
         scores: dict[str, float] = {}
 
@@ -356,7 +355,9 @@ class AgentSelector:
             success = history["success"]
             return (success / total) * 100
 
-    def _build_reason(self, intent: IntentAnalysis, agent_id: str, capability: dict, scores: dict) -> str:
+    def _build_reason(
+        self, intent: IntentAnalysis, agent_id: str, capability: dict, scores: dict
+    ) -> str:
         """构建选择理由"""
         parts = []
         agent_name = capability.get("name", agent_id)
@@ -399,8 +400,12 @@ class AgentSelector:
     def list_agents(self) -> list[dict]:
         """列出所有可用 Agent"""
         return [
-            {"id": agent_id, "name": cap["name"], "description": cap["description"],
-             "suitable_for": cap.get("suitable_for", "")}
+            {
+                "id": agent_id,
+                "name": cap["name"],
+                "description": cap["description"],
+                "suitable_for": cap.get("suitable_for", ""),
+            }
             for agent_id, cap in self._capability_matrix.items()
             if agent_id != "none"
         ]

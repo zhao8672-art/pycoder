@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-from pycoder.server.session_store import get_session_store
-
 
 def test_create_session(fresh_store):
     store = fresh_store

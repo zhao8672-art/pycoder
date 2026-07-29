@@ -1,4 +1,5 @@
 """P2-2: Multimodal API 单元测试"""
+
 from __future__ import annotations
 
 import base64
@@ -23,8 +24,9 @@ def client():
 def sample_png_bytes():
     """创建一个最小的有效 PNG 图片 (1x1 红色像素)"""
     try:
-        from PIL import Image
         from io import BytesIO
+
+        from PIL import Image
 
         img = Image.new("RGB", (1, 1), color=(255, 0, 0))
         buf = BytesIO()
@@ -159,8 +161,8 @@ def test_screenshot_error_endpoint(client, sample_png_bytes, monkeypatch):
 
 def test_screenshot_chart_endpoint(client, sample_png_bytes, monkeypatch):
     """图表截图分析端点 — Mock 视觉/OCR 避免真实 API"""
-    from pycoder.multimodal import vision_client as vc
     from pycoder.multimodal import ocr_engine as oe
+    from pycoder.multimodal import vision_client as vc
 
     async def _fake_analyze(self, image_data, prompt="描述这张图片"):
         return "mock chart: line chart, x=time y=value, 上升趋势"
@@ -205,7 +207,14 @@ def test_ocr_endpoint(client, sample_png_bytes, monkeypatch):
 
 def test_all_allowed_image_types(client):
     """所有允许的图片类型应被接受（类型校验）"""
-    for content_type in ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp", "image/bmp"]:
+    for content_type in [
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/gif",
+        "image/webp",
+        "image/bmp",
+    ]:
         # 用最小字节模拟
         response = client.post(
             "/api/multimodal/upload",

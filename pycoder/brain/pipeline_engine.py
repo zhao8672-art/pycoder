@@ -34,36 +34,39 @@ import asyncio
 import logging
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
+from pycoder.core.retry_policy import ErrorSeverity, RetryPolicy
+from pycoder.core.services.audit_logger import get_audit_logger
+from pycoder.core.services.task_grader import TaskGrade, get_task_grader
 from pycoder.safety.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
-from pycoder.core.retry_policy import RetryPolicy, ErrorSeverity
-from pycoder.core.services.audit_logger import AuditLogger, get_audit_logger
-from pycoder.core.services.task_grader import TaskGrader, TaskGrade, GradeLevel, get_task_grader
 
 logger = logging.getLogger(__name__)
 
 
 class PipelinePhase(StrEnum):
     """流水线阶段"""
-    PENDING = "pending"         # 等待中
-    INTAKE = "intake"           # 1. 任务接入与需求解析
-    DESIGN = "design"           # 2. 架构设计与技术选型
-    DECOMPOSE = "decompose"     # 3. 任务 DAG 拆解与调度规划
-    ENV_SETUP = "env_setup"     # 4. 环境初始化与前置准备
-    DEVELOP = "develop"         # 5. 迭代开发 + 自测提交
-    TEST = "test"               # 6. 全量测试 + 问题闭环
-    DEPLOY = "deploy"           # 7. 部署验证与交付验收
-    REVIEW = "review"           # 8. 文档沉淀 + 自动复盘 + 能力迭代
-    DONE = "done"               # 完成
-    FAILED = "failed"           # 失败
+
+    PENDING = "pending"  # 等待中
+    INTAKE = "intake"  # 1. 任务接入与需求解析
+    DESIGN = "design"  # 2. 架构设计与技术选型
+    DECOMPOSE = "decompose"  # 3. 任务 DAG 拆解与调度规划
+    ENV_SETUP = "env_setup"  # 4. 环境初始化与前置准备
+    DEVELOP = "develop"  # 5. 迭代开发 + 自测提交
+    TEST = "test"  # 6. 全量测试 + 问题闭环
+    DEPLOY = "deploy"  # 7. 部署验证与交付验收
+    REVIEW = "review"  # 8. 文档沉淀 + 自动复盘 + 能力迭代
+    DONE = "done"  # 完成
+    FAILED = "failed"  # 失败
 
 
 class PipelinePhaseStatus(StrEnum):
     """阶段状态"""
+
     PENDING = "pending"
     RUNNING = "running"
     PASSED = "passed"
@@ -74,6 +77,7 @@ class PipelinePhaseStatus(StrEnum):
 @dataclass
 class PipelinePhaseResult:
     """阶段执行结果"""
+
     phase: PipelinePhase
     status: PipelinePhaseStatus = PipelinePhaseStatus.PENDING
     started_at: float = 0.0
@@ -103,6 +107,7 @@ class PipelinePhaseResult:
 @dataclass
 class PipelineResult:
     """流水线执行结果"""
+
     pipeline_id: str
     task: str
     status: PipelinePhase = PipelinePhase.PENDING
@@ -181,7 +186,8 @@ class PipelineEngine:
         self._audit_logger = get_audit_logger() if enable_audit else None
         self._circuit_breaker = (
             CircuitBreaker("pipeline_engine", CircuitBreakerConfig(failure_threshold=5))
-            if enable_circuit_breaker else None
+            if enable_circuit_breaker
+            else None
         )
         self._retry_policy = RetryPolicy(max_retries=max_retries)
 
@@ -192,9 +198,7 @@ class PipelineEngine:
         self._active_pipelines: dict[str, PipelineResult] = {}
         self._completed_pipelines: list[PipelineResult] = []
 
-    def register_phase_executor(
-        self, phase: PipelinePhase, executor: Callable
-    ) -> None:
+    def register_phase_executor(self, phase: PipelinePhase, executor: Callable) -> None:
         """注册阶段执行器
 
         Args:
@@ -237,7 +241,10 @@ class PipelineEngine:
         grade = self._grader.assess(task, ctx)
         logger.info(
             "流水线[%s]: 难度=%s 评分=%.1f 步数=%d",
-            pipeline_id, grade.level.name, grade.score, grade.max_iterations,
+            pipeline_id,
+            grade.level.name,
+            grade.score,
+            grade.max_iterations,
         )
 
         # 2. 初始化结果
@@ -264,8 +271,14 @@ class PipelineEngine:
                 # 执行阶段
                 try:
                     phase_result = await self._execute_phase(
-                        pipeline_id, phase, phase_name, phase_result,
-                        ctx, grade, gate_level, phase_hooks,
+                        pipeline_id,
+                        phase,
+                        phase_name,
+                        phase_result,
+                        ctx,
+                        grade,
+                        gate_level,
+                        phase_hooks,
                     )
                     result.phases[phase] = phase_result
 
@@ -352,13 +365,17 @@ class PipelineEngine:
         # 带重试的执行
         for attempt in range(self._max_retries + 1):
             try:
-                phase_result = await executor(pipeline_id, phase_result, {
-                    "phase": phase,
-                    "phase_name": phase_name,
-                    "context": ctx,
-                    "grade": grade,
-                    "gate_level": gate_level,
-                })
+                phase_result = await executor(
+                    pipeline_id,
+                    phase_result,
+                    {
+                        "phase": phase,
+                        "phase_name": phase_name,
+                        "context": ctx,
+                        "grade": grade,
+                        "gate_level": gate_level,
+                    },
+                )
                 phase_result.retry_count = attempt
                 break
             except Exception as e:
@@ -368,7 +385,7 @@ class PipelineEngine:
                     phase_result.status = PipelinePhaseStatus.FAILED
                     phase_result.error = str(e)
                     break
-                await asyncio.sleep(2 ** attempt)  # 指数退避
+                await asyncio.sleep(2**attempt)  # 指数退避
 
         phase_result.completed_at = time.time()
         phase_result.duration_ms = (phase_result.completed_at - phase_result.started_at) * 1000
@@ -377,12 +394,12 @@ class PipelineEngine:
         if self._enable_quality_gates and phase_result.status == PipelinePhaseStatus.RUNNING:
             try:
                 from pycoder.brain.quality_gate import QualityGate
+
                 gate = QualityGate()
                 gate_result = gate.check(phase, phase_result.output, gate_level)
                 phase_result.quality_score = gate_result.score
                 phase_result.status = (
-                    PipelinePhaseStatus.PASSED if gate_result.passed
-                    else PipelinePhaseStatus.FAILED
+                    PipelinePhaseStatus.PASSED if gate_result.passed else PipelinePhaseStatus.FAILED
                 )
                 if not gate_result.passed:
                     phase_result.error = f"质量门禁 L{gate_level} 未通过: {gate_result.reasons}"
@@ -391,8 +408,11 @@ class PipelineEngine:
 
         logger.info(
             "流水线[%s] %s: status=%s score=%.1f duration=%.0fms",
-            pipeline_id, phase_name, phase_result.status.value,
-            phase_result.quality_score, phase_result.duration_ms,
+            pipeline_id,
+            phase_name,
+            phase_result.status.value,
+            phase_result.quality_score,
+            phase_result.duration_ms,
         )
         return phase_result
 
@@ -459,7 +479,7 @@ class PipelineEngine:
         """生成标准化执行报告"""
         lines = [
             "=" * 60,
-            f"PyCoder 流水线执行报告",
+            "PyCoder 流水线执行报告",
             "=" * 60,
             f"流水线 ID: {result.pipeline_id}",
             f"任务: {result.task[:200]}",
@@ -470,7 +490,7 @@ class PipelineEngine:
             "阶段执行详情:",
         ]
 
-        for phase, phase_name, required, gate_level in self.STAGES:
+        for phase, phase_name, _required, _gate_level in self.STAGES:
             phase_result = result.phases.get(phase)
             if phase_result is None:
                 lines.append(f"  {phase_name}: 未执行")

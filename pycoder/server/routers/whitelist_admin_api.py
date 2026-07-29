@@ -2,12 +2,12 @@
 
 提供最高权限管理能力，避免 LLM 因白名单配置错误而无法调用工具。
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ router = APIRouter(prefix="/api/admin/whitelist", tags=["admin-whitelist"])
 
 class WhitelistStatus(BaseModel):
     """白名单当前状态"""
+
     mode: str = Field(..., description="allow_all / deny_all / allowlist")
     allowed_count: int
     denied_count: int
@@ -38,6 +39,7 @@ class WhitelistStatus(BaseModel):
 
 class WhitelistModeUpdate(BaseModel):
     """修改白名单模式"""
+
     mode: str = Field(..., description="allow_all / deny_all / allowlist")
 
 
@@ -111,7 +113,6 @@ async def force_allow_all() -> dict:
 async def reload_whitelist_config() -> dict:
     """重新加载 config/tool_whitelist.yaml 配置"""
     from pycoder.safety.tool_whitelist import (
-        WhitelistMode,
         get_tool_whitelist,
         reset_tool_whitelist,
     )

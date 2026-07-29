@@ -14,14 +14,14 @@ from __future__ import annotations
 import logging
 import time
 
+from pycoder.ai.interface.base import INaturalLanguageUnderstanding
 from pycoder.ai.interface.types import (
     NLUResult,
     ProviderCapability,
 )
-from pycoder.ai.interface.base import INaturalLanguageUnderstanding
-from pycoder.ai.nlu.rule_classifier import RuleClassifier
-from pycoder.ai.nlu.embedding_matcher import EmbeddingMatcher
 from pycoder.ai.nlu.deep_analyzer import DeepAnalyzer
+from pycoder.ai.nlu.embedding_matcher import EmbeddingMatcher
+from pycoder.ai.nlu.rule_classifier import RuleClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +37,7 @@ class CompositeNLUEngine(INaturalLanguageUnderstanding):
         self._embedding = EmbeddingMatcher()
         self._deep = DeepAnalyzer()
 
-    async def understand(
-        self, text: str, context: dict | None = None
-    ) -> NLUResult:
+    async def understand(self, text: str, context: dict | None = None) -> NLUResult:
         """理解自然语言 — 三层管道
 
         策略:
@@ -133,7 +131,7 @@ class CompositeNLUEngine(INaturalLanguageUnderstanding):
             clean = text.strip()
             for prefix in ["帮我", "我想", "我需要", "请", "请问", "能不能", "可以吗"]:
                 if clean.startswith(prefix):
-                    clean = clean[len(prefix):].strip()
+                    clean = clean[len(prefix) :].strip()
             return clean
         return text
 

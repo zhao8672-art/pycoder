@@ -28,6 +28,7 @@
     with LogContext(trace_id="abc123", user_id="u1"):
         log.info("processing")  # 自动带 trace_id 和 user_id
 """
+
 from __future__ import annotations
 
 import contextvars
@@ -35,24 +36,14 @@ import json
 import logging
 import sys
 import threading
-import time
-from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
 # ── 上下文变量（contextvars 保证 async 安全）──────────────────
-_trace_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
-    "log_trace_id", default=""
-)
-_span_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
-    "log_span_id", default=""
-)
-_user_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
-    "log_user_id", default=""
-)
-_session_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
-    "log_session_id", default=""
-)
+_trace_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("log_trace_id", default="")
+_span_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("log_span_id", default="")
+_user_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("log_user_id", default="")
+_session_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("log_session_id", default="")
 _extra_vars: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar(
     "log_extra", default={}
 )
@@ -100,7 +91,7 @@ class LogContext:
             self._new_values["extra"] = extra
         self._tokens: list[Any] = []
 
-    def __enter__(self) -> "LogContext":
+    def __enter__(self) -> LogContext:
         for key, value in self._new_values.items():
             if key == "trace_id":
                 self._tokens.append(_trace_id_var.set(value))
@@ -124,7 +115,7 @@ class LogContext:
             except (ValueError, LookupError):
                 pass
 
-    async def __aenter__(self) -> "LogContext":
+    async def __aenter__(self) -> LogContext:
         return self.__enter__()
 
     async def __aexit__(self, *exc: Any) -> None:
@@ -360,9 +351,7 @@ class StructuredLogger:
                 sink.emit(record)
             except Exception as e:
                 # sink 失败不能影响主流程
-                sys.stderr.write(
-                    f"log_sink_failed sink={type(sink).__name__} error={e}\n"
-                )
+                sys.stderr.write(f"log_sink_failed sink={type(sink).__name__} error={e}\n")
 
 
 def _level_to_value(level: str) -> int:
@@ -489,10 +478,27 @@ class StructuredFormatter(logging.Formatter):
         # 额外字段
         for key, value in record.__dict__.items():
             if key not in {
-                "name", "msg", "args", "levelname", "levelno", "pathname",
-                "filename", "module", "exc_info", "exc_text", "stack_info",
-                "lineno", "funcName", "created", "msecs", "relativeCreated",
-                "thread", "threadName", "processName", "process", "message",
+                "name",
+                "msg",
+                "args",
+                "levelname",
+                "levelno",
+                "pathname",
+                "filename",
+                "module",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "funcName",
+                "created",
+                "msecs",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "processName",
+                "process",
+                "message",
             }:
                 log_data[key] = value
 

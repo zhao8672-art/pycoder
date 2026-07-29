@@ -3,4 +3,5 @@
 包含的路由：
     - routers/extensions.py
 """
+
 from __future__ import annotations

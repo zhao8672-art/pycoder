@@ -8,6 +8,7 @@ P0-3 升级：
 - 内置 HTTP Webhook 端点
 - 完整的 REST API + WebSocket 通知
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -104,13 +105,13 @@ class Scheduler:
             return
         if self._running:
             return
-        
+
         self._running = True
         self.load()
-        
+
         # 注册默认的 GitHub 同步任务（如果不存在）
         self._register_default_tasks()
-        
+
         self._loop_task = asyncio.create_task(self._run_loop())
         log.info("scheduler_started")
 
@@ -118,7 +119,7 @@ class Scheduler:
         """停止调度器"""
         if not self._running:
             return
-        
+
         self._running = False
         if self._loop_task:
             self._loop_task.cancel()
@@ -126,17 +127,20 @@ class Scheduler:
                 await self._loop_task
             except asyncio.CancelledError:
                 pass
-        
+
         # 停止所有文件监听器
         for task_id in list(self._file_observers.keys()):
             self._stop_file_watch(task_id)
-        
+
         log.info("scheduler_stopped")
 
     def _register_default_tasks(self):
         """注册默认定时任务（测试环境中跳过自扫描任务）"""
         import os as _os
-        _is_test = bool(_os.environ.get("PYTEST_CURRENT_TEST") or _os.environ.get("PYCODER_TEST_MODE"))
+
+        _is_test = bool(
+            _os.environ.get("PYTEST_CURRENT_TEST") or _os.environ.get("PYCODER_TEST_MODE")
+        )
 
         default_tasks = [
             ScheduledTask(
@@ -173,7 +177,7 @@ class Scheduler:
                 enabled=not _is_test,  # 测试环境中默认禁用
             ),
         ]
-        
+
         for task in default_tasks:
             if task.id not in self._tasks:
                 self.add_task(task)
@@ -183,17 +187,17 @@ class Scheduler:
         while self._running:
             try:
                 current_time = time.time()
-                
-                for task_id, task in list(self._tasks.items()):
+
+                for _task_id, task in list(self._tasks.items()):
                     if not task.enabled:
                         continue
-                    
+
                     # 检查是否到了执行时间
                     if current_time - task.last_run >= task.config.get("seconds", 3600):
                         await self._execute_task(task)
-                
+
                 await asyncio.sleep(60)  # 每分钟检查一次
-            
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -234,32 +238,32 @@ class Scheduler:
 
             else:
                 result = {"success": False, "error": f"Unknown action: {task.action}"}
-            
+
             task.last_result = json.dumps(result, ensure_ascii=False)
             task.last_error = ""
-            
+
             log.info(
                 "task_executed",
                 task_id=task.id,
                 success=result.get("success", False),
             )
-        
+
         except Exception as e:
             task.last_error = str(e)
             log.error("task_execution_failed", task_id=task.id, error=str(e))
-        
+
         self.save()
 
     async def _sync_github_skills(self) -> dict:
         """同步 GitHub 技能数据"""
         try:
             from pycoder.server.skills_market_v2 import EnhancedSkillsMarketManager
-            
+
             manager = EnhancedSkillsMarketManager()
             result = await manager.sync_github_only()
-            
+
             return result
-        
+
         except ImportError as e:
             return {"success": False, "error": f"Import error: {str(e)}"}
         except Exception as e:
@@ -271,7 +275,7 @@ class Scheduler:
             # TODO: 实现记忆优化逻辑
             log.info("memory_optimization_skipped", message="Not implemented yet")
             return {"success": True, "message": "Memory optimization skipped (not implemented)"}
-        
+
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -326,10 +330,7 @@ class Scheduler:
                 }
 
             # 步骤 2: 过滤严重问题
-            critical_issues = [
-                i for i in report.issues
-                if i.severity in ("critical", "high")
-            ]
+            critical_issues = [i for i in report.issues if i.severity in ("critical", "high")]
             if not critical_issues:
                 log.info(
                     "self_evolution_patrol_no_critical issues=%d",
@@ -353,6 +354,7 @@ class Scheduler:
                     if fix_result.success and fix_result.test_passed:
                         fixed_count += 1
                         from pycoder.capabilities.self_evo.engine import EvolutionRecord
+
                         engine.record_evolution(
                             EvolutionRecord(
                                 action="auto_fix",
@@ -381,7 +383,7 @@ class Scheduler:
 
             return {
                 "success": True,
-                "message": f"自进化巡检完成",
+                "message": "自进化巡检完成",
                 "files_scanned": report.files_scanned,
                 "issues_found": report.total_issues,
                 "critical_issues": len(critical_issues),
@@ -409,7 +411,10 @@ class Scheduler:
             module = __import__(module_path, fromlist=[func_name])
             func = getattr(module, func_name, None)
             if func is None:
-                return {"success": False, "error": f"Function not found: {func_name} in {module_path}"}
+                return {
+                    "success": False,
+                    "error": f"Function not found: {func_name} in {module_path}",
+                }
             if asyncio.iscoroutinefunction(func):
                 result = await func()
             else:
@@ -429,7 +434,7 @@ class Scheduler:
         例如: skills_sync_v2
         """
         try:
-            from pycoder.server.mcp_tools import call_builtin_tool, MCPCallResult
+            from pycoder.server.mcp_tools import MCPCallResult, call_builtin_tool
 
             result: MCPCallResult = await call_builtin_tool(tool_name, {})
             return {

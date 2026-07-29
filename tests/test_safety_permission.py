@@ -8,16 +8,12 @@
   - PermissionEngine: 行为记录与信任报告
   - PermissionEngine: 模式匹配
 """
-from __future__ import annotations
 
-import json
-import time
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from __future__ import annotations
 
 import pytest
 
-from pycoder.bus.protocol import SideEffect, TrustLevel
+from pycoder.bus.protocol import TrustLevel
 from pycoder.safety.permission import (
     BehaviorRecord,
     DecisionType,
@@ -25,7 +21,6 @@ from pycoder.safety.permission import (
     PermissionEngine,
     PermissionRule,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 数据模型测试
@@ -111,6 +106,7 @@ class TestPermissionEngineCheck:
         """创建权限引擎（默认信任级别 WORKSPACE_WRITE）"""
         # 使用临时目录避免加载磁盘上的历史行为记录
         import pycoder.safety.permission as perm_mod
+
         perm_dir = tmp_path / ".pycoder" / "permission"
         monkeypatch.setattr(perm_mod, "_PERMISSION_DIR", perm_dir)
         monkeypatch.setattr(perm_mod, "_BEHAVIOR_FILE", perm_dir / "behavior_history.jsonl")
@@ -226,6 +222,7 @@ class TestPermissionEngineTrust:
     def engine(self, tmp_path, monkeypatch) -> PermissionEngine:
         """创建权限引擎（使用临时目录隔离行为历史）"""
         import pycoder.safety.permission as perm_mod
+
         perm_dir = tmp_path / ".pycoder" / "permission"
         monkeypatch.setattr(perm_mod, "_PERMISSION_DIR", perm_dir)
         monkeypatch.setattr(perm_mod, "_BEHAVIOR_FILE", perm_dir / "behavior_history.jsonl")
@@ -252,13 +249,15 @@ class TestPermissionEngineTrust:
     def test_escalate_trust_with_good_history(self, engine: PermissionEngine):
         """良好行为记录下成功提升"""
         # 填充 100 条成功记录
-        for i in range(100):
-            engine.record_behavior(BehaviorRecord(
-                capability_id="test.op",
-                success=True,
-                decision="auto_allow",
-                trust_level=1,
-            ))
+        for _i in range(100):
+            engine.record_behavior(
+                BehaviorRecord(
+                    capability_id="test.op",
+                    success=True,
+                    decision="auto_allow",
+                    trust_level=1,
+                )
+            )
         ok, msg = engine.escalate_trust()
         assert ok is True
         assert engine.current_trust == TrustLevel.PROJECT_WRITE
@@ -267,13 +266,15 @@ class TestPermissionEngineTrust:
     def test_escalate_trust_with_rollbacks(self, engine: PermissionEngine):
         """有回滚记录时拒绝提升"""
         for i in range(100):
-            engine.record_behavior(BehaviorRecord(
-                capability_id="test.op",
-                success=True,
-                decision="auto_allow",
-                trust_level=1,
-                rollback_used=(i < 5),  # 前 5 条有回滚
-            ))
+            engine.record_behavior(
+                BehaviorRecord(
+                    capability_id="test.op",
+                    success=True,
+                    decision="auto_allow",
+                    trust_level=1,
+                    rollback_used=(i < 5),  # 前 5 条有回滚
+                )
+            )
         ok, msg = engine.escalate_trust()
         assert ok is False
         assert "回滚" in msg
@@ -281,12 +282,14 @@ class TestPermissionEngineTrust:
     def test_escalate_trust_low_success_rate(self, engine: PermissionEngine):
         """成功率不足时拒绝提升"""
         for i in range(100):
-            engine.record_behavior(BehaviorRecord(
-                capability_id="test.op",
-                success=(i < 80),  # 80% 成功率
-                decision="auto_allow",
-                trust_level=1,
-            ))
+            engine.record_behavior(
+                BehaviorRecord(
+                    capability_id="test.op",
+                    success=(i < 80),  # 80% 成功率
+                    decision="auto_allow",
+                    trust_level=1,
+                )
+            )
         ok, msg = engine.escalate_trust()
         assert ok is False
         assert "成功率" in msg
@@ -295,9 +298,14 @@ class TestPermissionEngineTrust:
         """已达最高级别不再提升"""
         engine.set_trust_level(TrustLevel.FULL_AUTONOMY)
         for _ in range(100):
-            engine.record_behavior(BehaviorRecord(
-                capability_id="test.op", success=True, decision="auto_allow", trust_level=4,
-            ))
+            engine.record_behavior(
+                BehaviorRecord(
+                    capability_id="test.op",
+                    success=True,
+                    decision="auto_allow",
+                    trust_level=4,
+                )
+            )
         ok, msg = engine.escalate_trust()
         assert ok is False
         assert "最高" in msg
@@ -327,6 +335,7 @@ class TestPermissionEngineBehavior:
     def engine(self, tmp_path, monkeypatch) -> PermissionEngine:
         """创建权限引擎（使用临时目录）"""
         import pycoder.safety.permission as perm_mod
+
         perm_dir = tmp_path / ".pycoder" / "permission"
         monkeypatch.setattr(perm_mod, "_PERMISSION_DIR", perm_dir)
         monkeypatch.setattr(perm_mod, "_BEHAVIOR_FILE", perm_dir / "behavior_history.jsonl")
@@ -334,18 +343,26 @@ class TestPermissionEngineBehavior:
 
     def test_record_behavior(self, engine: PermissionEngine):
         """记录行为"""
-        engine.record_behavior(BehaviorRecord(
-            capability_id="file.write", success=True, decision="auto_allow",
-        ))
+        engine.record_behavior(
+            BehaviorRecord(
+                capability_id="file.write",
+                success=True,
+                decision="auto_allow",
+            )
+        )
         report = engine.get_trust_report()
         assert report["total_behaviors"] == 1
 
     def test_record_behavior_truncates(self, engine: PermissionEngine):
         """行为记录超过 500 条时截断"""
         for i in range(600):
-            engine.record_behavior(BehaviorRecord(
-                capability_id=f"op.{i}", success=True, decision="auto_allow",
-            ))
+            engine.record_behavior(
+                BehaviorRecord(
+                    capability_id=f"op.{i}",
+                    success=True,
+                    decision="auto_allow",
+                )
+            )
         report = engine.get_trust_report()
         assert report["total_behaviors"] <= 500
 
@@ -359,14 +376,16 @@ class TestPermissionEngineBehavior:
 
         # 创建引擎并记录行为
         engine = PermissionEngine()
-        engine.record_behavior(BehaviorRecord(
-            capability_id="persist.test",
-            success=True,
-            decision="auto_allow",
-            trust_level=1,
-            user_approved=False,
-            timestamp=1234567890.0,
-        ))
+        engine.record_behavior(
+            BehaviorRecord(
+                capability_id="persist.test",
+                success=True,
+                decision="auto_allow",
+                trust_level=1,
+                user_approved=False,
+                timestamp=1234567890.0,
+            )
+        )
 
         # 创建新引擎加载历史
         engine2 = PermissionEngine()
@@ -381,9 +400,13 @@ class TestPermissionEngineBehavior:
         engine.add_blacklist("op.c")
 
         for i in range(10):
-            engine.record_behavior(BehaviorRecord(
-                capability_id="test.op", success=(i > 0), decision="auto_allow",
-            ))
+            engine.record_behavior(
+                BehaviorRecord(
+                    capability_id="test.op",
+                    success=(i > 0),
+                    decision="auto_allow",
+                )
+            )
 
         report = engine.get_trust_report()
         assert report["current_trust"] == TrustLevel.WORKSPACE_WRITE.name

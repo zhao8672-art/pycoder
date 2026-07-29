@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -148,17 +148,21 @@ class SkillDatabase:
             """)
 
             # ── V2 增量字段迁移（ALTER TABLE，幂等）──
-            self._migrate_add_columns_if_missing(conn, "skills", {
-                "publisher": "TEXT DEFAULT ''",
-                "verified": "INTEGER DEFAULT 0",
-                "source_url": "TEXT DEFAULT ''",
-                "homepage_url": "TEXT DEFAULT ''",
-                "license": "TEXT DEFAULT ''",
-                "icon_url": "TEXT DEFAULT ''",
-                "local_version": "TEXT DEFAULT ''",
-                "remote_version": "TEXT DEFAULT ''",
-                "stars": "INTEGER DEFAULT 0",
-            })
+            self._migrate_add_columns_if_missing(
+                conn,
+                "skills",
+                {
+                    "publisher": "TEXT DEFAULT ''",
+                    "verified": "INTEGER DEFAULT 0",
+                    "source_url": "TEXT DEFAULT ''",
+                    "homepage_url": "TEXT DEFAULT ''",
+                    "license": "TEXT DEFAULT ''",
+                    "icon_url": "TEXT DEFAULT ''",
+                    "local_version": "TEXT DEFAULT ''",
+                    "remote_version": "TEXT DEFAULT ''",
+                    "stars": "INTEGER DEFAULT 0",
+                },
+            )
 
             # ── 迁移：移除 skill_reviews 表级 UNIQUE 约束（V2 改用部分唯一索引）──
             self._migrate_drop_table_unique_if_exists(conn, "skill_reviews")
@@ -194,8 +198,7 @@ class SkillDatabase:
     ) -> None:
         """幂等添加新列（SQLite 不支持 IF NOT EXISTS on ALTER TABLE ADD COLUMN）"""
         existing = {
-            row[1]
-            for row in conn.execute(f"PRAGMA table_info({table})").fetchall()  # nosec B608
+            row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()  # nosec B608
         }
         for col, definition in columns.items():
             if col not in existing:
@@ -203,9 +206,7 @@ class SkillDatabase:
                 logger.info("迁移: %s.%s 已添加", table, col)
 
     @staticmethod
-    def _migrate_drop_table_unique_if_exists(
-        conn: sqlite3.Connection, table: str
-    ) -> None:
+    def _migrate_drop_table_unique_if_exists(conn: sqlite3.Connection, table: str) -> None:
         """检测并重建带表级 UNIQUE 约束的表"""
         try:
             row = conn.execute(
@@ -227,7 +228,7 @@ class SkillDatabase:
         self, skill_def: SkillDefinition, *, mark_as_installed: bool = True
     ) -> None:
         """将技能保存到 SQLite 数据库（V2 — 含新增字段）"""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         if not skill_def.created_at:
             skill_def.created_at = now
         if not skill_def.updated_at:
@@ -299,9 +300,7 @@ class SkillDatabase:
     def skill_exists(self, skill_id: str) -> bool:
         """检查技能是否已存在于数据库中"""
         with sqlite3.connect(str(self._db_path)) as conn:
-            row = conn.execute(
-                "SELECT 1 FROM skills WHERE id = ?", (skill_id,)
-            ).fetchone()
+            row = conn.execute("SELECT 1 FROM skills WHERE id = ?", (skill_id,)).fetchone()
             return row is not None
 
     def count_skills(self) -> int:

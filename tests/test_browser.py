@@ -1,7 +1,9 @@
 """browser 模块测试"""
+
 from __future__ import annotations
 
 import pytest
+
 from pycoder.browser.access_control import BrowserAccessControl, BrowserAccessPolicy
 
 

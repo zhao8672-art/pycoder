@@ -13,14 +13,13 @@
 - 所有数据源懒加载,失败降级为 None 不影响整体响应
 - 提供 /api/dashboard/full 单端点,前端可一次拉取
 """
+
 from __future__ import annotations
 
-import json
 import logging
 import os
 import platform
 import subprocess
-import sys
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -428,15 +427,11 @@ class DashboardBuilder:
             )
             score -= min(10, tasks.recent_errors * 2)
         else:
-            factors.append(
-                {"name": "后台任务", "status": "ok", "detail": "运行正常"}
-            )
+            factors.append({"name": "后台任务", "status": "ok", "detail": "运行正常"})
 
         # 因素 5: 代码体量
         if project.code_lines < 100:
-            factors.append(
-                {"name": "代码体量", "status": "info", "detail": "项目较小"}
-            )
+            factors.append({"name": "代码体量", "status": "info", "detail": "项目较小"})
         elif project.code_lines > 100000:
             factors.append(
                 {"name": "代码体量", "status": "info", "detail": f"{project.code_lines} 行"}
@@ -466,9 +461,7 @@ def dashboard_to_dict(snap: DashboardSnapshot) -> dict:
     """快照转字典（用于 JSON 序列化）"""
     return {
         "generated_at": snap.generated_at,
-        "generated_at_human": time.strftime(
-            "%Y-%m-%d %H:%M:%S", time.localtime(snap.generated_at)
-        ),
+        "generated_at_human": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(snap.generated_at)),
         "project": asdict(snap.project),
         "dependencies": asdict(snap.dependencies),
         "tasks": asdict(snap.tasks),

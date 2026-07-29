@@ -14,12 +14,9 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 
 # ═══════════════════════════════════════════════════════════════
 # 1. chat_bridge.py 测试
@@ -427,9 +424,22 @@ class TestChatBridge:
         # 生成 ~80000 个多样化英文单词（每单词约 1-2 token）
         # 使用循环单词列表避免 BPE 合并
         words = [
-            "hello", "world", "python", "code", "token", "model",
-            "context", "message", "history", "budget", "warning",
-            "context", "feature", "module", "server", "client",
+            "hello",
+            "world",
+            "python",
+            "code",
+            "token",
+            "model",
+            "context",
+            "message",
+            "history",
+            "budget",
+            "warning",
+            "context",
+            "feature",
+            "module",
+            "server",
+            "client",
         ]
         # 16 单词 * 5000 = 80000 单词 ≈ 80000+ tokens
         content = " ".join(words * 5000)  # ~80k 单词
@@ -486,9 +496,7 @@ class TestChatBridge:
 
         bridge = ChatBridge()
         bridge.config.api_key = "test-key"
-        with patch.object(
-            ChatBridge, "_get_client", new_callable=AsyncMock
-        ) as mock_client:
+        with patch.object(ChatBridge, "_get_client", new_callable=AsyncMock) as mock_client:
             mock_client.return_value.post = AsyncMock(
                 return_value=MagicMock(
                     status_code=200,
@@ -505,12 +513,8 @@ class TestChatBridge:
 
         bridge = ChatBridge()
         bridge.config.api_key = "test-key"
-        with patch.object(
-            ChatBridge, "_get_client", new_callable=AsyncMock
-        ) as mock_client:
-            mock_client.return_value.post = AsyncMock(
-                side_effect=OSError("Connection failed")
-            )
+        with patch.object(ChatBridge, "_get_client", new_callable=AsyncMock) as mock_client:
+            mock_client.return_value.post = AsyncMock(side_effect=OSError("Connection failed"))
             result = await bridge.chat("Hello")
             assert result == ""
 
@@ -827,7 +831,11 @@ class TestSkillsMarketplaceApiModels:
         from pycoder.server.routers.skills_marketplace_api import SkillInstallResultResponse
 
         resp = SkillInstallResultResponse(
-            success=True, skill_id="test", name="Test Skill", installed_at="2024-01-01", action="install"
+            success=True,
+            skill_id="test",
+            name="Test Skill",
+            installed_at="2024-01-01",
+            action="install",
         )
         assert resp.success is True
         assert resp.name == "Test Skill"
@@ -927,9 +935,7 @@ class TestDAGApiPydanticModels:
         """AddNodeResponse 模型"""
         from pycoder.server.routers.dag_api import AddNodeResponse
 
-        resp = AddNodeResponse(
-            node_id="n1", dag_id="d1", name="node1", dependencies=["dep1"]
-        )
+        resp = AddNodeResponse(node_id="n1", dag_id="d1", name="node1", dependencies=["dep1"])
         assert resp.node_id == "n1"
         assert resp.dag_id == "d1"
 
@@ -1127,7 +1133,9 @@ class TestWsHandlerV2:
         with patch("pycoder.server.mcp_tools.list_builtin_tools", return_value=[]):
             with patch(
                 "pycoder.server.mcp_tools.get_mcp_client_manager",
-                return_value=MagicMock(connected_servers=[], list_remote_tools=AsyncMock(return_value=[])),
+                return_value=MagicMock(
+                    connected_servers=[], list_remote_tools=AsyncMock(return_value=[])
+                ),
             ):
                 await _handle_mcp_v2("mcp_list", {}, ws, v2)
                 ws.send_json.assert_called_once()

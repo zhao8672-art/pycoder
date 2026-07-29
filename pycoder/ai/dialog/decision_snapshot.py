@@ -85,7 +85,7 @@ class DecisionSnapshotManager:
 
         # 限制快照数量
         if len(self._snapshots) > self.MAX_SNAPSHOTS:
-            self._snapshots = self._snapshots[-self.MAX_SNAPSHOTS:]
+            self._snapshots = self._snapshots[-self.MAX_SNAPSHOTS :]
 
         return snapshot
 

@@ -26,7 +26,6 @@ from pycoder.ai.interface.types import (
     ProviderCapability,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # 竞品能力定义
 # ══════════════════════════════════════════════════════════
@@ -280,8 +279,12 @@ class CompetitiveAnalyzer:
         """分析各维度能力差距"""
         gaps: dict[str, dict[str, float]] = {}
         dimensions = [
-            "code_generation", "code_analysis", "natural_language",
-            "reasoning", "tool_use", "cost_efficiency",
+            "code_generation",
+            "code_analysis",
+            "natural_language",
+            "reasoning",
+            "tool_use",
+            "cost_efficiency",
         ]
 
         for name, competitor in self._competitors.items():
@@ -296,8 +299,11 @@ class CompetitiveAnalyzer:
     def find_best_competitor_per_dimension(self) -> dict[str, str]:
         """找出每项能力最强的竞品"""
         dimensions = [
-            "code_generation", "code_analysis", "natural_language",
-            "reasoning", "tool_use",
+            "code_generation",
+            "code_analysis",
+            "natural_language",
+            "reasoning",
+            "tool_use",
         ]
         best: dict[str, str] = {}
         for dim in dimensions:
@@ -313,9 +319,7 @@ class CompetitiveAnalyzer:
 
     # ── 功能差距分析 ──
 
-    def get_feature_gaps(
-        self, min_priority: str = "low"
-    ) -> list[FeatureGap]:
+    def get_feature_gaps(self, min_priority: str = "low") -> list[FeatureGap]:
         """获取功能差距列表（按优先级筛选）"""
         priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
         filtered = [
@@ -386,42 +390,48 @@ class CompetitiveAnalyzer:
 
         # Phase 1: Critical (0-2 weeks)
         for gap in critical:
-            roadmap.append({
-                "phase": "P0 (立即)",
-                "feature": gap.feature,
-                "target": gap.competitor_name,
-                "current_score": gap.pycoder_score,
-                "target_score": gap.competitor_score,
-                "effort": "2-3天",
-                "impact": "极高",
-                "action": gap.recommendation,
-            })
+            roadmap.append(
+                {
+                    "phase": "P0 (立即)",
+                    "feature": gap.feature,
+                    "target": gap.competitor_name,
+                    "current_score": gap.pycoder_score,
+                    "target_score": gap.competitor_score,
+                    "effort": "2-3天",
+                    "impact": "极高",
+                    "action": gap.recommendation,
+                }
+            )
 
         # Phase 2: High (2-4 weeks)
         for gap in high:
-            roadmap.append({
-                "phase": "P1 (短期)",
-                "feature": gap.feature,
-                "target": gap.competitor_name,
-                "current_score": gap.pycoder_score,
-                "target_score": gap.competitor_score,
-                "effort": "1-2天",
-                "impact": "高",
-                "action": gap.recommendation,
-            })
+            roadmap.append(
+                {
+                    "phase": "P1 (短期)",
+                    "feature": gap.feature,
+                    "target": gap.competitor_name,
+                    "current_score": gap.pycoder_score,
+                    "target_score": gap.competitor_score,
+                    "effort": "1-2天",
+                    "impact": "高",
+                    "action": gap.recommendation,
+                }
+            )
 
         # Phase 3: Medium (4-8 weeks)
         for gap in medium:
-            roadmap.append({
-                "phase": "P2 (中期)",
-                "feature": gap.feature,
-                "target": gap.competitor_name,
-                "current_score": gap.pycoder_score,
-                "target_score": gap.competitor_score,
-                "effort": "3-5天",
-                "impact": "中",
-                "action": gap.recommendation,
-            })
+            roadmap.append(
+                {
+                    "phase": "P2 (中期)",
+                    "feature": gap.feature,
+                    "target": gap.competitor_name,
+                    "current_score": gap.pycoder_score,
+                    "target_score": gap.competitor_score,
+                    "effort": "3-5天",
+                    "impact": "中",
+                    "action": gap.recommendation,
+                }
+            )
 
         return roadmap
 
@@ -551,13 +561,15 @@ class CompetitiveAnalyzer:
                 f"**-{abs(gap.gap):.1f}** | {gap.priority} |"
             )
 
-        lines.extend([
-            "",
-            "## 改进建议 (Top 10)",
-            "",
-            *[f"{i + 1}. {r}" for i, r in enumerate(analysis.recommendations)],
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 改进建议 (Top 10)",
+                "",
+                *[f"{i + 1}. {r}" for i, r in enumerate(analysis.recommendations)],
+                "",
+            ]
+        )
 
         return "\n".join(lines)
 

@@ -5,11 +5,11 @@
 - 线程安全
 - 启动性能埋点准确
 """
+
 from __future__ import annotations
 
 import threading
 import time
-from unittest.mock import patch
 
 import pytest
 
@@ -20,7 +20,6 @@ from pycoder.core.lazy_import import (
     lazy_callable,
     lazy_module,
 )
-
 
 # ──────────────────────────────────────────────────────────────
 # LazyModule 测试

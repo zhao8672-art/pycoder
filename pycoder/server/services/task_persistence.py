@@ -28,6 +28,7 @@ VALID_GRADES: set[str] = {"LIGHT", "MEDIUM", "HEAVY"}
 @dataclass
 class TaskState:
     """任务状态数据模型"""
+
     task_id: str
     description: str = ""
     status: str = "pending"
@@ -130,15 +131,9 @@ class TaskPersistence:
                 error TEXT DEFAULT ''
             )
         """)
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_task_status ON task_states(status)"
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_task_grade ON task_states(grade)"
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_task_updated ON task_states(updated_at)"
-        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_task_status ON task_states(status)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_task_grade ON task_states(grade)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_task_updated ON task_states(updated_at)")
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_task_status_grade ON task_states(status, grade)"
         )
@@ -166,9 +161,15 @@ class TaskPersistence:
                         result, error)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
-                        task.task_id, task.description, task.status, task.grade,
-                        task.created_at, task.updated_at, task.completed_at,
-                        task.steps_completed, task.current_step,
+                        task.task_id,
+                        task.description,
+                        task.status,
+                        task.grade,
+                        task.created_at,
+                        task.updated_at,
+                        task.completed_at,
+                        task.steps_completed,
+                        task.current_step,
                         json.dumps(task.checkpoint_data, ensure_ascii=False),
                         json.dumps(task.result, ensure_ascii=False),
                         task.error,
@@ -184,9 +185,7 @@ class TaskPersistence:
         await self._ensure_initialized()
         conn = self._get_conn()
         try:
-            row = conn.execute(
-                "SELECT * FROM task_states WHERE task_id = ?", (task_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM task_states WHERE task_id = ?", (task_id,)).fetchone()
             if row is None:
                 return None
             return TaskState.from_row(row)
@@ -228,9 +227,7 @@ class TaskPersistence:
         async with self._lock:
             conn = self._get_conn()
             try:
-                cursor = conn.execute(
-                    "DELETE FROM task_states WHERE task_id = ?", (task_id,)
-                )
+                cursor = conn.execute("DELETE FROM task_states WHERE task_id = ?", (task_id,))
                 conn.commit()
                 return cursor.rowcount > 0
             finally:
@@ -291,9 +288,9 @@ class TaskPersistence:
             by_grade_rows = conn.execute(
                 "SELECT grade, COUNT(*) FROM task_states GROUP BY grade"
             ).fetchall()
-            avg_steps = conn.execute(
-                "SELECT AVG(steps_completed) FROM task_states"
-            ).fetchone()[0] or 0.0
+            avg_steps = (
+                conn.execute("SELECT AVG(steps_completed) FROM task_states").fetchone()[0] or 0.0
+            )
             return {
                 "total": total,
                 "by_status": {r[0]: r[1] for r in by_status_rows},
@@ -357,7 +354,7 @@ def _register_task_crud(registry: Any) -> None:
         },
         handler=_handle_task_create,
     )
-    
+
     registry.register(
         name="task.update",
         description="更新任务信息",
@@ -376,7 +373,7 @@ def _register_task_crud(registry: Any) -> None:
         },
         handler=_handle_task_update,
     )
-    
+
     registry.register(
         name="task.delete",
         description="删除任务",
@@ -406,7 +403,7 @@ def _register_task_query(registry: Any) -> None:
         },
         handler=_handle_task_get,
     )
-    
+
     registry.register(
         name="task.list",
         description="列出任务",
@@ -425,7 +422,7 @@ def _register_task_query(registry: Any) -> None:
         },
         handler=_handle_task_list,
     )
-    
+
     registry.register(
         name="task.search",
         description="搜索任务",
@@ -457,7 +454,7 @@ def _register_task_lifecycle(registry: Any) -> None:
         },
         handler=_handle_task_start,
     )
-    
+
     registry.register(
         name="task.complete",
         description="完成任务",
@@ -472,7 +469,7 @@ def _register_task_lifecycle(registry: Any) -> None:
         },
         handler=_handle_task_complete,
     )
-    
+
     registry.register(
         name="task.cancel",
         description="取消任务",
@@ -486,7 +483,7 @@ def _register_task_lifecycle(registry: Any) -> None:
         },
         handler=_handle_task_cancel,
     )
-    
+
     registry.register(
         name="task.pause",
         description="暂停任务",
@@ -499,7 +496,7 @@ def _register_task_lifecycle(registry: Any) -> None:
         },
         handler=_handle_task_pause,
     )
-    
+
     registry.register(
         name="task.resume",
         description="恢复暂停的任务",
@@ -531,7 +528,7 @@ def _register_task_scheduling(registry: Any) -> None:
         },
         handler=_handle_task_schedule,
     )
-    
+
     registry.register(
         name="task.unschedule",
         description="取消任务调度",
@@ -565,7 +562,7 @@ def _register_task_dependencies(registry: Any) -> None:
         },
         handler=_handle_task_add_dependency,
     )
-    
+
     registry.register(
         name="task.remove_dependency",
         description="移除任务依赖",
@@ -587,6 +584,7 @@ def _register_task_dependencies(registry: Any) -> None:
 async def _handle_task_create(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理任务创建"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     task = await store.create_task(
         title=params["title"],
@@ -602,6 +600,7 @@ async def _handle_task_create(params: dict[str, Any], context: dict[str, Any]) -
 async def _handle_task_update(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理任务更新"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     task = await store.update_task(
         task_id=params["task_id"],
@@ -613,6 +612,7 @@ async def _handle_task_update(params: dict[str, Any], context: dict[str, Any]) -
 async def _handle_task_delete(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理任务删除"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     await store.delete_task(
         task_id=params["task_id"],
@@ -624,6 +624,7 @@ async def _handle_task_delete(params: dict[str, Any], context: dict[str, Any]) -
 async def _handle_task_get(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理任务查询"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     task = await store.get_task(task_id=params["task_id"])
     if task:
@@ -634,6 +635,7 @@ async def _handle_task_get(params: dict[str, Any], context: dict[str, Any]) -> d
 async def _handle_task_list(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理任务列表"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     result = await store.list_tasks(
         status=params.get("status"),
@@ -651,6 +653,7 @@ async def _handle_task_list(params: dict[str, Any], context: dict[str, Any]) -> 
 async def _handle_task_search(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理任务搜索"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     result = await store.search_tasks(
         query=params["query"],
@@ -664,6 +667,7 @@ async def _handle_task_search(params: dict[str, Any], context: dict[str, Any]) -
 async def _handle_task_start(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理任务开始"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     task = await store.start_task(task_id=params["task_id"])
     return {"success": True, "task": task.to_dict()}
@@ -672,6 +676,7 @@ async def _handle_task_start(params: dict[str, Any], context: dict[str, Any]) ->
 async def _handle_task_complete(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理任务完成"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     task = await store.complete_task(
         task_id=params["task_id"],
@@ -684,6 +689,7 @@ async def _handle_task_complete(params: dict[str, Any], context: dict[str, Any])
 async def _handle_task_cancel(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理任务取消"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     task = await store.cancel_task(
         task_id=params["task_id"],
@@ -695,6 +701,7 @@ async def _handle_task_cancel(params: dict[str, Any], context: dict[str, Any]) -
 async def _handle_task_pause(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理任务暂停"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     task = await store.pause_task(task_id=params["task_id"])
     return {"success": True, "task": task.to_dict()}
@@ -703,6 +710,7 @@ async def _handle_task_pause(params: dict[str, Any], context: dict[str, Any]) ->
 async def _handle_task_resume(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理任务恢复"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     task = await store.resume_task(task_id=params["task_id"])
     return {"success": True, "task": task.to_dict()}
@@ -711,6 +719,7 @@ async def _handle_task_resume(params: dict[str, Any], context: dict[str, Any]) -
 async def _handle_task_schedule(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理任务调度设置"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     task = await store.schedule_task(
         task_id=params["task_id"],
@@ -721,17 +730,23 @@ async def _handle_task_schedule(params: dict[str, Any], context: dict[str, Any])
     return {"success": True, "task": task.to_dict()}
 
 
-async def _handle_task_unschedule(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+async def _handle_task_unschedule(
+    params: dict[str, Any], context: dict[str, Any]
+) -> dict[str, Any]:
     """处理任务调度取消"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     task = await store.unschedule_task(task_id=params["task_id"])
     return {"success": True, "task": task.to_dict()}
 
 
-async def _handle_task_add_dependency(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+async def _handle_task_add_dependency(
+    params: dict[str, Any], context: dict[str, Any]
+) -> dict[str, Any]:
     """处理任务依赖添加"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     task = await store.add_dependency(
         task_id=params["task_id"],
@@ -741,9 +756,12 @@ async def _handle_task_add_dependency(params: dict[str, Any], context: dict[str,
     return {"success": True, "task": task.to_dict()}
 
 
-async def _handle_task_remove_dependency(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+async def _handle_task_remove_dependency(
+    params: dict[str, Any], context: dict[str, Any]
+) -> dict[str, Any]:
     """处理任务依赖移除"""
     from pycoder.server.services.task_store import TaskStore
+
     store = TaskStore()
     task = await store.remove_dependency(
         task_id=params["task_id"],

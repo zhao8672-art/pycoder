@@ -12,30 +12,48 @@
 from __future__ import annotations
 
 import logging
-
 from collections.abc import AsyncIterator
 
+from pycoder.ai.generation.iterative import IterativeGenerator
+from pycoder.ai.generation.single_pass import SinglePassGenerator
+from pycoder.ai.generation.test_driven import TestDrivenGenerator
+from pycoder.ai.interface.base import ICodeGenerator
 from pycoder.ai.interface.types import (
     CodeGenerationRequest,
     CodeGenerationResult,
     CodeGenStrategy,
     ProviderCapability,
 )
-from pycoder.ai.interface.base import ICodeGenerator
-from pycoder.ai.generation.single_pass import SinglePassGenerator
-from pycoder.ai.generation.iterative import IterativeGenerator
-from pycoder.ai.generation.test_driven import TestDrivenGenerator
 
 logger = logging.getLogger(__name__)
 
 # 触发迭代策略的关键词
 COMPLEX_KEYWORDS = [
-    "二分", "排序", "搜索", "递归", "动态规划", "回溯",
-    "树", "图", "哈希表", "堆", "优先队列",
-    "并发", "多线程", "异步", "线程安全",
-    "加密", "解密", "签名", "认证",
-    "解析器", "编译器", "解释器",
-    "优化", "高性能", "大规模",
+    "二分",
+    "排序",
+    "搜索",
+    "递归",
+    "动态规划",
+    "回溯",
+    "树",
+    "图",
+    "哈希表",
+    "堆",
+    "优先队列",
+    "并发",
+    "多线程",
+    "异步",
+    "线程安全",
+    "加密",
+    "解密",
+    "签名",
+    "认证",
+    "解析器",
+    "编译器",
+    "解释器",
+    "优化",
+    "高性能",
+    "大规模",
 ]
 
 
@@ -70,9 +88,7 @@ class MultiStrategyGenerator(ICodeGenerator):
             logger.info("默认策略: SINGLE_PASS")
             return await self._single.generate(request)
 
-    async def generate_stream(
-        self, request: CodeGenerationRequest
-    ) -> "AsyncIterator[str]":
+    async def generate_stream(self, request: CodeGenerationRequest) -> AsyncIterator[str]:
         """流式生成"""
         strategy = self._select_strategy(request)
 

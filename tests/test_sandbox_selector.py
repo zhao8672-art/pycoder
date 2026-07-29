@@ -1,4 +1,5 @@
 """P1-4: 沙箱选择器 + Docker 沙箱 测试"""
+
 from __future__ import annotations
 
 import os
@@ -99,17 +100,13 @@ async def test_check_docker_daemon_unreachable(monkeypatch):
     sandbox_selector.invalidate_docker_cache()
 
     mock_proc = AsyncMock()
-    mock_proc.communicate = AsyncMock(
-        return_value=(b"", b"Cannot connect to Docker daemon")
-    )
+    mock_proc.communicate = AsyncMock(return_value=(b"", b"Cannot connect to Docker daemon"))
     mock_proc.returncode = 1
 
     async def fake_exec(*args, **kwargs):
         return mock_proc
 
-    monkeypatch.setattr(
-        sandbox_selector.asyncio, "create_subprocess_exec", fake_exec
-    )
+    monkeypatch.setattr(sandbox_selector.asyncio, "create_subprocess_exec", fake_exec)
     available, reason = await sandbox_selector.check_docker_available()
     assert available is False
     assert "daemon" in reason or "不可用" in reason
@@ -129,9 +126,7 @@ async def test_check_docker_success(monkeypatch):
     async def fake_exec(*args, **kwargs):
         return mock_proc
 
-    monkeypatch.setattr(
-        sandbox_selector.asyncio, "create_subprocess_exec", fake_exec
-    )
+    monkeypatch.setattr(sandbox_selector.asyncio, "create_subprocess_exec", fake_exec)
     available, _reason = await sandbox_selector.check_docker_available()
     assert available is True
 
@@ -180,8 +175,6 @@ def test_selector_reset_clears_cache():
     from pycoder.adapters.sandbox_selector import SandboxInfo, SandboxSelector
 
     selector = SandboxSelector()
-    selector._cached_info = SandboxInfo(
-        backend="docker", docker_available=True, reason="cached"
-    )
+    selector._cached_info = SandboxInfo(backend="docker", docker_available=True, reason="cached")
     selector.reset()
     assert selector._cached_info is None

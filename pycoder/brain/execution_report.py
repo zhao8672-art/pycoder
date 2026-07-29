@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 class ReportStatus(StrEnum):
     """报告状态"""
+
     SUCCESS = "success"
     FAILURE = "failure"
     PARTIAL = "partial"
@@ -50,6 +51,7 @@ class ReportStatus(StrEnum):
 @dataclass
 class FileChange:
     """文件变更记录"""
+
     file_path: str
     change_type: str = "modified"  # created/modified/deleted
     lines_added: int = 0
@@ -60,6 +62,7 @@ class FileChange:
 @dataclass
 class OperationSummary:
     """操作摘要"""
+
     operation: str
     status: str = "success"
     details: str = ""
@@ -69,6 +72,7 @@ class OperationSummary:
 @dataclass
 class ExecutionReport:
     """标准化执行报告"""
+
     report_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     task_name: str = ""
     status: ReportStatus = ReportStatus.SUCCESS
@@ -118,14 +122,22 @@ class ExecutionReport:
             },
             "deliverables": {
                 "file_changes": [
-                    {"file": f.file_path, "type": f.change_type,
-                     "+lines": f.lines_added, "-lines": f.lines_removed,
-                     "desc": f.description}
+                    {
+                        "file": f.file_path,
+                        "type": f.change_type,
+                        "+lines": f.lines_added,
+                        "-lines": f.lines_removed,
+                        "desc": f.description,
+                    }
                     for f in self.file_changes
                 ],
                 "operations": [
-                    {"op": o.operation, "status": o.status,
-                     "details": o.details, "duration_ms": o.duration_ms}
+                    {
+                        "op": o.operation,
+                        "status": o.status,
+                        "details": o.details,
+                        "duration_ms": o.duration_ms,
+                    }
                     for o in self.operations
                 ],
                 "deliverables": self.deliverables,
@@ -148,26 +160,26 @@ class ExecutionReport:
     def to_markdown(self) -> str:
         """生成 Markdown 格式报告"""
         lines = [
-            f"# PyCoder 执行报告",
-            f"",
+            "# PyCoder 执行报告",
+            "",
             f"**报告 ID**: {self.report_id}",
             f"**任务名称**: {self.task_name}",
             f"**执行结果**: {self._status_icon()} {self.status.value}",
             f"**生成时间**: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.created_at))}",
-            f"",
-            f"## 关键数据",
-            f"",
-            f"| 指标 | 值 |",
-            f"|------|-----|",
+            "",
+            "## 关键数据",
+            "",
+            "| 指标 | 值 |",
+            "|------|-----|",
             f"| 总耗时 | {self.duration_ms:.0f}ms ({self.duration_ms / 1000:.1f}s) |",
             f"| Token 消耗 | {self.total_tokens:,} |",
             f"| 成本 | ${self.total_cost:.4f} |",
             f"| 改动文件数 | {self.files_changed} |",
             f"| 参与 Agent | {', '.join(self.agents_involved) if self.agents_involved else 'N/A'} |",
             f"| 使用模型 | {self.model_used or 'N/A'} |",
-            f"",
-            f"## 产出清单",
-            f"",
+            "",
+            "## 产出清单",
+            "",
         ]
 
         if self.file_changes:
@@ -194,8 +206,8 @@ class ExecutionReport:
 
         lines.append("## 质量指标")
         lines.append("")
-        lines.append(f"| 指标 | 值 |")
-        lines.append(f"|------|-----|")
+        lines.append("| 指标 | 值 |")
+        lines.append("|------|-----|")
         lines.append(f"| 测试覆盖率 | {self.test_coverage:.1f}% |")
         lines.append(f"| 质量评分 | {self.quality_score:.1f}/100 |")
         lines.append(f"| 代码审查等级 | {self.code_review_grade or 'N/A'} |")
@@ -259,7 +271,7 @@ class ReportBuilder:
         )
 
         # 状态映射
-        if hasattr(pipeline_result, 'status'):
+        if hasattr(pipeline_result, "status"):
             status_val = str(pipeline_result.status)
             if status_val == "done":
                 report.status = ReportStatus.SUCCESS
@@ -269,11 +281,11 @@ class ReportBuilder:
                 report.status = ReportStatus.PARTIAL
 
         # 错误
-        if hasattr(pipeline_result, 'errors'):
+        if hasattr(pipeline_result, "errors"):
             report.errors = pipeline_result.errors
 
         # 质量指标
-        if hasattr(pipeline_result, 'grade') and pipeline_result.grade:
+        if hasattr(pipeline_result, "grade") and pipeline_result.grade:
             report.quality_score = pipeline_result.grade.score
 
         return report
@@ -297,13 +309,15 @@ class ReportBuilder:
 
         deliverables = data.get("deliverables", {})
         for fc in deliverables.get("file_changes", []):
-            report.file_changes.append(FileChange(
-                file_path=fc.get("file", ""),
-                change_type=fc.get("type", "modified"),
-                lines_added=fc.get("+lines", 0),
-                lines_removed=fc.get("-lines", 0),
-                description=fc.get("desc", ""),
-            ))
+            report.file_changes.append(
+                FileChange(
+                    file_path=fc.get("file", ""),
+                    change_type=fc.get("type", "modified"),
+                    lines_added=fc.get("+lines", 0),
+                    lines_removed=fc.get("-lines", 0),
+                    description=fc.get("desc", ""),
+                )
+            )
 
         quality = data.get("quality", {})
         report.test_coverage = quality.get("test_coverage", 0.0)

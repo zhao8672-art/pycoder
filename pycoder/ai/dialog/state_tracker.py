@@ -65,9 +65,7 @@ class DialogStateTracker:
             self._sessions[session_id] = DialogState(session_id)
         return self._sessions[session_id]
 
-    def update_intent(
-        self, session_id: str, intent: str, confidence: float
-    ) -> None:
+    def update_intent(self, session_id: str, intent: str, confidence: float) -> None:
         """更新意图，自动处理前/当前意图切换"""
         state = self.get_or_create(session_id)
         state.previous_intent = state.current_intent
@@ -93,22 +91,26 @@ class DialogStateTracker:
         """设置活跃任务"""
         state = self.get_or_create(session_id)
         if state.active_task and state.active_task != task:
-            state.task_history.append({
-                "task": state.active_task,
-                "completed": False,
-                "timestamp": time.time(),
-            })
+            state.task_history.append(
+                {
+                    "task": state.active_task,
+                    "completed": False,
+                    "timestamp": time.time(),
+                }
+            )
         state.active_task = task
 
     def complete_active_task(self, session_id: str) -> None:
         """标记活跃任务完成"""
         state = self.get_or_create(session_id)
         if state.active_task:
-            state.task_history.append({
-                "task": state.active_task,
-                "completed": True,
-                "timestamp": time.time(),
-            })
+            state.task_history.append(
+                {
+                    "task": state.active_task,
+                    "completed": True,
+                    "timestamp": time.time(),
+                }
+            )
             state.active_task = ""
 
     def resolve_anaphora(self, session_id: str, text: str) -> str:
@@ -133,7 +135,7 @@ class DialogStateTracker:
         if "它" in text or "这个" in text:
             if state.entities:
                 # 找到最近添加的实体
-                for category, values in reversed(list(state.entities.items())):
+                for _category, values in reversed(list(state.entities.items())):
                     if values:
                         resolved = resolved.replace("它", values[-1])
                         resolved = resolved.replace("这个", values[-1])
@@ -167,9 +169,7 @@ class DialogStateTracker:
             "current_intent": state.current_intent,
             "active_task": state.active_task,
             "turn_count": state.turn_count,
-            "recent_entities": {
-                k: v[-3:] for k, v in state.entities.items()
-            },
+            "recent_entities": {k: v[-3:] for k, v in state.entities.items()},
             "recent_files": state.mentioned_files[-5:],
             "recent_errors": state.recent_errors[-3:],
         }

@@ -39,7 +39,8 @@ class BasePhaseAdapter:
 
         logger.info(
             "lifecycle_phase_start project=%s phase=%s",
-            ctx.project_id, self.phase.name,
+            ctx.project_id,
+            self.phase.name,
         )
 
         try:
@@ -53,7 +54,10 @@ class BasePhaseAdapter:
 
             logger.info(
                 "lifecycle_phase_done project=%s phase=%s status=%s duration=%.0fms",
-                ctx.project_id, self.phase.name, record.status, record.duration_ms,
+                ctx.project_id,
+                self.phase.name,
+                record.status,
+                record.duration_ms,
             )
 
         except Exception as e:
@@ -63,7 +67,10 @@ class BasePhaseAdapter:
             record.duration_ms = (record.completed_at - record.started_at) * 1000
             logger.error(
                 "lifecycle_phase_error project=%s phase=%s: %s",
-                ctx.project_id, self.phase.name, e, exc_info=True,
+                ctx.project_id,
+                self.phase.name,
+                e,
+                exc_info=True,
             )
 
         return record
@@ -347,7 +354,12 @@ class TestAdapter(BasePhaseAdapter):
             import asyncio
 
             proc = await asyncio.create_subprocess_exec(
-                "python", "-m", "pytest", "tests/", "-q", "--tb=no",
+                "python",
+                "-m",
+                "pytest",
+                "tests/",
+                "-q",
+                "--tb=no",
                 cwd=ctx.workspace or None,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -380,9 +392,7 @@ class TestAdapter(BasePhaseAdapter):
 
         # 测试通过率门禁
         pass_rate = (
-            test_result["passed"] / test_result["total"]
-            if test_result["total"] > 0
-            else 0.0
+            test_result["passed"] / test_result["total"] if test_result["total"] > 0 else 0.0
         )
         record.gate_score = pass_rate * 100
         record.gate_passed = pass_rate >= 0.8
@@ -440,7 +450,7 @@ class HealAdapter(BasePhaseAdapter):
             import importlib as _il
 
             _evo_mod = _il.import_module("pycoder.evolution.core")
-            EvolutionPipeline = getattr(_evo_mod, "EvolutionPipeline")
+            EvolutionPipeline = _evo_mod.EvolutionPipeline
 
             pipeline = EvolutionPipeline()
             report = await pipeline.run(
@@ -494,14 +504,14 @@ class DeliverAdapter(BasePhaseAdapter):
         # 生成交付报告
         report_lines = [
             f"# 项目交付报告: {ctx.requirements.get('project_name', ctx.project_id)}",
-            f"",
-            f"## 概述",
+            "",
+            "## 概述",
             f"- 项目ID: {ctx.project_id}",
             f"- 状态: {ctx.status.value}",
             f"- 阶段数: {len(ctx.phases)}",
             f"- 开发文件: {len(ctx.developed_files)}",
-            f"",
-            f"## 阶段执行记录",
+            "",
+            "## 阶段执行记录",
         ]
 
         for phase in LifecyclePhase.ordered():
@@ -512,14 +522,16 @@ class DeliverAdapter(BasePhaseAdapter):
                     f"({rec.duration_ms:.0f}ms, score={rec.gate_score:.0f})"
                 )
 
-        report_lines.extend([
-            f"",
-            f"## 测试结果",
-            f"- 通过: {ctx.test_results.get('passed', 0)}",
-            f"- 失败: {ctx.test_results.get('failed', 0)}",
-            f"",
-            f"## 经验沉淀",
-        ])
+        report_lines.extend(
+            [
+                "",
+                "## 测试结果",
+                f"- 通过: {ctx.test_results.get('passed', 0)}",
+                f"- 失败: {ctx.test_results.get('failed', 0)}",
+                "",
+                "## 经验沉淀",
+            ]
+        )
         report_lines.extend(f"- {lesson}" for lesson in ctx.lessons)
 
         delivery["report"] = "\n".join(report_lines)
@@ -538,8 +550,7 @@ class DeliverAdapter(BasePhaseAdapter):
                     "phases": len(ctx.phases),
                     "files": len(ctx.developed_files),
                     "test_pass_rate": (
-                        ctx.test_results.get("passed", 0)
-                        / max(ctx.test_results.get("total", 1), 1)
+                        ctx.test_results.get("passed", 0) / max(ctx.test_results.get("total", 1), 1)
                     ),
                 },
             )

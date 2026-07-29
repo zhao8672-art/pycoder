@@ -15,6 +15,7 @@ from pathlib import Path
 from pycoder.core.di import registry
 from pycoder.core.ports.llm_provider import LLMProvider
 from pycoder.core.services.log import log
+from pycoder.core.services.task_grader import get_task_grader
 from pycoder.server.services.agent_loop import UnifiedAgentLoop
 from pycoder.server.services.agent_strategies import (
     AgentStrategy,
@@ -22,7 +23,6 @@ from pycoder.server.services.agent_strategies import (
     get_strategy,
     resolve_iterations_for_grade,
 )
-from pycoder.core.services.task_grader import get_task_grader
 
 logger = logging.getLogger(__name__)
 

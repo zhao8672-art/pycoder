@@ -32,7 +32,6 @@ from pycoder.server.services.closed_loop_engine import (
     VerifyResult,
 )
 
-
 # ── 全局 Mock: 禁用沙箱执行器 ──────────────────────────────
 
 
@@ -167,9 +166,7 @@ class TestExecutePlan:
         assert isinstance(result, ClosedLoopResult)
         assert result.steps_completed >= 1
         # step6 自愈步骤应被执行
-        step6_results = [
-            sr for sr in result.step_results if sr.step_number == 6
-        ]
+        step6_results = [sr for sr in result.step_results if sr.step_number == 6]
         assert len(step6_results) >= 1
 
 
@@ -217,7 +214,9 @@ class TestAnalyzeError:
 
     @pytest.mark.asyncio
     async def test_analyze_error_syntax(
-        self, engine: ClosedLoopEngine, syntax_error: ExecutionError,
+        self,
+        engine: ClosedLoopEngine,
+        syntax_error: ExecutionError,
     ) -> None:
         """分析语法错误"""
         diagnosis = await engine.analyze_error(syntax_error)
@@ -229,7 +228,9 @@ class TestAnalyzeError:
 
     @pytest.mark.asyncio
     async def test_analyze_error_import(
-        self, engine: ClosedLoopEngine, import_error: ExecutionError,
+        self,
+        engine: ClosedLoopEngine,
+        import_error: ExecutionError,
     ) -> None:
         """分析导入错误"""
         diagnosis = await engine.analyze_error(import_error)
@@ -240,7 +241,9 @@ class TestAnalyzeError:
 
     @pytest.mark.asyncio
     async def test_analyze_error_type(
-        self, engine: ClosedLoopEngine, type_error: ExecutionError,
+        self,
+        engine: ClosedLoopEngine,
+        type_error: ExecutionError,
     ) -> None:
         """分析类型错误"""
         diagnosis = await engine.analyze_error(type_error)
@@ -250,7 +253,9 @@ class TestAnalyzeError:
 
     @pytest.mark.asyncio
     async def test_analyze_error_returns_suggested_fix(
-        self, engine: ClosedLoopEngine, syntax_error: ExecutionError,
+        self,
+        engine: ClosedLoopEngine,
+        syntax_error: ExecutionError,
     ) -> None:
         """分析错误返回修复建议"""
         diagnosis = await engine.analyze_error(syntax_error)
@@ -266,7 +271,9 @@ class TestGenerateFix:
 
     @pytest.mark.asyncio
     async def test_generate_fix(
-        self, engine: ClosedLoopEngine, syntax_error: ExecutionError,
+        self,
+        engine: ClosedLoopEngine,
+        syntax_error: ExecutionError,
     ) -> None:
         """根据诊断生成修复"""
         diagnosis = await engine.analyze_error(syntax_error)
@@ -277,7 +284,9 @@ class TestGenerateFix:
 
     @pytest.mark.asyncio
     async def test_generate_fix_for_import_error(
-        self, engine: ClosedLoopEngine, import_error: ExecutionError,
+        self,
+        engine: ClosedLoopEngine,
+        import_error: ExecutionError,
     ) -> None:
         """为导入错误生成修复"""
         diagnosis = await engine.analyze_error(import_error)
@@ -323,7 +332,9 @@ class TestSelfHealingLoop:
 
     @pytest.mark.asyncio
     async def test_heal_syntax_error(
-        self, tmp_path: Path, syntax_error: ExecutionError,
+        self,
+        tmp_path: Path,
+        syntax_error: ExecutionError,
     ) -> None:
         """自愈语法错误"""
         healer = SelfHealingLoop(workspace=tmp_path)
@@ -333,7 +344,9 @@ class TestSelfHealingLoop:
 
     @pytest.mark.asyncio
     async def test_heal_returns_history(
-        self, tmp_path: Path, syntax_error: ExecutionError,
+        self,
+        tmp_path: Path,
+        syntax_error: ExecutionError,
     ) -> None:
         """自愈返回历史记录"""
         healer = SelfHealingLoop(workspace=tmp_path)

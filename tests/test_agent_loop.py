@@ -23,9 +23,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from pycoder.server.services.agent_loop import UnifiedAgentLoop, WORKSPACE
-from pycoder.server.services.agent_strategies import AgentStrategy, SIMPLE_STRATEGY
-
+from pycoder.server.services.agent_loop import WORKSPACE, UnifiedAgentLoop
+from pycoder.server.services.agent_strategies import AgentStrategy
 
 # ══════════════════════════════════════════════════════════
 # 辅助类和工具函数
@@ -35,6 +34,7 @@ from pycoder.server.services.agent_strategies import AgentStrategy, SIMPLE_STRAT
 @dataclass
 class FakeEvent:
     """模拟 LLM 流式事件"""
+
     event_type: str  # "token" | "done" | "error"
     content: str = ""
 
@@ -126,9 +126,11 @@ class TestChatStreamNormal:
         """首轮即返回完成信号"""
         strategy = _make_strategy(max_iterations=3)
         # 第一轮返回完成信号
-        bridge = FakeBridge([
-            [FakeEvent("token", "完成"), FakeEvent("done", "完成。任务已全部完成。")],
-        ])
+        bridge = FakeBridge(
+            [
+                [FakeEvent("token", "完成"), FakeEvent("done", "完成。任务已全部完成。")],
+            ]
+        )
         loop = UnifiedAgentLoop(strategy)
 
         results = []
@@ -147,9 +149,11 @@ class TestChatStreamNormal:
     async def test_completion_with_done_keyword(self):
         """LLM 返回 'done' 关键词触发完成"""
         strategy = _make_strategy(max_iterations=3)
-        bridge = FakeBridge([
-            [FakeEvent("token", "done"), FakeEvent("done", "done")],
-        ])
+        bridge = FakeBridge(
+            [
+                [FakeEvent("token", "done"), FakeEvent("done", "done")],
+            ]
+        )
         loop = UnifiedAgentLoop(strategy)
 
         results = []
@@ -164,12 +168,14 @@ class TestChatStreamNormal:
     async def test_completion_with_chinese_summary(self):
         """LLM 返回中文总结触发完成"""
         strategy = _make_strategy(max_iterations=3)
-        bridge = FakeBridge([
+        bridge = FakeBridge(
             [
-                FakeEvent("token", "总结：所有任务已成功完成。"),
-                FakeEvent("done", "总结：所有任务已成功完成。"),
-            ],
-        ])
+                [
+                    FakeEvent("token", "总结：所有任务已成功完成。"),
+                    FakeEvent("done", "总结：所有任务已成功完成。"),
+                ],
+            ]
+        )
         loop = UnifiedAgentLoop(strategy)
 
         results = []
@@ -192,13 +198,13 @@ class TestChatStreamToolExecution:
     async def test_tool_call_read_then_complete(self):
         """先调用读工具，然后完成"""
         strategy = _make_strategy(max_iterations=5)
-        tool_json = (
-            '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}'
+        tool_json = '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}'
+        bridge = FakeBridge(
+            [
+                [FakeEvent("token", tool_json), FakeEvent("done", tool_json)],
+                [FakeEvent("token", "完成"), FakeEvent("done", "完成。任务完成。")],
+            ]
         )
-        bridge = FakeBridge([
-            [FakeEvent("token", tool_json), FakeEvent("done", tool_json)],
-            [FakeEvent("token", "完成"), FakeEvent("done", "完成。任务完成。")],
-        ])
         loop = UnifiedAgentLoop(strategy)
 
         with patch(
@@ -228,10 +234,12 @@ class TestChatStreamToolExecution:
         strategy = _make_strategy(max_iterations=5)
         # 工具名称为空，校验会失败
         tool_json = '{"tool_calls": [{"name": "", "params": {}}]}'
-        bridge = FakeBridge([
-            [FakeEvent("token", tool_json), FakeEvent("done", tool_json)],
-            [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
-        ])
+        bridge = FakeBridge(
+            [
+                [FakeEvent("token", tool_json), FakeEvent("done", tool_json)],
+                [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
+            ]
+        )
         loop = UnifiedAgentLoop(strategy)
 
         results = []
@@ -247,13 +255,13 @@ class TestChatStreamToolExecution:
     async def test_tool_execution_error(self):
         """工具执行抛出异常时捕获并返回错误"""
         strategy = _make_strategy(max_iterations=5)
-        tool_json = (
-            '{"tool_calls": [{"name": "read_file", "params": {"path": "notexist.py"}}]}'
+        tool_json = '{"tool_calls": [{"name": "read_file", "params": {"path": "notexist.py"}}]}'
+        bridge = FakeBridge(
+            [
+                [FakeEvent("token", tool_json), FakeEvent("done", tool_json)],
+                [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
+            ]
         )
-        bridge = FakeBridge([
-            [FakeEvent("token", tool_json), FakeEvent("done", tool_json)],
-            [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
-        ])
         loop = UnifiedAgentLoop(strategy)
 
         with patch(
@@ -280,10 +288,12 @@ class TestChatStreamToolExecution:
             '{"name": "write_file", "params": {"path": "b.py", "content": "y"}}'
             "]}"
         )
-        bridge = FakeBridge([
-            [FakeEvent("token", tool_json), FakeEvent("done", tool_json)],
-            [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
-        ])
+        bridge = FakeBridge(
+            [
+                [FakeEvent("token", tool_json), FakeEvent("done", tool_json)],
+                [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
+            ]
+        )
         loop = UnifiedAgentLoop(strategy)
 
         call_order = []
@@ -312,10 +322,12 @@ class TestChatStreamToolExecution:
             '{"name": "list_files", "params": {"path": "."}}'
             "]}"
         )
-        bridge = FakeBridge([
-            [FakeEvent("token", tool_json), FakeEvent("done", tool_json)],
-            [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
-        ])
+        bridge = FakeBridge(
+            [
+                [FakeEvent("token", tool_json), FakeEvent("done", tool_json)],
+                [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
+            ]
+        )
         loop = UnifiedAgentLoop(strategy)
 
         started = []
@@ -350,12 +362,12 @@ class TestChatStreamFileBlocks:
     async def test_file_block_written_to_workspace(self, tmp_path):
         """FILE: 代码块被自动写入工作区"""
         strategy = _make_strategy(max_iterations=3)
-        response = (
-            "```FILE:hello.py\nprint('hello world')\n```\n\n完成"
+        response = "```FILE:hello.py\nprint('hello world')\n```\n\n完成"
+        bridge = FakeBridge(
+            [
+                [FakeEvent("token", response), FakeEvent("done", response)],
+            ]
         )
-        bridge = FakeBridge([
-            [FakeEvent("token", response), FakeEvent("done", response)],
-        ])
         loop = UnifiedAgentLoop(strategy, workspace=tmp_path)
 
         results = []
@@ -376,12 +388,12 @@ class TestChatStreamFileBlocks:
     async def test_file_block_path_traversal_prevented(self, tmp_path):
         """文件路径穿越被阻止"""
         strategy = _make_strategy(max_iterations=3)
-        response = (
-            "```FILE:../outside.py\nmalicious code\n```\n\n完成"
+        response = "```FILE:../outside.py\nmalicious code\n```\n\n完成"
+        bridge = FakeBridge(
+            [
+                [FakeEvent("token", response), FakeEvent("done", response)],
+            ]
         )
-        bridge = FakeBridge([
-            [FakeEvent("token", response), FakeEvent("done", response)],
-        ])
         loop = UnifiedAgentLoop(strategy, workspace=tmp_path)
 
         results = []
@@ -405,9 +417,11 @@ class TestChatStreamErrors:
     async def test_llm_stream_error(self):
         """LLM 流返回错误事件"""
         strategy = _make_strategy(max_iterations=3)
-        bridge = FakeBridge([
-            [FakeEvent("error", "LLM 服务不可用")],
-        ])
+        bridge = FakeBridge(
+            [
+                [FakeEvent("error", "LLM 服务不可用")],
+            ]
+        )
         loop = UnifiedAgentLoop(strategy)
 
         results = []
@@ -435,16 +449,20 @@ class TestChatStreamErrors:
 
         error_events = [r for r in results if r["type"] == "error"]
         assert len(error_events) >= 1
-        assert "LLM 调用失败" in error_events[0]["message"] or "连接超时" in error_events[0]["message"]
+        assert (
+            "LLM 调用失败" in error_events[0]["message"] or "连接超时" in error_events[0]["message"]
+        )
 
     @pytest.mark.asyncio
     async def test_empty_response_triggers_continue(self):
         """LLM 返回空响应时注入提示并继续"""
         strategy = _make_strategy(max_iterations=3)
-        bridge = FakeBridge([
-            [FakeEvent("token", ""), FakeEvent("done", "")],
-            [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
-        ])
+        bridge = FakeBridge(
+            [
+                [FakeEvent("token", ""), FakeEvent("done", "")],
+                [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
+            ]
+        )
         loop = UnifiedAgentLoop(strategy)
 
         results = []
@@ -469,12 +487,26 @@ class TestMaxIterations:
         """达到最大迭代次数后返回 completed 状态"""
         strategy = _make_strategy(max_iterations=2)
         # 持续返回非完成、无工具调用的内容
-        bridge = FakeBridge([
-            [FakeEvent("token", '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}'),
-             FakeEvent("done", '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}')],
-            [FakeEvent("token", '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}'),
-             FakeEvent("done", '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}')],
-        ])
+        bridge = FakeBridge(
+            [
+                [
+                    FakeEvent(
+                        "token", '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}'
+                    ),
+                    FakeEvent(
+                        "done", '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}'
+                    ),
+                ],
+                [
+                    FakeEvent(
+                        "token", '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}'
+                    ),
+                    FakeEvent(
+                        "done", '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}'
+                    ),
+                ],
+            ]
+        )
         loop = UnifiedAgentLoop(strategy)
 
         with patch(
@@ -506,18 +538,12 @@ class TestRumination:
         """每 3 轮迭代触发反思提示"""
         strategy = _make_strategy(max_iterations=6, enable_rumination=True)
         # 每轮返回工具调用，让循环持续
-        tool_json = (
-            '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}'
-        )
+        tool_json = '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}'
         responses = []
         for _ in range(6):
-            responses.append(
-                [FakeEvent("token", tool_json), FakeEvent("done", tool_json)]
-            )
+            responses.append([FakeEvent("token", tool_json), FakeEvent("done", tool_json)])
         # 最后一轮完成后返回完成
-        responses.append(
-            [FakeEvent("token", "完成"), FakeEvent("done", "完成。任务完成。")]
-        )
+        responses.append([FakeEvent("token", "完成"), FakeEvent("done", "完成。任务完成。")])
         bridge = FakeBridge(responses)
         loop = UnifiedAgentLoop(strategy)
 
@@ -538,17 +564,11 @@ class TestRumination:
     async def test_rumination_disabled(self):
         """反思机制关闭时不触发"""
         strategy = _make_strategy(max_iterations=4, enable_rumination=False)
-        tool_json = (
-            '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}'
-        )
+        tool_json = '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}'
         responses = []
         for _ in range(4):
-            responses.append(
-                [FakeEvent("token", tool_json), FakeEvent("done", tool_json)]
-            )
-        responses.append(
-            [FakeEvent("token", "完成"), FakeEvent("done", "完成")]
-        )
+            responses.append([FakeEvent("token", tool_json), FakeEvent("done", tool_json)])
+        responses.append([FakeEvent("token", "完成"), FakeEvent("done", "完成")])
         bridge = FakeBridge(responses)
         loop = UnifiedAgentLoop(strategy)
 
@@ -558,7 +578,7 @@ class TestRumination:
         ) as mock_exec:
             mock_exec.return_value = "结果"
 
-            async for ev in loop.chat_stream("任务", bridge):
+            async for _ev in loop.chat_stream("任务", bridge):
                 pass
 
             assert loop._rumination_count == 0
@@ -576,16 +596,18 @@ class TestP0P1NoToolDetection:
     async def test_p0_first_iteration_no_tools_not_completion(self):
         """首轮无工具调用且无代码块不应判定为完成"""
         strategy = _make_strategy(max_iterations=3)
-        bridge = FakeBridge([
+        bridge = FakeBridge(
             [
-                FakeEvent("token", "我会帮你完成这个任务。"),
-                FakeEvent("done", "我会帮你完成这个任务。"),
-            ],
-            [
-                FakeEvent("token", "完成"),
-                FakeEvent("done", "完成"),
-            ],
-        ])
+                [
+                    FakeEvent("token", "我会帮你完成这个任务。"),
+                    FakeEvent("done", "我会帮你完成这个任务。"),
+                ],
+                [
+                    FakeEvent("token", "完成"),
+                    FakeEvent("done", "完成"),
+                ],
+            ]
+        )
         loop = UnifiedAgentLoop(strategy)
 
         results = []
@@ -600,23 +622,25 @@ class TestP0P1NoToolDetection:
     async def test_p1_second_iteration_no_tools_not_completion(self):
         """第二轮无工具调用且无代码块不应判定为完成"""
         strategy = _make_strategy(max_iterations=4)
-        bridge = FakeBridge([
-            # 第一轮：无工具调用
+        bridge = FakeBridge(
             [
-                FakeEvent("token", "让我来分析这个任务。"),
-                FakeEvent("done", "让我来分析这个任务。"),
-            ],
-            # 第二轮：无工具调用
-            [
-                FakeEvent("token", "我需要更多信息。"),
-                FakeEvent("done", "我需要更多信息。"),
-            ],
-            # 第三轮：完成
-            [
-                FakeEvent("token", "完成"),
-                FakeEvent("done", "完成"),
-            ],
-        ])
+                # 第一轮：无工具调用
+                [
+                    FakeEvent("token", "让我来分析这个任务。"),
+                    FakeEvent("done", "让我来分析这个任务。"),
+                ],
+                # 第二轮：无工具调用
+                [
+                    FakeEvent("token", "我需要更多信息。"),
+                    FakeEvent("done", "我需要更多信息。"),
+                ],
+                # 第三轮：完成
+                [
+                    FakeEvent("token", "完成"),
+                    FakeEvent("done", "完成"),
+                ],
+            ]
+        )
         loop = UnifiedAgentLoop(strategy)
 
         results = []
@@ -632,10 +656,12 @@ class TestP0P1NoToolDetection:
         """有代码块但没有工具调用时继续下一轮"""
         strategy = _make_strategy(max_iterations=3)
         response = "```FILE:test.py\nprint('ok')\n```"
-        bridge = FakeBridge([
-            [FakeEvent("token", response), FakeEvent("done", response)],
-            [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
-        ])
+        bridge = FakeBridge(
+            [
+                [FakeEvent("token", response), FakeEvent("done", response)],
+                [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
+            ]
+        )
         loop = UnifiedAgentLoop(strategy, workspace=Path("."))
 
         with patch.object(Path, "is_relative_to", return_value=True):
@@ -661,9 +687,11 @@ class TestContextInjection:
     async def test_context_injected_into_system_prompt(self):
         """上下文被注入到系统提示词中"""
         strategy = _make_strategy(max_iterations=2)
-        bridge = FakeBridge([
-            [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
-        ])
+        bridge = FakeBridge(
+            [
+                [FakeEvent("token", "完成"), FakeEvent("done", "完成")],
+            ]
+        )
         loop = UnifiedAgentLoop(strategy)
 
         with patch(
@@ -671,9 +699,7 @@ class TestContextInjection:
             return_value="缓存规则注入后的系统提示",
         ):
             results = []
-            async for ev in loop.chat_stream(
-                "测试", bridge, context="项目上下文信息"
-            ):
+            async for ev in loop.chat_stream("测试", bridge, context="项目上下文信息"):
                 results.append(ev)
 
             # 系统提示应包含上下文

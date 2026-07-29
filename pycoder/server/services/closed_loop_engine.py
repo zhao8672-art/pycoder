@@ -101,9 +101,9 @@ MAX_SELF_HEAL_ITERATIONS = 3
 
 # 自愈策略（渐进式）
 SELF_HEAL_STRATEGIES: list[str] = [
-    "syntax_fix",       # 策略 1: 语法错误修正
-    "import_fix",       # 策略 2: 导入/依赖修正
-    "logic_rewrite",    # 策略 3: 逻辑重写
+    "syntax_fix",  # 策略 1: 语法错误修正
+    "import_fix",  # 策略 2: 导入/依赖修正
+    "logic_rewrite",  # 策略 3: 逻辑重写
 ]
 
 # 错误严重度映射
@@ -116,42 +116,24 @@ SEVERITY_ORDER: dict[str, int] = {
 
 # 常见错误模式匹配
 ERROR_PATTERNS: dict[str, re.Pattern] = {
-    "syntax_error": re.compile(
-        r"SyntaxError:?\s*(.+?)(?:\n|$)", re.IGNORECASE
-    ),
+    "syntax_error": re.compile(r"SyntaxError:?\s*(.+?)(?:\n|$)", re.IGNORECASE),
     "import_error": re.compile(
         r"(?:ImportError|ModuleNotFoundError):?\s*(.+?)(?:\n|$)", re.IGNORECASE
     ),
-    "name_error": re.compile(
-        r"NameError:?\s*(.+?)(?:\n|$)", re.IGNORECASE
-    ),
-    "type_error": re.compile(
-        r"TypeError:?\s*(.+?)(?:\n|$)", re.IGNORECASE
-    ),
-    "attribute_error": re.compile(
-        r"AttributeError:?\s*(.+?)(?:\n|$)", re.IGNORECASE
-    ),
-    "indentation_error": re.compile(
-        r"IndentationError:?\s*(.+?)(?:\n|$)", re.IGNORECASE
-    ),
-    "assertion_error": re.compile(
-        r"AssertionError:?\s*(.+?)(?:\n|$)", re.IGNORECASE
-    ),
-    "file_not_found": re.compile(
-        r"FileNotFoundError:?\s*(.+?)(?:\n|$)", re.IGNORECASE
-    ),
+    "name_error": re.compile(r"NameError:?\s*(.+?)(?:\n|$)", re.IGNORECASE),
+    "type_error": re.compile(r"TypeError:?\s*(.+?)(?:\n|$)", re.IGNORECASE),
+    "attribute_error": re.compile(r"AttributeError:?\s*(.+?)(?:\n|$)", re.IGNORECASE),
+    "indentation_error": re.compile(r"IndentationError:?\s*(.+?)(?:\n|$)", re.IGNORECASE),
+    "assertion_error": re.compile(r"AssertionError:?\s*(.+?)(?:\n|$)", re.IGNORECASE),
+    "file_not_found": re.compile(r"FileNotFoundError:?\s*(.+?)(?:\n|$)", re.IGNORECASE),
     "test_failure": re.compile(
         r"(?:FAILED|FAILURES|assert\s+.+?)\s*(?:.+?)(?:\n|$)", re.IGNORECASE
     ),
-    "build_error": re.compile(
-        r"(?:error|ERROR)\s*(?:\[.*?\])?\s*(.+?)(?:\n|$)", re.IGNORECASE
-    ),
+    "build_error": re.compile(r"(?:error|ERROR)\s*(?:\[.*?\])?\s*(.+?)(?:\n|$)", re.IGNORECASE),
 }
 
 # 文件路径提取模式
-FILE_PATH_PATTERN = re.compile(
-    r'File\s+"([^"]+\.py)",\s*line\s+(\d+)', re.IGNORECASE
-)
+FILE_PATH_PATTERN = re.compile(r'File\s+"([^"]+\.py)",\s*line\s+(\d+)', re.IGNORECASE)
 
 
 # ══════════════════════════════════════════════════════════
@@ -226,9 +208,7 @@ class ExecutionError:
     ) -> ExecutionError:
         """从 Python 异常创建错误"""
         ctx = context or {}
-        tb = "".join(
-            traceback.format_exception(type(exc), exc, exc.__traceback__)
-        )
+        tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
         return cls.from_stderr(tb, ctx)
 
     def to_dict(self) -> dict[str, Any]:
@@ -440,20 +420,15 @@ class TaskDAG:
             self._edges.pop()
             self._adjacency[from_id].pop()
             self._reverse_adjacency[to_id].pop()
-            raise ValueError(
-                f"添加边 {from_id} → {to_id} 会导致环路"
-            )
+            raise ValueError(f"添加边 {from_id} → {to_id} 会导致环路")
         logger.debug("DAG 添加边: %s → %s", from_id, to_id)
 
     def _has_cycle(self) -> bool:
         """检测图中是否存在环路（Kahn 算法）"""
         in_degree: dict[str, int] = {
-            node_id: len(self._reverse_adjacency[node_id])
-            for node_id in self._nodes
+            node_id: len(self._reverse_adjacency[node_id]) for node_id in self._nodes
         }
-        queue: deque[str] = deque(
-            node_id for node_id, deg in in_degree.items() if deg == 0
-        )
+        queue: deque[str] = deque(node_id for node_id, deg in in_degree.items() if deg == 0)
         visited = 0
 
         while queue:
@@ -469,16 +444,11 @@ class TaskDAG:
     def topological_sort(self) -> list[TaskNode]:
         """拓扑排序 — 按依赖关系返回任务执行顺序"""
         in_degree: dict[str, int] = {
-            node_id: len(self._reverse_adjacency[node_id])
-            for node_id in self._nodes
+            node_id: len(self._reverse_adjacency[node_id]) for node_id in self._nodes
         }
         # 使用优先级队列（优先执行高优先级任务）
         queue: list[tuple[int, str]] = sorted(
-            [
-                (-self._nodes[nid].priority, nid)
-                for nid, deg in in_degree.items()
-                if deg == 0
-            ],
+            [(-self._nodes[nid].priority, nid) for nid, deg in in_degree.items() if deg == 0],
             key=lambda x: x[0],
         )
         result: list[TaskNode] = []
@@ -489,9 +459,7 @@ class TaskDAG:
             for neighbor in self._adjacency[node_id]:
                 in_degree[neighbor] -= 1
                 if in_degree[neighbor] == 0:
-                    queue.append(
-                        (-self._nodes[neighbor].priority, neighbor)
-                    )
+                    queue.append((-self._nodes[neighbor].priority, neighbor))
                     queue.sort(key=lambda x: x[0])
 
         if len(result) != len(self._nodes):
@@ -509,8 +477,7 @@ class TaskDAG:
         使用 BFS 分层算法：同一层中入度为 0 的节点可以并行执行。
         """
         in_degree: dict[str, int] = {
-            node_id: len(self._reverse_adjacency[node_id])
-            for node_id in self._nodes
+            node_id: len(self._reverse_adjacency[node_id]) for node_id in self._nodes
         }
         remaining = set(self._nodes.keys())
         groups: list[list[TaskNode]] = []
@@ -547,13 +514,8 @@ class TaskDAG:
         """序列化为字典（供 LLM 消费）"""
         return {
             "nodes": [n.to_dict() for n in self._nodes.values()],
-            "edges": [
-                {"from": f, "to": t} for f, t in self._edges
-            ],
-            "parallel_groups": [
-                [n.id for n in group]
-                for group in self.get_parallel_groups()
-            ],
+            "edges": [{"from": f, "to": t} for f, t in self._edges],
+            "parallel_groups": [[n.id for n in group] for group in self.get_parallel_groups()],
             "critical_path": [n.id for n in self.topological_sort()],
             "total_nodes": len(self._nodes),
             "total_edges": len(self._edges),
@@ -641,16 +603,12 @@ class SelfHealingLoop:
                 root_cause = f"导入失败: {error.message}"
                 fix_strategy = "import_fix"
                 confidence = 0.85
-                suggested_fix = (
-                    f"检查并修正导入语句，确保模块存在且路径正确: {error.message}"
-                )
+                suggested_fix = f"检查并修正导入语句，确保模块存在且路径正确: {error.message}"
             case "name_error":
                 root_cause = f"未定义名称: {error.message}"
                 fix_strategy = "syntax_fix"
                 confidence = 0.8
-                suggested_fix = (
-                    f"确保变量/函数名 '{error.message.split()[0]}' 在使用前已定义"
-                )
+                suggested_fix = f"确保变量/函数名 '{error.message.split()[0]}' 在使用前已定义"
             case "type_error":
                 root_cause = f"类型错误: {error.message}"
                 fix_strategy = "logic_rewrite"
@@ -707,9 +665,10 @@ class SelfHealingLoop:
         根据诊断结果，尝试修复受影响文件中的问题。
         """
         logger.info(
-        "开始应用修复: 策略=%s, 文件数=%d",
-        diagnosis.fix_strategy, len(diagnosis.affected_files),
-    )
+            "开始应用修复: 策略=%s, 文件数=%d",
+            diagnosis.fix_strategy,
+            len(diagnosis.affected_files),
+        )
 
         applied_changes: list[dict[str, Any]] = []
         build_result: dict[str, Any] = {}
@@ -719,29 +678,35 @@ class SelfHealingLoop:
             resolved = self._workspace / file_path
             if not resolved.exists():
                 logger.warning("修复目标文件不存在: %s", resolved)
-                applied_changes.append({
-                    "file": file_path,
-                    "action": "skip",
-                    "reason": "文件不存在",
-                })
+                applied_changes.append(
+                    {
+                        "file": file_path,
+                        "action": "skip",
+                        "reason": "文件不存在",
+                    }
+                )
                 continue
 
             try:
                 content = resolved.read_text(encoding="utf-8", errors="ignore")
-                applied_changes.append({
-                    "file": file_path,
-                    "action": diagnosis.fix_strategy,
-                    "original_lines": len(content.splitlines()),
-                    "strategy": diagnosis.fix_strategy,
-                })
+                applied_changes.append(
+                    {
+                        "file": file_path,
+                        "action": diagnosis.fix_strategy,
+                        "original_lines": len(content.splitlines()),
+                        "strategy": diagnosis.fix_strategy,
+                    }
+                )
                 logger.debug("已读取文件: %s (%d 行)", file_path, len(content.splitlines()))
             except OSError as e:
                 logger.warning("读取文件失败: %s - %s", file_path, e)
-                applied_changes.append({
-                    "file": file_path,
-                    "action": "error",
-                    "reason": str(e),
-                })
+                applied_changes.append(
+                    {
+                        "file": file_path,
+                        "action": "error",
+                        "reason": str(e),
+                    }
+                )
 
         return FixResult(
             applied_changes=applied_changes,
@@ -799,9 +764,7 @@ class SelfHealingLoop:
                     )
             except Exception as e:
                 logger.warning("沙箱验证异常: %s", e)
-                errors.append(
-                    ExecutionError.from_exception(e, {"phase": "verify_sandbox"})
-                )
+                errors.append(ExecutionError.from_exception(e, {"phase": "verify_sandbox"}))
                 build_success = False
         else:
             # 无沙箱时进行基本的语法检查
@@ -860,13 +823,15 @@ class SelfHealingLoop:
                 # Step 3: 验证
                 verify_result = await self.verify(fix_result)
 
-                self._attempts.append({
-                    "attempt": attempt,
-                    "strategy": strategy,
-                    "diagnosis": diagnosis.to_dict(),
-                    "fix": fix_result.to_dict(),
-                    "verify": verify_result.to_dict(),
-                })
+                self._attempts.append(
+                    {
+                        "attempt": attempt,
+                        "strategy": strategy,
+                        "diagnosis": diagnosis.to_dict(),
+                        "fix": fix_result.to_dict(),
+                        "verify": verify_result.to_dict(),
+                    }
+                )
 
                 if verify_result.passed:
                     logger.info("✅ 自愈成功！第 %d 轮，策略: %s", attempt, strategy)
@@ -885,11 +850,13 @@ class SelfHealingLoop:
 
             except Exception as e:
                 logger.error("自愈第 %d 轮异常: %s", attempt, e)
-                self._attempts.append({
-                    "attempt": attempt,
-                    "strategy": strategy,
-                    "error": str(e),
-                })
+                self._attempts.append(
+                    {
+                        "attempt": attempt,
+                        "strategy": strategy,
+                        "error": str(e),
+                    }
+                )
 
         # 所有尝试失败，生成回退建议
         logger.warning("⚡ 自愈循环全部失败，触发回退")
@@ -970,11 +937,14 @@ class ClosedLoopEngine:
             "language": "python",
             "framework": ctx.get("framework", "auto"),
             "tech_stack": ctx.get("tech_stack", []),
-            "quality_standards": ctx.get("quality_standards", [
-                "pep8",
-                "type_hints",
-                "test_coverage",
-            ]),
+            "quality_standards": ctx.get(
+                "quality_standards",
+                [
+                    "pep8",
+                    "type_hints",
+                    "test_coverage",
+                ],
+            ),
             "constraints": ctx.get("constraints", []),
             "estimated_complexity": "medium",
         }
@@ -1003,9 +973,7 @@ class ClosedLoopEngine:
 
     # ── Step 2: 全局代码库扫描解析 ────────────────────
 
-    async def _step2_scan_codebase(
-        self, constraints: dict[str, Any]
-    ) -> StepResult:
+    async def _step2_scan_codebase(self, constraints: dict[str, Any]) -> StepResult:
         """扫描并分析代码库
 
         遍历项目结构，AST 解析，依赖分析。
@@ -1030,9 +998,7 @@ class ClosedLoopEngine:
 
             # 统计测试文件
             test_files = [
-                f
-                for f in python_files
-                if f.name.startswith("test_") or "tests" in f.parts
+                f for f in python_files if f.name.startswith("test_") or "tests" in f.parts
             ]
             codebase_info["test_files"] = len(test_files)
 
@@ -1052,9 +1018,8 @@ class ClosedLoopEngine:
             if req_path.exists():
                 try:
                     deps = (
-                    req_path.read_text(encoding="utf-8", errors="ignore")
-                    .strip().splitlines()
-                )
+                        req_path.read_text(encoding="utf-8", errors="ignore").strip().splitlines()
+                    )
                     codebase_info["dependencies"] = [
                         d.strip() for d in deps if d.strip() and not d.startswith("#")
                     ]
@@ -1066,10 +1031,12 @@ class ClosedLoopEngine:
                 for item in pycoder_dir.iterdir():
                     if item.is_dir() and not item.name.startswith("_"):
                         sub_files = list(item.rglob("*.py"))
-                        codebase_info["modules"].append({
-                            "name": item.name,
-                            "files": len(sub_files),
-                        })
+                        codebase_info["modules"].append(
+                            {
+                                "name": item.name,
+                                "files": len(sub_files),
+                            }
+                        )
 
         except Exception as e:
             logger.warning("代码库扫描异常: %s", e)
@@ -1110,13 +1077,15 @@ class ClosedLoopEngine:
         ]
 
         for sid, name, desc, priority in subsystems:
-            dag.add_node(TaskNode(
-                id=sid,
-                name=name,
-                description=desc,
-                priority=priority,
-                estimated_duration=30.0,
-            ))
+            dag.add_node(
+                TaskNode(
+                    id=sid,
+                    name=name,
+                    description=desc,
+                    priority=priority,
+                    estimated_duration=30.0,
+                )
+            )
 
         # 建立依赖关系
         dag.add_edge("1", "2")  # 理解结构 → 设计接口
@@ -1162,12 +1131,14 @@ class ClosedLoopEngine:
 
         # 记录代码生成计划
         for node in dag.get("nodes", []):
-            changes.append({
-                "node_id": node["id"],
-                "name": node["name"],
-                "action": "planned",
-                "framework": framework,
-            })
+            changes.append(
+                {
+                    "node_id": node["id"],
+                    "name": node["name"],
+                    "action": "planned",
+                    "framework": framework,
+                }
+            )
 
         duration = (time.time() - t0) * 1000
         return StepResult(
@@ -1181,9 +1152,7 @@ class ClosedLoopEngine:
 
     # ── Step 5: 沙箱环境构建与测试 ──────────────────────
 
-    async def _step5_build_test(
-        self, changes: list[dict[str, Any]]
-    ) -> StepResult:
+    async def _step5_build_test(self, changes: list[dict[str, Any]]) -> StepResult:
         """在沙箱中编译、lint、单元测试、功能测试"""
         t0 = time.time()
         logger.info("[Step 5/7] 沙箱构建与测试")
@@ -1234,7 +1203,8 @@ class ClosedLoopEngine:
             build_results["unit_test"]["output"] = "沙箱不可用，跳过测试"
 
         all_passed = all(
-            v.get("success", False) for v in build_results.values()
+            v.get("success", False)
+            for v in build_results.values()
             if isinstance(v, dict) and "success" in v
         )
 
@@ -1249,9 +1219,7 @@ class ClosedLoopEngine:
 
     # ── Step 6: 报错自愈迭代修正 ────────────────────────
 
-    async def _step6_self_heal(
-        self, build_results: dict[str, Any]
-    ) -> StepResult:
+    async def _step6_self_heal(self, build_results: dict[str, Any]) -> StepResult:
         """识别根因、修复、重建、复测 — 最多 3 轮"""
         t0 = time.time()
         logger.info("[Step 6/7] 报错自愈迭代修正")
@@ -1328,21 +1296,25 @@ class ClosedLoopEngine:
         # 检查是否有失败的步骤
         failed_steps = [sr for sr in step_results if not sr.success]
         for fs in failed_steps:
-            risk_analysis.append({
-                "risk": f"步骤 {fs.step_number} ({fs.step_name}) 失败",
-                "severity": "high",
-                "mitigation": f"检查步骤 {fs.step_number} 的输出",
-                "detail": fs.error[:200] if fs.error else "无详细信息",
-            })
+            risk_analysis.append(
+                {
+                    "risk": f"步骤 {fs.step_number} ({fs.step_name}) 失败",
+                    "severity": "high",
+                    "mitigation": f"检查步骤 {fs.step_number} 的输出",
+                    "detail": fs.error[:200] if fs.error else "无详细信息",
+                }
+            )
 
         # 如果所有步骤都成功，添加低风险项
         if not risk_analysis:
-            risk_analysis.append({
-                "risk": "所有步骤均通过",
-                "severity": "low",
-                "mitigation": "无需额外操作",
-                "detail": "7 步闭环全部成功",
-            })
+            risk_analysis.append(
+                {
+                    "risk": "所有步骤均通过",
+                    "severity": "low",
+                    "mitigation": "无需额外操作",
+                    "detail": "7 步闭环全部成功",
+                }
+            )
 
         # 回退计划
         rollback_plan: dict[str, Any] = {
@@ -1360,9 +1332,7 @@ class ClosedLoopEngine:
         lessons_learned: list[str] = []
         for sr in step_results:
             if not sr.success:
-                lessons_learned.append(
-                    f"步骤 {sr.step_number} ({sr.step_name}): {sr.error[:100]}"
-                )
+                lessons_learned.append(f"步骤 {sr.step_number} ({sr.step_name}): {sr.error[:100]}")
         if not lessons_learned:
             lessons_learned.append("所有步骤均成功，闭环流程正常")
 
@@ -1467,9 +1437,7 @@ class ClosedLoopEngine:
 
             # ── Step 7: 封装交付 ──
             self._status["current_step"] = 7
-            sr7 = await self._step7_package_deliver(
-                step_results, task, constraints
-            )
+            sr7 = await self._step7_package_deliver(step_results, task, constraints)
             step_results.append(sr7)
 
         except Exception as e:
@@ -1544,9 +1512,7 @@ class ClosedLoopEngine:
         ctx = context or {}
         sr1 = await self._step1_parse_requirements(task, ctx)
         sr2 = await self._step2_scan_codebase(sr1.output or {})
-        sr3 = await self._step3_decompose_dag(
-            task, sr1.output or {}, sr2.output or {}
-        )
+        sr3 = await self._step3_decompose_dag(task, sr1.output or {}, sr2.output or {})
         return sr3.output if sr3.output else {}
 
     async def generate_report(self, result: ClosedLoopResult) -> dict[str, Any]:
@@ -1648,7 +1614,8 @@ def register_capabilities(registry: Any) -> list[CapabilityDefinition]:
     # ── closed_loop.execute ──────────────────────
 
     async def _handle_execute(
-        params: dict[str, Any], _context: dict[str, Any],
+        params: dict[str, Any],
+        _context: dict[str, Any],
     ) -> dict[str, Any]:
         task = params.get("task", "")
         task_context = params.get("context", {})
@@ -1659,9 +1626,8 @@ def register_capabilities(registry: Any) -> list[CapabilityDefinition]:
         id="closed_loop.execute",
         name="闭环验证执行",
         description=(
-                "执行完整 7 步工程闭环验证："
-                "需求解析→代码扫描→DAG拆解→代码编写→构建测试→自愈→交付"
-            ),
+            "执行完整 7 步工程闭环验证：" "需求解析→代码扫描→DAG拆解→代码编写→构建测试→自愈→交付"
+        ),
         category=CapabilityCategory.SELF_EVO,
         permission=TrustLevel.PROJECT_WRITE,
         execution=ExecutionMode.SYNC,
@@ -1707,7 +1673,8 @@ def register_capabilities(registry: Any) -> list[CapabilityDefinition]:
     # ── closed_loop.dag_decompose ────────────────
 
     async def _handle_dag_decompose(
-        params: dict[str, Any], _context: dict[str, Any],
+        params: dict[str, Any],
+        _context: dict[str, Any],
     ) -> dict[str, Any]:
         task = params.get("task", "")
         task_context = params.get("context", {})
@@ -1732,7 +1699,8 @@ def register_capabilities(registry: Any) -> list[CapabilityDefinition]:
     # ── closed_loop.generate_report ──────────────
 
     async def _handle_generate_report(
-        params: dict[str, Any], _context: dict[str, Any],
+        params: dict[str, Any],
+        _context: dict[str, Any],
     ) -> dict[str, Any]:
         result_data = params.get("result", {})
         result = ClosedLoopResult(

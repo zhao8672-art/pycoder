@@ -1,14 +1,15 @@
 """测试 PyCoder 核心引擎：ChatBridge、SelfEvolution、evolve 流程"""
+
 from __future__ import annotations
 
-import pytest
-from unittest.mock import patch
-from pathlib import Path
 import tempfile
-import os
+from pathlib import Path
+from unittest.mock import patch
 
+import pytest
 
 # ===== ChatBridge 测试 =====
+
 
 class TestChatBridge:
     """ChatBridge — AI 聊天桥接核心"""
@@ -21,7 +22,9 @@ class TestChatBridge:
             mock.model = "deepseek-chat"
             mock.api_key = "test-key"
             mock.conversation_history = []
-            mock.add_message = lambda r, c: mock.conversation_history.append({"role": r, "content": c})
+            mock.add_message = lambda r, c: mock.conversation_history.append(
+                {"role": r, "content": c}
+            )
             mock.clear_history = lambda: mock.conversation_history.clear()
             mock.get_system_prompt = lambda: "PyCoder AI Assistant - Python Developer Native IDE"
             yield mock
@@ -52,12 +55,14 @@ class TestChatBridge:
 
 # ===== SelfEvolution 测试 =====
 
+
 class TestSelfEvolutionEngine:
     """SelfEvolution — 自我进化引擎"""
 
     @pytest.fixture
     def engine(self):
         from pycoder.server.self_evolution import SelfEvolutionEngine
+
         with tempfile.TemporaryDirectory() as tmpdir:
             engine = SelfEvolutionEngine(project_root=Path(tmpdir))
             yield engine
@@ -100,6 +105,7 @@ class TestSelfEvolutionEngine:
     async def test_project_hash_computation(self, engine):
         """验证项目哈希计算"""
         import time
+
         # _compute_project_hash 只扫描 pycoder/ 子目录，
         # 因此文件必须创建在 pycoder/ 下才能被哈希函数识别
         pycoder_dir = engine._project_root / "pycoder"
@@ -134,7 +140,9 @@ class TestSelfEvolutionEngine:
         events = []
         try:
             async for event in engine.evolve(
-                task_type="fix", target="", custom_prompt="",
+                task_type="fix",
+                target="",
+                custom_prompt="",
                 dry_run=True,
             ):
                 events.append(event)
@@ -151,7 +159,8 @@ class TestSelfEvolutionEngine:
         events = []
         try:
             async for event in engine.evolve(
-                task_type="fix", dry_run=True,
+                task_type="fix",
+                dry_run=True,
             ):
                 events.append(event)
                 if len(events) > 5:
@@ -163,6 +172,7 @@ class TestSelfEvolutionEngine:
 
 # ===== 进化引擎整体集成测试 =====
 
+
 class TestEvolutionIntegration:
     """进化引擎集成测试"""
 
@@ -170,11 +180,17 @@ class TestEvolutionIntegration:
     async def test_stats_endpoint_simulation(self):
         """验证统计信息模拟"""
         from pycoder.server.self_evolution import EvolutionStats
+
         stats = EvolutionStats()
         assert stats.to_dict() == {
-            "total_tasks": 0, "successful": 0, "failed": 0,
-            "rolled_back": 0, "lines_changed": 0, "bugs_fixed": 0,
-            "success_rate": 0.0, "last_run": 0.0,
+            "total_tasks": 0,
+            "successful": 0,
+            "failed": 0,
+            "rolled_back": 0,
+            "lines_changed": 0,
+            "bugs_fixed": 0,
+            "success_rate": 0.0,
+            "last_run": 0.0,
         }
 
         # 递增

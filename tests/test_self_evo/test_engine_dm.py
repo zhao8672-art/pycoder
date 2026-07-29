@@ -1,15 +1,5 @@
 from __future__ import annotations
 
-import json
-import os
-import sys
-import time
-import sqlite3
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
-
 # ═══════════════════════════════════════════════════════════════
 # 模块 1: engine.py — 数据模型
 # ═══════════════════════════════════════════════════════════════
@@ -22,7 +12,9 @@ class TestCodeIssue:
         """最小字段创建"""
         from pycoder.capabilities.self_evo.engine import CodeIssue
 
-        issue = CodeIssue(file="test.py", line=10, severity="high", issue_type="bug", title="裸 except")
+        issue = CodeIssue(
+            file="test.py", line=10, severity="high", issue_type="bug", title="裸 except"
+        )
         assert issue.file == "test.py"
         assert issue.line == 10
         assert issue.severity == "high"
@@ -37,8 +29,13 @@ class TestCodeIssue:
         from pycoder.capabilities.self_evo.engine import CodeIssue
 
         issue = CodeIssue(
-            file="app.py", line=42, severity="critical", issue_type="security",
-            title="硬编码密钥", description="发现 API Key", suggestion="使用环境变量",
+            file="app.py",
+            line=42,
+            severity="critical",
+            issue_type="security",
+            title="硬编码密钥",
+            description="发现 API Key",
+            suggestion="使用环境变量",
             code_snippet="KEY='sk-xxx'",
         )
         assert issue.description == "发现 API Key"
@@ -93,8 +90,13 @@ class TestFixResult:
 
         issue = CodeIssue(file="a.py", line=1, severity="high", issue_type="bug", title="test")
         proposal = FixProposal(issue=issue, action="replace", file_path="a.py")
-        result = FixResult(proposal=proposal, success=True, test_passed=True,
-                           git_branch="evo/123", git_commit="abc123")
+        result = FixResult(
+            proposal=proposal,
+            success=True,
+            test_passed=True,
+            git_branch="evo/123",
+            git_commit="abc123",
+        )
         assert result.success is True
         assert result.test_passed is True
         assert result.git_branch == "evo/123"
@@ -106,8 +108,7 @@ class TestFixResult:
 
         issue = CodeIssue(file="a.py", line=1, severity="high", issue_type="bug", title="test")
         proposal = FixProposal(issue=issue, action="replace", file_path="a.py")
-        result = FixResult(proposal=proposal, success=False, error="测试失败",
-                           rollback_needed=True)
+        result = FixResult(proposal=proposal, success=False, error="测试失败", rollback_needed=True)
         assert result.success is False
         assert result.rollback_needed is True
         assert result.error == "测试失败"
@@ -129,8 +130,13 @@ class TestEvolutionRecord:
         from pycoder.capabilities.self_evo.engine import EvolutionRecord
 
         record = EvolutionRecord(
-            action="fix", issue_type="bug", file="a.py", success=True,
-            fix_description="修复了裸 except", test_result="passed", lessons="使用except Exception",
+            action="fix",
+            issue_type="bug",
+            file="a.py",
+            success=True,
+            fix_description="修复了裸 except",
+            test_result="passed",
+            lessons="使用except Exception",
         )
         assert record.action == "fix"
         assert record.success is True
@@ -181,7 +187,9 @@ class TestEvolutionStats:
         """to_dict 序列化"""
         from pycoder.capabilities.self_evo.engine import EvolutionStats
 
-        stats = EvolutionStats(total_tasks=5, successful=4, failed=1, bugs_fixed=3, lines_changed=50)
+        stats = EvolutionStats(
+            total_tasks=5, successful=4, failed=1, bugs_fixed=3, lines_changed=50
+        )
         d = stats.to_dict()
         assert d["total_tasks"] == 5
         assert d["successful"] == 4
@@ -227,5 +235,3 @@ class TestBuildEvolutionReport:
         task = EvolutionTask(test_result="x" * 500)
         report = _build_evolution_report(task)
         assert len(report["test_result"]) <= 200
-
-

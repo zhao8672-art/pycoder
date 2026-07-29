@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 # ── Windows GBK 编码兼容 ──────────────────────────────────
 # pytest 收集含中文的测试时，subprocess 管道默认用 GBK 解码导致
@@ -39,6 +39,7 @@ def pytest_collection_modifyitems(config, items):
 def app():
     """Get the FastAPI application instance."""
     from pycoder.server.app import app
+
     return app
 
 
@@ -56,7 +57,9 @@ def client() -> Generator[TestClient, None, None]:
     app 与 _API_KEY 来自同一模块实例。
     """
     import sys
+
     from pycoder.server.app import app
+
     app_module = sys.modules.get("pycoder.server.app")
     api_key = getattr(app_module, "_API_KEY", "") or "" if app_module else ""
     headers = {"X-API-Key": api_key} if api_key else {}
@@ -67,7 +70,8 @@ def client() -> Generator[TestClient, None, None]:
 @pytest.fixture(scope="function")
 def fresh_store():
     """Get a fresh in-memory session store for each test."""
-    from pycoder.server.session_store import get_session_store, SessionStore
+    from pycoder.server.session_store import get_session_store
+
     store = get_session_store()
     # Use in-memory store for tests
     store_path = Path(__file__).parent / "test_data"

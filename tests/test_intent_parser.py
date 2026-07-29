@@ -25,7 +25,6 @@ from pycoder.server.services.intent_parser import (
     parse_intent,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # 测试：TaskCategory 枚举
 # ══════════════════════════════════════════════════════════
@@ -198,7 +197,9 @@ class TestClassification:
 
     def test_classify_long_message_no_match(self, parser):
         """长消息无明确操作 → hermes（需 > 100 字符以触发长消息规则）"""
-        base = "需要处理一个涉及多个模块的复杂业务逻辑，各个模块之间存在数据流转，需要仔细梳理依赖关系"
+        base = (
+            "需要处理一个涉及多个模块的复杂业务逻辑，各个模块之间存在数据流转，需要仔细梳理依赖关系"
+        )
         result = parser.parse(base * 3)  # 确保 > 100 字符
         assert result.task_category == TaskCategory.HERMES
 

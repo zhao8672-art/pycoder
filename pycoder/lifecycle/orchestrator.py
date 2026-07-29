@@ -14,11 +14,12 @@ ProjectLifecycleOrchestrator 是整个闭环系统的"指挥家"：
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
+from pycoder.lifecycle.adapters import create_default_phases
 from pycoder.lifecycle.context import ProjectContext, ProjectStatus
 from pycoder.lifecycle.phases import (
     LifecyclePhase,
@@ -26,7 +27,6 @@ from pycoder.lifecycle.phases import (
     get_progress,
     should_advance,
 )
-from pycoder.lifecycle.adapters import create_default_phases
 from pycoder.observability.tracing import traced
 
 logger = logging.getLogger(__name__)
@@ -233,7 +233,8 @@ class ProjectLifecycleOrchestrator:
 
         logger.info(
             "lifecycle_project_completed id=%s duration=%.1fs",
-            project_id, ctx.completed_at - ctx.created_at,
+            project_id,
+            ctx.completed_at - ctx.created_at,
         )
 
     # ── 阶段管理 ────────────────────────────────────
@@ -259,9 +260,11 @@ class ProjectLifecycleOrchestrator:
             "current_phase": ctx.current_phase,
             "progress": get_progress(ctx),
             "phases": {
-                p.name: ctx.phases.get(p.name, {}).to_dict()
-                if ctx.phases.get(p.name)
-                else {"phase": p.name, "status": "pending"}
+                p.name: (
+                    ctx.phases.get(p.name, {}).to_dict()
+                    if ctx.phases.get(p.name)
+                    else {"phase": p.name, "status": "pending"}
+                )
                 for p in LifecyclePhase.ordered()
             },
         }

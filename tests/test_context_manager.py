@@ -20,7 +20,6 @@ from pycoder.server.services.context_manager import (
     ContextWindowManager,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # estimate_tokens 测试
 # ══════════════════════════════════════════════════════════
@@ -155,7 +154,9 @@ class TestContextWindowManager:
 
     def test_code_block_scoring(self, manager: ContextWindowManager) -> None:
         """包含代码块的消息获得加分"""
-        manager.add_message({"role": "assistant", "content": "这是代码:\n```python\nprint('hello')\n```"})
+        manager.add_message(
+            {"role": "assistant", "content": "这是代码:\n```python\nprint('hello')\n```"}
+        )
         score = manager._scores[0]
         assert score.score >= 0.4  # 基准分 0.3 + 代码块 0.1
 
@@ -169,13 +170,15 @@ class TestContextWindowManager:
     def test_score_capped_at_1(self, manager: ContextWindowManager) -> None:
         """评分上限定为 1.0"""
         # 同时触发多个高分规则
-        manager.add_message({
-            "role": "user",
-            "content": (
-                "我决定采用微服务架构，已完成部署，请修改 `main.py` "
-                "错误信息: Traceback error\n```python\ncode\n```"
-            ),
-        })
+        manager.add_message(
+            {
+                "role": "user",
+                "content": (
+                    "我决定采用微服务架构，已完成部署，请修改 `main.py` "
+                    "错误信息: Traceback error\n```python\ncode\n```"
+                ),
+            }
+        )
         score = manager._scores[0]
         assert score.score <= 1.0
 
@@ -199,10 +202,12 @@ class TestContextWindowManager:
         """超出 token 预算时淘汰低分消息"""
         # 添加大量长消息以超出 100 token 预算
         for i in range(20):
-            manager_small.add_message({
-                "role": "assistant",
-                "content": f"这是一条很长的普通回复消息，编号为 {i}，包含很多文字",
-            })
+            manager_small.add_message(
+                {
+                    "role": "assistant",
+                    "content": f"这是一条很长的普通回复消息，编号为 {i}，包含很多文字",
+                }
+            )
         messages, summary = manager_small.get_window_messages()
         # 部分消息被淘汰
         assert len(messages) < 20
@@ -234,10 +239,12 @@ class TestContextWindowManager:
         for i in range(15):
             manager_small.add_message({"role": "assistant", "content": f"普通回复 {i}"})
         # 高分消息：用户 + 决策 + 错误
-        manager_small.add_message({
-            "role": "user",
-            "content": "我决定采用方案A，修复这个 Traceback error",
-        })
+        manager_small.add_message(
+            {
+                "role": "user",
+                "content": "我决定采用方案A，修复这个 Traceback error",
+            }
+        )
         messages, _ = manager_small.get_window_messages()
         contents = [str(m.get("content", "")) for m in messages]
         assert any("方案A" in c for c in contents)
@@ -273,10 +280,12 @@ class TestContextWindowManager:
         manager_small.add_message({"role": "user", "content": "我决定采用微服务架构"})
         # 再添加大量长消息以触发淘汰
         for i in range(15):
-            manager_small.add_message({
-                "role": "assistant",
-                "content": f"这是一条长消息用于填满预算，编号 {i}",
-            })
+            manager_small.add_message(
+                {
+                    "role": "assistant",
+                    "content": f"这是一条长消息用于填满预算，编号 {i}",
+                }
+            )
         messages, summary = manager_small.get_window_messages()
         # 决策日志应出现在摘要中
         assert "关键决策" in summary

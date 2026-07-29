@@ -14,11 +14,9 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import re
 import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 
 
 @dataclass
@@ -85,7 +83,7 @@ class TestRunner:
     _SKIPPED_RE = re.compile(r"(\d+)\s+skipped", re.IGNORECASE)
     _WARNINGS_RE = re.compile(r"(\d+)\s+warnings?", re.IGNORECASE)
 
-    # 失败用例正则: ____ test_name ____ 
+    # 失败用例正则: ____ test_name ____
     _FAILED_TEST_RE = re.compile(
         r"_+\s*(\w+(?:\.\w+)*)\s*_+",
     )
@@ -130,7 +128,8 @@ class TestRunner:
             "-m",
             "pytest",
             test_path,
-            "-p", "no:cacheprovider",  # 禁用缓存避免干扰
+            "-p",
+            "no:cacheprovider",  # 禁用缓存避免干扰
             "--tb=long",  # 完整回溯
         ]
         if verbose:
@@ -148,10 +147,8 @@ class TestRunner:
                 stderr=asyncio.subprocess.PIPE,
                 cwd=cwd or None,
             )
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout
-            )
-        except asyncio.TimeoutError:
+            stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        except TimeoutError:
             proc.kill()  # type: ignore[union-attr]
             return TestRunResult(
                 success=False,
@@ -174,9 +171,7 @@ class TestRunner:
         result.stderr = stderr[-4000:]
         return result
 
-    def _parse_output(
-        self, stdout: str, stderr: str, exit_code: int
-    ) -> TestRunResult:
+    def _parse_output(self, stdout: str, stderr: str, exit_code: int) -> TestRunResult:
         """解析 pytest 输出"""
         result = TestRunResult()
 
@@ -330,7 +325,11 @@ class TestRunner:
 
             # 调用修复回调
             try:
-                fixed = await fix_callback(result.failure_details) if asyncio.iscoroutinefunction(fix_callback) else fix_callback(result.failure_details)
+                fixed = (
+                    await fix_callback(result.failure_details)
+                    if asyncio.iscoroutinefunction(fix_callback)
+                    else fix_callback(result.failure_details)
+                )
                 if not fixed:
                     return {
                         "success": False,

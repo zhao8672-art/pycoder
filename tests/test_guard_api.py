@@ -17,10 +17,7 @@ from fastapi.testclient import TestClient
 
 from pycoder.server.services.hallucination_guard import (
     HallucinationGuard,
-    ValidationResult,
-    reset_guard,
 )
-
 
 # ── 辅助函数 ──────────────────────────────────────────────
 
@@ -137,7 +134,6 @@ def mock_guard() -> MagicMock:
 @pytest.fixture
 def client_with_guard(mock_guard: MagicMock) -> TestClient:
     """注入模拟 HallucinationGuard 的 TestClient"""
-    from pycoder.server.routers import guard_api
 
     # 替换 get_hallucination_guard 单例
     with patch(
@@ -229,7 +225,9 @@ class TestValidateResponse:
         data = resp.json()
         assert len(data["consistency_issues"]) == 2
 
-    def test_validate_guard_exception(self, client_with_guard: TestClient, mock_guard: MagicMock) -> None:
+    def test_validate_guard_exception(
+        self, client_with_guard: TestClient, mock_guard: MagicMock
+    ) -> None:
         """测试守卫异常返回 500"""
         mock_guard.validate = AsyncMock(side_effect=Exception("内部错误"))
 
@@ -240,7 +238,9 @@ class TestValidateResponse:
         assert resp.status_code == 500
         assert "验证异常" in resp.json()["detail"]
 
-    def test_validate_with_recommendations(self, client_with_guard: TestClient, mock_guard: MagicMock) -> None:
+    def test_validate_with_recommendations(
+        self, client_with_guard: TestClient, mock_guard: MagicMock
+    ) -> None:
         """测试包含建议的验证结果"""
         result = _make_validation_result(score=70.0)
         result["recommendations"] = [
@@ -270,9 +270,7 @@ class TestTraceSources:
         """测试成功溯源"""
         resp = client_with_guard.post(
             "/api/guard/trace",
-            json={
-                "response": "在 test_app.py 中定义了 def test_example() 测试函数"
-            },
+            json={"response": "在 test_app.py 中定义了 def test_example() 测试函数"},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -295,8 +293,12 @@ class TestTraceSources:
         empty_trace = {
             "total_claims": 0,
             "claims": {
-                "files": [], "apis": [], "dependencies": [],
-                "code": [], "stats": [], "config": [],
+                "files": [],
+                "apis": [],
+                "dependencies": [],
+                "code": [],
+                "stats": [],
+                "config": [],
             },
         }
         mock_guard.trace_sources = AsyncMock(return_value=empty_trace)
@@ -309,7 +311,9 @@ class TestTraceSources:
         data = resp.json()
         assert data["total_claims"] == 0
 
-    def test_trace_guard_exception(self, client_with_guard: TestClient, mock_guard: MagicMock) -> None:
+    def test_trace_guard_exception(
+        self, client_with_guard: TestClient, mock_guard: MagicMock
+    ) -> None:
         """测试守卫异常返回 500"""
         mock_guard.trace_sources = AsyncMock(side_effect=Exception("溯源失败"))
 
@@ -361,11 +365,7 @@ class TestFactCheck:
         """测试单条声明核查"""
         resp = client_with_guard.post(
             "/api/guard/fact-check",
-            json={
-                "claims": [
-                    {"text": "存在一个名为 main 的函数", "claim_type": "fact"}
-                ]
-            },
+            json={"claims": [{"text": "存在一个名为 main 的函数", "claim_type": "fact"}]},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -379,7 +379,9 @@ class TestFactCheck:
         )
         assert resp.status_code == 422
 
-    def test_fact_check_all_verified(self, client_with_guard: TestClient, mock_guard: MagicMock) -> None:
+    def test_fact_check_all_verified(
+        self, client_with_guard: TestClient, mock_guard: MagicMock
+    ) -> None:
         """测试所有声明都通过验证"""
         all_verified = {
             "total_verified": 3,
@@ -397,18 +399,16 @@ class TestFactCheck:
 
         resp = client_with_guard.post(
             "/api/guard/fact-check",
-            json={
-                "claims": [
-                    {"text": "claim 1"}, {"text": "claim 2"}, {"text": "claim 3"}
-                ]
-            },
+            json={"claims": [{"text": "claim 1"}, {"text": "claim 2"}, {"text": "claim 3"}]},
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["pass_rate"] == 1.0
         assert data["failed"] == 0
 
-    def test_fact_check_guard_exception(self, client_with_guard: TestClient, mock_guard: MagicMock) -> None:
+    def test_fact_check_guard_exception(
+        self, client_with_guard: TestClient, mock_guard: MagicMock
+    ) -> None:
         """测试守卫异常返回 500"""
         mock_guard.fact_check = AsyncMock(side_effect=Exception("核查失败"))
 
@@ -438,7 +438,9 @@ class TestGuardStats:
         assert "top_hallucination_categories" in data
         assert "last_validation_time" in data
 
-    def test_get_stats_zero_validations(self, client_with_guard: TestClient, mock_guard: MagicMock) -> None:
+    def test_get_stats_zero_validations(
+        self, client_with_guard: TestClient, mock_guard: MagicMock
+    ) -> None:
         """测试零验证统计"""
         zero_stats = {
             "total_validations": 0,
@@ -456,7 +458,9 @@ class TestGuardStats:
         assert data["total_validations"] == 0
         assert data["total_hallucinations_detected"] == 0
 
-    def test_get_stats_guard_exception(self, client_with_guard: TestClient, mock_guard: MagicMock) -> None:
+    def test_get_stats_guard_exception(
+        self, client_with_guard: TestClient, mock_guard: MagicMock
+    ) -> None:
         """测试守卫异常返回 500"""
         mock_guard.get_stats = AsyncMock(side_effect=Exception("统计获取失败"))
 

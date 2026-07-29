@@ -19,10 +19,12 @@ from sqlalchemy import engine_from_config, pool
 # ── 加载 PyCoder 的 SQLAlchemy Base ──
 try:
     from pycoder.core.services.unified_db import Base
+
     target_metadata = Base.metadata
 except ImportError:
     # 如果 unified_db 不可用，回退到空元数据
     from sqlalchemy import MetaData
+
     target_metadata = MetaData()
 
 logger = logging.getLogger("alembic.env")

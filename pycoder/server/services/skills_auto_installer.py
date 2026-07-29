@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import logging
 import re
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -81,22 +80,22 @@ class SkillsAutoInstaller:
                 # 使用 \b 词边界匹配，避免子串误匹配
                 pattern = re.compile(rf"\b{re.escape(kw)}\b", re.IGNORECASE)
                 if pattern.search(msg_lower):
-                    matched_skills[skill_name] = max(
-                        matched_skills.get(skill_name, 0), 0.7
-                    )
+                    matched_skills[skill_name] = max(matched_skills.get(skill_name, 0), 0.7)
                     break
 
         # 2. 在市场中进行语义搜索
         try:
             search_results = marketplace.search(user_message[:100], limit=10)
             for skill in search_results:
-                name = getattr(skill, "name", skill.get("name", "")) if isinstance(skill, dict) else skill.name
+                name = (
+                    getattr(skill, "name", skill.get("name", ""))
+                    if isinstance(skill, dict)
+                    else skill.name
+                )
                 if name.lower() not in matched_skills:
                     matched_skills[name.lower()] = 0.5
                 else:
-                    matched_skills[name.lower()] = max(
-                        matched_skills[name.lower()], 0.6
-                    )
+                    matched_skills[name.lower()] = max(matched_skills[name.lower()], 0.6)
         except Exception as e:
             logger.debug("skill_search_failed", error=str(e))
 
@@ -111,12 +110,14 @@ class SkillsAutoInstaller:
         results = []
         for name, score in sorted(matched_skills.items(), key=lambda x: -x[1]):
             is_installed = name.lower() in installed_names
-            results.append({
-                "name": name,
-                "score": round(score, 2),
-                "installed": is_installed,
-                "reason": f"关键词匹配 '{name}'" if score >= 0.7 else "语义搜索匹配",
-            })
+            results.append(
+                {
+                    "name": name,
+                    "score": round(score, 2),
+                    "installed": is_installed,
+                    "reason": f"关键词匹配 '{name}'" if score >= 0.7 else "语义搜索匹配",
+                }
+            )
 
         return results[:10]
 
@@ -161,7 +162,8 @@ class SkillsAutoInstaller:
 
             if match["score"] < 0.5:
                 logger.debug(
-                    "skill_low_score_skip", name=match["name"],
+                    "skill_low_score_skip",
+                    name=match["name"],
                     score=match["score"],
                     reason=match.get("reason", ""),
                 )

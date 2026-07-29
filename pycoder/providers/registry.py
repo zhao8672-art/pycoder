@@ -243,7 +243,6 @@ ALL_MODELS: dict[str, ModelInfo] = {
         description="753B MoE/1M上下文, 旗舰编程推理, SWE-bench 62.1%",
         tags=["coding", "reasoning", "premium", "agent"],
     ),
-
     # ── Agnes AI 系列 (Sapiens AI) ──
     "agnes-2.0-flash": ModelInfo(
         id="agnes-2.0-flash",

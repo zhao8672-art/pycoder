@@ -1,17 +1,25 @@
 """
 端到端验证 — 关键功能集成测试
 """
-import json, urllib.request
+
+import json
+import urllib.request
 
 BASE = "http://127.0.0.1:8423"
-PASS = 0; FAIL = 0
+PASS = 0
+FAIL = 0
+
 
 def test(name, method, url, body=None, expect_200=True):
     global PASS, FAIL
     try:
         data = json.dumps(body).encode() if body else None
-        req = urllib.request.Request(BASE + url, data=data, method=method,
-            headers={"Content-Type": "application/json"} if body else {})
+        req = urllib.request.Request(
+            BASE + url,
+            data=data,
+            method=method,
+            headers={"Content-Type": "application/json"} if body else {},
+        )
         resp = urllib.request.urlopen(req, timeout=15)
         code = resp.status
         d = json.loads(resp.read().decode())
@@ -26,8 +34,10 @@ def test(name, method, url, body=None, expect_200=True):
     except urllib.error.HTTPError as e:
         code = e.code
         ok = not expect_200
-        if ok: PASS += 1
-        else: FAIL += 1
+        if ok:
+            PASS += 1
+        else:
+            FAIL += 1
         body = e.read().decode()[:150]
         print(f"  {'✅' if ok else '❌'} {name}: HTTP {code} | {body}")
         return {"error": body}
@@ -35,6 +45,7 @@ def test(name, method, url, body=None, expect_200=True):
         FAIL += 1
         print(f"  ❌ {name}: {str(e)[:100]}")
         return {"error": str(e)}
+
 
 print("=" * 55)
 print(" PyCoder 端到端集成验证")

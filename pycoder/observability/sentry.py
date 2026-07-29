@@ -21,8 +21,8 @@
 from __future__ import annotations
 
 import os
-import sys
 import platform
+import sys
 from typing import Any
 
 _SENTRY_AVAILABLE: bool = False
@@ -31,8 +31,8 @@ _init_error: str | None = None
 
 try:
     import sentry_sdk
-    from sentry_sdk.integrations.logging import LoggingIntegration
     from sentry_sdk.integrations.excepthook import ExcepthookIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
 
     _SENTRY_AVAILABLE = True
 except ImportError as _exc:  # pragma: no cover
@@ -73,9 +73,7 @@ def init_sentry(
     global _SENTRY_INITIALIZED
 
     if not _SENTRY_AVAILABLE:
-        sys.stderr.write(
-            f"[sentry] sentry-sdk 未安装 ({_init_error}); 降级到 structlog\n"
-        )
+        sys.stderr.write(f"[sentry] sentry-sdk 未安装 ({_init_error}); 降级到 structlog\n")
         return False
 
     dsn = dsn or os.environ.get("SENTRY_DSN", "").strip()
@@ -84,11 +82,15 @@ def init_sentry(
         return False
 
     environment = environment or os.environ.get("SENTRY_ENVIRONMENT", "development")
-    traces_sample_rate = traces_sample_rate if traces_sample_rate is not None else float(
-        os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")
+    traces_sample_rate = (
+        traces_sample_rate
+        if traces_sample_rate is not None
+        else float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
     )
-    profiles_sample_rate = profiles_sample_rate if profiles_sample_rate is not None else float(
-        os.environ.get("SENTRY_PROFILES_SAMPLE_RATE", "0.1")
+    profiles_sample_rate = (
+        profiles_sample_rate
+        if profiles_sample_rate is not None
+        else float(os.environ.get("SENTRY_PROFILES_SAMPLE_RATE", "0.1"))
     )
 
     try:
@@ -170,6 +172,7 @@ def _get_release() -> str:
     release = "pycoder@unknown"
     try:
         from pycoder import __version__ as v
+
         release = f"pycoder@{v}"
     except ImportError:
         pass

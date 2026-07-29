@@ -21,7 +21,6 @@ import logging
 import re
 import threading
 from dataclasses import dataclass, field
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -128,10 +127,20 @@ TOPIC_KEYWORDS: dict[str, list[str]] = {
 
 # 话题转换检测词
 TOPIC_SHIFT_INDICATORS: list[str] = [
-    "还有个问题", "另外", "换个话题", "不说这个了",
-    "回到", "之前说的", "回到刚才", "刚才那个",
-    "对了", "想起来", "顺便问一下",
-    "by the way", "btw", "another thing",
+    "还有个问题",
+    "另外",
+    "换个话题",
+    "不说这个了",
+    "回到",
+    "之前说的",
+    "回到刚才",
+    "刚才那个",
+    "对了",
+    "想起来",
+    "顺便问一下",
+    "by the way",
+    "btw",
+    "another thing",
 ]
 
 
@@ -182,7 +191,9 @@ class ContextEnhancer:
         ctx.current_topic = self._detect_topic(message)
         if history:
             ctx.previous_topics = self._get_previous_topics(history)
-            ctx.is_topic_shift = self._detect_topic_shift(message, ctx.current_topic, ctx.previous_topics)
+            ctx.is_topic_shift = self._detect_topic_shift(
+                message, ctx.current_topic, ctx.previous_topics
+            )
             # 话题切换时，过滤只保留与新话题相关的历史（最近 2 轮）
             if ctx.is_topic_shift:
                 history = self._filter_history_for_topic(history, ctx.current_topic)
@@ -269,9 +280,7 @@ class ContextEnhancer:
                 # 从历史中提取最近的文件引用
                 recent_files = self._extract_recent_files(history)
                 if recent_files:
-                    resolved = resolved.replace(
-                        match.group(0), recent_files[0], 1
-                    )
+                    resolved = resolved.replace(match.group(0), recent_files[0], 1)
 
             elif ref_type == "temporal_ref" and history:
                 last_assistant = self._get_last_assistant_message(history)
@@ -295,7 +304,7 @@ class ContextEnhancer:
         """提取关键实体"""
         entities: list[str] = []
 
-        for pattern, entity_type in ENTITY_PATTERNS:
+        for pattern, _entity_type in ENTITY_PATTERNS:
             for m in re.finditer(pattern, message):
                 entity = m.group(1).strip()
                 if entity and len(entity) > 1:
@@ -304,7 +313,7 @@ class ContextEnhancer:
         # 从历史中补充
         if not entities and history:
             for turn in reversed(history[-3:]):
-                for pattern, entity_type in ENTITY_PATTERNS:
+                for pattern, _entity_type in ENTITY_PATTERNS:
                     for m in re.finditer(pattern, turn.content):
                         entity = m.group(1).strip()
                         if entity and len(entity) > 1:

@@ -110,7 +110,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
             "ImportError: DLL load failed while importing cv2",
         ],
     ),
-
     # ── 类型错误 ──
     "TypeError": ErrorPattern(
         error_type="TypeError",
@@ -154,7 +153,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
             "AttributeError: module 'x' has no attribute 'y'",
         ],
     ),
-
     # ── 键值错误 ──
     "KeyError": ErrorPattern(
         error_type="KeyError",
@@ -188,7 +186,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
         related_errors=["KeyError"],
         examples=["IndexError: list index out of range"],
     ),
-
     # ── 名称错误 ──
     "NameError": ErrorPattern(
         error_type="NameError",
@@ -208,7 +205,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
         related_errors=["AttributeError", "ImportError"],
         examples=["NameError: name 'x' is not defined"],
     ),
-
     # ── 数值错误 ──
     "ValueError": ErrorPattern(
         error_type="ValueError",
@@ -240,7 +236,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
         related_errors=[],
         examples=["ZeroDivisionError: division by zero"],
     ),
-
     # ── 文件错误 ──
     "FileNotFoundError": ErrorPattern(
         error_type="FileNotFoundError",
@@ -279,7 +274,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
         related_errors=["FileNotFoundError", "OSError"],
         examples=["PermissionError: [Errno 13] Permission denied: 'file.txt'"],
     ),
-
     # ── 语法错误 ──
     "SyntaxError": ErrorPattern(
         error_type="SyntaxError",
@@ -319,7 +313,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
             "IndentationError: unindent does not match any outer indentation level",
         ],
     ),
-
     # ── 运行时错误 ──
     "RuntimeError": ErrorPattern(
         error_type="RuntimeError",
@@ -357,7 +350,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
         related_errors=["RuntimeError"],
         examples=["RecursionError: maximum recursion depth exceeded"],
     ),
-
     # ── 超时和网络 ──
     "TimeoutError": ErrorPattern(
         error_type="TimeoutError",
@@ -400,7 +392,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
             "ConnectionRefusedError: [Errno 111] Connection refused",
         ],
     ),
-
     # ── OS 错误 ──
     "OSError": ErrorPattern(
         error_type="OSError",
@@ -423,7 +414,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
             "OSError: [WinError 123] The filename, directory name, or volume label syntax is incorrect",
         ],
     ),
-
     # ── 逻辑错误 ──
     "AssertionError": ErrorPattern(
         error_type="AssertionError",
@@ -441,7 +431,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
         related_errors=[],
         examples=["AssertionError: assert x == 5", "AssertionError"],
     ),
-
     # ── 停止迭代 ──
     "StopIteration": ErrorPattern(
         error_type="StopIteration",
@@ -458,7 +447,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
         related_errors=[],
         examples=["StopIteration"],
     ),
-
     # ── 键盘中断 ──
     "KeyboardInterrupt": ErrorPattern(
         error_type="KeyboardInterrupt",
@@ -472,7 +460,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
         related_errors=[],
         examples=["KeyboardInterrupt"],
     ),
-
     # ── 内存错误 ──
     "MemoryError": ErrorPattern(
         error_type="MemoryError",
@@ -491,7 +478,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
         related_errors=["RuntimeError"],
         examples=["MemoryError: Unable to allocate array"],
     ),
-
     # ── 未实现 ──
     "NotImplementedError": ErrorPattern(
         error_type="NotImplementedError",
@@ -508,7 +494,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
         related_errors=[],
         examples=["NotImplementedError"],
     ),
-
     # ── 算术错误 ──
     "OverflowError": ErrorPattern(
         error_type="OverflowError",
@@ -525,7 +510,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
         related_errors=["ZeroDivisionError", "ArithmeticError"],
         examples=["OverflowError: math range error"],
     ),
-
     # ── Unicode 错误 ──
     "UnicodeDecodeError": ErrorPattern(
         error_type="UnicodeDecodeError",
@@ -561,7 +545,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
         related_errors=["UnicodeDecodeError"],
         examples=["UnicodeEncodeError: 'ascii' codec can't encode character"],
     ),
-
     # ── 安全相关 ──
     "SQLInjectionRisk": ErrorPattern(
         error_type="SQLInjectionRisk",
@@ -578,7 +561,6 @@ ERROR_PATTERN_DB: dict[str, ErrorPattern] = {
         related_errors=[],
         examples=["Warning: Possible SQL injection vector"],
     ),
-
     # ── 性能相关 ──
     "PerformanceWarning": ErrorPattern(
         error_type="PerformanceWarning",

@@ -6,4 +6,5 @@
     - routers/diff.py
     - routers/diff_list.py
 """
+
 from __future__ import annotations

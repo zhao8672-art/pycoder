@@ -12,16 +12,15 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
 
 from pycoder.capabilities.self_evo.learning.closed_loop import (
-    LearningObservation,
     LearnedSkill,
+    LearningObservation,
 )
-
 
 # ── 辅助函数 ──────────────────────────────────────────────
 
@@ -253,7 +252,9 @@ class TestObserveExecution:
         )
         assert resp.status_code == 400
 
-    def test_observe_loop_exception(self, client_with_loop: TestClient, mock_loop: MagicMock) -> None:
+    def test_observe_loop_exception(
+        self, client_with_loop: TestClient, mock_loop: MagicMock
+    ) -> None:
         """测试循环异常返回 500"""
         mock_loop.observe = AsyncMock(side_effect=Exception("数据库连接失败"))
 
@@ -267,11 +268,11 @@ class TestObserveExecution:
         assert resp.status_code == 500
         assert "观察记录失败" in resp.json()["detail"]
 
-    def test_observe_with_metadata(self, client_with_loop: TestClient, mock_loop: MagicMock) -> None:
+    def test_observe_with_metadata(
+        self, client_with_loop: TestClient, mock_loop: MagicMock
+    ) -> None:
         """测试带元数据的观察记录"""
-        mock_loop.observe = AsyncMock(
-            return_value=_make_observation(task_id="task-meta", steps=1)
-        )
+        mock_loop.observe = AsyncMock(return_value=_make_observation(task_id="task-meta", steps=1))
         resp = client_with_loop.post(
             "/api/learning/observe",
             json={
@@ -350,7 +351,9 @@ class TestReflectPatterns:
         data = resp.json()
         assert data["success"] is True
 
-    def test_reflect_loop_exception(self, client_with_loop: TestClient, mock_loop: MagicMock) -> None:
+    def test_reflect_loop_exception(
+        self, client_with_loop: TestClient, mock_loop: MagicMock
+    ) -> None:
         """测试反思异常返回 500"""
         mock_loop.reflect = AsyncMock(side_effect=Exception("分析失败"))
 
@@ -420,7 +423,9 @@ class TestGenerateSkill:
         assert resp.status_code == 400
         assert "reflection" in resp.json()["detail"]
 
-    def test_generate_skill_zero_skills(self, client_with_loop: TestClient, mock_loop: MagicMock) -> None:
+    def test_generate_skill_zero_skills(
+        self, client_with_loop: TestClient, mock_loop: MagicMock
+    ) -> None:
         """测试未生成任何技能"""
         mock_loop.generate_skill = AsyncMock(return_value=[])
 
@@ -439,7 +444,9 @@ class TestGenerateSkill:
         assert data["skills_generated"] == 0
         assert data["skill_ids"] == []
 
-    def test_generate_skill_loop_exception(self, client_with_loop: TestClient, mock_loop: MagicMock) -> None:
+    def test_generate_skill_loop_exception(
+        self, client_with_loop: TestClient, mock_loop: MagicMock
+    ) -> None:
         """测试生成异常返回 500"""
         mock_loop.generate_skill = AsyncMock(side_effect=Exception("技能生成失败"))
 
@@ -454,11 +461,11 @@ class TestGenerateSkill:
         assert resp.status_code == 500
         assert "技能生成失败" in resp.json()["detail"]
 
-    def test_generate_skill_single_skill(self, client_with_loop: TestClient, mock_loop: MagicMock) -> None:
+    def test_generate_skill_single_skill(
+        self, client_with_loop: TestClient, mock_loop: MagicMock
+    ) -> None:
         """测试生成单个技能"""
-        mock_loop.generate_skill = AsyncMock(
-            return_value=[_make_skill("skill_single", "单技能")]
-        )
+        mock_loop.generate_skill = AsyncMock(return_value=[_make_skill("skill_single", "单技能")])
 
         resp = client_with_loop.post(
             "/api/learning/generate-skill",
@@ -511,7 +518,9 @@ class TestApplyFeedback:
         )
         assert resp.status_code == 400
 
-    def test_apply_feedback_loop_exception(self, client_with_loop: TestClient, mock_loop: MagicMock) -> None:
+    def test_apply_feedback_loop_exception(
+        self, client_with_loop: TestClient, mock_loop: MagicMock
+    ) -> None:
         """测试反馈异常返回 500"""
         mock_loop.apply_feedback = AsyncMock(side_effect=Exception("反馈服务不可用"))
 
@@ -522,7 +531,9 @@ class TestApplyFeedback:
         assert resp.status_code == 500
         assert "反馈应用失败" in resp.json()["detail"]
 
-    def test_apply_feedback_no_matches(self, client_with_loop: TestClient, mock_loop: MagicMock) -> None:
+    def test_apply_feedback_no_matches(
+        self, client_with_loop: TestClient, mock_loop: MagicMock
+    ) -> None:
         """测试无匹配技能时返回空反馈"""
         mock_loop.apply_feedback = AsyncMock(
             return_value={
@@ -584,7 +595,9 @@ class TestRunCycle:
         )
         assert resp.status_code == 400
 
-    def test_run_cycle_loop_exception(self, client_with_loop: TestClient, mock_loop: MagicMock) -> None:
+    def test_run_cycle_loop_exception(
+        self, client_with_loop: TestClient, mock_loop: MagicMock
+    ) -> None:
         """测试闭环异常返回 500"""
         mock_loop.run_cycle = AsyncMock(side_effect=Exception("闭环执行异常"))
 
@@ -598,11 +611,11 @@ class TestRunCycle:
         assert resp.status_code == 500
         assert "闭环执行失败" in resp.json()["detail"]
 
-    def test_run_cycle_with_failed_task(self, client_with_loop: TestClient, mock_loop: MagicMock) -> None:
+    def test_run_cycle_with_failed_task(
+        self, client_with_loop: TestClient, mock_loop: MagicMock
+    ) -> None:
         """测试失败任务的闭环"""
-        mock_loop.run_cycle = AsyncMock(
-            return_value=_make_cycle_result("task-fail")
-        )
+        mock_loop.run_cycle = AsyncMock(return_value=_make_cycle_result("task-fail"))
         # 修改 cycle_result 中 observation.success 为 False
         mock_loop.run_cycle.return_value["observation"]["success"] = False
         mock_loop.run_cycle.return_value["observation"]["errors"] = 2
@@ -663,7 +676,9 @@ class TestGetStats:
         assert data["stats"]["total_observations"] == 0
         assert data["stats"]["total_skills"] == 0
 
-    def test_get_stats_loop_exception(self, client_with_loop: TestClient, mock_loop: MagicMock) -> None:
+    def test_get_stats_loop_exception(
+        self, client_with_loop: TestClient, mock_loop: MagicMock
+    ) -> None:
         """测试统计异常返回 500"""
         mock_loop.get_stats = MagicMock(side_effect=Exception("统计获取失败"))
 

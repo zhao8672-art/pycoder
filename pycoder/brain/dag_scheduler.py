@@ -19,8 +19,9 @@ import enum
 import logging
 import time
 from collections import defaultdict, deque
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 from pycoder.bus.protocol import (
     CapabilityCategory,
@@ -511,9 +512,7 @@ class DAGScheduler:
                 elif node.estimated_duration > 0:
                     duration_str = f" (~{node.estimated_duration:.1f}s)"
 
-                lines.append(
-                    f"  {icon} [{node.id}] {node.name}{duration_str}{deps_str}"
-                )
+                lines.append(f"  {icon} [{node.id}] {node.name}{duration_str}{deps_str}")
 
                 if node.error:
                     lines.append(f"      ⚠ {node.error}")
@@ -573,9 +572,7 @@ class DAGExecutor:
         self._semaphore = asyncio.Semaphore(self.config.max_concurrency)
         self._handlers: dict[str, Callable[..., Coroutine[Any, Any, Any]]] = {}
 
-    def register_handler(
-        self, name: str, handler: Callable[..., Coroutine[Any, Any, Any]]
-    ) -> None:
+    def register_handler(self, name: str, handler: Callable[..., Coroutine[Any, Any, Any]]) -> None:
         """
         注册任务处理器
 
@@ -654,9 +651,7 @@ class DAGExecutor:
                     start = time.time()
 
                     if timeout:
-                        result = await asyncio.wait_for(
-                            self._run_handler(node), timeout=timeout
-                        )
+                        result = await asyncio.wait_for(self._run_handler(node), timeout=timeout)
                     else:
                         result = await self._run_handler(node)
 
@@ -668,7 +663,7 @@ class DAGExecutor:
 
                     return result
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 last_error = f"超时 ({timeout}s)"
                 logger.warning("节点 %s 超时: %s", node.id, last_error)
                 if attempt < max_retries:
@@ -722,13 +717,6 @@ class DAGExecutor:
 
 def register_capabilities(registry: Any) -> None:
     """向能力总线注册 DAG 调度器的所有能力"""
-    from pycoder.bus.protocol import (
-        CapabilityCategory,
-        CapabilityDefinition,
-        ExecutionMode,
-        SideEffect,
-        TrustLevel,
-    )
 
     capabilities = [
         CapabilityDefinition(

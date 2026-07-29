@@ -8,20 +8,18 @@
   - get_permission: 回退默认值
   - TrustLevel: 枚举值验证
 """
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from pycoder.bus.protocol import TrustLevel
 from pycoder.capabilities.permissions import (
-    TOOL_PERMISSIONS,
-    get_permission,
-    RL,
-    WW,
     PW,
+    RL,
     SA,
+    TOOL_PERMISSIONS,
+    WW,
+    get_permission,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # TrustLevel 枚举验证

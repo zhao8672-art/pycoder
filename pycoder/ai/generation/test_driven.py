@@ -39,7 +39,6 @@ TDD_PROMPTS = {
 3. 边界条件
 4. 期望的行为描述
 """,
-
     "generate_from_tests": """\
 根据以下分析实现{language}代码:
 
@@ -62,10 +61,13 @@ class TestDrivenGenerator:
 
         if not request.test_cases:
             return CodeGenerationResult(
-                code="", language=request.language or "python",
+                code="",
+                language=request.language or "python",
                 strategy_used=CodeGenStrategy.TEST_DRIVEN,
-                generation_time_ms=0, passes_tests=False,
-                confidence=0, explanation="未提供测试用例",
+                generation_time_ms=0,
+                passes_tests=False,
+                confidence=0,
+                explanation="未提供测试用例",
             )
 
         lang = request.language or "python"
@@ -75,7 +77,8 @@ class TestDrivenGenerator:
             TDD_PROMPTS["analyze_tests"].format(
                 test_cases="\n".join(request.test_cases),
             ),
-            1024, 0.3,
+            1024,
+            0.3,
         )
 
         # Step 2: 生成实现
@@ -99,13 +102,12 @@ class TestDrivenGenerator:
             confidence=0.75,
         )
 
-    async def _call_llm(
-        self, prompt: str, max_tokens: int, temperature: float
-    ) -> str:
+    async def _call_llm(self, prompt: str, max_tokens: int, temperature: float) -> str:
         try:
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.chat_bridge")
-            ChatBridge = getattr(_mod, "ChatBridge")
+            ChatBridge = _mod.ChatBridge
             bridge = ChatBridge()
             bridge.configure(model="deepseek-chat", temperature=temperature, max_tokens=max_tokens)
             return await bridge.chat(prompt, max_tokens=max_tokens)

@@ -21,18 +21,18 @@
     - mock get_self_optimizer 返回 MagicMock
     - WebSocket 测试用 TestClient.websocket_connect
 """
+
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pycoder.server.routers.v2 import evolution as evo_mod
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -44,7 +44,9 @@ def mock_engine():
     """模拟 V2 进化引擎"""
     engine = MagicMock()
     engine.get_evolution_stats.return_value = {
-        "total_tasks": 5, "successful": 3, "failed": 1,
+        "total_tasks": 5,
+        "successful": 3,
+        "failed": 1,
     }
     engine.list_tasks.return_value = [{"id": "t1", "status": "done"}]
     engine.get_task.return_value = {"id": "t1", "status": "done"}
@@ -70,6 +72,7 @@ def app_client(mock_engine):
     # from pycoder.server.app import app），不是模块对象。必须通过 sys.modules 获取
     # 真正的模块对象来设置 _API_KEY。
     import sys
+
     app_mod = sys.modules["pycoder.server.app"]
     app_mod._API_KEY = ""
 
@@ -146,11 +149,17 @@ class TestRunEvolution:
         async def fake_evolve(*a, **kw):
             yield {"type": "phase", "message": "scanning"}
             yield {"type": "done", "message": "完成"}
+
         mock_engine.evolve = fake_evolve
 
-        resp = app_client.post("/api/v2/evolution/run", json={
-            "type": "fix", "target": "src", "custom": "请修复",
-        })
+        resp = app_client.post(
+            "/api/v2/evolution/run",
+            json={
+                "type": "fix",
+                "target": "src",
+                "custom": "请修复",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -160,6 +169,7 @@ class TestRunEvolution:
     def test_with_error_event(self, app_client, mock_engine):
         async def fake_evolve(*a, **kw):
             yield {"type": "error", "message": "boom"}
+
         mock_engine.evolve = fake_evolve
 
         resp = app_client.post("/api/v2/evolution/run", json={})
@@ -171,6 +181,7 @@ class TestRunEvolution:
         async def fake_evolve(*a, **kw):
             return
             yield
+
         mock_engine.evolve = fake_evolve
 
         resp = app_client.post("/api/v2/evolution/run", json={})
@@ -224,15 +235,21 @@ class TestOptimize:
         )
         opt.optimize_prompts.return_value = [
             SimpleNamespace(
-                agent_id="agent1", original_lines=10,
+                agent_id="agent1",
+                original_lines=10,
                 changes=["change1", "change2"],
                 expected_improvement="提升 20%",
             ),
         ]
-        opt.auto_heal = AsyncMock(return_value=SimpleNamespace(
-            task_id="HEAL-1", issues_found=3, fixes_applied=2,
-            test_passed=True, error="",
-        ))
+        opt.auto_heal = AsyncMock(
+            return_value=SimpleNamespace(
+                task_id="HEAL-1",
+                issues_found=3,
+                fixes_applied=2,
+                test_passed=True,
+                error="",
+            )
+        )
         opt.generate_optimization_markdown.return_value = "# Report"
         monkeypatch.setattr(
             "pycoder.capabilities.self_evo.learning.self_optimizer.get_self_optimizer",
@@ -295,12 +312,19 @@ class TestWsEvolution:
         async def fake_evolve(*a, **kw):
             yield {"type": "phase", "phase": "analyzing"}
             yield {"type": "done", "message": "完成"}
+
         mock_engine.evolve = fake_evolve
 
         with app_client.websocket_connect("/api/v2/ws/evolution") as ws:
-            ws.send_text(json.dumps({
-                "type": "evolve", "task_type": "fix", "target": "src",
-            }))
+            ws.send_text(
+                json.dumps(
+                    {
+                        "type": "evolve",
+                        "task_type": "fix",
+                        "target": "src",
+                    }
+                )
+            )
             msg1 = ws.receive_json()
             msg2 = ws.receive_json()
             assert msg1["type"] == "phase"

@@ -10,10 +10,10 @@
 - POST /api/patch/{patch_id}/commit   - 提交补丁
 - POST /api/patch/{patch_id}/pr       - 生成 PR 草稿
 """
+
 from __future__ import annotations
 
 import logging
-import time
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -22,10 +22,8 @@ from pydantic import BaseModel, Field
 from pycoder.python.auto_patch import (
     FileChange,
     GitIntegration,
-    Patch,
     PatchApplier,
     PatchGenerator,
-    create_and_apply_patch,
     generate_pr_draft,
 )
 

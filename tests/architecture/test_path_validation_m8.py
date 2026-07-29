@@ -7,6 +7,7 @@
 
 正确做法是使用 ``Path.is_relative_to()``（Python 3.9+）。
 """
+
 from __future__ import annotations
 
 import re
@@ -14,32 +15,33 @@ from pathlib import Path
 
 import pytest
 
-
 PYCODER_ROOT = Path(__file__).resolve().parents[2] / "pycoder"
 
 
 # 匹配 ``.startswith(str(...root...))`` 的路径校验模式
 # 这是不安全的字符串前缀匹配
 PREFIX_MATCH_PATTERN = re.compile(
-    r'\.startswith\(\s*str\(\s*\w+\s*\)\s*\)',
+    r"\.startswith\(\s*str\(\s*\w+\s*\)\s*\)",
     re.MULTILINE,
 )
 
 
-_EXCLUDED_DIRS = frozenset({
-    "__pycache__",
-    "node_modules",
-    ".venv",
-    "venv",
-    "env",
-    ".git",
-    "site-packages",
-    "dist",
-    "build",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-})
+_EXCLUDED_DIRS = frozenset(
+    {
+        "__pycache__",
+        "node_modules",
+        ".venv",
+        "venv",
+        "env",
+        ".git",
+        "site-packages",
+        "dist",
+        "build",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+    }
+)
 
 
 def _collect_python_files() -> list[Path]:
@@ -47,8 +49,7 @@ def _collect_python_files() -> list[Path]:
     if not PYCODER_ROOT.exists():
         return []
     return sorted(
-        p for p in PYCODER_ROOT.rglob("*.py")
-        if not any(part in _EXCLUDED_DIRS for part in p.parts)
+        p for p in PYCODER_ROOT.rglob("*.py") if not any(part in _EXCLUDED_DIRS for part in p.parts)
     )
 
 
@@ -78,7 +79,7 @@ def test_no_string_prefix_path_validation(file_path):
     # 过滤掉非路径校验的 startswith 使用（如字符串处理）
     # 只关注 ``str(...).startswith(str(...))`` 模式
     path_validation_matches = re.findall(
-        r'str\(\s*\w+\s*\)\.startswith\(\s*str\(\s*\w+\s*\)\s*\)',
+        r"str\(\s*\w+\s*\)\.startswith\(\s*str\(\s*\w+\s*\)\s*\)",
         content,
     )
 
@@ -97,6 +98,5 @@ def test_is_relative_to_usage_exists():
         content = f.read_text(encoding="utf-8")
         count += content.count("is_relative_to(")
     assert count >= 10, (
-        f"项目中 is_relative_to 使用次数仅 {count} 次，"
-        f"应至少 10 次（M8 修复后）"
+        f"项目中 is_relative_to 使用次数仅 {count} 次，" f"应至少 10 次（M8 修复后）"
     )

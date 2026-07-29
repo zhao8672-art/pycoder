@@ -4,17 +4,14 @@
 到 UnifiedAgentEngine（unified_agent.py），不再在 agent_orchestrator 模块层暴露。
 本测试聚焦于仍在 agent_orchestrator 中导出的配置常量和 agent_chat_stream 入口。
 """
+
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from typing import AsyncIterator
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from pycoder.server.services.agent_orchestrator import (
-    AGENT_SYSTEM_PROMPT,
     ALLOWED_COMMANDS,
     MAX_ITERATIONS,
     MAX_RETRIES,
@@ -22,7 +19,6 @@ from pycoder.server.services.agent_orchestrator import (
     WORKSPACE,
     agent_chat_stream,
 )
-
 
 # ── 配置常量测试 ──────────────────────────────────────────
 
@@ -60,7 +56,9 @@ class TestParseToolCalls:
     def test_parses_valid_json(self):
         from pycoder.server.services.agent_tools import parse_tool_calls
 
-        text = '```json\n{"tool_calls": [{"name": "read_file", "params": {"path": "test.py"}}]}\n```'
+        text = (
+            '```json\n{"tool_calls": [{"name": "read_file", "params": {"path": "test.py"}}]}\n```'
+        )
         calls = parse_tool_calls(text)
         assert len(calls) == 1
         assert calls[0]["name"] == "read_file"
@@ -73,12 +71,12 @@ class TestParseToolCalls:
     def test_parses_multiple_tools(self):
         from pycoder.server.services.agent_tools import parse_tool_calls
 
-        text = '''```json
+        text = """```json
 {"tool_calls": [
     {"name": "read_file", "params": {"path": "a.py"}},
     {"name": "list_files", "params": {"path": "."}}
 ]}
-```'''
+```"""
         calls = parse_tool_calls(text)
         assert len(calls) == 2
 

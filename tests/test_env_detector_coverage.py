@@ -17,28 +17,23 @@ env_detector.py 模块单元测试 — 覆盖率目标 >=95%
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock
-
-import pytest
 
 from pycoder.python import env_detector as ed_mod
 from pycoder.python.env_detector import (
     EnvironmentInfo,
-    detect_environment,
-    _detect_venv,
+    _analyze_git_info,
+    _analyze_project_structure,
     _detect_package_manager,
     _detect_project_type,
+    _detect_venv,
     _has_ipynb_files,
-    _analyze_project_structure,
-    _analyze_git_info,
     analyze_dependencies,
     check_outdated,
+    detect_environment,
     print_env_info,
 )
-
 
 # ── EnvironmentInfo 数据类 ──────────────────────────────────
 
@@ -257,6 +252,7 @@ class TestDetectProjectType:
 
     def test_importlib_exception(self, tmp_path, monkeypatch):
         info = EnvironmentInfo()
+
         # mock distributions 抛异常
         def raise_error():
             raise RuntimeError("fail")
@@ -385,6 +381,7 @@ class TestAnalyzeGitInfo:
 
     def test_with_git_dir_success(self, tmp_path, monkeypatch):
         (tmp_path / ".git").mkdir()
+
         # mock subprocess.run 返回各种 git 输出
         def fake_run(cmd, *args, **kwargs):
             result = MagicMock()
@@ -418,6 +415,7 @@ class TestAnalyzeGitInfo:
 
     def test_git_remote_no_fetch(self, tmp_path, monkeypatch):
         (tmp_path / ".git").mkdir()
+
         def fake_run(cmd, *args, **kwargs):
             result = MagicMock()
             result.returncode = 0
@@ -435,6 +433,7 @@ class TestAnalyzeGitInfo:
 
     def test_git_exception(self, tmp_path, monkeypatch):
         (tmp_path / ".git").mkdir()
+
         def raise_error(*a, **k):
             raise RuntimeError("boom")
 

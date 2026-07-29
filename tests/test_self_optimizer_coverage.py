@@ -10,29 +10,26 @@
   - SelfOptimizer: full_optimization_cycle 推荐、generate_optimization_markdown
   - get_self_optimizer 单例
 """
+
 from __future__ import annotations
 
-import asyncio
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from pycoder.server.learning.self_optimizer import (
-    SelfHealer,
-    UsageAnalyzer,
-    PromptOptimizer,
-    SelfOptimizer,
     HealFix,
     HealReport,
-    UsageReport,
     PromptOptimization,
+    PromptOptimizer,
+    SelfHealer,
+    SelfOptimizer,
+    UsageAnalyzer,
+    UsageReport,
     get_self_optimizer,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 测试桩
@@ -42,6 +39,7 @@ from pycoder.server.learning.self_optimizer import (
 @dataclass
 class StubPattern:
     """模拟 KB.suggest_fix 返回的 ErrorPattern"""
+
     fix_template: str = ""
     error_type: str = ""
     confidence: float = 0.0
@@ -50,6 +48,7 @@ class StubPattern:
 @dataclass
 class StubErrorPattern:
     """模拟 ErrorPattern（用于 UsageAnalyzer._analyze_errors）"""
+
     error_type: str = ""
     success_count: int = 0
     fail_count: int = 0
@@ -58,6 +57,7 @@ class StubErrorPattern:
 @dataclass
 class StubMessage:
     """模拟 session_store.Message"""
+
     role: str = "user"
     content: str = ""
     metadata: dict = field(default_factory=dict)
@@ -66,6 +66,7 @@ class StubMessage:
 @dataclass
 class StubSession:
     """模拟 session_store.Session"""
+
     id: str = "sess-1"
 
 
@@ -108,9 +109,7 @@ class TestStaticScan:
 
     def test_detects_bom(self, project_root: Path):
         """检测 BOM 头"""
-        (project_root / "src" / "bom.py").write_bytes(
-            b"\xef\xbb\xbfprint('hello')\n"
-        )
+        (project_root / "src" / "bom.py").write_bytes(b"\xef\xbb\xbfprint('hello')\n")
         healer = SelfHealer(project_root=project_root)
         issues = healer._static_scan("src")
         bom_issues = [i for i in issues if "BOM" in i.reason]
@@ -120,8 +119,7 @@ class TestStaticScan:
     def test_detects_mixed_indent(self, project_root: Path):
         """检测 Tab + 空格混合缩进"""
         (project_root / "src" / "mixed.py").write_text(
-            "def f():\n\treturn 1\n"
-            "def g():\n    return 2\n",
+            "def f():\n\treturn 1\n" "def g():\n    return 2\n",
             encoding="utf-8",
         )
         healer = SelfHealer(project_root=project_root)
@@ -133,7 +131,8 @@ class TestStaticScan:
     def test_detects_syntax_error(self, project_root: Path):
         """检测语法错误"""
         (project_root / "src" / "bad.py").write_text(
-            "def f(\n", encoding="utf-8",
+            "def f(\n",
+            encoding="utf-8",
         )
         healer = SelfHealer(project_root=project_root)
         issues = healer._static_scan("src")
@@ -187,7 +186,8 @@ class TestStaticScan:
         cache_dir = project_root / "src" / "__pycache__"
         cache_dir.mkdir()
         (cache_dir / "mod.cpython-314.py").write_text(
-            "def f(\n", encoding="utf-8",  # 语法错误
+            "def f(\n",
+            encoding="utf-8",  # 语法错误
         )
         healer = SelfHealer(project_root=project_root)
         issues = healer._static_scan("src")
@@ -196,7 +196,8 @@ class TestStaticScan:
     def test_skips_protected_files(self, project_root: Path):
         """protect_list 中的文件被跳过"""
         (project_root / "src" / "self_optimizer.py").write_text(
-            "def f(\n", encoding="utf-8",  # 语法错误
+            "def f(\n",
+            encoding="utf-8",  # 语法错误
         )
         healer = SelfHealer(project_root=project_root)
         issues = healer._static_scan("src")
@@ -233,7 +234,9 @@ class TestMatchKnowledge:
             HealFix(file="b.py", reason="BOM", severity="medium"),
         ]
         # mock knowledge_base — 使用 self_optimizer 模块内的导入路径
-        with patch("pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base") as mock_get:
+        with patch(
+            "pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base"
+        ) as mock_get:
             kb = MagicMock()
             kb.suggest_fix.return_value = StubPattern(
                 fix_template="import os\nimport sys\n",
@@ -250,10 +253,13 @@ class TestMatchKnowledge:
         """confidence < 0.5 的模式被过滤"""
         healer = SelfHealer(project_root=tmp_path)
         issues = [HealFix(file="a.py", reason="err", severity="high")]
-        with patch("pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base") as mock_get:
+        with patch(
+            "pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base"
+        ) as mock_get:
             kb = MagicMock()
             kb.suggest_fix.return_value = StubPattern(
-                fix_template="", confidence=0.3,
+                fix_template="",
+                confidence=0.3,
             )
             mock_get.return_value = kb
             fixes = healer._match_knowledge(issues)
@@ -268,10 +274,13 @@ class TestMatchKnowledge:
             HealFix(file="a.py", reason="err2", severity="medium"),
             HealFix(file="b.py", reason="err3", severity="low"),
         ]
-        with patch("pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base") as mock_get:
+        with patch(
+            "pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base"
+        ) as mock_get:
             kb = MagicMock()
             kb.suggest_fix.return_value = StubPattern(
-                fix_template="some fix code here", confidence=0.8,
+                fix_template="some fix code here",
+                confidence=0.8,
             )
             mock_get.return_value = kb
             fixes = healer._match_knowledge(issues)
@@ -283,7 +292,9 @@ class TestMatchKnowledge:
         """KB 抛 OSError 时返回空列表（caught by except 分支）"""
         healer = SelfHealer(project_root=tmp_path)
         issues = [HealFix(file="a.py", reason="err", severity="high")]
-        with patch("pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base") as mock_get:
+        with patch(
+            "pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base"
+        ) as mock_get:
             mock_get.side_effect = OSError("kb down")
             fixes = healer._match_knowledge(issues)
         assert fixes == []
@@ -292,10 +303,13 @@ class TestMatchKnowledge:
         """只处理前 10 个问题"""
         healer = SelfHealer(project_root=tmp_path)
         issues = [HealFix(file=f"file{i}.py", reason="err", severity="low") for i in range(20)]
-        with patch("pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base") as mock_get:
+        with patch(
+            "pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base"
+        ) as mock_get:
             kb = MagicMock()
             kb.suggest_fix.return_value = StubPattern(
-                fix_template="some fix code here", confidence=0.8,
+                fix_template="some fix code here",
+                confidence=0.8,
             )
             mock_get.return_value = kb
             fixes = healer._match_knowledge(issues)
@@ -385,23 +399,22 @@ def some_long_enough_function():
 class TestApplyFixSafe:
     def test_missing_file_returns_false(self, tmp_path: Path):
         healer = SelfHealer(project_root=tmp_path)
-        fix = HealFix(file="nonexistent.py", new_code="def f(): pass\n",
-                      reason="r", severity="high")
+        fix = HealFix(
+            file="nonexistent.py", new_code="def f(): pass\n", reason="r", severity="high"
+        )
         assert healer._apply_fix_safe(fix) is False
 
     def test_short_code_returns_false(self, tmp_path: Path):
         """new_code < 10 字符"""
         (tmp_path / "target.py").write_text("x = 1\n", encoding="utf-8")
         healer = SelfHealer(project_root=tmp_path)
-        fix = HealFix(file="target.py", new_code="short",
-                      reason="r", severity="medium")
+        fix = HealFix(file="target.py", new_code="short", reason="r", severity="medium")
         assert healer._apply_fix_safe(fix) is False
 
     def test_empty_code_returns_false(self, tmp_path: Path):
         (tmp_path / "target.py").write_text("x = 1\n", encoding="utf-8")
         healer = SelfHealer(project_root=tmp_path)
-        fix = HealFix(file="target.py", new_code="",
-                      reason="r", severity="medium")
+        fix = HealFix(file="target.py", new_code="", reason="r", severity="medium")
         assert healer._apply_fix_safe(fix) is False
 
     def test_placeholder_code_returns_false(self, tmp_path: Path):
@@ -411,7 +424,8 @@ class TestApplyFixSafe:
         fix = HealFix(
             file="target.py",
             new_code="# ... 代码\ndef f(): pass\n",
-            reason="r", severity="medium",
+            reason="r",
+            severity="medium",
         )
         assert healer._apply_fix_safe(fix) is False
 
@@ -419,8 +433,7 @@ class TestApplyFixSafe:
         (tmp_path / "target.py").write_text("x = 1\n", encoding="utf-8")
         healer = SelfHealer(project_root=tmp_path)
         new_code = "def hello_world():\n    return 'fixed'\n"
-        fix = HealFix(file="target.py", new_code=new_code,
-                      reason="r", severity="high")
+        fix = HealFix(file="target.py", new_code=new_code, reason="r", severity="high")
         result = healer._apply_fix_safe(fix)
         assert result is True
         # 文件被写入新内容
@@ -438,8 +451,7 @@ class TestApplyFixSafe:
         healer = SelfHealer(project_root=tmp_path)
         # 长度 > 10 但语法错误
         bad_code = "def broken(\n    return 1\n"
-        fix = HealFix(file="target.py", new_code=bad_code,
-                      reason="r", severity="high")
+        fix = HealFix(file="target.py", new_code=bad_code, reason="r", severity="high")
         result = healer._apply_fix_safe(fix)
         assert result is False
         # 文件被回滚到原始内容
@@ -452,8 +464,7 @@ class TestApplyFixSafe:
         """写入失败时返回 False"""
         (tmp_path / "target.py").write_text("x = 1\n", encoding="utf-8")
         healer = SelfHealer(project_root=tmp_path)
-        fix = HealFix(file="target.py", new_code="def f(): pass\n",
-                      reason="r", severity="high")
+        fix = HealFix(file="target.py", new_code="def f(): pass\n", reason="r", severity="high")
         with patch("pathlib.Path.write_text", side_effect=OSError("disk full")):
             assert healer._apply_fix_safe(fix) is False
 
@@ -504,8 +515,14 @@ class TestRecordHealResult:
         healer = SelfHealer(project_root=tmp_path)
         report = HealReport(task_id="T-1")
         report.fixes = [
-            HealFix(file="a.py", reason="bug", severity="high",
-                    applied=True, test_passed=True, new_code="def f(): pass\n"),
+            HealFix(
+                file="a.py",
+                reason="bug",
+                severity="high",
+                applied=True,
+                test_passed=True,
+                new_code="def f(): pass\n",
+            ),
         ]
         with patch("pycoder.capabilities.self_evo.learning.get_learning_engine") as mock_get:
             engine = MagicMock()
@@ -521,8 +538,14 @@ class TestRecordHealResult:
         healer = SelfHealer(project_root=tmp_path)
         report = HealReport(task_id="T-2")
         report.fixes = [
-            HealFix(file="a.py", reason="bug", severity="high",
-                    applied=True, test_passed=False, new_code="def f(): pass\n"),
+            HealFix(
+                file="a.py",
+                reason="bug",
+                severity="high",
+                applied=True,
+                test_passed=False,
+                new_code="def f(): pass\n",
+            ),
         ]
         with patch("pycoder.capabilities.self_evo.learning.get_learning_engine") as mock_get:
             engine = MagicMock()
@@ -576,8 +599,10 @@ class TestAiHeal:
         bridge.close = AsyncMock()
         bridge.configure = MagicMock()
 
-        with patch("pycoder.server.chat_bridge.ChatBridge", return_value=bridge), \
-             patch("pycoder.server.chat_handler._get_api_key_for_model", return_value="fake-key"):
+        with (
+            patch("pycoder.server.chat_bridge.ChatBridge", return_value=bridge),
+            patch("pycoder.server.chat_handler._get_api_key_for_model", return_value="fake-key"),
+        ):
             fixes = await healer._ai_heal(issues)
 
         assert len(fixes) == 1
@@ -588,7 +613,9 @@ class TestAiHeal:
         """ChatBridge() 抛 RuntimeError 时返回空列表（caught by except 分支）"""
         healer = SelfHealer(project_root=tmp_path)
         issues = [HealFix(file="a.py", reason="bug", severity="high")]
-        with patch("pycoder.server.chat_bridge.ChatBridge", side_effect=RuntimeError("bridge init failed")):
+        with patch(
+            "pycoder.server.chat_bridge.ChatBridge", side_effect=RuntimeError("bridge init failed")
+        ):
             fixes = await healer._ai_heal(issues)
         assert fixes == []
 
@@ -605,8 +632,10 @@ class TestAiHeal:
         bridge.chat_stream = fake_stream
         bridge.close = AsyncMock()
 
-        with patch("pycoder.server.chat_bridge.ChatBridge", return_value=bridge), \
-             patch("pycoder.server.chat_handler._get_api_key_for_model", return_value="fake-key"):
+        with (
+            patch("pycoder.server.chat_bridge.ChatBridge", return_value=bridge),
+            patch("pycoder.server.chat_handler._get_api_key_for_model", return_value="fake-key"),
+        ):
             fixes = await healer._ai_heal(issues)
         # 空 result → 无 fixes
         assert fixes == []
@@ -630,12 +659,13 @@ class TestAutoHeal:
         """dry_run=True 时不应用修复"""
         healer = SelfHealer(project_root=tmp_path)
         issues = [HealFix(file="a.py", reason="bug", severity="high")]
-        kb_fixes = [HealFix(file="a.py", reason="bug", severity="high",
-                            new_code="def f(): pass\n")]
-        with patch.object(healer, "_static_scan", return_value=issues), \
-             patch.object(healer, "_match_knowledge", return_value=kb_fixes), \
-             patch.object(healer, "_apply_fix_safe") as mock_apply, \
-             patch.object(healer, "_record_heal_result"):
+        kb_fixes = [HealFix(file="a.py", reason="bug", severity="high", new_code="def f(): pass\n")]
+        with (
+            patch.object(healer, "_static_scan", return_value=issues),
+            patch.object(healer, "_match_knowledge", return_value=kb_fixes),
+            patch.object(healer, "_apply_fix_safe") as mock_apply,
+            patch.object(healer, "_record_heal_result"),
+        ):
             report = await healer.auto_heal(dry_run=True)
         # dry_run 时不调用 _apply_fix_safe
         mock_apply.assert_not_called()
@@ -645,13 +675,14 @@ class TestAutoHeal:
         """知识库修复被应用 + 测试通过"""
         healer = SelfHealer(project_root=tmp_path)
         issues = [HealFix(file="a.py", reason="bug", severity="low")]
-        kb_fixes = [HealFix(file="a.py", reason="bug", severity="low",
-                            new_code="def f(): pass\n")]
-        with patch.object(healer, "_static_scan", return_value=issues), \
-             patch.object(healer, "_match_knowledge", return_value=kb_fixes), \
-             patch.object(healer, "_apply_fix_safe", return_value=True), \
-             patch.object(healer, "_run_tests", new=AsyncMock(return_value=(True, "ok"))), \
-             patch.object(healer, "_record_heal_result"):
+        kb_fixes = [HealFix(file="a.py", reason="bug", severity="low", new_code="def f(): pass\n")]
+        with (
+            patch.object(healer, "_static_scan", return_value=issues),
+            patch.object(healer, "_match_knowledge", return_value=kb_fixes),
+            patch.object(healer, "_apply_fix_safe", return_value=True),
+            patch.object(healer, "_run_tests", new=AsyncMock(return_value=(True, "ok"))),
+            patch.object(healer, "_record_heal_result"),
+        ):
             report = await healer.auto_heal(dry_run=False)
         assert report.fixes_applied == 1
         assert report.test_passed is True
@@ -662,13 +693,14 @@ class TestAutoHeal:
         """测试失败时设置 error"""
         healer = SelfHealer(project_root=tmp_path)
         issues = [HealFix(file="a.py", reason="bug", severity="low")]
-        kb_fixes = [HealFix(file="a.py", reason="bug", severity="low",
-                            new_code="def f(): pass\n")]
-        with patch.object(healer, "_static_scan", return_value=issues), \
-             patch.object(healer, "_match_knowledge", return_value=kb_fixes), \
-             patch.object(healer, "_apply_fix_safe", return_value=True), \
-             patch.object(healer, "_run_tests", new=AsyncMock(return_value=(False, "fail"))), \
-             patch.object(healer, "_record_heal_result"):
+        kb_fixes = [HealFix(file="a.py", reason="bug", severity="low", new_code="def f(): pass\n")]
+        with (
+            patch.object(healer, "_static_scan", return_value=issues),
+            patch.object(healer, "_match_knowledge", return_value=kb_fixes),
+            patch.object(healer, "_apply_fix_safe", return_value=True),
+            patch.object(healer, "_run_tests", new=AsyncMock(return_value=(False, "fail"))),
+            patch.object(healer, "_record_heal_result"),
+        ):
             report = await healer.auto_heal(dry_run=False)
         assert report.test_passed is False
         assert "测试失败" in report.error
@@ -677,14 +709,22 @@ class TestAutoHeal:
         """critical/high 问题且无知识库修复 → 走 AI 修复"""
         healer = SelfHealer(project_root=tmp_path)
         issues = [HealFix(file="a.py", reason="critical bug", severity="critical")]
-        ai_fixes = [HealFix(file="a.py", reason="critical bug", severity="critical",
-                            new_code="def fixed(): return None\n")]
-        with patch.object(healer, "_static_scan", return_value=issues), \
-             patch.object(healer, "_match_knowledge", return_value=[]), \
-             patch.object(healer, "_ai_heal", new=AsyncMock(return_value=ai_fixes)), \
-             patch.object(healer, "_apply_fix_safe", return_value=True), \
-             patch.object(healer, "_run_tests", new=AsyncMock(return_value=(True, "ok"))), \
-             patch.object(healer, "_record_heal_result"):
+        ai_fixes = [
+            HealFix(
+                file="a.py",
+                reason="critical bug",
+                severity="critical",
+                new_code="def fixed(): return None\n",
+            )
+        ]
+        with (
+            patch.object(healer, "_static_scan", return_value=issues),
+            patch.object(healer, "_match_knowledge", return_value=[]),
+            patch.object(healer, "_ai_heal", new=AsyncMock(return_value=ai_fixes)),
+            patch.object(healer, "_apply_fix_safe", return_value=True),
+            patch.object(healer, "_run_tests", new=AsyncMock(return_value=(True, "ok"))),
+            patch.object(healer, "_record_heal_result"),
+        ):
             report = await healer.auto_heal(dry_run=False)
         assert report.fixes_applied == 1
         assert report.fixes[0].file == "a.py"
@@ -704,9 +744,11 @@ class TestAutoHeal:
             HealFix(file="a.py", reason="bug2", severity="low"),
             HealFix(file="b.py", reason="bug3", severity="low"),
         ]
-        with patch.object(healer, "_static_scan", return_value=issues), \
-             patch.object(healer, "_match_knowledge", return_value=[]), \
-             patch.object(healer, "_record_heal_result"):
+        with (
+            patch.object(healer, "_static_scan", return_value=issues),
+            patch.object(healer, "_match_knowledge", return_value=[]),
+            patch.object(healer, "_record_heal_result"),
+        ):
             report = await healer.auto_heal()
         # 2 个唯一文件
         assert report.files_scanned == 2
@@ -750,6 +792,7 @@ class TestAnalyzeSessions:
         """message 无 metadata 属性时不抛异常"""
         analyzer = UsageAnalyzer()
         sessions = [StubSession(id="s1")]
+
         # 使用 plain object without metadata attr
         @dataclass
         class PlainMsg:
@@ -767,8 +810,9 @@ class TestAnalyzeSessions:
     def test_session_store_exception_handled_by_analyze(self):
         """session_store 抛异常时 analyze 捕获"""
         analyzer = UsageAnalyzer()
-        with patch("pycoder.server.session_store.get_session_store",
-                   side_effect=ImportError("no store")):
+        with patch(
+            "pycoder.server.session_store.get_session_store", side_effect=ImportError("no store")
+        ):
             report = analyzer.analyze(days=30)
         # analyze 内部捕获 ImportError，返回空 report
         assert report.total_sessions == 0
@@ -784,15 +828,22 @@ class TestAnalyzeFullFlow:
             sessions=[StubSession(id="s1")],
             messages_map={"s1": [StubMessage(role="user", content="bug fix")]},
         )
-        with patch("pycoder.server.session_store.get_session_store", return_value=store), \
-             patch("pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base") as mock_kb_get, \
-             patch("pycoder.capabilities.self_evo.learning.metrics_tracker.get_metrics_tracker") as mock_mt_get:
+        with (
+            patch("pycoder.server.session_store.get_session_store", return_value=store),
+            patch(
+                "pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base"
+            ) as mock_kb_get,
+            patch(
+                "pycoder.capabilities.self_evo.learning.metrics_tracker.get_metrics_tracker"
+            ) as mock_mt_get,
+        ):
             kb = MagicMock()
             kb.get_top_errors.return_value = []
             mock_kb_get.return_value = kb
             mt = MagicMock()
             mt.get_evolution_stats.return_value = {
-                "total_evolutions": 5, "success_rate": 0.9,
+                "total_evolutions": 5,
+                "success_rate": 0.9,
                 "total_bugs_fixed": 3,
             }
             mt.get_daily_summary.return_value = []
@@ -811,9 +862,13 @@ class TestAnalyzeFullFlow:
         """_analyze_errors 抛异常时 analyze 捕获（不传播）"""
         analyzer = UsageAnalyzer()
         store = StubSessionStore(sessions=[], messages_map={})
-        with patch("pycoder.server.session_store.get_session_store", return_value=store), \
-             patch("pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base",
-                   side_effect=RuntimeError("kb down")):
+        with (
+            patch("pycoder.server.session_store.get_session_store", return_value=store),
+            patch(
+                "pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base",
+                side_effect=RuntimeError("kb down"),
+            ),
+        ):
             # 不应抛异常（_analyze_errors 自身捕获；analyze 也兜底）
             report = analyzer.analyze(days=30)
         assert report.total_sessions == 0
@@ -829,7 +884,9 @@ class TestAnalyzeErrors:
         analyzer = UsageAnalyzer()
         report = UsageReport()
         # mock kb
-        with patch("pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base") as mock_get:
+        with patch(
+            "pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base"
+        ) as mock_get:
             kb = MagicMock()
             kb.get_top_errors.return_value = [
                 StubErrorPattern(error_type="NameError", success_count=1, fail_count=5),
@@ -847,8 +904,10 @@ class TestAnalyzeErrors:
     def test_kb_exception_silent(self):
         analyzer = UsageAnalyzer()
         report = UsageReport()
-        with patch("pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base",
-                   side_effect=RuntimeError("kb down")):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.knowledge_base.get_knowledge_base",
+            side_effect=RuntimeError("kb down"),
+        ):
             # 不应抛异常
             analyzer._analyze_errors(report, days=30)
         assert report.top_error_types == []
@@ -863,7 +922,9 @@ class TestAnalyzeEvolution:
     def test_appends_evolution_hint(self):
         analyzer = UsageAnalyzer()
         report = UsageReport()
-        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.get_metrics_tracker") as mock_get:
+        with patch(
+            "pycoder.capabilities.self_evo.learning.metrics_tracker.get_metrics_tracker"
+        ) as mock_get:
             mt = MagicMock()
             mt.get_evolution_stats.return_value = {
                 "total_evolutions": 10,
@@ -880,8 +941,10 @@ class TestAnalyzeEvolution:
     def test_metrics_exception_silent(self):
         analyzer = UsageAnalyzer()
         report = UsageReport()
-        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.get_metrics_tracker",
-                   side_effect=ImportError("no tracker")):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.metrics_tracker.get_metrics_tracker",
+            side_effect=ImportError("no tracker"),
+        ):
             analyzer._analyze_evolution(report, days=30)
         assert report.optimization_hints == []
 
@@ -1015,8 +1078,10 @@ class TestPromptOptimizer:
                 system_prompt=long_prompt,
                 model="deepseek-chat",
             )
-            with patch("pycoder.server.learning.feedback_loop.get_feedback_loop",
-                       side_effect=ImportError("no fb")):
+            with patch(
+                "pycoder.server.learning.feedback_loop.get_feedback_loop",
+                side_effect=ImportError("no fb"),
+            ):
                 result = po.optimize_agent_prompt("developer")
         # 不应抛异常，仍返回结果
         assert result.agent_id == "developer"
@@ -1050,11 +1115,19 @@ class TestPromptOptimizer:
         po = PromptOptimizer()
         # generate_optimization_report 调用 self.optimize_all_agents
         # 直接 patch 该方法返回控制结果
-        with patch.object(po, "optimize_all_agents", return_value=[
-            PromptOptimization(agent_id="pm", original_lines=500,
-                               changes=["change1"], expected_improvement="imp"),
-            PromptOptimization(agent_id="qa", original_lines=500, changes=[]),
-        ]):
+        with patch.object(
+            po,
+            "optimize_all_agents",
+            return_value=[
+                PromptOptimization(
+                    agent_id="pm",
+                    original_lines=500,
+                    changes=["change1"],
+                    expected_improvement="imp",
+                ),
+                PromptOptimization(agent_id="qa", original_lines=500, changes=[]),
+            ],
+        ):
             md = po.generate_optimization_report()
         assert "无需优化" in md  # qa 的章节
         assert "change1" in md  # pm 的章节
@@ -1101,8 +1174,10 @@ class TestSelfOptimizer:
             PromptOptimization(agent_id="developer", changes=["change1"]),
             PromptOptimization(agent_id="qa"),  # 无 changes
         ]
-        with patch.object(opt, "analyze_usage", return_value=usage), \
-             patch.object(opt, "optimize_prompts", return_value=prompts):
+        with (
+            patch.object(opt, "analyze_usage", return_value=usage),
+            patch.object(opt, "optimize_prompts", return_value=prompts),
+        ):
             result = opt.full_optimization_cycle()
         # recommendations 应包含所有 4 类
         recs = result["recommendations"]
@@ -1118,8 +1193,10 @@ class TestSelfOptimizer:
         """无数据时不生成推荐"""
         opt = SelfOptimizer()
         usage = UsageReport()  # 全空
-        with patch.object(opt, "analyze_usage", return_value=usage), \
-             patch.object(opt, "optimize_prompts", return_value=[]):
+        with (
+            patch.object(opt, "analyze_usage", return_value=usage),
+            patch.object(opt, "optimize_prompts", return_value=[]),
+        ):
             result = opt.full_optimization_cycle()
         assert result["recommendations"] == []
 
@@ -1133,21 +1210,30 @@ class TestSelfOptimizer:
             optimization_hints=["hint1"],
         )
         prompts_with_changes = [
-            PromptOptimization(agent_id="pm", original_lines=500,
-                               changes=["change1"], expected_improvement="improve"),
+            PromptOptimization(
+                agent_id="pm",
+                original_lines=500,
+                changes=["change1"],
+                expected_improvement="improve",
+            ),
         ]
-        with patch.object(opt, "full_optimization_cycle", return_value={
-            "usage": {
-                "sessions": 5, "messages": 50,
-                "top_topics": [("bug", 3)],
-                "top_errors": [("NameError", 2)],
-                "hints": ["hint1"],
+        with patch.object(
+            opt,
+            "full_optimization_cycle",
+            return_value={
+                "usage": {
+                    "sessions": 5,
+                    "messages": 50,
+                    "top_topics": [("bug", 3)],
+                    "top_errors": [("NameError", 2)],
+                    "hints": ["hint1"],
+                },
+                "prompts": [
+                    {"agent": "pm", "lines": 500, "issues": 1, "changes": ["change1"]},
+                ],
+                "recommendations": ["rec1"],
             },
-            "prompts": [
-                {"agent": "pm", "lines": 500, "issues": 1, "changes": ["change1"]},
-            ],
-            "recommendations": ["rec1"],
-        }):
+        ):
             md = opt.generate_optimization_markdown()
         assert "自优化报告" in md
         assert "bug(3)" in md
@@ -1158,9 +1244,15 @@ class TestSelfOptimizer:
 
     def test_generate_optimization_markdown_empty(self):
         opt = SelfOptimizer()
-        with patch.object(opt, "full_optimization_cycle", return_value={
-            "usage": {}, "prompts": [], "recommendations": [],
-        }):
+        with patch.object(
+            opt,
+            "full_optimization_cycle",
+            return_value={
+                "usage": {},
+                "prompts": [],
+                "recommendations": [],
+            },
+        ):
             md = opt.generate_optimization_markdown()
         assert "自优化报告" in md
         # 空数据不应崩溃

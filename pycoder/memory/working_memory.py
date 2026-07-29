@@ -34,8 +34,11 @@ class WorkingMemory:
     def store(self, key: str, content: str, metadata: dict[str, Any] | None = None) -> MemoryEntry:
         """存储一条工作记忆"""
         entry = MemoryEntry(
-            level=1, key=key, content=content,
-            metadata=metadata or {}, ttl=3600,
+            level=1,
+            key=key,
+            content=content,
+            metadata=metadata or {},
+            ttl=3600,
         )
         if key in self._store:
             old = self._store[key]
@@ -45,7 +48,9 @@ class WorkingMemory:
         self._touch_lru(key)
         if self._total_tokens > self._max_tokens:
             self._evict_lru()
-        logger.debug("working_memory_store key=%s tokens=%d/%d", key, self._total_tokens, self._max_tokens)
+        logger.debug(
+            "working_memory_store key=%s tokens=%d/%d", key, self._total_tokens, self._max_tokens
+        )
         return entry
 
     def retrieve(self, key: str) -> MemoryEntry | None:
@@ -94,7 +99,9 @@ class WorkingMemory:
             return ""
         pending_tasks = [e for e in entries if "task" in e.key.lower() or "todo" in e.key.lower()]
         open_files = [e for e in entries if "file" in e.key.lower()]
-        current = [e for e in entries if "current" in e.key.lower() or "conversation" in e.key.lower()]
+        current = [
+            e for e in entries if "current" in e.key.lower() or "conversation" in e.key.lower()
+        ]
         parts: list[str] = []
         if current:
             parts.append(f"当前对话: {'; '.join(e.content[:100] for e in current)}")
@@ -125,7 +132,11 @@ class WorkingMemory:
             if oldest_key in self._store:
                 self._total_tokens -= _estimate_tokens(self._store[oldest_key].content)
                 del self._store[oldest_key]
-                logger.debug("working_memory_evict key=%s remaining_tokens=%d", oldest_key, self._total_tokens)
+                logger.debug(
+                    "working_memory_evict key=%s remaining_tokens=%d",
+                    oldest_key,
+                    self._total_tokens,
+                )
 
     @property
     def token_count(self) -> int:

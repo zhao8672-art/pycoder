@@ -23,7 +23,6 @@ from pycoder.brain.task_planner import (
     TaskStatus,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # FeasibilityAnalyzer 测试
 # ══════════════════════════════════════════════════════════
@@ -102,7 +101,11 @@ class TestFeasibilityAnalyzer:
     def test_overall_score(self, analyzer, simple_plan, risky_plan):
         """综合评分：简单计划应高于风险计划"""
         simple_report = analyzer.analyze(simple_plan)
-        risky_report = analyzer.analyzer(risky_plan) if hasattr(analyzer, "analyzer") else analyzer.analyze(risky_plan)
+        risky_report = (
+            analyzer.analyzer(risky_plan)
+            if hasattr(analyzer, "analyzer")
+            else analyzer.analyze(risky_plan)
+        )
         assert simple_report.overall_score > risky_report.overall_score
 
     def test_to_dict(self, analyzer, simple_plan):
@@ -280,7 +283,9 @@ class TestDeviationDetector:
         # 完成所有任务（使用唯一关键词避免子串冲突）
         detector.detect([{"name": "create", "params": {"path": "model.py"}}], [{"success": True}])
         detector.detect([{"name": "create", "params": {"path": "api.py"}}], [{"success": True}])
-        detector.detect([{"name": "write", "params": {"file": "test_unit.py"}}], [{"success": True}])
+        detector.detect(
+            [{"name": "write", "params": {"file": "test_unit.py"}}], [{"success": True}]
+        )
         # 由于关键词匹配是启发式的，至少前2个任务应完成
         assert detector.progress_percent >= 66
 
@@ -344,8 +349,12 @@ class TestPipelineHelpers:
         )
         # 不应抛出异常
         await ExecutionPipeline._feedback_to_learning(
-            plan=plan, detector=None, budget=None,
-            elapsed=1.0, tool_count=0, iter_count=1,
+            plan=plan,
+            detector=None,
+            budget=None,
+            elapsed=1.0,
+            tool_count=0,
+            iter_count=1,
         )
 
 

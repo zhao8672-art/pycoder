@@ -15,9 +15,8 @@
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -67,7 +66,13 @@ class TestMemoryBank:
         """MEMORY_FILES 应包含预期的记忆文件键"""
         from pycoder.server.memory_bank import MemoryBank
 
-        expected_keys = ["project_brief", "architecture", "tech_context", "active_context", "progress"]
+        expected_keys = [
+            "project_brief",
+            "architecture",
+            "tech_context",
+            "active_context",
+            "progress",
+        ]
         for key in expected_keys:
             assert key in MemoryBank.MEMORY_FILES
 
@@ -75,7 +80,12 @@ class TestMemoryBank:
         """LOAD_ORDER 应按正确的优先级排序"""
         from pycoder.server.memory_bank import MemoryBank
 
-        assert MemoryBank.LOAD_ORDER == ["project_brief", "architecture", "tech_context", "active_context"]
+        assert MemoryBank.LOAD_ORDER == [
+            "project_brief",
+            "architecture",
+            "tech_context",
+            "active_context",
+        ]
 
     # ── 上下文加载 ──
 
@@ -559,7 +569,6 @@ class TestSkillsFetcher:
 
     def test_get_stats_with_corrupt_registry(self, fetcher, tmp_path: Path):
         """损坏的注册表文件应返回默认值"""
-        import os
 
         fetcher._registry_path = tmp_path / ".skills-registry.json"
         fetcher._registry_path.write_text("not valid json", encoding="utf-8")
@@ -586,9 +595,7 @@ class TestSkillsFetcher:
         # 创建已有注册表
         fetcher._registry_path = tmp_path / ".skills-registry.json"
         existing = {
-            "skills": [
-                {"id": "test-skill", "file": "existing_file.md", "url": "https://old.com"}
-            ]
+            "skills": [{"id": "test-skill", "file": "existing_file.md", "url": "https://old.com"}]
         }
         fetcher._registry_path.write_text(json.dumps(existing), encoding="utf-8")
 
@@ -628,8 +635,8 @@ class TestGetSkillsFetcher:
 
     def test_get_skills_fetcher_returns_singleton(self):
         """get_skills_fetcher 应返回单例"""
-        from pycoder.server.skills_updater import get_skills_fetcher, SkillsFetcher
         import pycoder.server.skills_updater as su
+        from pycoder.server.skills_updater import get_skills_fetcher
 
         # 重置全局变量
         su._fetcher = None
@@ -705,7 +712,13 @@ class TestEnhancedSkill:
         from pycoder.server.skills_updater_v2 import EnhancedSkill
 
         skill = EnhancedSkill(
-            id="test", name="Test", stars=10000, downloads=100000, rating=5.0, verified=True, official=True
+            id="test",
+            name="Test",
+            stars=10000,
+            downloads=100000,
+            rating=5.0,
+            verified=True,
+            official=True,
         )
         assert skill.quality_score() <= 100.0
 
@@ -846,9 +859,7 @@ class TestEnhancedSkillsFetcher:
         """有效的注册表应正确加载为 EnhancedSkill"""
         fetcher._registry_path = tmp_path / ".skills-registry-enhanced.json"
         data = {
-            "skills": [
-                {"id": "test-skill", "name": "Test Skill", "stars": 42, "category": "web"}
-            ]
+            "skills": [{"id": "test-skill", "name": "Test Skill", "stars": 42, "category": "web"}]
         }
         fetcher._registry_path.write_text(json.dumps(data), encoding="utf-8")
 
@@ -874,9 +885,7 @@ class TestEnhancedSkillsFetcher:
 
         fetcher._registry_path = tmp_path / ".skills-registry-enhanced.json"
         skills = {
-            "test": EnhancedSkill(
-                id="test", name="Test", stars=50, category="web", verified=True
-            )
+            "test": EnhancedSkill(id="test", name="Test", stars=50, category="web", verified=True)
         }
         fetcher._save_registry(skills)
 
@@ -912,8 +921,8 @@ class TestGetEnhancedFetcher:
 
     def test_get_enhanced_fetcher_returns_singleton(self):
         """应返回单例"""
-        from pycoder.server.skills_updater_v2 import get_enhanced_fetcher
         import pycoder.server.skills_updater_v2 as sv2
+        from pycoder.server.skills_updater_v2 import get_enhanced_fetcher
 
         sv2._enhanced_fetcher = None
         f1 = get_enhanced_fetcher()
@@ -1044,7 +1053,9 @@ class TestTryParseReActJson:
         """有效的 ReAct JSON 应正确解析"""
         from pycoder.server.services.agent_react_loop import _try_parse_react_json
 
-        data = json.dumps({"thought": "需要读文件", "action": "read_file", "action_input": {"path": "test.py"}})
+        data = json.dumps(
+            {"thought": "需要读文件", "action": "read_file", "action_input": {"path": "test.py"}}
+        )
         step = _try_parse_react_json(data, 1)
         assert step is not None
         assert step.thought == "需要读文件"
@@ -1099,10 +1110,12 @@ class TestTryParseToolCallsCompat:
         """有效的 tool_calls 格式应正确解析"""
         from pycoder.server.services.agent_react_loop import _try_parse_tool_calls_compat
 
-        data = json.dumps({
-            "thought": "需要读文件",
-            "tool_calls": [{"name": "read_file", "params": {"path": "test.py"}}],
-        })
+        data = json.dumps(
+            {
+                "thought": "需要读文件",
+                "tool_calls": [{"name": "read_file", "params": {"path": "test.py"}}],
+            }
+        )
         step = _try_parse_tool_calls_compat(data, 1)
         assert step is not None
         assert step.action == "read_file"
@@ -1285,7 +1298,13 @@ class TestReActLoop:
         from pycoder.server.services.agent_react_loop import ReActStep
 
         steps = [
-            ReActStep(thought="思考1", action="read_file", action_input={"path": "a.py"}, observation="内容", iteration=1)
+            ReActStep(
+                thought="思考1",
+                action="read_file",
+                action_input={"path": "a.py"},
+                observation="内容",
+                iteration=1,
+            )
         ]
         prompt = react_loop._build_prompt("测试任务", steps, ["初始观察"])
 
@@ -1319,7 +1338,9 @@ class TestReActLoop:
         """持续错误（>=3）时间隔 1"""
         from pycoder.server.services.agent_react_loop import ReActStep
 
-        steps = [ReActStep(thought="t", action="a", action_input={}, iteration=i) for i in range(10)]
+        steps = [
+            ReActStep(thought="t", action="a", action_input={}, iteration=i) for i in range(10)
+        ]
         interval = react_loop._compute_rumination_interval(steps, 3)
         assert interval == 1
 
@@ -1327,7 +1348,9 @@ class TestReActLoop:
         """低错误率（<20% 但 >0）时间隔 3"""
         from pycoder.server.services.agent_react_loop import ReActStep
 
-        steps = [ReActStep(thought="t", action="a", action_input={}, iteration=i) for i in range(10)]
+        steps = [
+            ReActStep(thought="t", action="a", action_input={}, iteration=i) for i in range(10)
+        ]
         interval = react_loop._compute_rumination_interval(steps, 1)  # 1/10 = 10%
         assert interval == 3
 
@@ -1676,14 +1699,14 @@ class TestDetectCompletion:
         assert is_comp is True
 
     def test_detect_completion_summary(self):
-        """"总结:"应检测为完成信号"""
+        """ "总结:"应检测为完成信号"""
         from pycoder.core.services.agent_parser import _detect_completion
 
         is_comp, summary = _detect_completion("总结：本次开发了用户认证模块...")
         assert is_comp is True
 
     def test_detect_completion_emoji(self):
-        """"✅"开头应检测为完成信号"""
+        """ "✅"开头应检测为完成信号"""
         from pycoder.core.services.agent_parser import _detect_completion
 
         is_comp, summary = _detect_completion("✅ 所有任务已完成")
@@ -1721,7 +1744,9 @@ class TestParseResponse:
         """JSON tool_calls 格式应正确解析"""
         from pycoder.core.services.agent_parser import parse_response
 
-        text = '```json\n{"tool_calls": [{"name": "read_file", "params": {"path": "test.py"}}]}\n```'
+        text = (
+            '```json\n{"tool_calls": [{"name": "read_file", "params": {"path": "test.py"}}]}\n```'
+        )
         result = parse_response(text)
         assert len(result.tool_calls) == 1
         assert result.tool_calls[0]["name"] == "read_file"
@@ -1749,7 +1774,9 @@ class TestParseResponse:
         """ReAct 格式应正确解析"""
         from pycoder.core.services.agent_parser import parse_response
 
-        text = '{"thought": "需要读文件", "action": "read_file", "action_input": {"path": "test.py"}}'
+        text = (
+            '{"thought": "需要读文件", "action": "read_file", "action_input": {"path": "test.py"}}'
+        )
         result = parse_response(text)
         assert len(result.tool_calls) == 1
         assert result.tool_calls[0]["name"] == "read_file"
@@ -1802,12 +1829,14 @@ class TestParseJsonBlock:
         """tool_calls 数组格式"""
         from pycoder.core.services.agent_parser import _parse_json_block
 
-        block = json.dumps({
-            "tool_calls": [
-                {"name": "read_file", "params": {}},
-                {"name": "write_file", "params": {}},
-            ]
-        })
+        block = json.dumps(
+            {
+                "tool_calls": [
+                    {"name": "read_file", "params": {}},
+                    {"name": "write_file", "params": {}},
+                ]
+            }
+        )
         result = _parse_json_block(block)
         assert len(result) == 2
 
@@ -1824,10 +1853,12 @@ class TestParseJsonBlock:
         """直接工具数组格式"""
         from pycoder.core.services.agent_parser import _parse_json_block
 
-        block = json.dumps([
-            {"name": "read_file", "params": {"path": "a.py"}},
-            {"name": "write_file", "params": {"path": "b.py", "content": "c"}},
-        ])
+        block = json.dumps(
+            [
+                {"name": "read_file", "params": {"path": "a.py"}},
+                {"name": "write_file", "params": {"path": "b.py", "content": "c"}},
+            ]
+        )
         result = _parse_json_block(block)
         assert len(result) == 2
 
@@ -1876,10 +1907,7 @@ class TestExtractFileBlocks:
         """多个 FILE 块应全部提取"""
         from pycoder.core.services.agent_parser import _extract_file_blocks
 
-        text = (
-            "```FILE:a.py\ncontent a\n```\n"
-            "```FILE:b.py\ncontent b\n```"
-        )
+        text = "```FILE:a.py\ncontent a\n```\n" "```FILE:b.py\ncontent b\n```"
         blocks = _extract_file_blocks(text)
         assert len(blocks) == 2
 
@@ -1971,6 +1999,7 @@ class TestPluginExecutor:
 
     def test_set_plugin_callback(self, executor):
         """设置回调应正确存储"""
+
         async def my_callback(event: dict) -> None:
             pass
 
@@ -2014,6 +2043,7 @@ class TestPluginExecutor:
 
     async def test_emit_plugin_event_callback_failure(self, executor):
         """回调失败应不抛出异常"""
+
         async def failing_callback(event: dict) -> None:
             raise RuntimeError("回调失败")
 
@@ -2092,7 +2122,9 @@ class TestAutoPluginInstaller:
     @pytest.fixture
     def installer(self, tmp_path: Path):
         """创建 AutoPluginInstaller 实例"""
-        from pycoder.server.services.auto_plugin_installer import AutoPluginInstaller, _SKILLS_INSTALL_DIR, _INSTALL_LOG
+        from pycoder.server.services.auto_plugin_installer import (
+            AutoPluginInstaller,
+        )
 
         # 使用临时目录覆盖安装路径
         skill_dir = tmp_path / "skills"
@@ -2102,15 +2134,19 @@ class TestAutoPluginInstaller:
         pycoder_dir = tmp_path / ".pycoder"
         pycoder_dir.mkdir(parents=True, exist_ok=True)
 
-        with patch(
-            "pycoder.server.services.auto_plugin_installer._SKILLS_INSTALL_DIR",
-            skill_dir,
-        ), patch(
-            "pycoder.server.services.auto_plugin_installer._INSTALL_LOG",
-            log_file,
-        ), patch(
-            "pycoder.server.services.auto_plugin_installer.Path.home",
-            return_value=tmp_path,
+        with (
+            patch(
+                "pycoder.server.services.auto_plugin_installer._SKILLS_INSTALL_DIR",
+                skill_dir,
+            ),
+            patch(
+                "pycoder.server.services.auto_plugin_installer._INSTALL_LOG",
+                log_file,
+            ),
+            patch(
+                "pycoder.server.services.auto_plugin_installer.Path.home",
+                return_value=tmp_path,
+            ),
         ):
             inst = AutoPluginInstaller()
             yield inst
@@ -2119,15 +2155,19 @@ class TestAutoPluginInstaller:
         """初始化应创建安装目录"""
         from pycoder.server.services.auto_plugin_installer import AutoPluginInstaller
 
-        with patch(
-            "pycoder.server.services.auto_plugin_installer._SKILLS_INSTALL_DIR",
-            tmp_path / "skills",
-        ), patch(
-            "pycoder.server.services.auto_plugin_installer._INSTALL_LOG",
-            tmp_path / "log.jsonl",
-        ), patch(
-            "pycoder.server.services.auto_plugin_installer.Path.home",
-            return_value=tmp_path,
+        with (
+            patch(
+                "pycoder.server.services.auto_plugin_installer._SKILLS_INSTALL_DIR",
+                tmp_path / "skills",
+            ),
+            patch(
+                "pycoder.server.services.auto_plugin_installer._INSTALL_LOG",
+                tmp_path / "log.jsonl",
+            ),
+            patch(
+                "pycoder.server.services.auto_plugin_installer.Path.home",
+                return_value=tmp_path,
+            ),
         ):
             AutoPluginInstaller()
             assert (tmp_path / "skills").exists()
@@ -2275,7 +2315,9 @@ class TestEndToEndMemoryBankFlow:
 
         # 验证查询
         memories = mb.list_memories()
-        assert len(memories) >= 3  # project_brief, architecture, tech_context, active_context, progress
+        assert (
+            len(memories) >= 3
+        )  # project_brief, architecture, tech_context, active_context, progress
 
         # 加载上下文
         context = mb.load_context_for_prompt(max_tokens=5000)

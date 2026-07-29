@@ -214,9 +214,7 @@ class IntentAnalyzer:
         analysis.task_type = self._detect_task_type(msg_lower)
 
         # 4. 检测文件引用
-        analysis.has_file_references = bool(
-            re.search(r"\.\w{1,5}\b|/\S+|\\\S+|文件|file", msg)
-        )
+        analysis.has_file_references = bool(re.search(r"\.\w{1,5}\b|/\S+|\\\S+|文件|file", msg))
 
         # 5. 检测风险
         analysis.has_risk = self._detect_risk(msg)
@@ -310,9 +308,14 @@ class IntentAnalyzer:
 
         # 任务类型因子
         type_scores = {
-            "qa": 5, "review": 15, "code_gen": 25,
-            "debug": 30, "refactor": 35, "deploy": 40,
-            "architect": 45, "mixed": 50,
+            "qa": 5,
+            "review": 15,
+            "code_gen": 25,
+            "debug": 30,
+            "refactor": 35,
+            "deploy": 40,
+            "architect": 45,
+            "mixed": 50,
         }
         score += type_scores.get(analysis.task_type, 10)
 
@@ -353,7 +356,10 @@ class IntentAnalyzer:
     def _normalize(self, msg: str, analysis: IntentAnalysis) -> str:
         """标准化意图描述"""
         normalized = msg.strip()
-        if analysis.technical_domain != "general" and analysis.technical_domain not in normalized.lower():
+        if (
+            analysis.technical_domain != "general"
+            and analysis.technical_domain not in normalized.lower()
+        ):
             normalized = f"[{analysis.technical_domain}] {normalized}"
         return normalized
 
@@ -400,17 +406,20 @@ class IntentAnalyzer:
         try:
             response = await self._llm.generate(prompt=prompt, max_tokens=1024)
             import json
+
             content = response.content if hasattr(response, "content") else str(response)
             # 提取 JSON
             first = content.find("{")
             last = content.rfind("}")
             if first >= 0 and last > first:
-                return json.loads(content[first:last + 1])
+                return json.loads(content[first : last + 1])
         except Exception as e:
             logger.debug("llm_analyze_parse_failed: %s", e)
         return {}
 
-    def _merge_llm_result(self, analysis: IntentAnalysis, llm_result: dict[str, Any]) -> IntentAnalysis:
+    def _merge_llm_result(
+        self, analysis: IntentAnalysis, llm_result: dict[str, Any]
+    ) -> IntentAnalysis:
         """合并 LLM 分析结果"""
         if not llm_result:
             return analysis

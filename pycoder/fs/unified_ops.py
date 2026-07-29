@@ -68,11 +68,13 @@ class UnifiedFileOps:
             entries = []
             for item in sorted(os.listdir(real_path)):
                 full = os.path.join(real_path, item)
-                entries.append({
-                    "name": item,
-                    "type": "dir" if os.path.isdir(full) else "file",
-                    "size": os.path.getsize(full) if os.path.isfile(full) else 0,
-                })
+                entries.append(
+                    {
+                        "name": item,
+                        "type": "dir" if os.path.isdir(full) else "file",
+                        "size": os.path.getsize(full) if os.path.isfile(full) else 0,
+                    }
+                )
             return {"success": True, "path": real_path, "entries": entries}
         except Exception as exc:
             return {"success": False, "error": str(exc)}
@@ -87,10 +89,12 @@ class UnifiedFileOps:
         for r in roots:
             if r and os.path.isdir(r):
                 for match in glob.glob(os.path.join(r, "**", pattern), recursive=True):
-                    results.append({
-                        "path": match,
-                        "size": os.path.getsize(match) if os.path.isfile(match) else 0,
-                    })
+                    results.append(
+                        {
+                            "path": match,
+                            "size": os.path.getsize(match) if os.path.isfile(match) else 0,
+                        }
+                    )
         return {"success": True, "total": len(results), "results": results[:100]}
 
     async def get_info(self, path: str) -> dict:

@@ -3,9 +3,10 @@
 目标: 行覆盖率 >= 80%
 覆盖端点: POST /api/chat
 """
+
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import FastAPI
@@ -88,11 +89,13 @@ class TestChatNonHermes:
         monkeypatch.setattr(
             chat_routes,
             "_run_chat_stream",
-            _make_stream([
-                {"type": "token", "data": "Hello "},
-                {"type": "token", "data": "World"},
-                {"type": "done", "usage": {"total_tokens": 10}},
-            ]),
+            _make_stream(
+                [
+                    {"type": "token", "data": "Hello "},
+                    {"type": "token", "data": "World"},
+                    {"type": "done", "usage": {"total_tokens": 10}},
+                ]
+            ),
         )
 
         resp = client.post("/api/chat", json={"message": "hi"})
@@ -109,10 +112,12 @@ class TestChatNonHermes:
         monkeypatch.setattr(
             chat_routes,
             "_run_chat_stream",
-            _make_stream([
-                {"type": "token", "content": "via_content"},
-                {"type": "done", "usage": {}},
-            ]),
+            _make_stream(
+                [
+                    {"type": "token", "content": "via_content"},
+                    {"type": "done", "usage": {}},
+                ]
+            ),
         )
 
         resp = client.post("/api/chat", json={"message": "hi"})
@@ -154,7 +159,9 @@ class TestChatSession:
         store = _make_mock_store(existing_model="auto")
         monkeypatch.setattr(chat_routes, "_resolve_model", lambda m: "auto")
         monkeypatch.setattr(chat_routes, "get_session_store", lambda: store)
-        monkeypatch.setattr(chat_routes, "_run_chat_stream", _make_stream([{"type": "done", "usage": {}}]))
+        monkeypatch.setattr(
+            chat_routes, "_run_chat_stream", _make_stream([{"type": "done", "usage": {}}])
+        )
 
         resp = client.post("/api/chat", json={"message": "hi", "session_id": "s-1"})
         assert resp.status_code == 200
@@ -165,7 +172,9 @@ class TestChatSession:
         store = _make_mock_store(existing_model="old-model")
         monkeypatch.setattr(chat_routes, "_resolve_model", lambda m: "new-model")
         monkeypatch.setattr(chat_routes, "get_session_store", lambda: store)
-        monkeypatch.setattr(chat_routes, "_run_chat_stream", _make_stream([{"type": "done", "usage": {}}]))
+        monkeypatch.setattr(
+            chat_routes, "_run_chat_stream", _make_stream([{"type": "done", "usage": {}}])
+        )
 
         resp = client.post("/api/chat", json={"message": "hi", "session_id": "s-1"})
         assert resp.status_code == 200
@@ -176,7 +185,9 @@ class TestChatSession:
         store = _make_mock_store(session_id="new-session")
         monkeypatch.setattr(chat_routes, "_resolve_model", lambda m: "auto")
         monkeypatch.setattr(chat_routes, "get_session_store", lambda: store)
-        monkeypatch.setattr(chat_routes, "_run_chat_stream", _make_stream([{"type": "done", "usage": {}}]))
+        monkeypatch.setattr(
+            chat_routes, "_run_chat_stream", _make_stream([{"type": "done", "usage": {}}])
+        )
 
         resp = client.post("/api/chat", json={"message": "hi"})
         assert resp.status_code == 200
@@ -190,7 +201,9 @@ class TestChatSession:
         store.get_session.return_value = None
         monkeypatch.setattr(chat_routes, "_resolve_model", lambda m: "auto")
         monkeypatch.setattr(chat_routes, "get_session_store", lambda: store)
-        monkeypatch.setattr(chat_routes, "_run_chat_stream", _make_stream([{"type": "done", "usage": {}}]))
+        monkeypatch.setattr(
+            chat_routes, "_run_chat_stream", _make_stream([{"type": "done", "usage": {}}])
+        )
 
         resp = client.post("/api/chat", json={"message": "hi", "session_id": "ghost"})
         assert resp.status_code == 200
@@ -206,7 +219,9 @@ class TestChatSession:
 
         monkeypatch.setattr(chat_routes, "_resolve_model", capture)
         monkeypatch.setattr(chat_routes, "get_session_store", lambda: _make_mock_store())
-        monkeypatch.setattr(chat_routes, "_run_chat_stream", _make_stream([{"type": "done", "usage": {}}]))
+        monkeypatch.setattr(
+            chat_routes, "_run_chat_stream", _make_stream([{"type": "done", "usage": {}}])
+        )
 
         resp = client.post("/api/chat", json={"message": "hi", "model": "glm-4"})
         assert resp.status_code == 200

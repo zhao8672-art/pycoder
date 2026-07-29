@@ -8,10 +8,10 @@
 注意：源文件未导入 subprocess（疑似 bug），通过 monkeypatch 注入 subprocess
 模块属性以使函数可调用。本测试不修改源文件。
 """
+
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -317,9 +317,7 @@ class TestGetGitStatus:
 class TestGetDiffPreview:
     async def test_no_changes(self, inject_subprocess, monkeypatch):
         monkeypatch.setattr(ph_mod.os, "getcwd", lambda: "/repo")
-        mock_run = MagicMock(
-            return_value=MagicMock(returncode=0, stdout="", stderr="")
-        )
+        mock_run = MagicMock(return_value=MagicMock(returncode=0, stdout="", stderr=""))
         monkeypatch.setattr(subprocess, "run", mock_run)
         result = await ph_mod._get_diff_preview()
         assert result["summary"] == "没有变更"
@@ -328,9 +326,7 @@ class TestGetDiffPreview:
 
     async def test_diff_command_failure(self, inject_subprocess, monkeypatch):
         monkeypatch.setattr(ph_mod.os, "getcwd", lambda: "/repo")
-        mock_run = MagicMock(
-            return_value=MagicMock(returncode=1, stdout="", stderr="git error")
-        )
+        mock_run = MagicMock(return_value=MagicMock(returncode=1, stdout="", stderr="git error"))
         monkeypatch.setattr(subprocess, "run", mock_run)
         result = await ph_mod._get_diff_preview()
         assert "error" in result
@@ -379,9 +375,7 @@ class TestGetDiffPreview:
             " line2\n"
             "-line3\n"
         )
-        mock_run = MagicMock(
-            return_value=MagicMock(returncode=0, stdout=diff_text, stderr="")
-        )
+        mock_run = MagicMock(return_value=MagicMock(returncode=0, stdout=diff_text, stderr=""))
         monkeypatch.setattr(subprocess, "run", mock_run)
         result = await ph_mod._get_diff_preview()
         assert len(result["files"]) == 1
@@ -406,9 +400,7 @@ class TestGetDiffPreview:
             "@@ -1 +1,2 @@\n"
             "+added2\n"
         )
-        mock_run = MagicMock(
-            return_value=MagicMock(returncode=0, stdout=diff_text, stderr="")
-        )
+        mock_run = MagicMock(return_value=MagicMock(returncode=0, stdout=diff_text, stderr=""))
         monkeypatch.setattr(subprocess, "run", mock_run)
         result = await ph_mod._get_diff_preview()
         assert len(result["files"]) == 2
@@ -418,9 +410,7 @@ class TestGetDiffPreview:
     async def test_diff_staged_flag(self, inject_subprocess, monkeypatch):
         """staged=True 时应附加 --cached"""
         monkeypatch.setattr(ph_mod.os, "getcwd", lambda: "/repo")
-        mock_run = MagicMock(
-            return_value=MagicMock(returncode=0, stdout="", stderr="")
-        )
+        mock_run = MagicMock(return_value=MagicMock(returncode=0, stdout="", stderr=""))
         monkeypatch.setattr(subprocess, "run", mock_run)
         await ph_mod._get_diff_preview(staged=True)
         args = mock_run.call_args[0][0]
@@ -429,9 +419,7 @@ class TestGetDiffPreview:
     async def test_diff_with_file_path(self, inject_subprocess, monkeypatch):
         """指定 file_path 时应附加到命令"""
         monkeypatch.setattr(ph_mod.os, "getcwd", lambda: "/repo")
-        mock_run = MagicMock(
-            return_value=MagicMock(returncode=0, stdout="", stderr="")
-        )
+        mock_run = MagicMock(return_value=MagicMock(returncode=0, stdout="", stderr=""))
         monkeypatch.setattr(subprocess, "run", mock_run)
         await ph_mod._get_diff_preview(file_path="myfile.py")
         args = mock_run.call_args[0][0]
@@ -440,9 +428,7 @@ class TestGetDiffPreview:
     async def test_diff_staged_and_file_path(self, inject_subprocess, monkeypatch):
         """staged=True 与 file_path 同时指定"""
         monkeypatch.setattr(ph_mod.os, "getcwd", lambda: "/repo")
-        mock_run = MagicMock(
-            return_value=MagicMock(returncode=0, stdout="", stderr="")
-        )
+        mock_run = MagicMock(return_value=MagicMock(returncode=0, stdout="", stderr=""))
         monkeypatch.setattr(subprocess, "run", mock_run)
         await ph_mod._get_diff_preview(file_path="x.py", staged=True)
         args = mock_run.call_args[0][0]
@@ -459,9 +445,7 @@ class TestGetDiffPreview:
             "@@ -1 +1,2 @@\n"
             "+real addition\n"
         )
-        mock_run = MagicMock(
-            return_value=MagicMock(returncode=0, stdout=diff_text, stderr="")
-        )
+        mock_run = MagicMock(return_value=MagicMock(returncode=0, stdout=diff_text, stderr=""))
         monkeypatch.setattr(subprocess, "run", mock_run)
         result = await ph_mod._get_diff_preview()
         # 仅 +real addition 计为 addition
@@ -477,9 +461,7 @@ class TestGetDiffPreview:
             "@@ -1 +0,0 @@\n"
             "-removed line\n"
         )
-        mock_run = MagicMock(
-            return_value=MagicMock(returncode=0, stdout=diff_text, stderr="")
-        )
+        mock_run = MagicMock(return_value=MagicMock(returncode=0, stdout=diff_text, stderr=""))
         monkeypatch.setattr(subprocess, "run", mock_run)
         result = await ph_mod._get_diff_preview()
         assert result["total_additions"] == 0

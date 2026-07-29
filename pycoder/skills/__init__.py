@@ -28,9 +28,9 @@ V2 升级 (2026-07):
 
 from __future__ import annotations
 
-from pycoder.skills.models import SkillDefinition
-from pycoder.skills.marketplace import SkillMarketplace
 from pycoder.skills.capabilities import register_capabilities
+from pycoder.skills.marketplace import SkillMarketplace
+from pycoder.skills.models import SkillDefinition
 
 # ── 全局单例 ──────────────────────────────────────
 

@@ -31,6 +31,7 @@
     # 导出引用图为 DOT
     dot = analyzer.export_dot()
 """
+
 from __future__ import annotations
 
 import ast
@@ -65,9 +66,9 @@ class Symbol:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Symbol):
             return False
-        return self.file == other.file and (
-            self.qualname or self.name
-        ) == (other.qualname or other.name)
+        return self.file == other.file and (self.qualname or self.name) == (
+            other.qualname or other.name
+        )
 
 
 @dataclass
@@ -171,9 +172,7 @@ class ImpactAnalyzer:
 
     # ── 公开查询 API ─────────────────────────────────
 
-    def find_callers(
-        self, name: str, file: str = "", qualname: str = ""
-    ) -> list[Reference]:
+    def find_callers(self, name: str, file: str = "", qualname: str = "") -> list[Reference]:
         """查找调用指定符号的所有引用点
 
         Args:
@@ -186,7 +185,7 @@ class ImpactAnalyzer:
             return list(self._callers_index.get((file, target_qual), []))
         # 在所有文件中查找匹配 qualname/name 的
         results = []
-        for (f, q), refs in self._callers_index.items():
+        for (_f, q), refs in self._callers_index.items():
             if q == target_qual or q.endswith(f".{name}"):
                 results.extend(refs)
         return results
@@ -202,7 +201,7 @@ class ImpactAnalyzer:
         target_qual = qualname or name
         if file:
             return list(self._callees_index.get((file, target_qual), []))
-        for (f, q), refs in self._callees_index.items():
+        for (_f, q), refs in self._callees_index.items():
             if q == target_qual or q.endswith(f".{name}"):
                 return list(refs)
         return []
@@ -304,7 +303,7 @@ class ImpactAnalyzer:
         top_syms = sorted(sym_call_count.items(), key=lambda x: -x[1])[:max_nodes]
         top_set = {(f, q) for (f, q), _ in top_syms}
 
-        for (f, q), cnt in top_syms:
+        for (f, q), _cnt in top_syms:
             label = q.replace('"', '\\"')
             lines.append(f'  "{f}::{q}" [label="{label}\\n({f})", fontsize=10];')
 
@@ -449,11 +448,7 @@ class ImpactAnalyzer:
                 if callee_name:
                     # 本地调用（非 import）也记录为 qualname = 短名
                     # 这样 find_callers("foo", file="a.py") 可正常匹配
-                    effective_qual = (
-                        callee_qual
-                        if callee_qual
-                        else callee_name
-                    )
+                    effective_qual = callee_qual if callee_qual else callee_name
                     self._references.append(
                         Reference(
                             caller_file=file,
@@ -519,8 +514,6 @@ class ImpactAnalyzer:
                 for s in symbols_in_file[:5]:
                     impact = self.find_impact(s.name, file=ff, qualname=s.qualname, max_depth=2)
                     if impact.total_count > 0:
-                        lines.append(
-                            f"  - {s.qualname} → 影响 {impact.total_count} 处调用"
-                        )
+                        lines.append(f"  - {s.qualname} → 影响 {impact.total_count} 处调用")
 
         return "\n".join(lines)

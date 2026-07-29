@@ -75,19 +75,21 @@ async def get_trends(
 
         items = []
         for r in rows:
-            items.append({
-                "skill_id": r[0],
-                "skill_name": r[1],
-                "category": r[2],
-                "stage": r[3],
-                "growth_rate_28d": round(r[4], 4) if r[4] else 0,
-                "growth_rate_prev": round(r[5], 4) if r[5] else 0,
-                "momentum": round(r[6], 4) if r[6] else 0,
-                "weeks_on_rise": r[7] or 0,
-                "current_rank": r[8] or 0,
-                "last_updated": r[9],
-                "source": r[10] or "",
-            })
+            items.append(
+                {
+                    "skill_id": r[0],
+                    "skill_name": r[1],
+                    "category": r[2],
+                    "stage": r[3],
+                    "growth_rate_28d": round(r[4], 4) if r[4] else 0,
+                    "growth_rate_prev": round(r[5], 4) if r[5] else 0,
+                    "momentum": round(r[6], 4) if r[6] else 0,
+                    "weeks_on_rise": r[7] or 0,
+                    "current_rank": r[8] or 0,
+                    "last_updated": r[9],
+                    "source": r[10] or "",
+                }
+            )
 
         return {
             "success": True,
@@ -127,16 +129,18 @@ async def get_emerging(
 
         items = []
         for r in rows:
-            items.append({
-                "skill_id": r[0],
-                "skill_name": r[1],
-                "category": r[2],
-                "stage": r[3],
-                "growth_rate_28d": round(r[4], 4),
-                "stars_28d": r[5] or 0,
-                "stars_total": r[6] or 0,
-                "momentum": round(r[7], 4) if r[7] else 0,
-            })
+            items.append(
+                {
+                    "skill_id": r[0],
+                    "skill_name": r[1],
+                    "category": r[2],
+                    "stage": r[3],
+                    "growth_rate_28d": round(r[4], 4),
+                    "stars_28d": r[5] or 0,
+                    "stars_total": r[6] or 0,
+                    "momentum": round(r[7], 4) if r[7] else 0,
+                }
+            )
 
         return {"success": True, "data": items, "meta": {"total": len(items), "limit": limit}}
     except Exception as e:
@@ -243,8 +247,8 @@ async def get_china_market(
     聚合中国相关数据源 (chinese-ai-tools, chinese-dev-tools, china-llm) 的排名数据。
     """
     try:
-        from pathlib import Path
         import json
+        from pathlib import Path
 
         from pycoder.server.skills_data_sources import get_ossinsight_client
 
@@ -256,9 +260,14 @@ async def get_china_market(
             for skill in data.get("skills", []):
                 # 匹配中国相关的数据源
                 source = skill.get("source", "")
-                if any(kw in source for kw in [
-                    "china", "chinese", "awesome_chinese",
-                ]):
+                if any(
+                    kw in source
+                    for kw in [
+                        "china",
+                        "chinese",
+                        "awesome_chinese",
+                    ]
+                ):
                     cn_skills.append(skill)
 
         # 2. 获取 OSSInsight 中国编程语言排名
@@ -291,11 +300,20 @@ async def get_china_market(
                 "china_source_skills": cn_skills[:limit],
                 "ossinsight_china_ranking": ossinsight_items,
                 "so_china_related": [
-                    t for t in so_trends
-                    if any(kw in t["technology"].lower() for kw in [
-                        "chinese", "python", "deepseek", "chatgpt", "claude",
-                        "pytorch", "react",
-                    ])
+                    t
+                    for t in so_trends
+                    if any(
+                        kw in t["technology"].lower()
+                        for kw in [
+                            "chinese",
+                            "python",
+                            "deepseek",
+                            "chatgpt",
+                            "claude",
+                            "pytorch",
+                            "react",
+                        ]
+                    )
                 ][:15],
             },
             "meta": {
@@ -335,12 +353,14 @@ async def get_data_sources_status():
         sources_list = []
         for sid, config in fetcher.SOURCES.items():
             is_china = any(kw in sid for kw in ["china", "chinese", "ossinsight_china"])
-            sources_list.append({
-                "id": sid,
-                "name": config.get("name", ""),
-                "type": config.get("type", ""),
-                "is_chinese_market": is_china,
-            })
+            sources_list.append(
+                {
+                    "id": sid,
+                    "name": config.get("name", ""),
+                    "type": config.get("type", ""),
+                    "is_chinese_market": is_china,
+                }
+            )
 
         return {
             "success": True,

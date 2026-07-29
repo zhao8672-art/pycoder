@@ -15,10 +15,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ═══════════════════════════════════════════════════════════════
 # 9. services/task_tracker.py 测试
@@ -440,8 +439,13 @@ class TestParseDecompositionJson:
         valid_json = json.dumps(
             {
                 "tasks": [
-                    {"title": "任务1", "description": "desc", "assigned_role": "developer",
-                     "depends_on": [], "deliverables": []}
+                    {
+                        "title": "任务1",
+                        "description": "desc",
+                        "assigned_role": "developer",
+                        "depends_on": [],
+                        "deliverables": [],
+                    }
                 ]
             }
         )
@@ -606,8 +610,12 @@ class TestBuildTaskDAG:
         from pycoder.server.services.task_decomposer import build_task_dag
 
         t1 = create_task(title="架构", description="desc", assigned_role="architect")
-        t2 = create_task(title="后端", description="desc", assigned_role="developer", depends_on=[t1.id])
-        t3 = create_task(title="前端", description="desc", assigned_role="developer", depends_on=[t1.id])
+        t2 = create_task(
+            title="后端", description="desc", assigned_role="developer", depends_on=[t1.id]
+        )
+        t3 = create_task(
+            title="前端", description="desc", assigned_role="developer", depends_on=[t1.id]
+        )
         dag = build_task_dag([t1, t2, t3])
         assert dag.total_levels == 2
         # 第二层有两个并行任务
@@ -620,7 +628,9 @@ class TestBuildTaskDAG:
         from pycoder.server.services.task_decomposer import build_task_dag
 
         t1 = create_task(title="架构", description="desc", assigned_role="architect")
-        t2 = create_task(title="开发", description="desc", assigned_role="developer", depends_on=[t1.id])
+        t2 = create_task(
+            title="开发", description="desc", assigned_role="developer", depends_on=[t1.id]
+        )
         dag = build_task_dag([t1, t2])
         assert len(dag.edges) == 1
         assert dag.edges[0] == (t1.id, t2.id)
@@ -844,7 +854,7 @@ class TestTraceResult:
 
     def test_to_dict(self):
         """to_dict 返回字典"""
-        from pycoder.server.services.source_tracer import TraceResult, Claim
+        from pycoder.server.services.source_tracer import Claim, TraceResult
 
         tr = TraceResult(
             claims=[Claim(text="test", category="file", verified=True, confidence="high")],
@@ -918,7 +928,6 @@ class TestSourceTracer:
 
     def test_tag_unverifiable(self, tracer):
         """tag_unverifiable 标记无来源声明"""
-        from pycoder.server.services.source_tracer import CROSS_VERIFY_CATEGORIES
 
         result = tracer.trace("在 /api/test 使用 fastapi>=1.0.0 在 3000 端口")
         tagged = tracer.tag_unverifiable(result)
@@ -1019,7 +1028,9 @@ class TestFactChecker:
         from pycoder.server.services.source_tracer import Claim
 
         (tmp_path / "requirements.txt").write_text("fastapi>=0.100.0\npydantic==2.0.0\n")
-        claim = Claim(text="fastapi>=0.100.0", category="dependency", verified=None, confidence="medium")
+        claim = Claim(
+            text="fastapi>=0.100.0", category="dependency", verified=None, confidence="medium"
+        )
         result = await checker.verify_claim(claim)
         assert result.verified is True
 
@@ -1293,7 +1304,11 @@ class TestPatchAggregator:
 
     def test_generate_patches(self):
         """生成补丁"""
-        from pycoder.server.services.patch_aggregator import PatchAggregator, PatchReport, AggregatedDefect
+        from pycoder.server.services.patch_aggregator import (
+            AggregatedDefect,
+            PatchAggregator,
+            PatchReport,
+        )
 
         agg = PatchAggregator()
         report = PatchReport()
@@ -1574,9 +1589,7 @@ class TestCloudSyncEngine:
 
         engine = CloudSyncEngine(session=mock_session)
         mock_session.first.return_value = None
-        result = await engine.resolve_conflict(
-            "user-1", "skill-1", ConflictResolution.LOCAL_WINS
-        )
+        result = await engine.resolve_conflict("user-1", "skill-1", ConflictResolution.LOCAL_WINS)
         assert result["success"] is False
 
     @pytest.mark.asyncio
@@ -1587,9 +1600,7 @@ class TestCloudSyncEngine:
         engine = CloudSyncEngine(session=mock_session)
         mock_rating = MagicMock()
         mock_session.first.return_value = mock_rating
-        result = await engine.resolve_conflict(
-            "user-1", "skill-1", ConflictResolution.LOCAL_WINS
-        )
+        result = await engine.resolve_conflict("user-1", "skill-1", ConflictResolution.LOCAL_WINS)
         assert result["success"] is True
 
     @pytest.mark.asyncio
@@ -1600,9 +1611,7 @@ class TestCloudSyncEngine:
         engine = CloudSyncEngine(session=mock_session)
         mock_rating = MagicMock()
         mock_session.first.return_value = mock_rating
-        result = await engine.resolve_conflict(
-            "user-1", "skill-1", ConflictResolution.REMOTE_WINS
-        )
+        result = await engine.resolve_conflict("user-1", "skill-1", ConflictResolution.REMOTE_WINS)
         assert result["success"] is True
 
     def test_has_conflict_time_difference(self):

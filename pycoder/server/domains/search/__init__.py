@@ -4,4 +4,5 @@
     - routers/search.py
     - routers/search_api.py
 """
+
 from __future__ import annotations

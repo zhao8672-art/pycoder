@@ -12,6 +12,7 @@
 - analyze_and_suggest 各类错误
 - get_browser_inspector 单例
 """
+
 from __future__ import annotations
 
 from pycoder.server.services.browser_inspector import (
@@ -19,7 +20,6 @@ from pycoder.server.services.browser_inspector import (
     BrowserPageData,
     get_browser_inspector,
 )
-
 
 # ── BrowserPageData ──────────────────────────────────────
 
@@ -100,21 +100,23 @@ class TestInspect:
 
     def test_with_errors(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "url": "http://x",
-            "title": "T",
-            "visibleText": "vtext",
-            "consoleLogs": [
-                {"level": "error", "message": "m1", "source": "s", "lineNumber": 10},
-                {"level": "info", "message": "m2"},
-            ],
-            "networkRequests": [
-                {"url": "/a", "status": 404, "method": "GET", "duration": 5},
-                {"url": "/b", "status": 200, "method": "POST"},
-                {"url": "/c", "failed": True, "method": "GET"},
-            ],
-            "pageSizeBytes": 999,
-        })
+        bi.set_page_data(
+            {
+                "url": "http://x",
+                "title": "T",
+                "visibleText": "vtext",
+                "consoleLogs": [
+                    {"level": "error", "message": "m1", "source": "s", "lineNumber": 10},
+                    {"level": "info", "message": "m2"},
+                ],
+                "networkRequests": [
+                    {"url": "/a", "status": 404, "method": "GET", "duration": 5},
+                    {"url": "/b", "status": 200, "method": "POST"},
+                    {"url": "/c", "failed": True, "method": "GET"},
+                ],
+                "pageSizeBytes": 999,
+            }
+        )
         r = bi.inspect()
         assert r["url"] == "http://x"
         assert r["title"] == "T"
@@ -136,14 +138,16 @@ class TestInspect:
 class TestGetConsole:
     def test_all_level(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "url": "http://x",
-            "consoleLogs": [
-                {"level": "error", "message": "e1"},
-                {"level": "warn", "message": "w1"},
-                {"level": "log", "message": "l1"},
-            ],
-        })
+        bi.set_page_data(
+            {
+                "url": "http://x",
+                "consoleLogs": [
+                    {"level": "error", "message": "e1"},
+                    {"level": "warn", "message": "w1"},
+                    {"level": "log", "message": "l1"},
+                ],
+            }
+        )
         r = bi.get_console()
         assert r["tool"] == "browser_console"
         assert r["total"] == 3
@@ -153,12 +157,14 @@ class TestGetConsole:
 
     def test_filtered_level(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "consoleLogs": [
-                {"level": "error", "message": "e1"},
-                {"level": "warn", "message": "w1"},
-            ],
-        })
+        bi.set_page_data(
+            {
+                "consoleLogs": [
+                    {"level": "error", "message": "e1"},
+                    {"level": "warn", "message": "w1"},
+                ],
+            }
+        )
         r = bi.get_console(level="error")
         assert r["filtered"] == 1
         assert r["logs"][0]["message"] == "e1"
@@ -185,13 +191,15 @@ class TestGetConsole:
 class TestGetNetwork:
     def test_all(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "url": "http://x",
-            "networkRequests": [
-                {"url": "/a", "status": 200, "method": "GET"},
-                {"url": "/b", "status": 404, "method": "POST"},
-            ],
-        })
+        bi.set_page_data(
+            {
+                "url": "http://x",
+                "networkRequests": [
+                    {"url": "/a", "status": 200, "method": "GET"},
+                    {"url": "/b", "status": 404, "method": "POST"},
+                ],
+            }
+        )
         r = bi.get_network()
         assert r["tool"] == "browser_network"
         assert r["total"] == 2
@@ -201,25 +209,29 @@ class TestGetNetwork:
 
     def test_errors_filter(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "networkRequests": [
-                {"url": "/a", "status": 200},
-                {"url": "/b", "status": 500},
-                {"url": "/c", "status": 404},
-            ],
-        })
+        bi.set_page_data(
+            {
+                "networkRequests": [
+                    {"url": "/a", "status": 200},
+                    {"url": "/b", "status": 500},
+                    {"url": "/c", "status": 404},
+                ],
+            }
+        )
         r = bi.get_network(status_filter="errors")
         assert r["filtered"] == 2
 
     def test_success_filter(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "networkRequests": [
-                {"url": "/a", "status": 200},
-                {"url": "/b", "status": 301},
-                {"url": "/c", "status": 500},
-            ],
-        })
+        bi.set_page_data(
+            {
+                "networkRequests": [
+                    {"url": "/a", "status": 200},
+                    {"url": "/b", "status": 301},
+                    {"url": "/c", "status": 500},
+                ],
+            }
+        )
         r = bi.get_network(status_filter="success")
         assert r["filtered"] == 2
 
@@ -250,9 +262,7 @@ class TestGetHtml:
 
     def test_with_selector(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "html": "<div><p>one</p><p>two</p></div>"
-        })
+        bi.set_page_data({"html": "<div><p>one</p><p>two</p></div>"})
         r = bi.get_html(selector="p")
         assert "one" in r["html"]
         assert "two" in r["html"]
@@ -300,12 +310,14 @@ class TestGetContextForAi:
 
     def test_basic_context(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "url": "http://x",
-            "title": "T",
-            "pageSizeBytes": 100,
-            "visibleText": "hello",
-        })
+        bi.set_page_data(
+            {
+                "url": "http://x",
+                "title": "T",
+                "pageSizeBytes": 100,
+                "visibleText": "hello",
+            }
+        )
         ctx = bi.get_context_for_ai()
         assert "http://x" in ctx
         assert "T" in ctx
@@ -314,20 +326,24 @@ class TestGetContextForAi:
 
     def test_with_console_errors(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "url": "http://x",
-            "consoleLogs": [{"level": "error", "message": "SyntaxError: boom"}],
-        })
+        bi.set_page_data(
+            {
+                "url": "http://x",
+                "consoleLogs": [{"level": "error", "message": "SyntaxError: boom"}],
+            }
+        )
         ctx = bi.get_context_for_ai()
         assert "Console 错误" in ctx
         assert "SyntaxError: boom" in ctx
 
     def test_with_network_errors(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "url": "http://x",
-            "networkRequests": [{"status": 500, "method": "GET", "url": "/api"}],
-        })
+        bi.set_page_data(
+            {
+                "url": "http://x",
+                "networkRequests": [{"status": 500, "method": "GET", "url": "/api"}],
+            }
+        )
         ctx = bi.get_context_for_ai()
         assert "网络错误" in ctx
         assert "500" in ctx
@@ -348,108 +364,134 @@ class TestAnalyzeAndSuggest:
 
     def test_404_console_error(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "url": "http://x",
-            "consoleLogs": [{"level": "error", "message": "404 Not Found"}],
-        })
+        bi.set_page_data(
+            {
+                "url": "http://x",
+                "consoleLogs": [{"level": "error", "message": "404 Not Found"}],
+            }
+        )
         r = bi.analyze_and_suggest()
         assert r["issues"][0]["type"] == "resource_404"
         assert r["issues"][0]["severity"] == "medium"
 
     def test_cors_console_error(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "consoleLogs": [{"level": "error", "message": "CORS blocked"}],
-        })
+        bi.set_page_data(
+            {
+                "consoleLogs": [{"level": "error", "message": "CORS blocked"}],
+            }
+        )
         r = bi.analyze_and_suggest()
         assert r["issues"][0]["type"] == "cors"
         assert r["issues"][0]["severity"] == "high"
 
     def test_syntax_error(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "consoleLogs": [{"level": "error", "message": "SyntaxError: unexpected"}],
-        })
+        bi.set_page_data(
+            {
+                "consoleLogs": [{"level": "error", "message": "SyntaxError: unexpected"}],
+            }
+        )
         r = bi.analyze_and_suggest()
         assert r["issues"][0]["type"] == "js_syntax"
 
     def test_reference_error(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "consoleLogs": [{"level": "error", "message": "ReferenceError: x is not defined"}],
-        })
+        bi.set_page_data(
+            {
+                "consoleLogs": [{"level": "error", "message": "ReferenceError: x is not defined"}],
+            }
+        )
         r = bi.analyze_and_suggest()
         assert r["issues"][0]["type"] == "js_reference"
 
     def test_type_error(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "consoleLogs": [{"level": "error", "message": "TypeError: cannot read"}],
-        })
+        bi.set_page_data(
+            {
+                "consoleLogs": [{"level": "error", "message": "TypeError: cannot read"}],
+            }
+        )
         r = bi.analyze_and_suggest()
         assert r["issues"][0]["type"] == "js_type"
 
     def test_network_error_console(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "consoleLogs": [{"level": "error", "message": "NetworkError: Failed to fetch"}],
-        })
+        bi.set_page_data(
+            {
+                "consoleLogs": [{"level": "error", "message": "NetworkError: Failed to fetch"}],
+            }
+        )
         r = bi.analyze_and_suggest()
         assert r["issues"][0]["type"] == "network"
 
     def test_generic_console_error(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "consoleLogs": [{"level": "error", "message": "something weird"}],
-        })
+        bi.set_page_data(
+            {
+                "consoleLogs": [{"level": "error", "message": "something weird"}],
+            }
+        )
         r = bi.analyze_and_suggest()
         assert r["issues"][0]["type"] == "console_error"
 
     def test_network_status_404(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "networkRequests": [{"status": 404, "method": "GET", "url": "/missing"}],
-        })
+        bi.set_page_data(
+            {
+                "networkRequests": [{"status": 404, "method": "GET", "url": "/missing"}],
+            }
+        )
         r = bi.analyze_and_suggest()
         assert any("404" in s for s in r["suggestions"])
 
     def test_network_status_500(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "networkRequests": [{"status": 500, "method": "POST", "url": "/api"}],
-        })
+        bi.set_page_data(
+            {
+                "networkRequests": [{"status": 500, "method": "POST", "url": "/api"}],
+            }
+        )
         r = bi.analyze_and_suggest()
         assert any("500" in s for s in r["suggestions"])
 
     def test_network_status_403(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "networkRequests": [{"status": 403, "method": "GET", "url": "/secret"}],
-        })
+        bi.set_page_data(
+            {
+                "networkRequests": [{"status": 403, "method": "GET", "url": "/secret"}],
+            }
+        )
         r = bi.analyze_and_suggest()
         assert any("403" in s for s in r["suggestions"])
 
     def test_network_failed(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "networkRequests": [{"status": 0, "failed": True, "method": "GET", "url": "/x"}],
-        })
+        bi.set_page_data(
+            {
+                "networkRequests": [{"status": 0, "failed": True, "method": "GET", "url": "/x"}],
+            }
+        )
         r = bi.analyze_and_suggest()
         assert any("FAILED" in s for s in r["suggestions"])
 
     def test_visible_text_error(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "visibleText": "An error occurred while processing",
-        })
+        bi.set_page_data(
+            {
+                "visibleText": "An error occurred while processing",
+            }
+        )
         r = bi.analyze_and_suggest()
         assert any("错误信息" in s for s in r["suggestions"])
 
     def test_visible_text_404(self):
         bi = BrowserInspector()
-        bi.set_page_data({
-            "visibleText": "Page not found 404",
-        })
+        bi.set_page_data(
+            {
+                "visibleText": "Page not found 404",
+            }
+        )
         r = bi.analyze_and_suggest()
         assert any("404" in s for s in r["suggestions"])
 

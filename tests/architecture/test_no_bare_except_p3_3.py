@@ -12,6 +12,7 @@
 - ``except Exception as e:`` + ``return {...}``（API 边界层返回错误给客户端）
 - WebSocket / API 顶层 catch-all（但必须 send error 给客户端）
 """
+
 from __future__ import annotations
 
 import re
@@ -19,38 +20,39 @@ from pathlib import Path
 
 import pytest
 
-
 PYCODER_ROOT = Path(__file__).resolve().parents[2] / "pycoder"
 
 
 # 匹配 ``except Exception:`` (不带 as e) 后跟 pass/continue/return
 # 注意：不匹配 ``except Exception as e:``（带 as e 的允许）
 BARE_EXCEPT_SILENT_PATTERN = re.compile(
-    r'except\s+Exception\s*:\s*\n\s*(?:pass|continue|return\b)',
+    r"except\s+Exception\s*:\s*\n\s*(?:pass|continue|return\b)",
     re.MULTILINE,
 )
 
 # 匹配 ``except Exception as e:`` 后跟 ``pass``（带 as e 但仍静默吞错）
 EXCEPT_AS_E_PASS_PATTERN = re.compile(
-    r'except\s+Exception\s+as\s+\w+\s*:\s*\n\s*pass',
+    r"except\s+Exception\s+as\s+\w+\s*:\s*\n\s*pass",
     re.MULTILINE,
 )
 
 
-_EXCLUDED_DIRS = frozenset({
-    "__pycache__",
-    "node_modules",
-    ".venv",
-    "venv",
-    "env",
-    ".git",
-    "site-packages",
-    "dist",
-    "build",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-})
+_EXCLUDED_DIRS = frozenset(
+    {
+        "__pycache__",
+        "node_modules",
+        ".venv",
+        "venv",
+        "env",
+        ".git",
+        "site-packages",
+        "dist",
+        "build",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+    }
+)
 
 
 def _collect_python_files() -> list[Path]:
@@ -130,10 +132,8 @@ def test_p3_3_fix_count_summary():
             violating_files.append((f.name, silent, as_pass))
             total_violations += total
 
-    assert total_violations == 0, (
-        f"P3-3 未完成：{len(violating_files)} 个文件中仍有 {total_violations} 处违规\n"
-        + "\n".join(
-            f"  {name}: {s} silent + {p} as-pass"
-            for name, s, p in violating_files
-        )
+    assert (
+        total_violations == 0
+    ), f"P3-3 未完成：{len(violating_files)} 个文件中仍有 {total_violations} 处违规\n" + "\n".join(
+        f"  {name}: {s} silent + {p} as-pass" for name, s, p in violating_files
     )

@@ -12,7 +12,7 @@ import warnings
 from dataclasses import dataclass
 from typing import Any
 
-_logger = logging.getLogger('pycoder.server.mcp_tools')
+_logger = logging.getLogger("pycoder.server.mcp_tools")
 from pycoder.core.services.log import log
 
 warnings.warn(
@@ -86,6 +86,7 @@ async def call_builtin_tool(name: str, args: dict) -> MCPCallResult:
     # P0 安全增强：白名单检查
     try:
         from pycoder.safety.tool_whitelist import get_tool_whitelist
+
         whitelist = get_tool_whitelist()
         allowed, reason = whitelist.is_allowed(name, args)
         if not allowed:
@@ -113,12 +114,8 @@ async def call_builtin_tool(name: str, args: dict) -> MCPCallResult:
     for cid in candidate_ids:
         if cid in all_caps or not all_caps:
             try:
-                call_req = CapabilityCall(
-                    capability_id=cid, params=args, caller="shim"
-                )
-                result = await v2.registry.call(
-                    call_req, {"caller": "shim", "permission_level": 4}
-                )
+                call_req = CapabilityCall(capability_id=cid, params=args, caller="shim")
+                result = await v2.registry.call(call_req, {"caller": "shim", "permission_level": 4})
                 if result and getattr(result, "success", False):
                     return MCPCallResult(
                         success=True,
@@ -137,16 +134,14 @@ async def call_builtin_tool(name: str, args: dict) -> MCPCallResult:
             cap_stripped = cap_core
             for prefix in ("tools_", "v1_", "editor_", "io_", "system_", "system_html_"):
                 if cap_stripped.startswith(prefix):
-                    cap_stripped = cap_stripped[len(prefix):]
+                    cap_stripped = cap_stripped[len(prefix) :]
                     break
             # 也检查倒数的组件名称（如 head 匹配 system.html.head → html_head）
             cap_parts = cap_stripped.split("_")
             last_part = cap_parts[-1] if cap_parts else ""
             if name_core == cap_stripped or name_core == cap_core or name_core == last_part:
                 try:
-                    call_req = CapabilityCall(
-                        capability_id=cap_id, params=args, caller="shim"
-                    )
+                    call_req = CapabilityCall(capability_id=cap_id, params=args, caller="shim")
                     result = await v2.registry.call(
                         call_req, {"caller": "shim", "permission_level": 4}
                     )
@@ -197,20 +192,35 @@ def _build_tool_name_candidates(name: str) -> list[str]:
 # LLM 经常用错误的工具名（幻觉或概念混淆）调用功能。
 # 下面的映射将常见误用重定向到正确的工具。
 
-_FILE_READ_ALIASES = frozenset({
-    "head", "body", "tail", "read", "read_file", "file_read",
-    "cat", "load_file", "get_file", "view_file", "show_file",
-    "open_file", "fetch_file", "get_content", "readfile",
-    "view", "cat_file", "show", "preview",
-})
+_FILE_READ_ALIASES = frozenset(
+    {
+        "head",
+        "body",
+        "tail",
+        "read",
+        "read_file",
+        "file_read",
+        "cat",
+        "load_file",
+        "get_file",
+        "view_file",
+        "show_file",
+        "open_file",
+        "fetch_file",
+        "get_content",
+        "readfile",
+        "view",
+        "cat_file",
+        "show",
+        "preview",
+    }
+)
 
 _HTML_HEAD_PARAMS = frozenset({"title", "style", "meta"})
 _HTML_BODY_PARAMS = frozenset({"div", "h1", "h2", "h3", "p", "span", "section"})
 
 
-def _maybe_redirect_common_aliases(
-    name: str, args: dict
-) -> tuple[str, dict]:
+def _maybe_redirect_common_aliases(name: str, args: dict) -> tuple[str, dict]:
     """P1-3: 智能重定向常见的 LLM 工具名误用
 
     场景:
@@ -295,7 +305,7 @@ class MCPClientManager:
         if server:
             try:
                 await server["session"].__aexit__(None, None, None)
-            except Exception as e:
+            except Exception:
                 _logger.warning("silently_swallowed: {err}", exc_info=False)
                 pass
             return True

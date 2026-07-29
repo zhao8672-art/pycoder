@@ -18,10 +18,9 @@
   - 用 async for 收集 _run_chat_stream 事件
   - 用 tmp_path 隔离文件写入
 """
+
 from __future__ import annotations
 
-import os
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -40,10 +39,10 @@ from pycoder.server.chat_handler import (
     _write_file_safe,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # 数据模型测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestChatRequest:
     def test_defaults(self):
@@ -63,9 +62,14 @@ class TestChatRequest:
 
     def test_custom_fields(self):
         r = ChatRequest(
-            message="hi", session_id="s1", model="deepseek-chat",
-            stream=True, files=["a.py"], system_prompt="sys",
-            hermes=True, agent_mode=True,
+            message="hi",
+            session_id="s1",
+            model="deepseek-chat",
+            stream=True,
+            files=["a.py"],
+            system_prompt="sys",
+            hermes=True,
+            agent_mode=True,
         )
         assert r.session_id == "s1"
         assert r.model == "deepseek-chat"
@@ -85,7 +89,10 @@ class TestChatResponse:
 
     def test_custom_id(self):
         r = ChatResponse(
-            id="fixed-id", session_id="s1", content="x", model="m",
+            id="fixed-id",
+            session_id="s1",
+            content="x",
+            model="m",
         )
         assert r.id == "fixed-id"
 
@@ -93,6 +100,7 @@ class TestChatResponse:
 # ══════════════════════════════════════════════════════════
 # _resolve_model / _get_effective_model 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestResolveModel:
     def test_explicit_non_auto_returns_input(self):
@@ -164,6 +172,7 @@ class TestGetEffectiveModel:
 # ══════════════════════════════════════════════════════════
 # _get_api_key_for_model 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestGetApiKeyForModel:
     def test_deepseek_default_provider(self, monkeypatch):
@@ -252,6 +261,7 @@ class TestGetApiKeyForModel:
 # _read_file_head 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestReadFileHead:
     def test_read_short_file(self, tmp_path):
         f = tmp_path / "f.txt"
@@ -286,6 +296,7 @@ class TestReadFileHead:
 # ══════════════════════════════════════════════════════════
 # _build_context_prompt 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestBuildContextPrompt:
     def test_empty_files(self):
@@ -328,6 +339,7 @@ class TestBuildContextPrompt:
 # _write_file_safe 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestWriteFileSafe:
     def test_writes_file_within_workspace(self, tmp_path):
         _write_file_safe(tmp_path, "sub/file.py", "content")
@@ -349,6 +361,7 @@ class TestWriteFileSafe:
 # _try_write_code_files 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestTryWriteCodeFiles:
     def test_empty_content_returns_none(self, monkeypatch):
         """空 content → 直接返回"""
@@ -357,9 +370,7 @@ class TestTryWriteCodeFiles:
 
     def test_pattern1_file_block(self, tmp_path, monkeypatch):
         """模式1: ```FILE:path\ncode```END"""
-        monkeypatch.setattr(
-            "pycoder.server.routers.files.get_workspace_root", lambda: tmp_path
-        )
+        monkeypatch.setattr("pycoder.server.routers.files.get_workspace_root", lambda: tmp_path)
         content = "```FILE:app1.py\nprint('hello')\n```END"
         _try_write_code_files(content)
         assert (tmp_path / "app1.py").exists()
@@ -367,9 +378,7 @@ class TestTryWriteCodeFiles:
 
     def test_pattern2_lang_path(self, tmp_path, monkeypatch):
         """模式2: ```python:app2.py\ncode```"""
-        monkeypatch.setattr(
-            "pycoder.server.routers.files.get_workspace_root", lambda: tmp_path
-        )
+        monkeypatch.setattr("pycoder.server.routers.files.get_workspace_root", lambda: tmp_path)
         content = "```python:app2.py\nx = 1\n```"
         _try_write_code_files(content)
         assert (tmp_path / "app2.py").exists()
@@ -377,45 +386,28 @@ class TestTryWriteCodeFiles:
 
     def test_pattern3_write_marker(self, tmp_path, monkeypatch):
         """模式3: [WRITE path] + 代码块"""
-        monkeypatch.setattr(
-            "pycoder.server.routers.files.get_workspace_root", lambda: tmp_path
-        )
-        content = (
-            "[WRITE app3.py]\n"
-            "```python\nprint('three')\n```"
-        )
+        monkeypatch.setattr("pycoder.server.routers.files.get_workspace_root", lambda: tmp_path)
+        content = "[WRITE app3.py]\n" "```python\nprint('three')\n```"
         _try_write_code_files(content)
         assert (tmp_path / "app3.py").exists()
 
     def test_pattern4_natural_format_hash(self, tmp_path, monkeypatch):
         """模式4: # file: name.py + 代码块"""
-        monkeypatch.setattr(
-            "pycoder.server.routers.files.get_workspace_root", lambda: tmp_path
-        )
-        content = (
-            "# file: app4.py\n"
-            "```python\nprint('four')\n```"
-        )
+        monkeypatch.setattr("pycoder.server.routers.files.get_workspace_root", lambda: tmp_path)
+        content = "# file: app4.py\n" "```python\nprint('four')\n```"
         _try_write_code_files(content)
         assert (tmp_path / "app4.py").exists()
 
     def test_pattern5_markdown_heading(self, tmp_path, monkeypatch):
         """模式5: ## 创建文件: name.py + 代码块"""
-        monkeypatch.setattr(
-            "pycoder.server.routers.files.get_workspace_root", lambda: tmp_path
-        )
-        content = (
-            "## 创建文件: app5.py\n"
-            "```python\nprint('five')\n```"
-        )
+        monkeypatch.setattr("pycoder.server.routers.files.get_workspace_root", lambda: tmp_path)
+        content = "## 创建文件: app5.py\n" "```python\nprint('five')\n```"
         _try_write_code_files(content)
         assert (tmp_path / "app5.py").exists()
 
     def test_no_code_blocks_does_nothing(self, tmp_path, monkeypatch):
         """无任何代码块 → 不写入"""
-        monkeypatch.setattr(
-            "pycoder.server.routers.files.get_workspace_root", lambda: tmp_path
-        )
+        monkeypatch.setattr("pycoder.server.routers.files.get_workspace_root", lambda: tmp_path)
         _try_write_code_files("just text, no code")
         # 不应有文件被创建
         assert list(tmp_path.iterdir()) == []
@@ -424,6 +416,7 @@ class TestTryWriteCodeFiles:
 # ══════════════════════════════════════════════════════════
 # _run_chat_stream 测试（async）
 # ══════════════════════════════════════════════════════════
+
 
 def _make_mock_store(session=None, messages=None):
     """构造 mock SessionStore"""
@@ -438,8 +431,10 @@ def _make_mock_store(session=None, messages=None):
 def _make_chat_event(event_type, content="", usage=None):
     """构造 ChatEvent"""
     return MagicMock(
-        event_type=event_type, content=content,
-        usage=usage or {}, __iter__=lambda self: iter([]),
+        event_type=event_type,
+        content=content,
+        usage=usage or {},
+        __iter__=lambda self: iter([]),
     )
 
 
@@ -482,6 +477,7 @@ class TestRunChatStream:
         fake_cc = MagicMock()
         fake_cc.check_before_call.return_value = (False, "已超预算")
         import pycoder.server.services.cost_control as cc_mod
+
         monkeypatch.setattr(cc_mod, "get_cost_controller", lambda: fake_cc)
 
         events = []
@@ -497,25 +493,29 @@ class TestRunChatStream:
         fake_cc = MagicMock()
         fake_cc.check_before_call.return_value = (True, "")
         import pycoder.server.services.cost_control as cc_mod
+
         monkeypatch.setattr(cc_mod, "get_cost_controller", lambda: fake_cc)
 
         # mock ChatBridge
         monkeypatch.setattr(ch, "ChatBridge", lambda: _make_mock_bridge([]))
 
         # mock session store
-        monkeypatch.setattr(ch, "get_session_store",
-                            lambda: _make_mock_store(session=None))
+        monkeypatch.setattr(ch, "get_session_store", lambda: _make_mock_store(session=None))
 
         # mock agent_chat_stream → 返回 done 事件
         async def fake_agent_stream(*args, **kwargs):
             yield {"type": "done", "content": "agent result"}
 
         import pycoder.server.services.agent_orchestrator as ao_mod
+
         monkeypatch.setattr(ao_mod, "agent_chat_stream", fake_agent_stream)
 
         events = []
         async for ev in _run_chat_stream(
-            "s1", "msg", "deepseek-chat", hermes=True,
+            "s1",
+            "msg",
+            "deepseek-chat",
+            hermes=True,
         ):
             events.append(ev)
 
@@ -529,21 +529,25 @@ class TestRunChatStream:
         fake_cc = MagicMock()
         fake_cc.check_before_call.return_value = (True, "")
         import pycoder.server.services.cost_control as cc_mod
+
         monkeypatch.setattr(cc_mod, "get_cost_controller", lambda: fake_cc)
 
         monkeypatch.setattr(ch, "ChatBridge", lambda: _make_mock_bridge([]))
-        monkeypatch.setattr(ch, "get_session_store",
-                            lambda: _make_mock_store(session=None))
+        monkeypatch.setattr(ch, "get_session_store", lambda: _make_mock_store(session=None))
 
         async def fake_agent_stream(*args, **kwargs):
             yield {"type": "agent_result", "content": "agent done"}
 
         import pycoder.server.services.agent_orchestrator as ao_mod
+
         monkeypatch.setattr(ao_mod, "agent_chat_stream", fake_agent_stream)
 
         events = []
         async for ev in _run_chat_stream(
-            "s1", "msg", "deepseek-chat", agent_mode=True,
+            "s1",
+            "msg",
+            "deepseek-chat",
+            agent_mode=True,
         ):
             events.append(ev)
 
@@ -555,6 +559,7 @@ class TestRunChatStream:
         fake_cc = MagicMock()
         fake_cc.check_before_call.return_value = (True, "")
         import pycoder.server.services.cost_control as cc_mod
+
         monkeypatch.setattr(cc_mod, "get_cost_controller", lambda: fake_cc)
 
         # mock ChatBridge 返回 token + done
@@ -563,12 +568,10 @@ class TestRunChatStream:
             _make_chat_event("token", "world"),
             _make_chat_event("done", "hello world", {"tokens": 10}),
         ]
-        monkeypatch.setattr(ch, "ChatBridge",
-                            lambda: _make_mock_bridge(events_for_bridge))
+        monkeypatch.setattr(ch, "ChatBridge", lambda: _make_mock_bridge(events_for_bridge))
 
         # mock session store — 无 session
-        monkeypatch.setattr(ch, "get_session_store",
-                            lambda: _make_mock_store(session=None))
+        monkeypatch.setattr(ch, "get_session_store", lambda: _make_mock_store(session=None))
 
         events = []
         async for ev in _run_chat_stream("s1", "hi", "deepseek-chat"):
@@ -587,15 +590,14 @@ class TestRunChatStream:
         fake_cc = MagicMock()
         fake_cc.check_before_call.return_value = (True, "")
         import pycoder.server.services.cost_control as cc_mod
+
         monkeypatch.setattr(cc_mod, "get_cost_controller", lambda: fake_cc)
 
         events_for_bridge = [
             _make_chat_event("error", "API failure"),
         ]
-        monkeypatch.setattr(ch, "ChatBridge",
-                            lambda: _make_mock_bridge(events_for_bridge))
-        monkeypatch.setattr(ch, "get_session_store",
-                            lambda: _make_mock_store(session=None))
+        monkeypatch.setattr(ch, "ChatBridge", lambda: _make_mock_bridge(events_for_bridge))
+        monkeypatch.setattr(ch, "get_session_store", lambda: _make_mock_store(session=None))
 
         events = []
         async for ev in _run_chat_stream("s1", "hi", "deepseek-chat"):
@@ -609,16 +611,15 @@ class TestRunChatStream:
         fake_cc = MagicMock()
         fake_cc.check_before_call.return_value = (True, "")
         import pycoder.server.services.cost_control as cc_mod
+
         monkeypatch.setattr(cc_mod, "get_cost_controller", lambda: fake_cc)
 
         events_for_bridge = [
             _make_chat_event("reasoning", "thinking..."),
             _make_chat_event("done", "result"),
         ]
-        monkeypatch.setattr(ch, "ChatBridge",
-                            lambda: _make_mock_bridge(events_for_bridge))
-        monkeypatch.setattr(ch, "get_session_store",
-                            lambda: _make_mock_store(session=None))
+        monkeypatch.setattr(ch, "ChatBridge", lambda: _make_mock_bridge(events_for_bridge))
+        monkeypatch.setattr(ch, "get_session_store", lambda: _make_mock_store(session=None))
 
         events = []
         async for ev in _run_chat_stream("s1", "hi", "deepseek-chat"):
@@ -631,6 +632,7 @@ class TestRunChatStream:
         fake_cc = MagicMock()
         fake_cc.check_before_call.return_value = (True, "")
         import pycoder.server.services.cost_control as cc_mod
+
         monkeypatch.setattr(cc_mod, "get_cost_controller", lambda: fake_cc)
 
         # 构造 session + 历史
@@ -643,8 +645,7 @@ class TestRunChatStream:
         events_for_bridge = [
             _make_chat_event("done", "response"),
         ]
-        monkeypatch.setattr(ch, "ChatBridge",
-                            lambda: _make_mock_bridge(events_for_bridge))
+        monkeypatch.setattr(ch, "ChatBridge", lambda: _make_mock_bridge(events_for_bridge))
 
         events = []
         async for ev in _run_chat_stream("s1", "hi", "deepseek-chat"):
@@ -659,6 +660,7 @@ class TestRunChatStream:
         fake_cc = MagicMock()
         fake_cc.check_before_call.return_value = (True, "")
         import pycoder.server.services.cost_control as cc_mod
+
         monkeypatch.setattr(cc_mod, "get_cost_controller", lambda: fake_cc)
 
         # session 无 title，但历史中有 user 消息
@@ -668,8 +670,7 @@ class TestRunChatStream:
         monkeypatch.setattr(ch, "get_session_store", lambda: store)
 
         events_for_bridge = [_make_chat_event("done", "response")]
-        monkeypatch.setattr(ch, "ChatBridge",
-                            lambda: _make_mock_bridge(events_for_bridge))
+        monkeypatch.setattr(ch, "ChatBridge", lambda: _make_mock_bridge(events_for_bridge))
 
         events = []
         async for ev in _run_chat_stream("s1", "hi", "deepseek-chat"):
@@ -684,14 +685,14 @@ class TestRunChatStream:
         fake_cc = MagicMock()
         fake_cc.check_before_call.return_value = (True, "")
         import pycoder.server.services.cost_control as cc_mod
+
         monkeypatch.setattr(cc_mod, "get_cost_controller", lambda: fake_cc)
 
         # 创建一个文件作为上下文
         ctx_file = tmp_path / "ctx.py"
         ctx_file.write_text("# context file", encoding="utf-8")
 
-        monkeypatch.setattr(ch, "get_session_store",
-                            lambda: _make_mock_store(session=None))
+        monkeypatch.setattr(ch, "get_session_store", lambda: _make_mock_store(session=None))
 
         # 用真实 bridge 来验证 add_message 调用
         bridge = _make_mock_bridge([_make_chat_event("done", "resp")])
@@ -699,7 +700,10 @@ class TestRunChatStream:
 
         events = []
         async for ev in _run_chat_stream(
-            "s1", "hi", "deepseek-chat", files=[str(ctx_file)],
+            "s1",
+            "hi",
+            "deepseek-chat",
+            files=[str(ctx_file)],
         ):
             events.append(ev)
 
@@ -712,19 +716,16 @@ class TestRunChatStream:
         fake_cc = MagicMock()
         fake_cc.check_before_call.return_value = (True, "")
         import pycoder.server.services.cost_control as cc_mod
+
         monkeypatch.setattr(cc_mod, "get_cost_controller", lambda: fake_cc)
 
         # 工作区中放一个 README.md
         (tmp_path / "README.md").write_text("readme", encoding="utf-8")
-        monkeypatch.setattr(
-            "pycoder.server.routers.files.get_workspace_root", lambda: tmp_path
-        )
-        monkeypatch.setattr(ch, "get_session_store",
-                            lambda: _make_mock_store(session=None))
+        monkeypatch.setattr("pycoder.server.routers.files.get_workspace_root", lambda: tmp_path)
+        monkeypatch.setattr(ch, "get_session_store", lambda: _make_mock_store(session=None))
 
         events_for_bridge = [_make_chat_event("done", "resp")]
-        monkeypatch.setattr(ch, "ChatBridge",
-                            lambda: _make_mock_bridge(events_for_bridge))
+        monkeypatch.setattr(ch, "ChatBridge", lambda: _make_mock_bridge(events_for_bridge))
 
         events = []
         async for ev in _run_chat_stream("s1", "hi", "deepseek-chat"):
@@ -738,16 +739,19 @@ class TestRunChatStream:
         fake_cc = MagicMock()
         fake_cc.check_before_call.return_value = (True, "")
         import pycoder.server.services.cost_control as cc_mod
+
         monkeypatch.setattr(cc_mod, "get_cost_controller", lambda: fake_cc)
 
         bridge = _make_mock_bridge([_make_chat_event("done", "resp")])
         monkeypatch.setattr(ch, "ChatBridge", lambda: bridge)
-        monkeypatch.setattr(ch, "get_session_store",
-                            lambda: _make_mock_store(session=None))
+        monkeypatch.setattr(ch, "get_session_store", lambda: _make_mock_store(session=None))
 
         events = []
         async for ev in _run_chat_stream(
-            "s1", "hi", "deepseek-chat", system_prompt="custom prompt",
+            "s1",
+            "hi",
+            "deepseek-chat",
+            system_prompt="custom prompt",
         ):
             events.append(ev)
 
@@ -762,14 +766,14 @@ class TestRunChatStream:
         fake_cc = MagicMock()
         fake_cc.check_before_call.return_value = (True, "")
         import pycoder.server.services.cost_control as cc_mod
+
         monkeypatch.setattr(cc_mod, "get_cost_controller", lambda: fake_cc)
 
         store = _make_mock_store(session=None)
         monkeypatch.setattr(ch, "get_session_store", lambda: store)
 
         events_for_bridge = [_make_chat_event("done", "ai response")]
-        monkeypatch.setattr(ch, "ChatBridge",
-                            lambda: _make_mock_bridge(events_for_bridge))
+        monkeypatch.setattr(ch, "ChatBridge", lambda: _make_mock_bridge(events_for_bridge))
 
         events = []
         async for ev in _run_chat_stream("s1", "user msg", "deepseek-chat"):
@@ -786,14 +790,16 @@ class TestRunChatStream:
 
         # mock cost controller 抛 ImportError
         import pycoder.server.services.cost_control as cc_mod
+
         def raise_import():
             raise ImportError("cost module missing")
+
         monkeypatch.setattr(cc_mod, "get_cost_controller", raise_import)
 
-        monkeypatch.setattr(ch, "ChatBridge",
-                            lambda: _make_mock_bridge([_make_chat_event("done", "resp")]))
-        monkeypatch.setattr(ch, "get_session_store",
-                            lambda: _make_mock_store(session=None))
+        monkeypatch.setattr(
+            ch, "ChatBridge", lambda: _make_mock_bridge([_make_chat_event("done", "resp")])
+        )
+        monkeypatch.setattr(ch, "get_session_store", lambda: _make_mock_store(session=None))
 
         events = []
         async for ev in _run_chat_stream("s1", "hi", "deepseek-chat"):

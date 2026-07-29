@@ -21,9 +21,9 @@ from pycoder.core.services.log import log
 
 # Phase 1 增强数据源
 from pycoder.server.skills_data_sources import (
-    make_github_request,
     classify_with_onet,
     get_ossinsight_client,
+    make_github_request,
 )
 
 
@@ -477,17 +477,11 @@ class EnhancedSkillsFetcher:
                         self._parse_markdown_list_from_url, config["url"], source_id
                     )
                 elif config["type"] == "ossinsight":
-                    skills = await asyncio.to_thread(
-                        self._fetch_ossinsight, source_id
-                    )
+                    skills = await asyncio.to_thread(self._fetch_ossinsight, source_id)
                 elif config["type"] == "external_techleads":
-                    skills = await asyncio.to_thread(
-                        self._fetch_external_techleads, source_id
-                    )
+                    skills = await asyncio.to_thread(self._fetch_external_techleads, source_id)
                 elif config["type"] == "external_openclaw":
-                    skills = await asyncio.to_thread(
-                        self._fetch_external_openclaw, source_id
-                    )
+                    skills = await asyncio.to_thread(self._fetch_external_openclaw, source_id)
                 else:
                     skills = []
 
@@ -623,8 +617,8 @@ class EnhancedSkillsFetcher:
                         description=f"来自 awesome-claude-skills 列表: {dir_name}",
                         repository_url=d.get(
                             "html_url",
-                            ("https://github.com/secondstate/"
-                             "awesome-claude-skills/tree/main/") + dir_name,
+                            ("https://github.com/secondstate/" "awesome-claude-skills/tree/main/")
+                            + dir_name,
                         ),
                         stars=10,
                         downloads=5,
@@ -789,6 +783,7 @@ class EnhancedSkillsFetcher:
         """从 Tech Leads Club 采集技能 (200+ 安全验证)"""
         try:
             from pycoder.server.skills_external_sources import fetch_techleads_skills
+
             skills = fetch_techleads_skills()
             log.info("external_techleads_fetched", count=len(skills))
             return skills
@@ -800,6 +795,7 @@ class EnhancedSkillsFetcher:
         """从 OpenClaw Awesome 采集技能 (5400+)"""
         try:
             from pycoder.server.skills_external_sources import fetch_openclaw_skills
+
             skills = fetch_openclaw_skills()
             log.info("external_openclaw_fetched", count=len(skills))
             return skills

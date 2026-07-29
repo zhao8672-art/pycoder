@@ -1,23 +1,25 @@
 """notify 模块测试 — 任务调度、通知中心、进度追踪"""
+
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 
+from pycoder.notify.notification_hub import NotificationHub
+from pycoder.notify.progress_tracker import ProgressTracker
 from pycoder.notify.task_scheduler import (
     EnhancedScheduler,
     EnhancedTask,
     TaskStatus,
-    TaskTrigger,
 )
-from pycoder.notify.notification_hub import NotificationHub, NotificationPriority
-from pycoder.notify.progress_tracker import ProgressTracker
 
 
 class TestEnhancedScheduler:
     @pytest.mark.asyncio
     async def test_submit_and_execute(self):
         results = []
+
         async def my_action(*, msg: str):
             results.append(msg)
             return {"ok": True}
@@ -25,8 +27,10 @@ class TestEnhancedScheduler:
         scheduler = EnhancedScheduler()
         await scheduler.start()
         task = EnhancedTask(
-            id="test1", name="测试任务",
-            action=my_action, action_args={"msg": "hello"},
+            id="test1",
+            name="测试任务",
+            action=my_action,
+            action_args={"msg": "hello"},
         )
         await scheduler.submit(task)
         await asyncio.sleep(0.2)
@@ -38,18 +42,18 @@ class TestEnhancedScheduler:
     @pytest.mark.asyncio
     async def test_task_priority(self):
         order = []
+
         async def make_action(name):
             async def action():
                 order.append(name)
+
             return action
 
         scheduler = EnhancedScheduler()
         await scheduler.start()
 
-        t1 = EnhancedTask(id="low", name="低优先级", priority=10,
-                          action=await make_action("low"))
-        t2 = EnhancedTask(id="high", name="高优先级", priority=0,
-                          action=await make_action("high"))
+        t1 = EnhancedTask(id="low", name="低优先级", priority=10, action=await make_action("low"))
+        t2 = EnhancedTask(id="high", name="高优先级", priority=0, action=await make_action("high"))
 
         await scheduler.submit(t1)
         await scheduler.submit(t2)
@@ -62,6 +66,7 @@ class TestEnhancedScheduler:
     @pytest.mark.asyncio
     async def test_task_retry(self):
         attempts = []
+
         async def flaky_action():
             attempts.append(1)
             if len(attempts) < 3:
@@ -71,8 +76,11 @@ class TestEnhancedScheduler:
         scheduler = EnhancedScheduler()
         await scheduler.start()
         task = EnhancedTask(
-            id="retry_test", name="重试任务",
-            action=flaky_action, max_retries=3, retry_delay=0.01,
+            id="retry_test",
+            name="重试任务",
+            action=flaky_action,
+            max_retries=3,
+            retry_delay=0.01,
         )
         await scheduler.submit(task)
         await asyncio.sleep(0.5)
@@ -89,8 +97,10 @@ class TestEnhancedScheduler:
         scheduler = EnhancedScheduler()
         await scheduler.start()
         task = EnhancedTask(
-            id="fail_test", name="失败任务",
-            action=always_fail, max_retries=0,
+            id="fail_test",
+            name="失败任务",
+            action=always_fail,
+            max_retries=0,
         )
         await scheduler.submit(task)
         await asyncio.sleep(0.2)
@@ -101,19 +111,23 @@ class TestEnhancedScheduler:
     @pytest.mark.asyncio
     async def test_task_dependency_chain(self):
         order = []
+
         async def make_action(name):
             async def action():
                 order.append(name)
+
             return action
 
         scheduler = EnhancedScheduler()
         await scheduler.start()
 
         t1 = EnhancedTask(id="t1", name="第一步", action=await make_action("step1"))
-        t2 = EnhancedTask(id="t2", name="第二步", action=await make_action("step2"),
-                          depends_on=["t1"])
-        t3 = EnhancedTask(id="t3", name="第三步", action=await make_action("step3"),
-                          depends_on=["t2"])
+        t2 = EnhancedTask(
+            id="t2", name="第二步", action=await make_action("step2"), depends_on=["t1"]
+        )
+        t3 = EnhancedTask(
+            id="t3", name="第三步", action=await make_action("step3"), depends_on=["t2"]
+        )
 
         await scheduler.submit(t1)
         await scheduler.submit(t2)
@@ -131,7 +145,8 @@ class TestEnhancedScheduler:
         scheduler = EnhancedScheduler()
         await scheduler.start()
         task = EnhancedTask(
-            id="cancel_test", name="待取消",
+            id="cancel_test",
+            name="待取消",
             action=_sleep_action,
         )
         await scheduler.submit(task)
@@ -214,6 +229,7 @@ class TestNotificationHub:
     @pytest.mark.asyncio
     async def test_send_to_ws(self):
         messages = []
+
         class MockWS:
             async def send_text(self, msg):
                 messages.append(msg)

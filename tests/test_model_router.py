@@ -5,19 +5,15 @@
   - ModelCapabilityMatrix: 能力评分
   - ModelRouter: 任务感知路由
 """
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from pycoder.server.services.model_router import (
     ModelCapabilityMatrix,
     ModelRouter,
-    RouteResult,
     TaskClassifier,
-    TaskProfile,
     get_model_router,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # TaskClassifier
@@ -198,5 +194,6 @@ class TestModelRouter:
         assert cap_high is not None
         assert cap_low is not None
         # 高复杂度模型的能力评分应不低于低复杂度
-        assert (cap_high.reasoning_score + cap_high.code_score) >= \
-               (cap_low.reasoning_score + cap_low.code_score) - 10
+        assert (cap_high.reasoning_score + cap_high.code_score) >= (
+            cap_low.reasoning_score + cap_low.code_score
+        ) - 10

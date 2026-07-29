@@ -13,17 +13,24 @@
 运行: python -m pytest test_integration_task2.py -v
 """
 
-import pytest
+import logging
 from datetime import datetime, timedelta
-from pycoder.server.models.cloud_models import (
-    User, SkillRating, SyncLog, DeviceInfo, LocalRatingCache
-)
+
+import pytest
+
 from pycoder.server.auth.cloud_auth import (
-    CloudAuthService, UserRegisterRequest, UserLoginRequest,
-    hash_password, verify_password
+    CloudAuthService,
+    UserLoginRequest,
+    UserRegisterRequest,
+    hash_password,
+    verify_password,
+)
+from pycoder.server.models.cloud_models import (
+    SkillRating,
+    SyncLog,
+    User,
 )
 from pycoder.server.sync.cloud_sync_engine import CloudSyncEngine
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +45,7 @@ async def test_user_registration(db_session):
     """测试用户注册"""
     auth_service = CloudAuthService(db_session)
     request = UserRegisterRequest(
-        username="testuser",
-        email="test@example.com",
-        password="password123"
+        username="testuser", email="test@example.com", password="password123"
     )
 
     result = await auth_service.register_user(request)
@@ -56,9 +61,7 @@ async def test_user_registration_duplicate(db_session):
     """测试重复注册"""
     auth_service = CloudAuthService(db_session)
     request = UserRegisterRequest(
-        username="testuser",
-        email="test@example.com",
-        password="password123"
+        username="testuser", email="test@example.com", password="password123"
     )
 
     # 第一次注册
@@ -79,9 +82,7 @@ async def test_user_login(db_session):
 
     # 先注册
     register_request = UserRegisterRequest(
-        username="loginuser",
-        email="login@example.com",
-        password="password123"
+        username="loginuser", email="login@example.com", password="password123"
     )
     register_result = await auth_service.register_user(register_request)
     user_id = register_result["user_id"]
@@ -91,7 +92,7 @@ async def test_user_login(db_session):
         username="loginuser",
         password="password123",
         device_id="device-001",
-        device_name="Test Desktop"
+        device_name="Test Desktop",
     )
     login_result = await auth_service.login_user(login_request)
 
@@ -110,9 +111,7 @@ async def test_user_login_invalid_password(db_session):
 
     # 先注册
     register_request = UserRegisterRequest(
-        username="invaliduser",
-        email="invalid@example.com",
-        password="correct_password"
+        username="invaliduser", email="invalid@example.com", password="correct_password"
     )
     await auth_service.register_user(register_request)
 
@@ -121,7 +120,7 @@ async def test_user_login_invalid_password(db_session):
         username="invaliduser",
         password="wrong_password",
         device_id="device-002",
-        device_name="Test Desktop"
+        device_name="Test Desktop",
     )
     login_result = await auth_service.login_user(login_request)
 
@@ -143,9 +142,7 @@ async def test_device_registration(db_session):
 
     # 先注册用户
     register_request = UserRegisterRequest(
-        username="deviceuser",
-        email="device@example.com",
-        password="password123"
+        username="deviceuser", email="device@example.com", password="password123"
     )
     register_result = await auth_service.register_user(register_request)
     user_id = register_result["user_id"]
@@ -173,7 +170,7 @@ async def test_upload_ratings(db_session):
         id="test-user-001",
         username="syncuser",
         email="sync@example.com",
-        password_hash=hash_password("password123")
+        password_hash=hash_password("password123"),
     )
     db_session.add(user)
     db_session.commit()
@@ -184,20 +181,18 @@ async def test_upload_ratings(db_session):
             "skill_id": "skill-001",
             "rating": 5,
             "review": "Excellent skill!",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         },
         {
             "skill_id": "skill-002",
             "rating": 4,
             "review": "Good",
-            "timestamp": datetime.utcnow().isoformat()
-        }
+            "timestamp": datetime.utcnow().isoformat(),
+        },
     ]
 
     result = await sync_engine.upload_ratings(
-        user_id="test-user-001",
-        device_id="device-sync-001",
-        local_ratings=local_ratings
+        user_id="test-user-001", device_id="device-sync-001", local_ratings=local_ratings
     )
 
     assert result["success"] is True
@@ -222,7 +217,7 @@ async def test_download_ratings(db_session):
         id="test-user-002",
         username="downloaduser",
         email="download@example.com",
-        password_hash=hash_password("password123")
+        password_hash=hash_password("password123"),
     )
     db_session.add(user)
     db_session.commit()
@@ -240,8 +235,7 @@ async def test_download_ratings(db_session):
 
     # 下载评分
     result = await sync_engine.download_ratings(
-        user_id="test-user-002",
-        device_id="device-sync-002"
+        user_id="test-user-002", device_id="device-sync-002"
     )
 
     assert result["success"] is True
@@ -265,18 +259,14 @@ async def test_conflict_detection(db_session):
         id="test-user-003",
         username="conflictuser",
         email="conflict@example.com",
-        password_hash=hash_password("password123")
+        password_hash=hash_password("password123"),
     )
     db_session.add(user)
 
     # 云端现有评分（时间戳：T0）
     now = datetime.utcnow()
     cloud_rating = SkillRating(
-        user_id="test-user-003",
-        skill_id="skill-conflict",
-        rating=3,
-        created_at=now,
-        updated_at=now
+        user_id="test-user-003", skill_id="skill-conflict", rating=3, created_at=now, updated_at=now
     )
     db_session.add(cloud_rating)
     db_session.commit()
@@ -288,15 +278,13 @@ async def test_conflict_detection(db_session):
             "skill_id": "skill-conflict",
             "rating": 5,
             "review": "Local update",
-            "timestamp": local_ts.isoformat()
+            "timestamp": local_ts.isoformat(),
         }
     ]
 
     # 上传会检测到冲突
     result = await sync_engine.upload_ratings(
-        user_id="test-user-003",
-        device_id="device-sync-003",
-        local_ratings=local_ratings
+        user_id="test-user-003", device_id="device-sync-003", local_ratings=local_ratings
     )
 
     assert result["success"] is True
@@ -322,15 +310,11 @@ async def test_conflict_resolution(db_session):
         id="test-user-004",
         username="resolveuser",
         email="resolve@example.com",
-        password_hash=hash_password("password123")
+        password_hash=hash_password("password123"),
     )
     db_session.add(user)
 
-    rating = SkillRating(
-        user_id="test-user-004",
-        skill_id="skill-to-resolve",
-        rating=2
-    )
+    rating = SkillRating(user_id="test-user-004", skill_id="skill-to-resolve", rating=2)
     db_session.add(rating)
     db_session.commit()
 
@@ -338,7 +322,7 @@ async def test_conflict_resolution(db_session):
     result = await sync_engine.resolve_conflict(
         user_id="test-user-004",
         skill_id="skill-to-resolve",
-        resolution=ConflictResolution.LOCAL_WINS
+        resolution=ConflictResolution.LOCAL_WINS,
     )
 
     assert result["success"] is True
@@ -361,7 +345,7 @@ async def test_sync_status(db_session):
         id="test-user-005",
         username="statususer",
         email="status@example.com",
-        password_hash=hash_password("password123")
+        password_hash=hash_password("password123"),
     )
     db_session.add(user)
 
@@ -371,7 +355,7 @@ async def test_sync_status(db_session):
         device_id="device-status",
         action="upload",
         skill_ids=["skill-1", "skill-2"],
-        status="success"
+        status="success",
     )
     db_session.add(log)
     db_session.commit()
@@ -401,7 +385,7 @@ async def test_multi_device_sync(db_session):
         id="test-user-006",
         username="multideviceuser",
         email="multidevice@example.com",
-        password_hash=hash_password("password123")
+        password_hash=hash_password("password123"),
     )
     db_session.add(user)
     db_session.commit()
@@ -411,20 +395,13 @@ async def test_multi_device_sync(db_session):
         user_id="test-user-006",
         device_id="device-1",
         local_ratings=[
-            {
-                "skill_id": "shared-skill",
-                "rating": 5,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-        ]
+            {"skill_id": "shared-skill", "rating": 5, "timestamp": datetime.utcnow().isoformat()}
+        ],
     )
     assert result1["success"] is True
 
     # 从设备2下载
-    result2 = await sync_engine.download_ratings(
-        user_id="test-user-006",
-        device_id="device-2"
-    )
+    result2 = await sync_engine.download_ratings(user_id="test-user-006", device_id="device-2")
     assert result2["success"] is True
 
     # 验证数据一致
@@ -462,6 +439,7 @@ def db_session():
     """创建数据库会话"""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
     from pycoder.server.models.cloud_models import Base
 
     # 使用内存SQLite进行测试

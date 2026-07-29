@@ -65,7 +65,9 @@ def client_with_auth(monkeypatch) -> TestClient:
     """注入认证的 TestClient"""
     monkeypatch.setenv("PYCODER_API_KEY", _TEST_API_KEY)
     import importlib
+
     import pycoder.server.app as app_module
+
     importlib.reload(app_module)
     from pycoder.server.app import app
 
@@ -80,7 +82,9 @@ class TestGetStatus:
     """沙箱状态端点"""
 
     @patch("pycoder.server.routers.sandbox_api.get_selector")
-    def test_get_status_success(self, mock_get_selector: MagicMock, client_with_auth: TestClient) -> None:
+    def test_get_status_success(
+        self, mock_get_selector: MagicMock, client_with_auth: TestClient
+    ) -> None:
         """测试获取沙箱状态"""
         mock_selector = MagicMock()
         mock_selector.select = AsyncMock(return_value=_make_mock_info())

@@ -12,10 +12,10 @@
 
 from __future__ import annotations
 
-from pycoder.multimodal.ocr_engine import OCREngine, get_ocr_engine
-from pycoder.multimodal.vision_client import VisionClient, get_vision_client
 from pycoder.multimodal.image_analyzer import ImageAnalyzer
+from pycoder.multimodal.ocr_engine import OCREngine, get_ocr_engine
 from pycoder.multimodal.tool_definitions import MULTIMODAL_TOOLS
+from pycoder.multimodal.vision_client import VisionClient, get_vision_client
 
 __all__ = [
     "OCREngine",

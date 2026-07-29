@@ -15,9 +15,6 @@
 
 from __future__ import annotations
 
-from pycoder.ai.analysis.syntax_analyzer import SyntaxAnalyzer
-from pycoder.ai.analysis.semantic_analyzer import SemanticAnalyzer
-from pycoder.ai.analysis.structural_analyzer import StructuralAnalyzer
 from pycoder.ai.analysis.architectural_analyzer import ArchitecturalAnalyzer
 from pycoder.ai.analysis.behavioral_analyzer import BehavioralAnalyzer
 from pycoder.ai.analysis.composite_analyzer import (
@@ -25,6 +22,9 @@ from pycoder.ai.analysis.composite_analyzer import (
     CompositeAnalyzer,
     get_composite_analyzer,
 )
+from pycoder.ai.analysis.semantic_analyzer import SemanticAnalyzer
+from pycoder.ai.analysis.structural_analyzer import StructuralAnalyzer
+from pycoder.ai.analysis.syntax_analyzer import SyntaxAnalyzer
 
 __all__ = [
     "SyntaxAnalyzer",

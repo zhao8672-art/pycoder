@@ -23,38 +23,66 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Callable, Awaitable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class ErrorSeverity(StrEnum):
     """错误严重程度"""
-    TRANSIENT = "transient"   # 可自动重试
-    PERMANENT = "permanent"   # 需人工介入
-    FATAL = "fatal"           # 立即停止
+
+    TRANSIENT = "transient"  # 可自动重试
+    PERMANENT = "permanent"  # 需人工介入
+    FATAL = "fatal"  # 立即停止
 
 
 # ── 错误模式 → 严重程度映射 ──
 _TRANSIENT_PATTERNS = [
-    "timeout", "connection refused", "connection reset",
-    "temporary failure", "try again", "rate limit",
-    "too many requests", "service unavailable", "503",
-    "network", "timed out", "deadlock", "lock",
+    "timeout",
+    "connection refused",
+    "connection reset",
+    "temporary failure",
+    "try again",
+    "rate limit",
+    "too many requests",
+    "service unavailable",
+    "503",
+    "network",
+    "timed out",
+    "deadlock",
+    "lock",
     "resource temporarily unavailable",
 ]
 _PERMANENT_PATTERNS = [
-    "permission denied", "access denied", "unauthorized",
-    "forbidden", "401", "403", "not found", "404",
-    "invalid", "syntax error", "type error", "attribute error",
-    "key error", "value error", "import error",
+    "permission denied",
+    "access denied",
+    "unauthorized",
+    "forbidden",
+    "401",
+    "403",
+    "not found",
+    "404",
+    "invalid",
+    "syntax error",
+    "type error",
+    "attribute error",
+    "key error",
+    "value error",
+    "import error",
 ]
 _FATAL_PATTERNS = [
-    "out of memory", "disk full", "no space",
-    "kernel", "segfault", "bus error",
-    "system error", "fatal", "panic",
+    "out of memory",
+    "disk full",
+    "no space",
+    "kernel",
+    "segfault",
+    "bus error",
+    "system error",
+    "fatal",
+    "panic",
 ]
 
 
@@ -81,6 +109,7 @@ def classify_error(error: Exception | str) -> ErrorSeverity:
 @dataclass
 class RetryResult:
     """重试执行结果"""
+
     success: bool
     result: Any = None
     error: str = ""
@@ -142,7 +171,10 @@ class RetryPolicy:
                 duration = (time.monotonic() - start) * 1000
                 logger.debug(
                     "retry_success attempt=%d/%d context=%s duration=%.1fms",
-                    attempt, self.max_retries + 1, context, duration,
+                    attempt,
+                    self.max_retries + 1,
+                    context,
+                    duration,
                 )
                 return RetryResult(
                     success=True,
@@ -166,29 +198,40 @@ class RetryPolicy:
                 if severity == ErrorSeverity.FATAL:
                     logger.critical(
                         "retry_fatal: context=%s error=%s attempt=%d",
-                        context, str(e)[:200], attempt,
+                        context,
+                        str(e)[:200],
+                        attempt,
                     )
                     break
 
                 if severity == ErrorSeverity.PERMANENT:
                     logger.warning(
                         "retry_permanent: context=%s error=%s attempt=%d",
-                        context, str(e)[:200], attempt,
+                        context,
+                        str(e)[:200],
+                        attempt,
                     )
                     break
 
                 if attempt > self.max_retries:
                     logger.warning(
                         "retry_exhausted: context=%s max_retries=%d error=%s",
-                        context, self.max_retries, str(e)[:200],
+                        context,
+                        self.max_retries,
+                        str(e)[:200],
                     )
                     break
 
                 # TRANSIENT: 指数退避
-                delay = min(self.base_delay * (self.backoff_multiplier ** (attempt - 1)), self.max_delay)
+                delay = min(
+                    self.base_delay * (self.backoff_multiplier ** (attempt - 1)), self.max_delay
+                )
                 logger.info(
                     "retry_wait: context=%s attempt=%d delay=%.1fs error=%s",
-                    context, attempt, delay, str(e)[:100],
+                    context,
+                    attempt,
+                    delay,
+                    str(e)[:100],
                 )
                 await asyncio.sleep(delay)
 
@@ -212,23 +255,31 @@ class RetryPolicy:
             try:
                 result = func(*args, **kwargs)
                 return RetryResult(
-                    success=True, result=result, attempts=attempt,
+                    success=True,
+                    result=result,
+                    attempts=attempt,
                     total_duration_ms=(time.monotonic() - start) * 1000,
                     retry_history=history,
                 )
             except Exception as e:
                 last_error = e
                 severity = self._classifier(e)
-                history.append({
-                    "attempt": attempt, "error": str(e)[:200],
-                    "type": type(e).__name__, "severity": severity.value,
-                    "timestamp": time.time(),
-                })
+                history.append(
+                    {
+                        "attempt": attempt,
+                        "error": str(e)[:200],
+                        "type": type(e).__name__,
+                        "severity": severity.value,
+                        "timestamp": time.time(),
+                    }
+                )
                 if severity in (ErrorSeverity.FATAL, ErrorSeverity.PERMANENT):
                     break
                 if attempt > self.max_retries:
                     break
-                delay = min(self.base_delay * (self.backoff_multiplier ** (attempt - 1)), self.max_delay)
+                delay = min(
+                    self.base_delay * (self.backoff_multiplier ** (attempt - 1)), self.max_delay
+                )
                 time.sleep(delay)
 
         return RetryResult(

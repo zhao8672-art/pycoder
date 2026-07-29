@@ -24,7 +24,6 @@ from pycoder.ai.interface.types import (
     ProviderCapability,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # Mock Provider 用于测试
 # ══════════════════════════════════════════════════════════
@@ -53,9 +52,7 @@ class MockFusionProvider(IFusionProvider):
     def capability(self) -> ProviderCapability:
         return self._capability
 
-    async def generate(
-        self, prompt: str, system_prompt: str = "", **kwargs
-    ) -> ProviderResult:
+    async def generate(self, prompt: str, system_prompt: str = "", **kwargs) -> ProviderResult:
         return ProviderResult(
             provider=self._name,
             content=f"```python\ndef {self._name}_func():\n    return '{self._content}'\n```",
@@ -75,9 +72,7 @@ class FailingProvider(IFusionProvider):
     def capability(self) -> ProviderCapability:
         return ProviderCapability(provider="failing")
 
-    async def generate(
-        self, prompt: str, system_prompt: str = "", **kwargs
-    ) -> ProviderResult:
+    async def generate(self, prompt: str, system_prompt: str = "", **kwargs) -> ProviderResult:
         return ProviderResult(
             provider=self.name,
             content="",

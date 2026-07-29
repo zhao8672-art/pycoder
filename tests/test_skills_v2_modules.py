@@ -14,16 +14,14 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import shutil
 import sqlite3
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ══════════════════════════════════════════════════════════════
 # 辅助函数
@@ -41,7 +39,7 @@ def _make_skill_def(
     dependencies: list[str] | None = None,
     is_builtin: bool = False,
     markdown_content: str = "",
-) -> "SkillDefinition":
+) -> SkillDefinition:
     """创建测试用 SkillDefinition"""
     from pycoder.skills import SkillDefinition
 
@@ -92,8 +90,9 @@ class TestPycoderInit:
 
     def test_subprocess_patch_text_defaults_to_replace(self) -> None:
         """测试猴子补丁: text=True 且未指定 errors 时默认使用 'replace'"""
-        import pycoder  # 确保模块已导入
         import subprocess as _subprocess
+
+        import pycoder  # 确保模块已导入
 
         patched = _subprocess.Popen.__init__
         orig = pycoder._orig_popen_init
@@ -112,8 +111,9 @@ class TestPycoderInit:
 
     def test_subprocess_patch_with_explicit_encoding(self) -> None:
         """测试猴子补丁: 显式指定 encoding 时不覆盖 errors"""
-        import pycoder
         import subprocess as _subprocess
+
+        import pycoder
 
         patched = _subprocess.Popen.__init__
         orig = pycoder._orig_popen_init
@@ -132,8 +132,9 @@ class TestPycoderInit:
 
     def test_subprocess_patch_with_explicit_errors(self) -> None:
         """测试猴子补丁: 显式指定 errors 时不覆盖"""
-        import pycoder
         import subprocess as _subprocess
+
+        import pycoder
 
         patched = _subprocess.Popen.__init__
         orig = pycoder._orig_popen_init
@@ -152,8 +153,9 @@ class TestPycoderInit:
 
     def test_subprocess_patch_no_text_mode(self) -> None:
         """测试猴子补丁: 非 text 模式不添加 errors"""
-        import pycoder
         import subprocess as _subprocess
+
+        import pycoder
 
         patched = _subprocess.Popen.__init__
         orig = pycoder._orig_popen_init
@@ -388,7 +390,8 @@ class TestMainGenerate:
         from pycoder.__main__ import main
 
         with patch.object(
-            sys, "argv",
+            sys,
+            "argv",
             ["pycoder", "--generate", "FastAPI app", "--project-dir", "/tmp/myapp"],
         ):
             main()
@@ -428,7 +431,8 @@ class TestMainAutonomous:
         from pycoder.__main__ import main
 
         with patch.object(
-            sys, "argv",
+            sys,
+            "argv",
             ["pycoder", "--autonomous", "--task", "做一个API"],
         ):
             main()
@@ -475,7 +479,8 @@ class TestMainEvolve:
         from pycoder.__main__ import main
 
         with patch.object(
-            sys, "argv",
+            sys,
+            "argv",
             ["pycoder", "--evolve", "--evolve-path", "src/myapp"],
         ):
             main()
@@ -652,9 +657,19 @@ class TestSkillDefinitionExtended:
         )
         d = sd.to_dict()
         expected_keys = {
-            "id", "name", "version", "description", "author",
-            "category", "tags", "dependencies", "install_count",
-            "rating", "created_at", "updated_at", "is_builtin",
+            "id",
+            "name",
+            "version",
+            "description",
+            "author",
+            "category",
+            "tags",
+            "dependencies",
+            "install_count",
+            "rating",
+            "created_at",
+            "updated_at",
+            "is_builtin",
         }
         assert set(d.keys()) == expected_keys
 
@@ -693,9 +708,7 @@ class TestSkillDefinitionExtended:
 
     def test_to_dict_excludes_markdown_content(self) -> None:
         """测试 to_dict 不包含 markdown_content（安全考虑）"""
-        sd = _make_skill_def(
-            skill_id="secret", name="机密", markdown_content="敏感内容"
-        )
+        sd = _make_skill_def(skill_id="secret", name="机密", markdown_content="敏感内容")
         d = sd.to_dict()
         assert "markdown_content" not in d
 
@@ -726,7 +739,7 @@ def temp_skills_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 @pytest.fixture
-def marketplace(temp_skills_dir: Path) -> "SkillMarketplace":
+def marketplace(temp_skills_dir: Path) -> SkillMarketplace:
     """创建隔离的技能市场实例"""
     from pycoder.skills import SkillMarketplace
 
@@ -737,7 +750,7 @@ def marketplace(temp_skills_dir: Path) -> "SkillMarketplace":
 class TestSkillMarketplaceExtended:
     """SkillMarketplace 补充测试"""
 
-    def test_row_to_skill_def(self, marketplace: "SkillMarketplace") -> None:
+    def test_row_to_skill_def(self, marketplace: SkillMarketplace) -> None:
         """测试 _row_to_skill_def 方法"""
         from pycoder.skills import SkillDefinition
 
@@ -757,9 +770,7 @@ class TestSkillMarketplaceExtended:
         # 从数据库读取并使用 _row_to_skill_def 转换
         with sqlite3.connect(str(marketplace._db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT * FROM skills WHERE id = ?", (sd.id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM skills WHERE id = ?", (sd.id,)).fetchone()
 
         result = marketplace._row_to_skill_def(row)
         assert isinstance(result, SkillDefinition)
@@ -770,7 +781,7 @@ class TestSkillMarketplaceExtended:
         assert result.is_builtin is True
         assert result.markdown_content == "# Row Test"
 
-    def test_row_to_skill_def_empty_tags(self, marketplace: "SkillMarketplace") -> None:
+    def test_row_to_skill_def_empty_tags(self, marketplace: SkillMarketplace) -> None:
         """测试 _row_to_skill_def 空 tags 和 dependencies"""
         sd = _make_skill_def(
             skill_id="empty-tags",
@@ -783,15 +794,13 @@ class TestSkillMarketplaceExtended:
 
         with sqlite3.connect(str(marketplace._db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT * FROM skills WHERE id = ?", (sd.id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM skills WHERE id = ?", (sd.id,)).fetchone()
 
         result = marketplace._row_to_skill_def(row)
         assert result.tags == []
         assert result.dependencies == []
 
-    def test_row_to_dict(self, marketplace: "SkillMarketplace") -> None:
+    def test_row_to_dict(self, marketplace: SkillMarketplace) -> None:
         """测试 _row_to_dict 方法"""
         sd = _make_skill_def(
             skill_id="dict-row-test",
@@ -804,9 +813,7 @@ class TestSkillMarketplaceExtended:
 
         with sqlite3.connect(str(marketplace._db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT * FROM skills WHERE id = ?", (sd.id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM skills WHERE id = ?", (sd.id,)).fetchone()
 
         result = marketplace._row_to_dict(row)
         assert result["id"] == "dict-row-test"
@@ -816,7 +823,7 @@ class TestSkillMarketplaceExtended:
         assert "rating_count" in result
         assert "markdown_content" not in result  # 不包含全文
 
-    def test_row_to_dict_not_installed(self, marketplace: "SkillMarketplace") -> None:
+    def test_row_to_dict_not_installed(self, marketplace: SkillMarketplace) -> None:
         """测试 _row_to_dict 未安装的技能"""
         sd = _make_skill_def(
             skill_id="not-installed-dict",
@@ -827,14 +834,12 @@ class TestSkillMarketplaceExtended:
 
         with sqlite3.connect(str(marketplace._db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT * FROM skills WHERE id = ?", (sd.id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM skills WHERE id = ?", (sd.id,)).fetchone()
 
         result = marketplace._row_to_dict(row)
         assert result["installed"] is False
 
-    def test_load_skill_content_exists(self, marketplace: "SkillMarketplace") -> None:
+    def test_load_skill_content_exists(self, marketplace: SkillMarketplace) -> None:
         """测试 _load_skill_content 文件存在"""
         sd = _make_skill_def(
             skill_id="load-test",
@@ -847,12 +852,12 @@ class TestSkillMarketplaceExtended:
         assert "# 加载内容" in content
         assert "测试加载" in content
 
-    def test_load_skill_content_not_exists(self, marketplace: "SkillMarketplace") -> None:
+    def test_load_skill_content_not_exists(self, marketplace: SkillMarketplace) -> None:
         """测试 _load_skill_content 文件不存在"""
         content = marketplace._load_skill_content("nonexistent-file")
         assert content == ""
 
-    def test_save_skill_content_no_markdown(self, marketplace: "SkillMarketplace") -> None:
+    def test_save_skill_content_no_markdown(self, marketplace: SkillMarketplace) -> None:
         """测试 _save_skill_content 无 markdown 内容时不写入"""
         from pycoder.skills import SkillDefinition
 
@@ -894,7 +899,7 @@ class TestGetMarketplace:
 
     def test_get_marketplace_returns_same_instance(self) -> None:
         """测试 get_marketplace 返回同一实例"""
-        from pycoder.skills import get_marketplace, SkillMarketplace
+        from pycoder.skills import SkillMarketplace, get_marketplace
 
         SkillMarketplace._instance = None
         # 重置全局变量
@@ -908,7 +913,7 @@ class TestGetMarketplace:
 
     def test_get_marketplace_creates_instance(self) -> None:
         """测试 get_marketplace 创建新实例"""
-        from pycoder.skills import get_marketplace, SkillMarketplace
+        from pycoder.skills import SkillMarketplace, get_marketplace
 
         SkillMarketplace._instance = None
         import pycoder.skills as skills_module
@@ -924,14 +929,14 @@ class TestSkillMarketplaceRateSkillEdges:
     """rate_skill 边界情况测试"""
 
     @pytest.mark.asyncio
-    async def test_rate_skill_minimum(self, marketplace: "SkillMarketplace") -> None:
+    async def test_rate_skill_minimum(self, marketplace: SkillMarketplace) -> None:
         """测试最低评分 1"""
         result = await marketplace.rate_skill("code-review", 1)
         assert result["success"] is True
         assert result["new_rating"] > 0
 
     @pytest.mark.asyncio
-    async def test_rate_skill_maximum(self, marketplace: "SkillMarketplace") -> None:
+    async def test_rate_skill_maximum(self, marketplace: SkillMarketplace) -> None:
         """测试最高评分 5"""
         result = await marketplace.rate_skill("code-review", 5)
         assert result["success"] is True
@@ -942,7 +947,7 @@ class TestSkillMarketplaceUpdateSkillEdges:
     """update_skill 边界情况测试"""
 
     @pytest.mark.asyncio
-    async def test_update_skill_tags_list(self, marketplace: "SkillMarketplace") -> None:
+    async def test_update_skill_tags_list(self, marketplace: SkillMarketplace) -> None:
         """测试更新 tags 为列表"""
         sd = _make_skill_def(
             skill_id="tag-update",
@@ -960,7 +965,7 @@ class TestSkillMarketplaceUpdateSkillEdges:
         assert "new-tag1" in detail["skill"]["tags"]
 
     @pytest.mark.asyncio
-    async def test_update_skill_dependencies_list(self, marketplace: "SkillMarketplace") -> None:
+    async def test_update_skill_dependencies_list(self, marketplace: SkillMarketplace) -> None:
         """测试更新 dependencies 为列表"""
         sd = _make_skill_def(
             skill_id="dep-update",
@@ -978,7 +983,7 @@ class TestSkillMarketplaceUpdateSkillEdges:
         assert "new-dep1" in detail["skill"]["dependencies"]
 
     @pytest.mark.asyncio
-    async def test_update_skill_markdown_content(self, marketplace: "SkillMarketplace") -> None:
+    async def test_update_skill_markdown_content(self, marketplace: SkillMarketplace) -> None:
         """测试更新 markdown_content 同步到文件系统"""
         sd = _make_skill_def(
             skill_id="md-update",
@@ -1001,13 +1006,13 @@ class TestSkillMarketplaceUpdateSkillEdges:
 class TestSkillMarketplaceGetStats:
     """get_stats 补充测试"""
 
-    def test_get_stats_returns_categories(self, marketplace: "SkillMarketplace") -> None:
+    def test_get_stats_returns_categories(self, marketplace: SkillMarketplace) -> None:
         """测试 get_stats 返回分类统计"""
         stats = marketplace.get_stats()
         assert "categories" in stats
         assert isinstance(stats["categories"], dict)
 
-    def test_get_stats_data_dir(self, marketplace: "SkillMarketplace") -> None:
+    def test_get_stats_data_dir(self, marketplace: SkillMarketplace) -> None:
         """测试 get_stats 返回 data_dir"""
         stats = marketplace.get_stats()
         assert "data_dir" in stats
@@ -1033,8 +1038,13 @@ class TestBuiltinSkillsExtended:
         from pycoder.skills.builtin import SKILLS_BY_CATEGORY
 
         expected_categories = {
-            "quality", "testing", "documentation", "refactoring",
-            "security", "performance", "tools",
+            "quality",
+            "testing",
+            "documentation",
+            "refactoring",
+            "security",
+            "performance",
+            "tools",
         }
         assert set(SKILLS_BY_CATEGORY.keys()) == expected_categories
 
@@ -1102,8 +1112,8 @@ class TestV2EngineConfig:
 
     def test_default_config(self) -> None:
         """测试默认配置值"""
-        from pycoder.v2 import V2EngineConfig
         from pycoder.bus.protocol import TrustLevel
+        from pycoder.v2 import V2EngineConfig
 
         config = V2EngineConfig()
         assert config.workspace_root == "."
@@ -1115,8 +1125,8 @@ class TestV2EngineConfig:
 
     def test_custom_config(self) -> None:
         """测试自定义配置"""
-        from pycoder.v2 import V2EngineConfig
         from pycoder.bus.protocol import TrustLevel
+        from pycoder.v2 import V2EngineConfig
 
         config = V2EngineConfig(
             workspace_root="/tmp/test",
@@ -1207,8 +1217,8 @@ class TestV2EngineInit:
 
     def test_emergency_lockdown(self) -> None:
         """测试紧急锁定"""
-        from pycoder.v2 import V2Engine
         from pycoder.brain.consciousness import OperatingMode
+        from pycoder.v2 import V2Engine
 
         engine = V2Engine()
         engine.emergency_lockdown()
@@ -1281,8 +1291,8 @@ class TestV2EngineCall:
 
     def test_create_snapshot_before_write(self, tmp_path: Path) -> None:
         """测试写操作前创建快照"""
+        from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, TrustLevel
         from pycoder.v2 import V2Engine
-        from pycoder.bus.protocol import CapabilityDefinition, CapabilityCategory, TrustLevel
 
         engine = V2Engine()
         # 创建临时文件
@@ -1301,9 +1311,7 @@ class TestV2EngineCall:
         # 模拟 input_transformer
         engine.input_transformer.extract_paths = lambda params: [str(test_file)]
 
-        asyncio.run(engine._create_snapshot_before_write(
-            {"path": str(test_file)}, cap_def
-        ))
+        asyncio.run(engine._create_snapshot_before_write({"path": str(test_file)}, cap_def))
         # 不应报错，快照已创建
 
 
@@ -1314,10 +1322,12 @@ class TestV2EngineWithSelfEvoDisabled:
         """测试禁用自进化时初始化"""
         from pycoder.v2 import V2Engine, V2EngineConfig
 
-        engine = V2Engine(V2EngineConfig(
-            workspace_root=os.getcwd(),
-            enable_self_evo=False,
-        ))
+        engine = V2Engine(
+            V2EngineConfig(
+                workspace_root=os.getcwd(),
+                enable_self_evo=False,
+            )
+        )
         asyncio.run(engine.initialize())
         assert engine.evolution is None
         assert engine._initialized is True
@@ -1330,9 +1340,11 @@ class TestV2EngineWithConsciousnessDisabled:
         """测试禁用意识引擎时初始化"""
         from pycoder.v2 import V2Engine, V2EngineConfig
 
-        engine = V2Engine(V2EngineConfig(
-            workspace_root=os.getcwd(),
-            enable_consciousness=False,
-        ))
+        engine = V2Engine(
+            V2EngineConfig(
+                workspace_root=os.getcwd(),
+                enable_consciousness=False,
+            )
+        )
         asyncio.run(engine.initialize())
         assert engine._initialized is True

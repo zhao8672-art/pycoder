@@ -17,20 +17,19 @@
 
 from __future__ import annotations
 
-import io
 import csv
+import io
 import json
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
 from pycoder.providers import cost
 
-
 # ── Fixtures ──
+
 
 @pytest.fixture
 def tracker():
@@ -42,10 +41,12 @@ def tracker():
 @pytest.fixture
 def patch_estimate_tokens(monkeypatch):
     """mock chat_bridge.estimate_tokens (每字符 ~0.25 token)"""
+
     def fake_estimate(text: str) -> int:
         return max(1, len(text) // 4)
 
     import pycoder.server.chat_bridge as cb
+
     monkeypatch.setattr(cb, "estimate_tokens", fake_estimate)
     return fake_estimate
 
@@ -53,6 +54,7 @@ def patch_estimate_tokens(monkeypatch):
 # ══════════════════════════════════════════════════════════
 # UsageRecord
 # ══════════════════════════════════════════════════════════
+
 
 def test_usage_record_known_model_cost():
     r = cost.UsageRecord("deepseek-chat", prompt_tokens=1_000_000, completion_tokens=1_000_000)
@@ -103,6 +105,7 @@ def test_usage_record_to_dict():
 # ══════════════════════════════════════════════════════════
 # CostTracker
 # ══════════════════════════════════════════════════════════
+
 
 def test_record_creates_and_stores(tracker):
     rec = tracker.record("deepseek-chat", {"prompt_tokens": 100, "completion_tokens": 50})
@@ -280,23 +283,38 @@ def test_load_nonexistent(tracker, tmp_path):
 
 def test_load_valid_file(tracker, tmp_path):
     p = tmp_path / "hist.json"
-    p.write_text(json.dumps({
-        "records": [
-            {"model": "glm-4", "prompt_tokens": 10, "completion_tokens": 5,
-             "total_tokens": 15, "timestamp": time.time()},
-        ],
-    }), encoding="utf-8")
+    p.write_text(
+        json.dumps(
+            {
+                "records": [
+                    {
+                        "model": "glm-4",
+                        "prompt_tokens": 10,
+                        "completion_tokens": 5,
+                        "total_tokens": 15,
+                        "timestamp": time.time(),
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
     tracker.load(p)
     assert tracker.total_calls() == 1
 
 
 def test_load_missing_total_tokens_falls_back(tracker, tmp_path):
     p = tmp_path / "hist.json"
-    p.write_text(json.dumps({
-        "records": [
-            {"model": "glm-4", "prompt_tokens": 10, "completion_tokens": 5},
-        ],
-    }), encoding="utf-8")
+    p.write_text(
+        json.dumps(
+            {
+                "records": [
+                    {"model": "glm-4", "prompt_tokens": 10, "completion_tokens": 5},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
     tracker.load(p)
     assert tracker.total_tokens() == 15
 
@@ -334,6 +352,7 @@ def test_clear(tracker):
 # 全局单例
 # ══════════════════════════════════════════════════════════
 
+
 def test_get_cost_tracker_singleton(monkeypatch, tmp_path):
     # 重置单例并指向 tmp 避免加载真实历史
     fake_home = tmp_path / "home_a"
@@ -366,8 +385,11 @@ def test_reset_cost_tracker_when_none(monkeypatch):
 # estimate_cost / compare_costs
 # ══════════════════════════════════════════════════════════
 
+
 def test_estimate_cost_known_model():
-    est = cost.estimate_cost("deepseek-chat", prompt_tokens=1_000_000, expected_output_tokens=1_000_000)
+    est = cost.estimate_cost(
+        "deepseek-chat", prompt_tokens=1_000_000, expected_output_tokens=1_000_000
+    )
     assert est["estimated_cost"] == round(0.14 + 0.28, 6)
     assert est["breakdown"]["price_per_m_input"] == 0.14
 
@@ -395,6 +417,7 @@ def test_compare_costs_custom_models():
 # ══════════════════════════════════════════════════════════
 # TokenEstimator
 # ══════════════════════════════════════════════════════════
+
 
 def test_token_estimator_estimate_call(tracker, patch_estimate_tokens):
     est = cost.TokenEstimator(tracker)
@@ -497,6 +520,7 @@ def test_get_token_estimator_singleton():
 # ══════════════════════════════════════════════════════════
 # BudgetManager
 # ══════════════════════════════════════════════════════════
+
 
 def test_budget_manager_set_monthly(tracker):
     bm = cost.BudgetManager(tracker)
@@ -604,6 +628,7 @@ def test_get_budget_manager_singleton():
 # UsageCharts
 # ══════════════════════════════════════════════════════════
 
+
 def test_usage_charts_daily_costs_empty(tracker):
     ch = cost.UsageCharts(tracker)
     daily = ch.daily_costs(7)
@@ -660,6 +685,7 @@ def test_usage_charts_format_trend_with_data(tracker):
 # ══════════════════════════════════════════════════════════
 # ReportExporter
 # ══════════════════════════════════════════════════════════
+
 
 def test_report_exporter_export_json(tracker):
     tracker.record("glm-4", {"prompt_tokens": 100})

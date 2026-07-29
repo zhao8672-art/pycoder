@@ -19,49 +19,55 @@ logger = logging.getLogger(__name__)
 def register_lifecycle_capabilities() -> None:
     """注册生命周期域能力到 V2 能力总线"""
     try:
-        from pycoder.bus.registry import CapabilityRegistry
         from pycoder.bus.protocol import (
-            CapabilityDefinition,
             CapabilityCategory,
+            CapabilityDefinition,
             ExecutionMode,
             SideEffect,
             TrustLevel,
         )
+        from pycoder.bus.registry import CapabilityRegistry
 
         registry = CapabilityRegistry.get_instance()
 
         # lifecycle.project.create
-        registry.register(CapabilityDefinition(
-            id="lifecycle.project.create",
-            category=CapabilityCategory.SYSTEM,
-            description="创建新的项目生命周期编排",
-            execution_mode=ExecutionMode.SYNC,
-            side_effects={SideEffect.NONE},
-            trust_level=TrustLevel.WORKSPACE_WRITE,
-            handler=_handle_project_create,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="lifecycle.project.create",
+                category=CapabilityCategory.SYSTEM,
+                description="创建新的项目生命周期编排",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NONE},
+                trust_level=TrustLevel.WORKSPACE_WRITE,
+                handler=_handle_project_create,
+            )
+        )
 
         # lifecycle.project.run
-        registry.register(CapabilityDefinition(
-            id="lifecycle.project.run",
-            category=CapabilityCategory.SYSTEM,
-            description="运行项目生命周期编排（7 阶段闭环）",
-            execution_mode=ExecutionMode.STREAM,
-            side_effects={SideEffect.PROCESS, SideEffect.FILE_WRITE},
-            trust_level=TrustLevel.PROJECT_WRITE,
-            handler=_handle_project_run,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="lifecycle.project.run",
+                category=CapabilityCategory.SYSTEM,
+                description="运行项目生命周期编排（7 阶段闭环）",
+                execution_mode=ExecutionMode.STREAM,
+                side_effects={SideEffect.PROCESS, SideEffect.FILE_WRITE},
+                trust_level=TrustLevel.PROJECT_WRITE,
+                handler=_handle_project_run,
+            )
+        )
 
         # lifecycle.project.list
-        registry.register(CapabilityDefinition(
-            id="lifecycle.project.list",
-            category=CapabilityCategory.SYSTEM,
-            description="列出所有项目编排记录",
-            execution_mode=ExecutionMode.SYNC,
-            side_effects={SideEffect.NONE},
-            trust_level=TrustLevel.READ_ONLY,
-            handler=_handle_project_list,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="lifecycle.project.list",
+                category=CapabilityCategory.SYSTEM,
+                description="列出所有项目编排记录",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NONE},
+                trust_level=TrustLevel.READ_ONLY,
+                handler=_handle_project_list,
+            )
+        )
 
         logger.info("lifecycle_capabilities_registered: count=3")
     except Exception as e:
@@ -71,6 +77,7 @@ def register_lifecycle_capabilities() -> None:
 async def _handle_project_create(args: dict[str, Any]) -> dict[str, Any]:
     """处理 lifecycle.project.create"""
     from pycoder.lifecycle.orchestrator import LifecycleOrchestrator
+
     orch = LifecycleOrchestrator()
     result = await orch.create_project(
         name=args.get("name", ""),
@@ -83,6 +90,7 @@ async def _handle_project_create(args: dict[str, Any]) -> dict[str, Any]:
 async def _handle_project_run(args: dict[str, Any]):
     """处理 lifecycle.project.run（流式）"""
     from pycoder.lifecycle.orchestrator import LifecycleOrchestrator
+
     orch = LifecycleOrchestrator()
     async for event in orch.run(project_id=args.get("project_id", "")):
         yield event
@@ -91,6 +99,7 @@ async def _handle_project_run(args: dict[str, Any]):
 async def _handle_project_list(args: dict[str, Any]) -> dict[str, Any]:
     """处理 lifecycle.project.list"""
     from pycoder.lifecycle.orchestrator import LifecycleOrchestrator
+
     orch = LifecycleOrchestrator()
     projects = await orch.list_projects()
     return {"success": True, "projects": projects}

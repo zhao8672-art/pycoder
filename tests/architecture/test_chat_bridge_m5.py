@@ -7,9 +7,8 @@
 - max_history_messages=0 表示不截断
 - system prompt 注入不受截断影响
 """
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from pycoder.server.chat_bridge import BridgeConfig, ChatBridge
 

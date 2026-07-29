@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import importlib
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -88,12 +88,8 @@ def mock_grader() -> MagicMock:
 def mock_persistence() -> MagicMock:
     """创建模拟的 TaskPersistence"""
     persistence = MagicMock(spec=TaskPersistence)
-    persistence.save_task = AsyncMock(
-        return_value=_make_task_state("task-001", status="pending")
-    )
-    persistence.load_task = AsyncMock(
-        return_value=_make_task_state("task-001", status="running")
-    )
+    persistence.save_task = AsyncMock(return_value=_make_task_state("task-001", status="pending"))
+    persistence.load_task = AsyncMock(return_value=_make_task_state("task-001", status="running"))
     persistence.list_tasks = AsyncMock(return_value=[])
     persistence.create_checkpoint = AsyncMock(
         return_value=_make_task_state("task-001", status="paused")
@@ -120,6 +116,7 @@ def client_with_services(
     """注入模拟 TaskGrader 和 TaskPersistence 的 TestClient（自动设置 Auth）"""
     monkeypatch.setenv("PYCODER_API_KEY", _TEST_API_KEY)
     import pycoder.server.app as app_module
+
     importlib.reload(app_module)
     from pycoder.server.routers import task_api
 
@@ -161,7 +158,9 @@ class TestGradeTask:
         assert data["score"] == 50
         assert data["level_value"] == 2
 
-    def test_grade_light_task(self, client_with_services: TestClient, mock_grader: MagicMock) -> None:
+    def test_grade_light_task(
+        self, client_with_services: TestClient, mock_grader: MagicMock
+    ) -> None:
         """测试简单任务分级"""
         mock_grader.assess.return_value = _make_task_grade(level=GradeLevel.LIGHT, score=20)
 
@@ -175,7 +174,9 @@ class TestGradeTask:
         assert data["level"] == "LIGHT"
         assert data["score"] == 20
 
-    def test_grade_heavy_task(self, client_with_services: TestClient, mock_grader: MagicMock) -> None:
+    def test_grade_heavy_task(
+        self, client_with_services: TestClient, mock_grader: MagicMock
+    ) -> None:
         """测试复杂任务分级"""
         mock_grader.assess.return_value = _make_task_grade(level=GradeLevel.HEAVY, score=85)
 
@@ -208,9 +209,16 @@ class TestGradeTask:
         assert resp.status_code == 200
         data = resp.json()
         expected_fields = [
-            "level", "level_value", "label", "max_iterations",
-            "temperature", "max_tokens", "timeout_seconds", "score",
-            "dimensions", "reasoning",
+            "level",
+            "level_value",
+            "label",
+            "max_iterations",
+            "temperature",
+            "max_tokens",
+            "timeout_seconds",
+            "score",
+            "dimensions",
+            "reasoning",
         ]
         for field in expected_fields:
             assert field in data, f"缺少字段 {field}"
@@ -239,7 +247,9 @@ class TestSaveTask:
         assert data["status"] == "pending"
         assert data["grade"] == "MEDIUM"
 
-    def test_save_task_with_custom_id(self, client_with_services: TestClient, mock_persistence: MagicMock) -> None:
+    def test_save_task_with_custom_id(
+        self, client_with_services: TestClient, mock_persistence: MagicMock
+    ) -> None:
         """测试使用自定义 task_id 保存"""
         mock_persistence.save_task = AsyncMock(
             return_value=_make_task_state("custom-123", status="running")
@@ -343,7 +353,9 @@ class TestLoadTask:
         assert data["status"] == "running"
         assert "description" in data
 
-    def test_load_task_not_found(self, client_with_services: TestClient, mock_persistence: MagicMock) -> None:
+    def test_load_task_not_found(
+        self, client_with_services: TestClient, mock_persistence: MagicMock
+    ) -> None:
         """测试加载不存在的任务返回 404"""
         mock_persistence.load_task = AsyncMock(return_value=None)
 
@@ -357,10 +369,18 @@ class TestLoadTask:
         assert resp.status_code == 200
         data = resp.json()
         expected_fields = [
-            "task_id", "description", "status", "grade",
-            "created_at", "updated_at", "completed_at",
-            "steps_completed", "current_step",
-            "checkpoint_data", "result", "error",
+            "task_id",
+            "description",
+            "status",
+            "grade",
+            "created_at",
+            "updated_at",
+            "completed_at",
+            "steps_completed",
+            "current_step",
+            "checkpoint_data",
+            "result",
+            "error",
         ]
         for field in expected_fields:
             assert field in data, f"缺少字段 {field}"
@@ -414,13 +434,17 @@ class TestListTasks:
         assert resp.status_code == 400
         assert "无效级别" in resp.json()["error"]["message"]
 
-    def test_list_tasks_with_results(self, client_with_services: TestClient, mock_persistence: MagicMock) -> None:
+    def test_list_tasks_with_results(
+        self, client_with_services: TestClient, mock_persistence: MagicMock
+    ) -> None:
         """测试列出有结果的任务"""
-        mock_persistence.list_tasks = AsyncMock(return_value=[
-            _make_task_state("t1", "任务1", "completed"),
-            _make_task_state("t2", "任务2", "running"),
-            _make_task_state("t3", "任务3", "pending"),
-        ])
+        mock_persistence.list_tasks = AsyncMock(
+            return_value=[
+                _make_task_state("t1", "任务1", "completed"),
+                _make_task_state("t2", "任务2", "running"),
+                _make_task_state("t3", "任务3", "pending"),
+            ]
+        )
 
         resp = client_with_services.get("/api/task/list", headers=_AUTH_HEADERS)
         assert resp.status_code == 200
@@ -524,7 +548,9 @@ class TestTaskStats:
         assert "avg_steps_completed" in data
         assert "db_path" in data
 
-    def test_get_stats_empty(self, client_with_services: TestClient, mock_persistence: MagicMock) -> None:
+    def test_get_stats_empty(
+        self, client_with_services: TestClient, mock_persistence: MagicMock
+    ) -> None:
         """测试空统计信息"""
         mock_persistence.get_stats_async = AsyncMock(
             return_value={

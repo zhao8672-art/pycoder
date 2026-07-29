@@ -41,6 +41,7 @@ _loop: ClosedLearningLoop = get_closed_loop()
 
 class ObserveRequest(BaseModel):
     """观察执行请求体"""
+
     task_id: str = Field(..., description="任务唯一标识")
     execution_result: dict[str, Any] = Field(
         default_factory=dict,
@@ -53,6 +54,7 @@ class ObserveRequest(BaseModel):
 
 class ObserveResponse(BaseModel):
     """观察执行响应"""
+
     success: bool
     task_id: str | None = None
     recorded: bool = False
@@ -63,6 +65,7 @@ class ObserveResponse(BaseModel):
 
 class ReflectRequest(BaseModel):
     """反思模式请求体"""
+
     observation: dict[str, Any] = Field(
         default_factory=dict,
         description=(
@@ -74,6 +77,7 @@ class ReflectRequest(BaseModel):
 
 class ReflectResponse(BaseModel):
     """反思模式响应"""
+
     success: bool
     reflection: dict[str, Any] | None = None
     error: str | None = None
@@ -81,6 +85,7 @@ class ReflectResponse(BaseModel):
 
 class GenerateSkillRequest(BaseModel):
     """生成技能请求体"""
+
     reflection: dict[str, Any] = Field(
         default_factory=dict,
         description="反思结果，包含 patterns_found 和 patterns_avoid",
@@ -89,6 +94,7 @@ class GenerateSkillRequest(BaseModel):
 
 class GenerateSkillResponse(BaseModel):
     """生成技能响应"""
+
     success: bool
     skills_generated: int = 0
     skill_ids: list[str] = []
@@ -98,11 +104,13 @@ class GenerateSkillResponse(BaseModel):
 
 class ApplyFeedbackRequest(BaseModel):
     """应用反馈请求体"""
+
     task_description: str = Field(..., description="新任务描述")
 
 
 class ApplyFeedbackResponse(BaseModel):
     """应用反馈响应"""
+
     success: bool
     feedback: dict[str, Any] | None = None
     error: str | None = None
@@ -110,6 +118,7 @@ class ApplyFeedbackResponse(BaseModel):
 
 class CycleRequest(BaseModel):
     """完整闭环请求体"""
+
     task_id: str = Field(..., description="任务唯一标识")
     execution_result: dict[str, Any] = Field(
         default_factory=dict,
@@ -119,6 +128,7 @@ class CycleRequest(BaseModel):
 
 class CycleResponse(BaseModel):
     """完整闭环响应"""
+
     task_id: str
     cycle_duration_ms: float
     observation: dict[str, Any]
@@ -132,6 +142,7 @@ class CycleResponse(BaseModel):
 
 class StatsResponse(BaseModel):
     """学习统计响应"""
+
     success: bool
     stats: dict[str, Any] | None = None
     error: str | None = None
@@ -188,9 +199,7 @@ async def reflect_patterns(req: ReflectRequest) -> ReflectResponse:
             errors_encountered=ClosedLearningLoop._ensure_list(
                 req.observation.get("errors_encountered", [])
             ),
-            patterns_used=ClosedLearningLoop._ensure_list(
-                req.observation.get("patterns_used", [])
-            ),
+            patterns_used=ClosedLearningLoop._ensure_list(req.observation.get("patterns_used", [])),
             patterns_failed=ClosedLearningLoop._ensure_list(
                 req.observation.get("patterns_failed", [])
             ),

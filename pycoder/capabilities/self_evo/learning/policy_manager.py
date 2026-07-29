@@ -240,7 +240,10 @@ class PolicyManager:
         self._reset_daily_if_needed()
 
         remaining_daily = self._policy.token_budget_daily - self._usage_stats["tokens_today"]
-        if self._usage_stats["tokens_today"] + tokens_this_task > self._policy.token_budget_daily * 0.9:
+        if (
+            self._usage_stats["tokens_today"] + tokens_this_task
+            > self._policy.token_budget_daily * 0.9
+        ):
             return {
                 "allowed": False,
                 "warning": f"Token 日预算即将耗尽: {self._usage_stats['tokens_today']}/{self._policy.token_budget_daily}",

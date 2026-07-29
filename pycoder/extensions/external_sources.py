@@ -53,7 +53,11 @@ def import_external_extensions() -> dict:
         # AI/ML 工具
         {"q": "language:python+topic:ai+stars:>3000", "sort": "stars", "per_page": 50},
         {"q": "language:python+topic:llm+stars:>1000", "sort": "stars", "per_page": 50},
-        {"q": "language:python+topic:machine-learning+stars:>5000", "sort": "stars", "per_page": 30},
+        {
+            "q": "language:python+topic:machine-learning+stars:>5000",
+            "sort": "stars",
+            "per_page": 30,
+        },
         # 测试/代码质量
         {"q": "language:python+topic:testing+stars:>1000", "sort": "stars", "per_page": 30},
         {"q": "language:python+topic:linter+stars:>200", "sort": "stars", "per_page": 30},
@@ -108,7 +112,9 @@ def import_external_extensions() -> dict:
                 category = "web"
             elif any(kw in text_for_cat for kw in ["database", "sql", "orm", "sqlalchemy"]):
                 category = "data-science"
-            elif any(kw in text_for_cat for kw in ["docker", "k8s", "kubernetes", "devops", "deploy"]):
+            elif any(
+                kw in text_for_cat for kw in ["docker", "k8s", "kubernetes", "devops", "deploy"]
+            ):
                 category = "devops"
             elif any(kw in text_for_cat for kw in ["linter", "format", "lint", "style"]):
                 category = "code-quality"
@@ -166,7 +172,9 @@ def import_external_extensions() -> dict:
         "total": len(all_exts),
         "timestamp": time.time(),
     }
-    source_health_path.write_text(json.dumps(health, ensure_ascii=False, indent=2), encoding="utf-8")
+    source_health_path.write_text(
+        json.dumps(health, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     log.info("external_extensions_imported", added=added, total=len(all_exts))
     return {

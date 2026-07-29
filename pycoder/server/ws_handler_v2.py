@@ -21,14 +21,14 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from pycoder import __version__
 
-_logger = logging.getLogger('pycoder.server.ws_handler_v2')
+_logger = logging.getLogger("pycoder.server.ws_handler_v2")
+from pycoder.core.services.log import log
 from pycoder.observability.tracing import traced
 from pycoder.server.chat_handler import (
     _get_api_key_for_model,
     _get_effective_model,
 )
 from pycoder.server.hermes_engine import _execute_hermes_write
-from pycoder.core.services.log import log
 from pycoder.server.session_share import get_session_share_manager
 from pycoder.server.session_store import get_session_store
 
@@ -118,8 +118,7 @@ async def websocket_chat_v2(ws: WebSocket):
                         if ev and hasattr(ev, "set"):
                             ev.set()
                 done_flag = (
-                    stream_task.done() if stream_task else
-                    f'global_cancelled={global_cancelled}'
+                    stream_task.done() if stream_task else f"global_cancelled={global_cancelled}"
                 )
                 log.info("ws_v2_stop_requested done=%s", done_flag)
                 await ws.send_json({"type": "stopped", "session_id": session_id})
@@ -225,7 +224,7 @@ async def websocket_chat_v2(ws: WebSocket):
                                 alt = await v2.call(f"v1.{cap_id}", cap_params)
                                 if getattr(alt, "success", False):
                                     result = alt
-                            except Exception as e:
+                            except Exception:
                                 _logger.warning("silently_swallowed: {err}", exc_info=False)
                                 pass
                         await ws.send_json(
@@ -282,10 +281,12 @@ async def websocket_chat_v2(ws: WebSocket):
                         await asyncio.sleep(0)
                 except Exception as e:
                     log.error("ws_v2_chat_failed", error=str(e))
-                    await ws.send_json({
-                        "type": "error",
-                        "message": f"chat: {str(e)[:200]}",
-                    })
+                    await ws.send_json(
+                        {
+                            "type": "error",
+                            "message": f"chat: {str(e)[:200]}",
+                        }
+                    )
                 continue
 
             # ── execute_plan / agent 模式（委托给 V1 handler）──
@@ -304,7 +305,9 @@ async def websocket_chat_v2(ws: WebSocket):
 
                     cancel_event = asyncio.Event()
                     _cancel_events[session_id] = cancel_event
-                    async for event in agent_stream(plan_content, model=model, cancel_event=cancel_event):
+                    async for event in agent_stream(
+                        plan_content, model=model, cancel_event=cancel_event
+                    ):
                         if cancel_event.is_set():
                             await ws.send_json({"type": "done", "content": "", "stopped": True})
                             break
@@ -395,10 +398,12 @@ async def _handle_chat_v2(msg: dict, ws: WebSocket, session_id: str, current_mod
             "ws_v2_backpressure_rejected",
             extra={"session_id": session_id, "connection_id": bp_conn_id},
         )
-        await ws.send_json({
-            "type": "error",
-            "message": "Too many in-flight requests, please wait",
-        })
+        await ws.send_json(
+            {
+                "type": "error",
+                "message": "Too many in-flight requests, please wait",
+            }
+        )
         return
 
     try:
@@ -473,7 +478,9 @@ async def _handle_chat_v2(msg: dict, ws: WebSocket, session_id: str, current_mod
                     message, session_id=session_id, cancel_event=cancel_event
                 ):
                     if cancel_event.is_set():
-                        await ws.send_json({"type": "done", "content": final_content, "stopped": True})
+                        await ws.send_json(
+                            {"type": "done", "content": final_content, "stopped": True}
+                        )
                         log.info("ws_v2_stream_cancelled", extra={"session_id": session_id})
                         return
                     await ws.send_json(event)
@@ -505,7 +512,7 @@ async def _handle_chat_v2(msg: dict, ws: WebSocket, session_id: str, current_mod
         asyncio.create_task(_on_stream_done())
         return
 
-    except Exception as e:
+    except Exception:
         bp.release(bp_conn_id)
         raise
 
@@ -519,49 +526,60 @@ async def _handle_setup_command(message: str, ws: WebSocket, effective_model: st
     if len(parts) == 1:
         # 显示引导
         from pycoder.providers.auth import get_model_manager
+
         mgr = get_model_manager()
         guide = mgr.format_setup_guide()
-        await ws.send_json({
-            "type": "content",
-            "content": f"```\n{guide}\n```\n\n**快捷配置:** 发送 `/setup deepseek YOUR_API_KEY`",
-        })
+        await ws.send_json(
+            {
+                "type": "content",
+                "content": f"```\n{guide}\n```\n\n**快捷配置:** 发送 `/setup deepseek YOUR_API_KEY`",
+            }
+        )
         await ws.send_json({"type": "done", "content": ""})
         return
     provider = parts[1].lower()
     if provider == "guide":
         from pycoder.providers.auth import get_model_manager
+
         mgr = get_model_manager()
         guide = mgr.format_setup_guide()
         await ws.send_json({"type": "content", "content": f"```\n{guide}\n```"})
         await ws.send_json({"type": "done", "content": ""})
         return
     if len(parts) < 3:
-        await ws.send_json({
-            "type": "content",
-            "content": (
-                f"用法: `/setup {provider} YOUR_API_KEY`\n"
-                f"示例: `/setup deepseek sk-abc123`\n\n"
-                "查看所有提供商: `/setup guide`"
-            ),
-        })
+        await ws.send_json(
+            {
+                "type": "content",
+                "content": (
+                    f"用法: `/setup {provider} YOUR_API_KEY`\n"
+                    f"示例: `/setup deepseek sk-abc123`\n\n"
+                    "查看所有提供商: `/setup guide`"
+                ),
+            }
+        )
         await ws.send_json({"type": "done", "content": ""})
         return
     api_key_value = parts[2]
     from pycoder.providers.setup_wizard import set_api_key
+
     result = set_api_key(provider, api_key_value)
     if result.get("success"):
-        await ws.send_json({
-            "type": "content",
-            "content": f"✅ **{provider} API Key 已配置成功!**\n现在可以正常使用 AI 功能了 🚀",
-        })
+        await ws.send_json(
+            {
+                "type": "content",
+                "content": f"✅ **{provider} API Key 已配置成功!**\n现在可以正常使用 AI 功能了 🚀",
+            }
+        )
     else:
-        await ws.send_json({
-            "type": "content",
-            "content": (
-                f"❌ 配置失败: {result.get('error', '未知错误')}\n"
-                "支持提供商: deepseek, qwen, glm, openai, openrouter, nvidia"
-            ),
-        })
+        await ws.send_json(
+            {
+                "type": "content",
+                "content": (
+                    f"❌ 配置失败: {result.get('error', '未知错误')}\n"
+                    "支持提供商: deepseek, qwen, glm, openai, openrouter, nvidia"
+                ),
+            }
+        )
     await ws.send_json({"type": "done", "content": ""})
 
 
@@ -645,7 +663,8 @@ async def _handle_mcp_v2(msg_type: str, msg: dict, ws: WebSocket, v2):
 
                 _lg.getLogger(__name__).warning(
                     "v2_call_exception tool=%s error=%s, falling back to v1",
-                    tool_name, e,
+                    tool_name,
+                    e,
                 )
 
         if v2_succeeded:

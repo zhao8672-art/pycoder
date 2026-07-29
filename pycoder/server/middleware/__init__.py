@@ -3,6 +3,7 @@
 将所有 PyCoderError 及其子类统一转换为 JSON 响应，避免泄露内部堆栈。
 同时捕获未预期异常，记录 ERROR 日志并返回 500。
 """
+
 from __future__ import annotations
 
 import logging

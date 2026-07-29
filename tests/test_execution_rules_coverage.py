@@ -12,6 +12,7 @@
   - 用 monkeypatch 替换 SHARED_STATE_DIR 到临时目录
   - 用 monkeypatch 模拟 subprocess（端口检查）
 """
+
 from __future__ import annotations
 
 import json
@@ -22,32 +23,31 @@ from unittest.mock import MagicMock
 import pytest
 
 from pycoder.server.services.execution_rules import (
-    BudgetTracker,
-    ExecutionRules,
     FAILURE_MODES,
     FIVE_STEP_WORKFLOW,
     SHARED_STATE_DIR,
+    BudgetTracker,
+    ExecutionRules,
     SharedState,
     TaskState,
     ValidationContract,
 )
 
-
 # ── Fixture: 隔离的 SharedState 目录 ─────────────────────
+
 
 @pytest.fixture
 def shared_state(tmp_path, monkeypatch):
     """构造使用临时目录的 SharedState，避免污染用户家目录"""
     new_dir = tmp_path / "shared_state"
-    monkeypatch.setattr(
-        "pycoder.server.services.execution_rules.SHARED_STATE_DIR", new_dir
-    )
+    monkeypatch.setattr("pycoder.server.services.execution_rules.SHARED_STATE_DIR", new_dir)
     return SharedState(task_id="TEST-001")
 
 
 # ══════════════════════════════════════════════════════════
 # ExecutionRules 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestExecutionRulesInit:
     """__init__ 与属性初始化"""
@@ -231,11 +231,7 @@ class TestValidateCodeSafety:
 
     def test_multiple_violations_accumulate(self):
         rules = ExecutionRules()
-        code = (
-            "api_key = 'sk-1234567890abcdef'\n"
-            "eval('x')\n"
-            "os.system('ls')\n"
-        )
+        code = "api_key = 'sk-1234567890abcdef'\n" "eval('x')\n" "os.system('ls')\n"
         issues = rules.validate_code_safety(code)
         assert len(issues) == 3
         assert len(rules.violations) == 3
@@ -255,9 +251,7 @@ class TestCheckPortAvailable:
 
     def test_windows_port_occupied(self, monkeypatch):
         """Windows 路径：netstat 返回含 LISTENING 行 → 端口被占用"""
-        fake = MagicMock(
-            stdout="TCP 0.0.0.0:8080 LISTENING 1234\n", stderr=""
-        )
+        fake = MagicMock(stdout="TCP 0.0.0.0:8080 LISTENING 1234\n", stderr="")
         monkeypatch.setattr("os.name", "nt")
         monkeypatch.setattr(subprocess, "run", lambda *a, **k: fake)
         ok, occupied = ExecutionRules.check_port_available(8080)
@@ -274,9 +268,7 @@ class TestCheckPortAvailable:
 
     def test_unix_port_occupied(self, monkeypatch):
         # 注: lsof 匹配任何含 "LISTEN" 的行；header 不含 LISTEN
-        fake = MagicMock(
-            stdout="COMMAND PID USER NAME\nlsof 123 root LISTEN\n", stderr=""
-        )
+        fake = MagicMock(stdout="COMMAND PID USER NAME\nlsof 123 root LISTEN\n", stderr="")
         monkeypatch.setattr("os.name", "posix")
         monkeypatch.setattr(subprocess, "run", lambda *a, **k: fake)
         ok, occupied = ExecutionRules.check_port_available(8080)
@@ -287,9 +279,9 @@ class TestCheckPortAvailable:
         """subprocess 异常时返回 True（放行）"""
         monkeypatch.setattr("os.name", "nt")
         monkeypatch.setattr(
-            subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(
-                subprocess.SubprocessError("boom")
-            )
+            subprocess,
+            "run",
+            lambda *a, **k: (_ for _ in ()).throw(subprocess.SubprocessError("boom")),
         )
         ok, occupied = ExecutionRules.check_port_available(8080)
         assert ok is True
@@ -378,6 +370,7 @@ class TestViolationsReport:
 # 数据模型测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestDataModels:
     """TaskState / ValidationContract / BudgetTracker 默认值"""
 
@@ -415,14 +408,13 @@ class TestDataModels:
 # SharedState 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestSharedStateInit:
     """SharedState __init__ 创建目录结构"""
 
     def test_init_creates_directories(self, tmp_path, monkeypatch):
         new_dir = tmp_path / "shared"
-        monkeypatch.setattr(
-            "pycoder.server.services.execution_rules.SHARED_STATE_DIR", new_dir
-        )
+        monkeypatch.setattr("pycoder.server.services.execution_rules.SHARED_STATE_DIR", new_dir)
         ss = SharedState(task_id="X")
         assert new_dir.exists()
         assert (new_dir / "contracts").exists()
@@ -570,6 +562,7 @@ class TestTraceOps:
 # ══════════════════════════════════════════════════════════
 # 常量测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestConstants:
     """FIVE_STEP_WORKFLOW / FAILURE_MODES / SHARED_STATE_DIR"""

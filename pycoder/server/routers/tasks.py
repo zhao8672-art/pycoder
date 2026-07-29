@@ -9,11 +9,11 @@
 - POST   /api/tasks/{id}/run     立即执行一次
 - POST   /api/webhook/{id}       外部 webhook 触发器
 """
+
 from __future__ import annotations
 
 import time
 import uuid
-from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field

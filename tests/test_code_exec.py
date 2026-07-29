@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 
 def test_code_capabilities(client):
     """GET /api/code/capabilities should return supported languages."""

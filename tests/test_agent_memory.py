@@ -8,12 +8,10 @@
   - ChatBridge 集成: 超阈值时压缩旧消息
   - ReActLoop 集成: 注入关键事实 + 持久化
 """
+
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock
-
-import pytest
 
 from pycoder.server.services.agent_memory import (
     AgentMemoryManager,
@@ -21,9 +19,7 @@ from pycoder.server.services.agent_memory import (
     FactExtractor,
     MemoryStore,
     MessageSummarizer,
-    Summary,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # FactExtractor
@@ -251,6 +247,7 @@ class TestChatBridgeMemoryIntegration:
 
     def test_short_history_no_compression(self):
         from pycoder.server.chat_bridge import ChatBridge
+
         bridge = ChatBridge()
         bridge.config.max_history_messages = 20
         for i in range(5):
@@ -262,6 +259,7 @@ class TestChatBridgeMemoryIntegration:
 
     def test_long_history_compressed(self):
         from pycoder.server.chat_bridge import ChatBridge
+
         bridge = ChatBridge()
         bridge.config.max_history_messages = 5
         # 添加 15 条消息（含文件引用）
@@ -288,21 +286,22 @@ class TestReActLoopMemoryIntegration:
 
     def test_no_session_id_skips_memory(self):
         from pycoder.server.services.agent_react_loop import ReActLoop
+
         loop = ReActLoop(llm=MagicMock(), tool_executor=MagicMock())
         assert loop._load_fact_context() == ""
 
     def test_load_fact_context_with_session(self, tmp_path, monkeypatch):
-        from pycoder.server.services.agent_memory import get_memory_manager
         from pycoder.server.services.agent_react_loop import ReActLoop
 
         # 用临时 DB
         manager = AgentMemoryManager(store=MemoryStore(db_path=tmp_path / "m.db"))
-        manager.persist_facts("sess-1", [
-            {"role": "user", "content": "修改 main.py"},
-        ])
-        monkeypatch.setattr(
-            "pycoder.server.services.agent_memory._manager_instance", manager
+        manager.persist_facts(
+            "sess-1",
+            [
+                {"role": "user", "content": "修改 main.py"},
+            ],
         )
+        monkeypatch.setattr("pycoder.server.services.agent_memory._manager_instance", manager)
 
         loop = ReActLoop(llm=MagicMock(), tool_executor=MagicMock(), session_id="sess-1")
         ctx = loop._load_fact_context()
@@ -312,11 +311,10 @@ class TestReActLoopMemoryIntegration:
         from pycoder.server.services.agent_react_loop import ReActStep
 
         manager = AgentMemoryManager(store=MemoryStore(db_path=tmp_path / "m.db"))
-        monkeypatch.setattr(
-            "pycoder.server.services.agent_memory._manager_instance", manager
-        )
+        monkeypatch.setattr("pycoder.server.services.agent_memory._manager_instance", manager)
 
         from pycoder.server.services.agent_react_loop import ReActLoop
+
         loop = ReActLoop(llm=MagicMock(), tool_executor=MagicMock(), session_id="sess-1")
         steps = [
             ReActStep(

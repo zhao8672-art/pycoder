@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 class GateLevel(IntEnum):
     """质量门禁级别"""
+
     L1 = 1  # 方案合规校验
     L2 = 2  # 构建验证
     L3 = 3  # 代码质量巡检
@@ -51,6 +52,7 @@ class GateLevel(IntEnum):
 @dataclass
 class GateResult:
     """质量门禁检查结果"""
+
     level: GateLevel
     passed: bool = False
     score: float = 0.0
@@ -110,9 +112,18 @@ class QualityGate:
 
     # 严重安全漏洞关键词
     CRITICAL_SECURITY_ISSUES: list[str] = [
-        "sql注入", "xss", "csrf", "硬编码密钥", "硬编码密码",
-        "shell=true", "eval(", "exec(", "pickle.loads",
-        "sql injection", "hardcoded key", "hardcoded secret",
+        "sql注入",
+        "xss",
+        "csrf",
+        "硬编码密钥",
+        "硬编码密码",
+        "shell=true",
+        "eval(",
+        "exec(",
+        "pickle.loads",
+        "sql injection",
+        "hardcoded key",
+        "hardcoded secret",
     ]
 
     def check(
@@ -147,22 +158,20 @@ class QualityGate:
 
         logger.info(
             "质量门禁 L%d: passed=%s score=%.1f",
-            gate_level, result.passed, result.score,
+            gate_level,
+            result.passed,
+            result.score,
         )
         return result
 
-    def _check_l1(
-        self, phase: Any, outputs: dict[str, Any], result: GateResult
-    ) -> GateResult:
+    def _check_l1(self, phase: Any, outputs: dict[str, Any], result: GateResult) -> GateResult:
         """L1: 方案合规校验"""
         dims: dict[str, float] = {}
 
         # 规范匹配 — 检查方案是否包含必要字段
         required_fields = ["architecture", "tech_stack", "api_endpoints"]
         if isinstance(outputs, dict):
-            dims["规范匹配"] = min(100, sum(
-                33 for f in required_fields if f in outputs
-            ))
+            dims["规范匹配"] = min(100, sum(33 for f in required_fields if f in outputs))
 
         # 产出完整 — 检查方案完整性
         completeness = 0
@@ -188,9 +197,7 @@ class QualityGate:
 
         return self._compute_result(result, dims)
 
-    def _check_l2(
-        self, phase: Any, outputs: dict[str, Any], result: GateResult
-    ) -> GateResult:
+    def _check_l2(self, phase: Any, outputs: dict[str, Any], result: GateResult) -> GateResult:
         """L2: 构建验证"""
         dims: dict[str, float] = {}
 
@@ -212,9 +219,7 @@ class QualityGate:
 
         return self._compute_result(result, dims)
 
-    def _check_l3(
-        self, phase: Any, outputs: dict[str, Any], result: GateResult
-    ) -> GateResult:
+    def _check_l3(self, phase: Any, outputs: dict[str, Any], result: GateResult) -> GateResult:
         """L3: 代码质量巡检"""
         dims: dict[str, float] = {}
 
@@ -243,9 +248,7 @@ class QualityGate:
 
         return self._compute_result(result, dims)
 
-    def _check_l4(
-        self, phase: Any, outputs: dict[str, Any], result: GateResult
-    ) -> GateResult:
+    def _check_l4(self, phase: Any, outputs: dict[str, Any], result: GateResult) -> GateResult:
         """L4: 终审验收"""
         dims: dict[str, float] = {}
 
@@ -279,9 +282,7 @@ class QualityGate:
 
         return self._compute_result(result, dims)
 
-    def _compute_result(
-        self, result: GateResult, dimensions: dict[str, float]
-    ) -> GateResult:
+    def _compute_result(self, result: GateResult, dimensions: dict[str, float]) -> GateResult:
         """计算加权评分"""
         result.dimensions = dimensions
 
@@ -314,9 +315,7 @@ class QualityGate:
         test_coverage = result.dimensions.get("测试覆盖", 100)
         if test_coverage < 85:
             result.passed = False
-            result.reasons.append(
-                f"硬性驳回: 测试覆盖率 {test_coverage:.0f}% < 85%"
-            )
+            result.reasons.append(f"硬性驳回: 测试覆盖率 {test_coverage:.0f}% < 85%")
 
         # 评分硬性驳回
         if result.score < self.HARD_REJECT_THRESHOLD:
@@ -329,9 +328,7 @@ class QualityGate:
         for issue in result.issues:
             if issue.get("severity") == "critical":
                 result.passed = False
-                result.reasons.append(
-                    f"硬性驳回: 严重安全漏洞 — {issue.get('description', '')}"
-                )
+                result.reasons.append(f"硬性驳回: 严重安全漏洞 — {issue.get('description', '')}")
                 break
 
     def _estimate_security_score(self, outputs: Any) -> float:
@@ -353,12 +350,14 @@ class QualityGate:
 
         for issue_pattern in self.CRITICAL_SECURITY_ISSUES:
             if issue_pattern in code_lower:
-                issues.append({
-                    "severity": "critical",
-                    "type": "security",
-                    "pattern": issue_pattern,
-                    "description": f"检测到高危模式: {issue_pattern}",
-                })
+                issues.append(
+                    {
+                        "severity": "critical",
+                        "type": "security",
+                        "pattern": issue_pattern,
+                        "description": f"检测到高危模式: {issue_pattern}",
+                    }
+                )
 
         return issues
 

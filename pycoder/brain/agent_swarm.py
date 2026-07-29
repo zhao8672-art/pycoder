@@ -102,33 +102,76 @@ class AgentSwarmOrchestrator:
     # P0-3: 角色 → 关键词权重映射（用于智能选角）
     _ROLE_KEYWORDS: dict[AgentRole, list[tuple[str, float]]] = {
         AgentRole.ARCHITECT: [
-            ("设计", 0.9), ("架构", 0.9), ("design", 0.8), ("architect", 0.8),
-            ("规划", 0.7), ("结构", 0.7), ("模块划分", 0.8), ("接口", 0.6),
-            ("plan", 0.7), ("structure", 0.7),
+            ("设计", 0.9),
+            ("架构", 0.9),
+            ("design", 0.8),
+            ("architect", 0.8),
+            ("规划", 0.7),
+            ("结构", 0.7),
+            ("模块划分", 0.8),
+            ("接口", 0.6),
+            ("plan", 0.7),
+            ("structure", 0.7),
         ],
         AgentRole.DEVELOPER: [
-            ("实现", 0.8), ("编写", 0.8), ("开发", 0.8), ("代码", 0.7),
-            ("implement", 0.8), ("code", 0.7), ("develop", 0.8), ("功能", 0.6),
-            ("修复", 0.7), ("fix", 0.7), ("bug", 0.6), ("修改", 0.6),
+            ("实现", 0.8),
+            ("编写", 0.8),
+            ("开发", 0.8),
+            ("代码", 0.7),
+            ("implement", 0.8),
+            ("code", 0.7),
+            ("develop", 0.8),
+            ("功能", 0.6),
+            ("修复", 0.7),
+            ("fix", 0.7),
+            ("bug", 0.6),
+            ("修改", 0.6),
         ],
         AgentRole.REVIEWER: [
-            ("审查", 0.9), ("review", 0.9), ("检查", 0.7), ("check", 0.7),
-            ("质量", 0.7), ("quality", 0.7), ("审计", 0.8), ("audit", 0.8),
-            ("安全", 0.6), ("security", 0.6),
+            ("审查", 0.9),
+            ("review", 0.9),
+            ("检查", 0.7),
+            ("check", 0.7),
+            ("质量", 0.7),
+            ("quality", 0.7),
+            ("审计", 0.8),
+            ("audit", 0.8),
+            ("安全", 0.6),
+            ("security", 0.6),
         ],
         AgentRole.TESTER: [
-            ("测试", 0.9), ("test", 0.9), ("验证", 0.7), ("verify", 0.7),
-            ("用例", 0.8), ("覆盖率", 0.8), ("coverage", 0.8), ("pytest", 0.8),
+            ("测试", 0.9),
+            ("test", 0.9),
+            ("验证", 0.7),
+            ("verify", 0.7),
+            ("用例", 0.8),
+            ("覆盖率", 0.8),
+            ("coverage", 0.8),
+            ("pytest", 0.8),
         ],
         AgentRole.DEVOPS: [
-            ("部署", 0.9), ("deploy", 0.9), ("发布", 0.8), ("release", 0.8),
-            ("配置", 0.7), ("config", 0.7), ("CI/CD", 0.9), ("环境", 0.7),
-            ("docker", 0.8), ("容器", 0.7),
+            ("部署", 0.9),
+            ("deploy", 0.9),
+            ("发布", 0.8),
+            ("release", 0.8),
+            ("配置", 0.7),
+            ("config", 0.7),
+            ("CI/CD", 0.9),
+            ("环境", 0.7),
+            ("docker", 0.8),
+            ("容器", 0.7),
         ],
         AgentRole.ANALYST: [
-            ("分析", 0.9), ("analyze", 0.9), ("需求", 0.8), ("requirement", 0.8),
-            ("文档", 0.7), ("document", 0.7), ("调研", 0.7), ("research", 0.7),
-            ("报告", 0.7), ("report", 0.7),
+            ("分析", 0.9),
+            ("analyze", 0.9),
+            ("需求", 0.8),
+            ("requirement", 0.8),
+            ("文档", 0.7),
+            ("document", 0.7),
+            ("调研", 0.7),
+            ("research", 0.7),
+            ("报告", 0.7),
+            ("report", 0.7),
         ],
     }
 
@@ -221,11 +264,7 @@ class AgentSwarmOrchestrator:
         try:
             # 获取角色专用系统提示词
             role_prompt = ROLE_SYSTEM_PROMPTS.get(task.role.value, "")
-            full_prompt = (
-                f"{role_prompt}\n\n"
-                f"## 任务\n{task.prompt}\n\n"
-                f"请用中文输出结果。"
-            )
+            full_prompt = f"{role_prompt}\n\n" f"## 任务\n{task.prompt}\n\n" f"请用中文输出结果。"
 
             if self._chat_bridge:
                 # P0-3: AI 驱动执行
@@ -237,11 +276,14 @@ class AgentSwarmOrchestrator:
                     output = await self._chat_bridge.chat(full_prompt, max_tokens=4096)
                     if not output:
                         output = await self._chat_bridge.chat(
-                            f"请完成以下任务: {task.prompt}", max_tokens=2048,
+                            f"请完成以下任务: {task.prompt}",
+                            max_tokens=2048,
                         )
                 except Exception as e:
                     logger.warning("agent_chatbridge_failed role=%s error=%s", task.role.value, e)
-                    output = f"[{task.role.value}] AI 调用失败: {e}\n\n请手动处理: {task.prompt[:200]}"
+                    output = (
+                        f"[{task.role.value}] AI 调用失败: {e}\n\n请手动处理: {task.prompt[:200]}"
+                    )
             else:
                 # 降级: 本地模拟（无 ChatBridge 时）
                 logger.info("agent_no_chatbridge role=%s, using mock execution", task.role.value)

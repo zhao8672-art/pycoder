@@ -41,28 +41,31 @@ class MetricsAnalyzer:
                 sloc = 0
                 if hasattr(node, "end_lineno"):
                     sloc = node.end_lineno - node.lineno + 1
-                func_metrics.append({
-                    "name": node.name,
-                    "type": "async" if isinstance(node, ast.AsyncFunctionDef) else "sync",
-                    "line": node.lineno,
-                    "mccabe": mc,
-                    "sloc": sloc,
-                    "mi": self._maintainability_index(mc, sloc, 0),
-                })
+                func_metrics.append(
+                    {
+                        "name": node.name,
+                        "type": "async" if isinstance(node, ast.AsyncFunctionDef) else "sync",
+                        "line": node.lineno,
+                        "mccabe": mc,
+                        "sloc": sloc,
+                        "mi": self._maintainability_index(mc, sloc, 0),
+                    }
+                )
 
         # 类级度量
         class_metrics = []
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 methods = sum(
-                    1 for n in node.body
-                    if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    1 for n in node.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
                 )
-                class_metrics.append({
-                    "name": node.name,
-                    "line": node.lineno,
-                    "method_count": methods,
-                })
+                class_metrics.append(
+                    {
+                        "name": node.name,
+                        "line": node.lineno,
+                        "method_count": methods,
+                    }
+                )
 
         # 模块级聚合
         total_mccabe = sum(f["mccabe"] for f in func_metrics)
@@ -102,9 +105,7 @@ class MetricsAnalyzer:
             "maintainability": {
                 "module_mi": round(module_mi, 1),
                 "mi_rating": (
-                    "good" if module_mi >= 80
-                    else "moderate" if module_mi >= 60
-                    else "poor"
+                    "good" if module_mi >= 80 else "moderate" if module_mi >= 60 else "poor"
                 ),
             },
             "coupling": {
@@ -159,15 +160,21 @@ class MetricsAnalyzer:
     def _empty_metrics(self) -> dict:
         return {
             "summary": {
-                "total_lines": 0, "code_lines": 0, "comment_lines": 0,
-                "blank_lines": 0, "comment_density": 0,
+                "total_lines": 0,
+                "code_lines": 0,
+                "comment_lines": 0,
+                "blank_lines": 0,
+                "comment_density": 0,
             },
             "complexity": {
-                "total_mccabe": 0, "avg_mccabe": 0, "max_mccabe": 0,
+                "total_mccabe": 0,
+                "avg_mccabe": 0,
+                "max_mccabe": 0,
                 "high_complexity_count": 0,
             },
             "maintainability": {"module_mi": 100, "mi_rating": "good"},
             "coupling": {"import_count": 0, "defined_count": 0, "coupling_ratio": 0},
             "structure": {"function_count": 0, "class_count": 0, "deep_nesting_count": 0},
-            "functions": [], "classes": [],
+            "functions": [],
+            "classes": [],
         }

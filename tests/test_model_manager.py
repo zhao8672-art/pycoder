@@ -8,22 +8,22 @@
 - Key 检查与状态格式化
 - 配置持久化
 """
+
 from __future__ import annotations
 
 import os
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pytest
 
 from pycoder.providers.auth import (
     DEFAULT_FREE_MODEL,
-    ModelManager,
     PROVIDER_DEFS,
+    ModelManager,
     get_model_manager,
 )
 from pycoder.providers.registry import ALL_MODELS, ModelInfo
-
 
 # ── Fixtures ──────────────────────────────────────────────
 
@@ -38,9 +38,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def isolated_config(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> Generator[Path, None, None]:
+def isolated_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator[Path, None, None]:
     """将配置文件指向临时目录，避免污染用户 ~/.pycoder/config.json"""
     config_file = tmp_path / "config.json"
     import pycoder.providers.auth as auth_module
@@ -94,18 +92,14 @@ class TestAutoDetect:
         assert "glm" in detected
         assert len(detected) == 2
 
-    def test_first_env_var_wins(
-        self, manager: ModelManager, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_first_env_var_wins(self, manager: ModelManager, monkeypatch: pytest.MonkeyPatch):
         """同一 provider 的多个 env_var，第一个非空生效"""
         monkeypatch.setenv("DASHSCOPE_API_KEY", "sk-dashscope")
         monkeypatch.setenv("QWEN_API_KEY", "sk-qwen")
         detected = manager.auto_detect()
         assert detected["qwen"] == "sk-dashscope"
 
-    def test_detects_from_config_file(
-        self, manager: ModelManager, isolated_config: Path
-    ):
+    def test_detects_from_config_file(self, manager: ModelManager, isolated_config: Path):
         import json
 
         isolated_config.write_text(
@@ -154,9 +148,7 @@ class TestRecommend:
         assert provider == "deepseek"
         assert model == "deepseek-chat"
 
-    def test_cheap_task_prefers_glm(
-        self, manager: ModelManager, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_cheap_task_prefers_glm(self, manager: ModelManager, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-ds")
         monkeypatch.setenv("GLM_API_KEY", "sk-glm")
         model, provider = manager.recommend(task_type="cheap")
@@ -258,9 +250,7 @@ class TestStatusFormatting:
 
 
 class TestConfigPersistence:
-    def test_save_key_writes_config(
-        self, manager: ModelManager, isolated_config: Path
-    ):
+    def test_save_key_writes_config(self, manager: ModelManager, isolated_config: Path):
         import json
 
         result = manager.save_key("glm", "sk-glm-saved")
@@ -269,22 +259,16 @@ class TestConfigPersistence:
         config = json.loads(isolated_config.read_text(encoding="utf-8"))
         assert config["provider"]["api_keys"]["glm"] == "sk-glm-saved"
 
-    def test_save_key_sets_env_var(
-        self, manager: ModelManager, isolated_config: Path
-    ):
+    def test_save_key_sets_env_var(self, manager: ModelManager, isolated_config: Path):
         manager.save_key("deepseek", "sk-from-save")
         assert os.environ.get("DEEPSEEK_API_KEY") == "sk-from-save"
 
-    def test_save_key_unknown_provider_fails(
-        self, manager: ModelManager, isolated_config: Path
-    ):
+    def test_save_key_unknown_provider_fails(self, manager: ModelManager, isolated_config: Path):
         result = manager.save_key("unknown-provider", "sk-xxx")
         assert result["success"] is False
         assert "不支持" in result["error"]
 
-    def test_get_saved_key_returns_persisted(
-        self, manager: ModelManager, isolated_config: Path
-    ):
+    def test_get_saved_key_returns_persisted(self, manager: ModelManager, isolated_config: Path):
         import json
 
         isolated_config.write_text(
@@ -310,17 +294,16 @@ class TestRegistryConsistency:
         """反向一致性：ALL_MODELS 中每个模型的 provider 必须在 PROVIDER_DEFS 中定义"""
         for model_id, info in ALL_MODELS.items():
             assert info.provider in PROVIDER_DEFS, (
-                f"Model {model_id} has provider={info.provider} "
-                f"not defined in PROVIDER_DEFS"
+                f"Model {model_id} has provider={info.provider} " f"not defined in PROVIDER_DEFS"
             )
 
     def test_recommended_models_exist_in_registry(self):
         """正向一致性：每个 provider 的 recommended_model 必须在 ALL_MODELS 中注册"""
         for prov, defs in PROVIDER_DEFS.items():
             recommended = defs["recommended_model"]
-            assert recommended in ALL_MODELS, (
-                f"Provider {prov} recommends {recommended} but it's not in ALL_MODELS"
-            )
+            assert (
+                recommended in ALL_MODELS
+            ), f"Provider {prov} recommends {recommended} but it's not in ALL_MODELS"
             assert ALL_MODELS[recommended].provider == prov
 
     def test_default_free_model_exists(self):

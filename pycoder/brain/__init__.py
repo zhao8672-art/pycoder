@@ -38,12 +38,40 @@ from pycoder.brain.context_enhancer import (
     EnhancedContext,
     get_context_enhancer,
 )
+
+# 成本控制器
+from pycoder.brain.cost_controller import (
+    BudgetStatus,
+    CostBudget,
+    CostController,
+    CostEntry,
+    get_cost_controller,
+)
+
+# 标准化执行报告
+from pycoder.brain.execution_report import (
+    ExecutionReport,
+    FileChange,
+    OperationSummary,
+    ReportBuilder,
+    ReportStatus,
+    get_report_builder,
+)
 from pycoder.brain.feedback_loop import (
     AdaptiveWeights,
     AggregatedStats,
     ExecutionSignal,
     FeedbackLoop,
     get_feedback_loop,
+)
+
+# Hermes 调度中枢
+from pycoder.brain.hermes_agent import (
+    DispatchResult,
+    HermesAgent,
+    TaskAnalysis,
+    TaskComplexity,
+    get_hermes_agent,
 )
 from pycoder.brain.intelligent_router import (
     ExecutionConfig,
@@ -57,11 +85,13 @@ from pycoder.brain.intent_analyzer import (
     get_intent_analyzer,
 )
 from pycoder.brain.memory_engine import MemoryEngine, ProjectKnowledge, WorkingMemory
-from pycoder.brain.task_planner import ExecutionPlan, Task, TaskPlanner
-from pycoder.brain.tool_planner import (
-    ToolPlan,
-    ToolPlanner,
-    get_tool_planner,
+
+# 模型路由器
+from pycoder.brain.model_router import (
+    ModelRoute,
+    ModelRouter,
+    ModelTier,
+    get_model_router,
 )
 
 # 八阶段流水线引擎
@@ -82,23 +112,6 @@ from pycoder.brain.quality_gate import (
     get_quality_gate,
 )
 
-# 模型路由器
-from pycoder.brain.model_router import (
-    ModelRouter,
-    ModelRoute,
-    ModelTier,
-    get_model_router,
-)
-
-# 成本控制器
-from pycoder.brain.cost_controller import (
-    BudgetStatus,
-    CostBudget,
-    CostController,
-    CostEntry,
-    get_cost_controller,
-)
-
 # 共享状态系统
 from pycoder.brain.shared_state import (
     SharedState,
@@ -109,33 +122,22 @@ from pycoder.brain.shared_state import (
     get_shared_state,
 )
 
-# 标准化执行报告
-from pycoder.brain.execution_report import (
-    ExecutionReport,
-    FileChange,
-    OperationSummary,
-    ReportBuilder,
-    ReportStatus,
-    get_report_builder,
-)
-
-# Hermes 调度中枢
-from pycoder.brain.hermes_agent import (
-    DispatchResult,
-    HermesAgent,
-    TaskAnalysis,
-    TaskComplexity,
-    get_hermes_agent,
-)
-
 # 14 角色 Agent 团队
 from pycoder.brain.specialized_agents import (
     AgentProfile,
-    AgentRole as SpecializedAgentRole,
+)
+from pycoder.brain.specialized_agents import AgentRole as SpecializedAgentRole
+from pycoder.brain.specialized_agents import (
     SpecializedAgentTeam,
     Team,
     TeamTask,
     get_agent_team,
+)
+from pycoder.brain.task_planner import ExecutionPlan, Task, TaskPlanner
+from pycoder.brain.tool_planner import (
+    ToolPlan,
+    ToolPlanner,
+    get_tool_planner,
 )
 
 __all__ = [

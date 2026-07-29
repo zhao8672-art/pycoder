@@ -27,18 +27,20 @@ logger = logging.getLogger(__name__)
 
 class TaskStatus(StrEnum):
     """任务状态"""
-    PENDING = "pending"       # 等待执行
-    RUNNING = "running"       # 执行中
-    SUCCESS = "success"       # 完成
-    FAILED = "failed"         # 失败
-    BLOCKED = "blocked"       # 阻塞（依赖未满足）
-    PAUSED = "paused"         # 暂停
-    CANCELLED = "cancelled"   # 取消
+
+    PENDING = "pending"  # 等待执行
+    RUNNING = "running"  # 执行中
+    SUCCESS = "success"  # 完成
+    FAILED = "failed"  # 失败
+    BLOCKED = "blocked"  # 阻塞（依赖未满足）
+    PAUSED = "paused"  # 暂停
+    CANCELLED = "cancelled"  # 取消
 
 
 @dataclass
 class SubTask:
     """原子子任务"""
+
     task_id: str
     task_name: str
     task_type: str = "dev"  # design/dev/test/env/review
@@ -78,6 +80,7 @@ class SubTask:
 @dataclass
 class TaskState:
     """全局任务状态 — 支撑断点续跑的核心数据结构"""
+
     global_task_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     task_title: str = ""
     task_level: str = "A"  # S/A/B
@@ -220,8 +223,10 @@ class TaskSnapshot:
             state = TaskState.from_dict(data)
             logger.info(
                 "task_snapshot_loaded: task_id=%s phase=%s subtasks=%d/%d",
-                task_id, state.current_phase,
-                state.completed_subtasks, state.total_subtasks,
+                task_id,
+                state.current_phase,
+                state.completed_subtasks,
+                state.total_subtasks,
             )
             return state
         except (json.JSONDecodeError, KeyError, TypeError) as e:
@@ -239,18 +244,22 @@ class TaskSnapshot:
     def list_snapshots(self, limit: int = 20) -> list[dict[str, Any]]:
         """列出所有快照"""
         snapshots: list[dict[str, Any]] = []
-        for f in sorted(self._snap_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+        for f in sorted(
+            self._snap_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True
+        ):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
-                snapshots.append({
-                    "task_id": data.get("global_task_id", f.stem),
-                    "title": data.get("task_title", ""),
-                    "status": data.get("status", "unknown"),
-                    "phase": data.get("current_phase", "?"),
-                    "progress": f"{data.get('completed_subtasks', 0)}/{data.get('total_subtasks', 0)}",
-                    "updated_at": data.get("updated_at", 0),
-                    "file_size": f.stat().st_size,
-                })
+                snapshots.append(
+                    {
+                        "task_id": data.get("global_task_id", f.stem),
+                        "title": data.get("task_title", ""),
+                        "status": data.get("status", "unknown"),
+                        "phase": data.get("current_phase", "?"),
+                        "progress": f"{data.get('completed_subtasks', 0)}/{data.get('total_subtasks', 0)}",
+                        "updated_at": data.get("updated_at", 0),
+                        "file_size": f.stat().st_size,
+                    }
+                )
             except (json.JSONDecodeError, OSError):
                 continue
             if len(snapshots) >= limit:

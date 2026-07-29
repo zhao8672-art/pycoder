@@ -49,8 +49,7 @@ class FileSummary:
             "size": self.size,
             "content_hash": self.content_hash,
             "symbols": [
-                {"name": s.name, "kind": s.kind, "line": s.start_line}
-                for s in self.symbols
+                {"name": s.name, "kind": s.kind, "line": s.start_line} for s in self.symbols
             ],
             "imports": self.imports[:20],  # 限制导入列表长度
             "config_items": self.config_items,
@@ -60,22 +59,54 @@ class FileSummary:
 
 # 忽略的目录
 _IGNORE_DIRS: set[str] = {
-    "__pycache__", ".git", ".venv", "venv", "env", "node_modules",
-    ".pytest_cache", ".mypy_cache", ".ruff_cache", "dist", "build",
-    ".eggs", "*.egg-info", ".tox", ".coverage", "htmlcov",
+    "__pycache__",
+    ".git",
+    ".venv",
+    "venv",
+    "env",
+    "node_modules",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "dist",
+    "build",
+    ".eggs",
+    "*.egg-info",
+    ".tox",
+    ".coverage",
+    "htmlcov",
 }
 
 # 支持的文件扩展名
 _SUPPORTED_EXTENSIONS: set[str] = {
-    ".py", ".js", ".ts", ".tsx", ".jsx", ".json", ".yaml", ".yml",
-    ".toml", ".cfg", ".ini", ".md", ".txt", ".env",
+    ".py",
+    ".js",
+    ".ts",
+    ".tsx",
+    ".jsx",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".cfg",
+    ".ini",
+    ".md",
+    ".txt",
+    ".env",
 }
 
 # 配置文件
 _CONFIG_FILES: set[str] = {
-    "pyproject.toml", "setup.py", "setup.cfg", "requirements.txt",
-    ".env", ".env.example", "Makefile", "docker-compose.yml",
-    "package.json", "tsconfig.json",
+    "pyproject.toml",
+    "setup.py",
+    "setup.cfg",
+    "requirements.txt",
+    ".env",
+    ".env.example",
+    "Makefile",
+    "docker-compose.yml",
+    "package.json",
+    "tsconfig.json",
 }
 
 
@@ -272,9 +303,7 @@ class ProjectIndex:
                 continue
             yield path
 
-    def _index_file(
-        self, file_path: Path, rel_path: str, *, force: bool = False
-    ) -> None:
+    def _index_file(self, file_path: Path, rel_path: str, *, force: bool = False) -> None:
         """索引单个文件"""
         try:
             content_hash = self._hash_file(file_path)
@@ -414,6 +443,7 @@ class ProjectIndex:
 
             for path, summary in self._index.items():
                 import json
+
                 conn.execute(
                     "INSERT OR REPLACE INTO file_index VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     (
@@ -421,7 +451,12 @@ class ProjectIndex:
                         summary.module,
                         summary.size,
                         summary.content_hash,
-                        json.dumps([{"name": s.name, "kind": s.kind, "line": s.start_line} for s in summary.symbols]),
+                        json.dumps(
+                            [
+                                {"name": s.name, "kind": s.kind, "line": s.start_line}
+                                for s in summary.symbols
+                            ]
+                        ),
                         json.dumps(summary.imports[:20]),
                         json.dumps(summary.config_items),
                         summary.last_indexed,
@@ -443,9 +478,20 @@ class ProjectIndex:
             conn = sqlite3.connect(str(self._cache_path))
             cursor = conn.execute("SELECT * FROM file_index")
             for row in cursor:
-                path, module, size, content_hash, symbols_json, imports_json, config_json, last_indexed = row
+                (
+                    path,
+                    module,
+                    size,
+                    content_hash,
+                    symbols_json,
+                    imports_json,
+                    config_json,
+                    last_indexed,
+                ) = row
                 symbols = [
-                    SymbolDef(name=s["name"], kind=s["kind"], start_line=s["line"], end_line=s["line"])
+                    SymbolDef(
+                        name=s["name"], kind=s["kind"], start_line=s["line"], end_line=s["line"]
+                    )
                     for s in json.loads(symbols_json or "[]")
                 ]
                 imports = json.loads(imports_json or "[]")

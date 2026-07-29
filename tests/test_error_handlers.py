@@ -1,5 +1,5 @@
 """测试 error_handlers 模块"""
-import pytest
+
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, Field
@@ -47,6 +47,7 @@ def test_make_error_response_default_request_id():
     assert "request_id" in body
     # UUID 格式
     import re
+
     assert re.search(r'"request_id"\s*:\s*"[a-f0-9-]{36}"', body)
 
 

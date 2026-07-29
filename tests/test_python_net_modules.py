@@ -9,9 +9,8 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -84,26 +83,19 @@ class TestRepoMap:
         ws.mkdir()
         # 创建 main.py
         (ws / "main.py").write_text(
-            "import os\n"
-            "from utils import helper\n\n"
-            "def main():\n"
-            "    helper()\n",
+            "import os\n" "from utils import helper\n\n" "def main():\n" "    helper()\n",
             encoding="utf-8",
         )
         # 创建 utils.py
         (ws / "utils.py").write_text(
-            "def helper():\n"
-            "    pass\n\n"
-            "class Utils:\n"
-            "    pass\n",
+            "def helper():\n" "    pass\n\n" "class Utils:\n" "    pass\n",
             encoding="utf-8",
         )
         # 创建子目录中的模块
         sub = ws / "sub"
         sub.mkdir()
         (sub / "mod.py").write_text(
-            "def sub_func():\n"
-            "    pass\n",
+            "def sub_func():\n" "    pass\n",
             encoding="utf-8",
         )
         return ws
@@ -228,9 +220,7 @@ class TestRepoMap:
 
     def test_extract_tags_async_function(self, workspace: Path) -> None:
         """测试提取 async def 标签"""
-        (workspace / "async_mod.py").write_text(
-            "async def fetch():\n    pass\n", encoding="utf-8"
-        )
+        (workspace / "async_mod.py").write_text("async def fetch():\n    pass\n", encoding="utf-8")
         from pycoder.python.repomap import RepoMap
 
         rm = RepoMap(workspace=workspace)
@@ -384,8 +374,9 @@ class TestRepoMapSingleton:
 
     def test_get_repo_map_creates(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """测试创建 RepoMap 单例"""
-        from pycoder.python.repomap import reset_repo_map, get_repo_map
         from pathlib import Path
+
+        from pycoder.python.repomap import get_repo_map, reset_repo_map
 
         reset_repo_map()
         # get_workspace_root 在 get_repo_map 内部延迟导入
@@ -399,8 +390,9 @@ class TestRepoMapSingleton:
 
     def test_get_repo_map_returns_same(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """测试获取的是同一个单例"""
-        from pycoder.python.repomap import reset_repo_map, get_repo_map
         from pathlib import Path
+
+        from pycoder.python.repomap import get_repo_map, reset_repo_map
 
         reset_repo_map()
         monkeypatch.setattr(
@@ -413,8 +405,9 @@ class TestRepoMapSingleton:
 
     def test_reset_repo_map(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """测试重置单例后创建新实例"""
-        from pycoder.python.repomap import reset_repo_map, get_repo_map
         from pathlib import Path
+
+        from pycoder.python.repomap import get_repo_map, reset_repo_map
 
         reset_repo_map()
         monkeypatch.setattr(
@@ -472,7 +465,7 @@ class TestScaffoldGenerator:
     """ScaffoldGenerator 类测试"""
 
     @pytest.fixture
-    def gen(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> "ScaffoldGenerator":
+    def gen(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> ScaffoldGenerator:
         """创建 ScaffoldGenerator 实例，模板目录指向临时路径"""
         from pycoder.python.scaffold_generator import ScaffoldGenerator
 
@@ -482,7 +475,7 @@ class TestScaffoldGenerator:
         )
         return ScaffoldGenerator()
 
-    def test_list_templates(self, gen: "ScaffoldGenerator") -> None:
+    def test_list_templates(self, gen: ScaffoldGenerator) -> None:
         """测试列出所有内置模板"""
         templates = gen.list_templates()
         names = {t["name"] for t in templates}
@@ -491,7 +484,7 @@ class TestScaffoldGenerator:
         assert "django" in names
         assert "express" in names
 
-    def test_list_templates_has_description(self, gen: "ScaffoldGenerator") -> None:
+    def test_list_templates_has_description(self, gen: ScaffoldGenerator) -> None:
         """测试模板包含描述信息"""
         templates = gen.list_templates()
         for t in templates:
@@ -499,7 +492,7 @@ class TestScaffoldGenerator:
             assert "description" in t
             assert "file_count" in t
 
-    def test_generate_fastapi(self, gen: "ScaffoldGenerator", tmp_path: Path) -> None:
+    def test_generate_fastapi(self, gen: ScaffoldGenerator, tmp_path: Path) -> None:
         """测试生成 FastAPI 脚手架"""
         result = gen.generate("fastapi", target_dir=str(tmp_path), project_name="myapi")
         assert result.success is True
@@ -507,39 +500,39 @@ class TestScaffoldGenerator:
         assert result.files_created > 0
         assert (tmp_path / "myapi" / "main.py").exists()
 
-    def test_generate_flask(self, gen: "ScaffoldGenerator", tmp_path: Path) -> None:
+    def test_generate_flask(self, gen: ScaffoldGenerator, tmp_path: Path) -> None:
         """测试生成 Flask 脚手架"""
         result = gen.generate("flask", target_dir=str(tmp_path), project_name="myflask")
         assert result.success is True
         assert result.framework == "flask"
         assert (tmp_path / "myflask" / "app.py").exists()
 
-    def test_generate_django(self, gen: "ScaffoldGenerator", tmp_path: Path) -> None:
+    def test_generate_django(self, gen: ScaffoldGenerator, tmp_path: Path) -> None:
         """测试生成 Django 脚手架"""
         result = gen.generate("django", target_dir=str(tmp_path), project_name="mydjango")
         assert result.success is True
         assert (tmp_path / "mydjango" / "manage.py").exists()
         assert (tmp_path / "mydjango" / "config" / "settings.py").exists()
 
-    def test_generate_express(self, gen: "ScaffoldGenerator", tmp_path: Path) -> None:
+    def test_generate_express(self, gen: ScaffoldGenerator, tmp_path: Path) -> None:
         """测试生成 Express 脚手架"""
         result = gen.generate("express", target_dir=str(tmp_path), project_name="myexpress")
         assert result.success is True
         assert (tmp_path / "myexpress" / "index.js").exists()
 
-    def test_generate_unknown_framework(self, gen: "ScaffoldGenerator") -> None:
+    def test_generate_unknown_framework(self, gen: ScaffoldGenerator) -> None:
         """测试未知框架返回错误"""
         result = gen.generate("unknown_framework")
         assert result.success is False
         assert "未知框架" in result.error
 
-    def test_generate_creates_directories(self, gen: "ScaffoldGenerator", tmp_path: Path) -> None:
+    def test_generate_creates_directories(self, gen: ScaffoldGenerator, tmp_path: Path) -> None:
         """测试生成时创建必要的目录结构"""
         result = gen.generate("fastapi", target_dir=str(tmp_path), project_name="dirs_test")
         assert result.success is True
         assert (tmp_path / "dirs_test" / "routers").is_dir()
 
-    def test_save_template(self, gen: "ScaffoldGenerator", tmp_path: Path) -> None:
+    def test_save_template(self, gen: ScaffoldGenerator, tmp_path: Path) -> None:
         """测试保存自定义模板"""
         from pycoder.python.scaffold_generator import TEMPLATE_DIR
 
@@ -553,36 +546,36 @@ class TestScaffoldGenerator:
         assert data["description"] == "A custom template"
         assert data["files"] == files
 
-    def test_save_template_appears_in_list(self, gen: "ScaffoldGenerator", tmp_path: Path) -> None:
+    def test_save_template_appears_in_list(self, gen: ScaffoldGenerator, tmp_path: Path) -> None:
         """测试保存的自定义模板出现在列表中"""
         gen.save_template("custom2", "Custom template", {"a.py": "x=1"})
         templates = gen.list_templates()
         names = [t["name"] for t in templates]
         assert "custom2" in names
 
-    def test_delete_template(self, gen: "ScaffoldGenerator", tmp_path: Path) -> None:
+    def test_delete_template(self, gen: ScaffoldGenerator, tmp_path: Path) -> None:
         """测试删除自定义模板"""
         gen.save_template("to_delete", "Delete me", {"x.py": "pass"})
         success = gen.delete_template("to_delete")
         assert success is True
 
-    def test_delete_template_nonexistent(self, gen: "ScaffoldGenerator") -> None:
+    def test_delete_template_nonexistent(self, gen: ScaffoldGenerator) -> None:
         """测试删除不存在的模板"""
         success = gen.delete_template("does_not_exist")
         assert success is False
 
-    def test_generate_custom_template(self, gen: "ScaffoldGenerator", tmp_path: Path) -> None:
+    def test_generate_custom_template(self, gen: ScaffoldGenerator, tmp_path: Path) -> None:
         """测试使用自定义模板生成项目"""
         gen.save_template("myproj", "My custom project", {"main.py": "print('ok')"})
-        result = gen.generate(
-            "myproj", target_dir=str(tmp_path), project_name="generated"
-        )
+        result = gen.generate("myproj", target_dir=str(tmp_path), project_name="generated")
         assert result.success is True
         assert (tmp_path / "generated" / "main.py").exists()
         content = (tmp_path / "generated" / "main.py").read_text(encoding="utf-8")
         assert content == "print('ok')"
 
-    def test_generate_default_target_dir(self, gen: "ScaffoldGenerator", monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_generate_default_target_dir(
+        self, gen: ScaffoldGenerator, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """测试默认目标目录为当前工作目录"""
         monkeypatch.chdir(tmp_path)
         result = gen.generate("fastapi", project_name="defaultdir")
@@ -595,14 +588,13 @@ class TestScaffoldGeneratorSingleton:
 
     def test_get_scaffold_generator(self) -> None:
         """测试获取脚手架生成器单例"""
+        # 重置全局变量
+        import pycoder.python.scaffold_generator as mod
         from pycoder.python.scaffold_generator import (
             ScaffoldGenerator,
             get_scaffold_generator,
-            _generator,
         )
 
-        # 重置全局变量
-        import pycoder.python.scaffold_generator as mod
         mod._generator = None
 
         g1 = get_scaffold_generator()
@@ -821,9 +813,9 @@ class TestFileUndoManagerSingleton:
 
     def test_get_undo_manager(self) -> None:
         """测试获取撤销管理器单例"""
-        from pycoder.python.file_undo import FileUndoManager, get_undo_manager, _undo_manager
-
         import pycoder.python.file_undo as mod
+        from pycoder.python.file_undo import FileUndoManager, get_undo_manager
+
         mod._undo_manager = None
 
         m1 = get_undo_manager()
@@ -913,9 +905,7 @@ class TestGenerateProject:
     def test_success(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """测试成功生成项目"""
         mock_run = MagicMock()
-        monkeypatch.setattr(
-            "pycoder.python.generate._run_generate_mode", mock_run
-        )
+        monkeypatch.setattr("pycoder.python.generate._run_generate_mode", mock_run)
         from pycoder.python.generate import generate_project
 
         result = generate_project("FastAPI blog", target_dir="/tmp/test")
@@ -938,9 +928,7 @@ class TestGenerateProject:
     def test_default_target_dir(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """测试默认目标目录"""
         mock_run = MagicMock()
-        monkeypatch.setattr(
-            "pycoder.python.generate._run_generate_mode", mock_run
-        )
+        monkeypatch.setattr("pycoder.python.generate._run_generate_mode", mock_run)
         from pycoder.python.generate import generate_project
 
         result = generate_project("test")
@@ -957,7 +945,7 @@ class TestChartGenerator:
     """ChartGenerator 类测试"""
 
     @pytest.fixture
-    def gen(self) -> "ChartGenerator":
+    def gen(self) -> ChartGenerator:
         from pycoder.python.chart_generator import ChartGenerator
 
         return ChartGenerator()
@@ -971,7 +959,7 @@ class TestChartGenerator:
             {"x": "C", "y": 30, "label": "C", "value": 30},
         ]
 
-    def test_plotly_chart(self, gen: "ChartGenerator", sample_data: list[dict]) -> None:
+    def test_plotly_chart(self, gen: ChartGenerator, sample_data: list[dict]) -> None:
         """测试生成 Plotly 图表"""
         result = gen.plotly_chart("bar", sample_data, title="测试图表")
         assert result["success"] is True
@@ -981,36 +969,32 @@ class TestChartGenerator:
         assert result["is_interactive"] is True
         assert "chart_path" in result
         # 验证文件存在
-        import os
         assert os.path.exists(result["chart_path"])
         # 清理临时文件
         os.unlink(result["chart_path"])
 
-    def test_plotly_chart_pie(self, gen: "ChartGenerator", sample_data: list[dict]) -> None:
+    def test_plotly_chart_pie(self, gen: ChartGenerator, sample_data: list[dict]) -> None:
         """测试饼图"""
         result = gen.plotly_chart("pie", sample_data, title="饼图")
         assert result["chart_type"] == "pie"
-        import os
         os.unlink(result["chart_path"])
 
-    def test_plotly_chart_scatter(self, gen: "ChartGenerator", sample_data: list[dict]) -> None:
+    def test_plotly_chart_scatter(self, gen: ChartGenerator, sample_data: list[dict]) -> None:
         """测试散点图"""
         result = gen.plotly_chart("scatter", sample_data)
         assert result["chart_type"] == "scatter"
-        import os
         os.unlink(result["chart_path"])
 
-    def test_plotly_chart_html_content(self, gen: "ChartGenerator", sample_data: list[dict]) -> None:
+    def test_plotly_chart_html_content(self, gen: ChartGenerator, sample_data: list[dict]) -> None:
         """测试生成的 HTML 包含必要元素"""
         result = gen.plotly_chart("bar", sample_data, title="HTML 测试")
-        import os
         with open(result["chart_path"], encoding="utf-8") as f:
             html = f.read()
         assert "plotly" in html.lower()
         assert "HTML 测试" in html
         os.unlink(result["chart_path"])
 
-    def test_altair_chart(self, gen: "ChartGenerator", sample_data: list[dict]) -> None:
+    def test_altair_chart(self, gen: ChartGenerator, sample_data: list[dict]) -> None:
         """测试生成 Altair 规范"""
         result = gen.altair_chart(sample_data, x_field="x", y_field="y", title="Altair 测试")
         assert result["success"] is True
@@ -1019,12 +1003,12 @@ class TestChartGenerator:
         assert result["spec"]["encoding"]["x"]["field"] == "x"
         assert result["spec"]["encoding"]["y"]["field"] == "y"
 
-    def test_altair_chart_no_title(self, gen: "ChartGenerator", sample_data: list[dict]) -> None:
+    def test_altair_chart_no_title(self, gen: ChartGenerator, sample_data: list[dict]) -> None:
         """测试无标题的 Altair 图表"""
         result = gen.altair_chart(sample_data, x_field="label", y_field="value")
         assert result["success"] is True
 
-    def test_flame_graph_data_valid(self, gen: "ChartGenerator") -> None:
+    def test_flame_graph_data_valid(self, gen: ChartGenerator) -> None:
         """测试火焰图数据生成"""
         profile = {
             "output": "100 main\n50 sub_func\n30 helper\n",
@@ -1035,19 +1019,19 @@ class TestChartGenerator:
         assert len(result["frames"]) == 3
         assert result["format"] == "flame_graph"
 
-    def test_flame_graph_data_empty_output(self, gen: "ChartGenerator") -> None:
+    def test_flame_graph_data_empty_output(self, gen: ChartGenerator) -> None:
         """测试空 profile 输出 — 空字符串被视为缺失"""
         result = gen.flame_graph_data({"output": ""})
         assert result["success"] is False
         assert "error" in result
 
-    def test_flame_graph_data_missing_output(self, gen: "ChartGenerator") -> None:
+    def test_flame_graph_data_missing_output(self, gen: ChartGenerator) -> None:
         """测试缺少 output 字段"""
         result = gen.flame_graph_data({})
         assert result["success"] is False
         assert "error" in result
 
-    def test_flame_graph_data_invalid_lines(self, gen: "ChartGenerator") -> None:
+    def test_flame_graph_data_invalid_lines(self, gen: ChartGenerator) -> None:
         """测试包含无效行的火焰图数据"""
         profile = {
             "output": "100 main\ninvalid line\n50 sub_func\n",
@@ -1056,14 +1040,14 @@ class TestChartGenerator:
         assert result["success"] is True
         assert result["total_calls"] == 150
 
-    def test_flame_graph_data_frame_limit(self, gen: "ChartGenerator") -> None:
+    def test_flame_graph_data_frame_limit(self, gen: ChartGenerator) -> None:
         """测试火焰图帧数限制为 50"""
         lines = "\n".join(f"{i} func_{i}" for i in range(1, 101))
         profile = {"output": lines}
         result = gen.flame_graph_data(profile)
         assert len(result["frames"]) <= 50
 
-    def test_quick_charts(self, gen: "ChartGenerator", sample_data: list[dict]) -> None:
+    def test_quick_charts(self, gen: ChartGenerator, sample_data: list[dict]) -> None:
         """测试快速生成多种图表"""
         charts = gen.quick_charts(sample_data)
         assert len(charts) == 3
@@ -1072,7 +1056,6 @@ class TestChartGenerator:
         assert "line" in types
         assert "pie" in types
         # 清理临时文件
-        import os
         for c in charts:
             if "chart_path" in c["chart"]:
                 os.unlink(c["chart"]["chart_path"])
@@ -1083,9 +1066,9 @@ class TestChartGeneratorSingleton:
 
     def test_get_chart_generator(self) -> None:
         """测试获取图表生成器单例"""
-        from pycoder.python.chart_generator import ChartGenerator, get_chart_generator, _chart_gen
-
         import pycoder.python.chart_generator as mod
+        from pycoder.python.chart_generator import ChartGenerator, get_chart_generator
+
         mod._chart_gen = None
 
         g1 = get_chart_generator()
@@ -1202,9 +1185,7 @@ class TestDependencyConflictResolver:
 
     def test_analyze_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """测试分析异常"""
-        monkeypatch.setattr(
-            subprocess, "run", MagicMock(side_effect=OSError("pip not found"))
-        )
+        monkeypatch.setattr(subprocess, "run", MagicMock(side_effect=OSError("pip not found")))
         from pycoder.python.dep_conflict_resolver import DependencyConflictResolver
 
         resolver = DependencyConflictResolver()
@@ -1218,13 +1199,12 @@ class TestDependencyConflictResolverSingleton:
 
     def test_get_dep_resolver(self) -> None:
         """测试获取依赖冲突解析器单例"""
+        import pycoder.python.dep_conflict_resolver as mod
         from pycoder.python.dep_conflict_resolver import (
             DependencyConflictResolver,
             get_dep_resolver,
-            _resolver,
         )
 
-        import pycoder.python.dep_conflict_resolver as mod
         mod._resolver = None
 
         r1 = get_dep_resolver()
@@ -1278,9 +1258,7 @@ class TestRuntimeInstaller:
     def test_check_version_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """测试版本检查失败但命令存在"""
         monkeypatch.setattr("shutil.which", lambda x: "/usr/bin/go")
-        monkeypatch.setattr(
-            subprocess, "run", MagicMock(side_effect=OSError("fail"))
-        )
+        monkeypatch.setattr(subprocess, "run", MagicMock(side_effect=OSError("fail")))
         from pycoder.python.runtime_installer import RuntimeInstaller
 
         installer = RuntimeInstaller()
@@ -1338,7 +1316,9 @@ class TestRuntimeInstaller:
         needs = installer.scan_workspace_needs(str(tmp_path))
         assert any(n["language"] == "go" for n in needs)
 
-    def test_scan_workspace_needs_node(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_scan_workspace_needs_node(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """测试扫描发现 Node 项目"""
         (tmp_path / "package.json").write_text("{}", encoding="utf-8")
         monkeypatch.setattr("shutil.which", lambda x: None)
@@ -1348,7 +1328,9 @@ class TestRuntimeInstaller:
         needs = installer.scan_workspace_needs(str(tmp_path))
         assert any(n["language"] == "node" for n in needs)
 
-    def test_scan_workspace_needs_rust(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_scan_workspace_needs_rust(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """测试扫描发现 Rust 项目"""
         (tmp_path / "Cargo.toml").write_text("[package]", encoding="utf-8")
         monkeypatch.setattr("shutil.which", lambda x: None)
@@ -1358,7 +1340,9 @@ class TestRuntimeInstaller:
         needs = installer.scan_workspace_needs(str(tmp_path))
         assert any(n["language"] == "rust" for n in needs)
 
-    def test_scan_workspace_needs_docker(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_scan_workspace_needs_docker(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """测试扫描发现 Docker 项目"""
         (tmp_path / "Dockerfile").write_text("FROM python", encoding="utf-8")
         monkeypatch.setattr("shutil.which", lambda x: None)
@@ -1374,13 +1358,12 @@ class TestRuntimeInstallerSingleton:
 
     def test_get_runtime_installer(self) -> None:
         """测试获取运行时安装器单例"""
+        import pycoder.python.runtime_installer as mod
         from pycoder.python.runtime_installer import (
             RuntimeInstaller,
             get_runtime_installer,
-            _installer,
         )
 
-        import pycoder.python.runtime_installer as mod
         mod._installer = None
 
         i1 = get_runtime_installer()
@@ -1408,6 +1391,7 @@ class TestCreateHttpxClient:
     def test_create_with_custom_timeout(self) -> None:
         """测试自定义超时"""
         import httpx
+
         from pycoder.net.client import create_httpx_client
 
         client = create_httpx_client(timeout=30.0)
@@ -1444,6 +1428,7 @@ class TestCreateAsyncHttpxClient:
         """测试创建默认异步客户端"""
         import anyio
         import httpx
+
         from pycoder.net.client import create_async_httpx_client
 
         client = create_async_httpx_client()
@@ -1454,6 +1439,7 @@ class TestCreateAsyncHttpxClient:
         """测试自定义超时"""
         import anyio
         import httpx
+
         from pycoder.net.client import create_async_httpx_client
 
         client = create_async_httpx_client(timeout=60.0)
@@ -1463,6 +1449,7 @@ class TestCreateAsyncHttpxClient:
     def test_create_with_headers(self) -> None:
         """测试自定义请求头"""
         import anyio
+
         from pycoder.net.client import create_async_httpx_client
 
         client = create_async_httpx_client(headers={"Authorization": "Bearer token"})
@@ -1647,6 +1634,7 @@ class TestHTTPClient:
     async def test_retry_on_timeout(self) -> None:
         """测试重试逻辑（超时异常）"""
         import httpx
+
         from pycoder.net.client import HTTPClient
 
         client = HTTPClient(max_retries=2)
@@ -1674,11 +1662,13 @@ class TestHTTPClient:
     async def test_retry_exhausted(self) -> None:
         """测试重试耗尽后抛出异常"""
         import httpx
+
         from pycoder.net.client import HTTPClient
 
         client = HTTPClient(max_retries=2)
 
         async with client:
+
             async def always_fail(*args, **kwargs):
                 raise httpx.ConnectError("connection failed")
 
@@ -1718,29 +1708,33 @@ class TestNetClientExports:
 
     def test_connect_error_export(self) -> None:
         """测试 ConnectError 导出"""
-        from pycoder.net.client import ConnectError
         import httpx
+
+        from pycoder.net.client import ConnectError
 
         assert ConnectError is httpx.ConnectError
 
     def test_timeout_exception_export(self) -> None:
         """测试 TimeoutException 导出"""
-        from pycoder.net.client import TimeoutException
         import httpx
+
+        from pycoder.net.client import TimeoutException
 
         assert TimeoutException is httpx.TimeoutException
 
     def test_http_error_export(self) -> None:
         """测试 HTTPError 导出"""
-        from pycoder.net.client import HTTPError
         import httpx
+
+        from pycoder.net.client import HTTPError
 
         assert HTTPError is httpx.HTTPError
 
     def test_transport_error_export(self) -> None:
         """测试 TransportError 导出"""
-        from pycoder.net.client import TransportError
         import httpx
+
+        from pycoder.net.client import TransportError
 
         assert TransportError is httpx.TransportError
 

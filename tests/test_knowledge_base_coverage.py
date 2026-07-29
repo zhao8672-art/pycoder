@@ -12,24 +12,23 @@
   - get_stats（修复后回归）
   - get_knowledge_base 单例
 """
+
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
 import pytest
 
 from pycoder.server.learning.knowledge_base import (
-    KnowledgeBase,
     ErrorPattern,
     FixRecord,
+    KnowledgeBase,
     ProjectKnowledge,
-    normalize_error_signature,
-    classify_error,
     _first_exception_prefix,
+    classify_error,
     get_knowledge_base,
+    normalize_error_signature,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # Fixture — 用 tmp_path 隔离 SQLite，避免污染全局库
@@ -86,45 +85,51 @@ class TestNormalizeErrorSignature:
 
 
 class TestClassifyError:
-    @pytest.mark.parametrize("msg,expected", [
-        ("TypeError('bad operand')", "TypeError"),
-        ("TypeError: unsupported operand", "TypeError"),
-        ("NameError: name 'x' is not defined", "NameError"),
-        ("not defined: name foo", "NameError"),
-        ("AttributeError: 'NoneType' object has no attribute 'x'", "AttributeError"),
-        ("object has no attribute foo", "AttributeError"),
-        ("ImportError: no module named 'foo'", "ImportError"),
-        ("ModuleNotFoundError: no module named 'bar'", "ModuleNotFoundError"),
-        ("no module named 'bar' (implicit)", "ImportError"),
-        ("SyntaxError: invalid syntax", "SyntaxError"),
-        ("IndentationError: unexpected indent", "IndentationError"),
-        ("KeyError: 'missing'", "KeyError"),
-        ("IndexError: list index out of range", "IndexError"),
-        ("list index out of range", "IndexError"),
-        ("ValueError: invalid literal", "ValueError"),
-        ("FileNotFoundError: [Errno 2] no such file or directory", "FileNotFoundError"),
-        ("no such file or directory: 'x.txt'", "FileNotFoundError"),
-        ("ConnectionError: connection timeout", "ConnectionError"),
-        ("timeout waiting for response", "ConnectionError"),
-        ("AssertionError: assert False", "AssertionError"),
-        ("PermissionError: [Errno 13] permission denied", "PermissionError"),
-        ("MemoryError: out of memory", "MemoryError"),
-        ("something completely unknown", "Unknown"),
-    ])
+    @pytest.mark.parametrize(
+        "msg,expected",
+        [
+            ("TypeError('bad operand')", "TypeError"),
+            ("TypeError: unsupported operand", "TypeError"),
+            ("NameError: name 'x' is not defined", "NameError"),
+            ("not defined: name foo", "NameError"),
+            ("AttributeError: 'NoneType' object has no attribute 'x'", "AttributeError"),
+            ("object has no attribute foo", "AttributeError"),
+            ("ImportError: no module named 'foo'", "ImportError"),
+            ("ModuleNotFoundError: no module named 'bar'", "ModuleNotFoundError"),
+            ("no module named 'bar' (implicit)", "ImportError"),
+            ("SyntaxError: invalid syntax", "SyntaxError"),
+            ("IndentationError: unexpected indent", "IndentationError"),
+            ("KeyError: 'missing'", "KeyError"),
+            ("IndexError: list index out of range", "IndexError"),
+            ("list index out of range", "IndexError"),
+            ("ValueError: invalid literal", "ValueError"),
+            ("FileNotFoundError: [Errno 2] no such file or directory", "FileNotFoundError"),
+            ("no such file or directory: 'x.txt'", "FileNotFoundError"),
+            ("ConnectionError: connection timeout", "ConnectionError"),
+            ("timeout waiting for response", "ConnectionError"),
+            ("AssertionError: assert False", "AssertionError"),
+            ("PermissionError: [Errno 13] permission denied", "PermissionError"),
+            ("MemoryError: out of memory", "MemoryError"),
+            ("something completely unknown", "Unknown"),
+        ],
+    )
     def test_classify(self, msg: str, expected: str):
         assert classify_error(msg) == expected
 
-    @pytest.mark.parametrize("msg,expected", [
-        # 小写形式 — _first_exception_prefix 无法匹配（要求首字母大写）
-        # 走 classify_error 的二次兜底分支
-        ("some typeerror happened here", "TypeError"),
-        ("got syntaxerror in line 3", "SyntaxError"),
-        ("raised keyerror on dict access", "KeyError"),
-        ("got valueerror from converter", "ValueError"),
-        ("triggered assertionerror in test", "AssertionError"),
-        ("caught permissionerror on write", "PermissionError"),
-        ("process raised memoryerror", "MemoryError"),
-    ])
+    @pytest.mark.parametrize(
+        "msg,expected",
+        [
+            # 小写形式 — _first_exception_prefix 无法匹配（要求首字母大写）
+            # 走 classify_error 的二次兜底分支
+            ("some typeerror happened here", "TypeError"),
+            ("got syntaxerror in line 3", "SyntaxError"),
+            ("raised keyerror on dict access", "KeyError"),
+            ("got valueerror from converter", "ValueError"),
+            ("triggered assertionerror in test", "AssertionError"),
+            ("caught permissionerror on write", "PermissionError"),
+            ("process raised memoryerror", "MemoryError"),
+        ],
+    )
     def test_classify_lowercase_fallback(self, msg: str, expected: str):
         """classify_error 在 _first_exception_prefix 未命中时走小写兜底"""
         assert classify_error(msg) == expected
@@ -255,7 +260,8 @@ class TestSuggestFix:
         for _ in range(10):
             kb.record_error_pattern(
                 "TypeError: 'int' object is not subscriptable on line 1",
-                "fix_int_subscript", success=True,
+                "fix_int_subscript",
+                success=True,
             )
         # 查询另一个 TypeError（签名不同但类型相同）
         p = kb.suggest_fix(
@@ -351,6 +357,7 @@ class TestRowToPattern:
                     "last_seen": 100.0,
                     "created_at": 50.0,
                 }[key]
+
         p = KnowledgeBase._row_to_pattern(FakeRow())
         assert p.id == 42
         assert p.error_signature == "SIG"
@@ -382,8 +389,16 @@ class TestFixHistory:
         assert len(all_records) == 3
 
     def test_get_fix_history_returns_fixrecord_objects(self, kb: KnowledgeBase):
-        kb.record_fix("T-1", "TEST: obj", "f.py", "content", "success",
-                      quality_score=90.0, tokens_used=100, agent_role="dev")
+        kb.record_fix(
+            "T-1",
+            "TEST: obj",
+            "f.py",
+            "content",
+            "success",
+            quality_score=90.0,
+            tokens_used=100,
+            agent_role="dev",
+        )
         records = kb.get_fix_history(limit=1)
         assert len(records) == 1
         r = records[0]
@@ -414,8 +429,7 @@ class TestFixHistory:
 
 class TestProjectKnowledge:
     def test_record_entity_creates_record(self, kb: KnowledgeBase):
-        kb.record_entity("module.foo", "module",
-                         deps=["module.bar"], metadata={"key": "value"})
+        kb.record_entity("module.foo", "module", deps=["module.bar"], metadata={"key": "value"})
         risk = kb.get_entity_risk("module.foo")
         assert risk == 0.0  # 没有bug，风险为0
 
@@ -501,17 +515,25 @@ class TestGetStats:
     def test_get_stats_returns_dict_with_all_keys(self, kb: KnowledgeBase):
         stats = kb.get_stats()
         assert isinstance(stats, dict)
-        for key in ("error_patterns", "total_fixes", "successful_fixes",
-                    "fix_success_rate", "project_entities",
-                    "total_tokens_spent", "avg_quality_score"):
+        for key in (
+            "error_patterns",
+            "total_fixes",
+            "successful_fixes",
+            "fix_success_rate",
+            "project_entities",
+            "total_tokens_spent",
+            "avg_quality_score",
+        ):
             assert key in stats
 
     def test_get_stats_reflects_records(self, kb: KnowledgeBase):
         kb.record_error_pattern("TEST: stats", "fix", success=True)
-        kb.record_fix("T-1", "TEST: stats", "f.py", "c", "success",
-                      quality_score=85.0, tokens_used=500)
-        kb.record_fix("T-2", "TEST: stats", "f.py", "c", "failure",
-                      quality_score=40.0, tokens_used=200)
+        kb.record_fix(
+            "T-1", "TEST: stats", "f.py", "c", "success", quality_score=85.0, tokens_used=500
+        )
+        kb.record_fix(
+            "T-2", "TEST: stats", "f.py", "c", "failure", quality_score=40.0, tokens_used=200
+        )
         stats = kb.get_stats()
         assert stats["total_fixes"] == 2
         assert stats["successful_fixes"] == 1

@@ -14,16 +14,12 @@
   - OutputTransformer: format_list_result 列表格式化
   - OutputTransformer: to_json_safe JSON 安全转换
 """
+
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
-from unittest.mock import patch
-
-import pytest
 
 from pycoder.bus.transformer import InputTransformer, OutputTransformer
-
 
 # ══════════════════════════════════════════════════════════
 # InputTransformer 路径规范化测试
@@ -401,9 +397,7 @@ class TestOutputTransformerFormatCommandOutput:
 
     def test_failed_command(self):
         """失败的命令输出"""
-        result = OutputTransformer.format_command_output(
-            "Error: 文件未找到\n其他输出", exit_code=1
-        )
+        result = OutputTransformer.format_command_output("Error: 文件未找到\n其他输出", exit_code=1)
         assert result["exit_code"] == 1
         assert result["success"] is False
         assert result["first_error"] is not None
@@ -426,7 +420,7 @@ class TestOutputTransformerFormatCommandOutput:
 
     def test_extract_traceback_from_output(self):
         """从输出中提取 Traceback"""
-        output = "Traceback (most recent call last):\n  File \"x.py\", line 1\nValueError: bad"
+        output = 'Traceback (most recent call last):\n  File "x.py", line 1\nValueError: bad'
         result = OutputTransformer.format_command_output(output, exit_code=1)
         assert result["first_error"] is not None
 
@@ -548,6 +542,7 @@ class TestOutputTransformerToJsonSafe:
 
     def test_object_with_to_dict(self):
         """有 to_dict 方法的对象"""
+
         class WithToDict:
             def to_dict(self):
                 return {"name": "test", "value": 123}
@@ -557,6 +552,7 @@ class TestOutputTransformerToJsonSafe:
 
     def test_object_with_dict(self):
         """有 __dict__ 属性的对象（排除私有属性）"""
+
         class RegularObject:
             def __init__(self):
                 self.name = "test"
@@ -593,7 +589,7 @@ class TestOutputTransformerExtractFirstError:
         """提取 Traceback 行"""
         from pycoder.bus.transformer import OutputTransformer
 
-        output = "Traceback (most recent call last):\n  File \"x.py\""
+        output = 'Traceback (most recent call last):\n  File "x.py"'
         result = OutputTransformer._extract_first_error(output)
         assert result == "Traceback (most recent call last):"
 

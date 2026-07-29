@@ -13,15 +13,15 @@
 
 from __future__ import annotations
 
-from pycoder.web.fetch_engine import FetchEngine, FetchResult, NeedJSError
+from pycoder.web.browser_agent import BrowserAgent
 from pycoder.web.content_extractor import ContentExtractor, ExtractedContent
+from pycoder.web.fetch_engine import FetchEngine, FetchResult, NeedJSError
 from pycoder.web.search_integration import (
     SearchIntegration,
     SearchResult,
     get_search,
 )
 from pycoder.web.tool_definitions import WEB_TOOLS
-from pycoder.web.browser_agent import BrowserAgent
 
 __all__ = [
     "FetchEngine",

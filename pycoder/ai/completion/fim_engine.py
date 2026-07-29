@@ -98,7 +98,12 @@ class FIMCodeCompleter:
         # 回退到 Chat-based FIM
         if not candidates:
             try_fim = self._try_chat_fim(
-                prefix, suffix, language, n, max_tokens, temperature,
+                prefix,
+                suffix,
+                language,
+                n,
+                max_tokens,
+                temperature,
             )
             candidates = await try_fim
 
@@ -113,7 +118,9 @@ class FIMCodeCompleter:
 
         logger.info(
             "FIM 补全完成: lang=%s, candidates=%d, time=%.0fms",
-            language, len(candidates), (time.time() - start) * 1000,
+            language,
+            len(candidates),
+            (time.time() - start) * 1000,
         )
 
         return candidates[:n]
@@ -126,26 +133,37 @@ class FIMCodeCompleter:
     ) -> str:
         """单候选 FIM 补全 (快速)"""
         results = await self.complete(
-            prefix, suffix, language,
-            n=1, max_tokens=128, temperature=0.1,
+            prefix,
+            suffix,
+            language,
+            n=1,
+            max_tokens=128,
+            temperature=0.1,
         )
         return results[0] if results else ""
 
     async def _try_fim_api(
-        self, prefix: str, suffix: str, language: str,
-        n: int, max_tokens: int, temperature: float,
+        self,
+        prefix: str,
+        suffix: str,
+        language: str,
+        n: int,
+        max_tokens: int,
+        temperature: float,
     ) -> list[str]:
         """尝试 DeepSeek FIM 专用 API"""
         try:
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.chat_bridge")
-            PROVIDER_API_BASES = getattr(_mod, "PROVIDER_API_BASES")
+            PROVIDER_API_BASES = _mod.PROVIDER_API_BASES
 
             api_base = PROVIDER_API_BASES.get("deepseek", "https://api.deepseek.com")
             url = f"{api_base}/beta/completions"  # DeepSeek FIM 端点
 
             # 获取 API Key
             from pycoder.providers.auth import get_model_manager
+
             mm = get_model_manager()
             api_key = mm.get_saved_key("deepseek")
             if not api_key:
@@ -155,6 +173,7 @@ class FIMCodeCompleter:
             fim_prompt = f"<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>"
 
             import httpx
+
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(
                     url,
@@ -193,14 +212,20 @@ class FIMCodeCompleter:
             return []
 
     async def _try_chat_fim(
-        self, prefix: str, suffix: str, language: str,
-        n: int, max_tokens: int, temperature: float,
+        self,
+        prefix: str,
+        suffix: str,
+        language: str,
+        n: int,
+        max_tokens: int,
+        temperature: float,
     ) -> list[str]:
         """通过聊天接口实现 FIM 补全 (通用回退)"""
         try:
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.chat_bridge")
-            ChatBridge = getattr(_mod, "ChatBridge")
+            ChatBridge = _mod.ChatBridge
 
             prompt = FIM_CHAT_PROMPT.format(
                 language=language,
@@ -274,14 +299,12 @@ class FIMCodeCompleter:
             prefix = code[:cursor_col]
             suffix = code[cursor_col:]
         else:
-            before_lines = lines[:cursor_line - 1]
+            before_lines = lines[: cursor_line - 1]
             current_line = lines[cursor_line - 1]
             prefix = "\n".join(before_lines + [current_line[:cursor_col]])
             after_lines = lines[cursor_line:]
             suffix = (
-                current_line[cursor_col:]
-                + ("\n" if after_lines else "")
-                + "\n".join(after_lines)
+                current_line[cursor_col:] + ("\n" if after_lines else "") + "\n".join(after_lines)
             )
 
         return await self.complete_single(prefix=prefix, suffix=suffix)

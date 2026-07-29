@@ -18,6 +18,7 @@
     - monkeypatch 模块级 WORKSPACE_ROOT 到 tmp_path，使 relative_to 正常工作
     - 直接调用辅助函数 + TestClient 调用端点
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -27,7 +28,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pycoder.server.routers import visualize as viz
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -142,8 +142,10 @@ class TestScanStructure:
 
     def test_permission_error_returns_none(self, workspace, monkeypatch):
         """iterdir 抛 PermissionError 应返回 None"""
+
         def raise_perm(_path):
             raise PermissionError("denied")
+
         monkeypatch.setattr(Path, "iterdir", raise_perm)
 
         node = viz._scan_structure(workspace, max_depth=3)
@@ -151,8 +153,10 @@ class TestScanStructure:
 
     def test_os_error_returns_none(self, workspace, monkeypatch):
         """iterdir 抛 OSError 应返回 None"""
+
         def raise_os(_path):
             raise OSError("io err")
+
         monkeypatch.setattr(Path, "iterdir", raise_os)
 
         node = viz._scan_structure(workspace, max_depth=3)
@@ -233,6 +237,7 @@ class TestAnalyzeImports:
 
         def raise_os(_self, *a, **kw):
             raise OSError("io")
+
         monkeypatch.setattr(Path, "read_text", raise_os)
 
         assert viz._analyze_imports(f) == []
@@ -295,6 +300,7 @@ class TestAnalyzeCalls:
 
         def raise_os(_self, *a, **kw):
             raise OSError("io")
+
         monkeypatch.setattr(Path, "read_text", raise_os)
 
         assert viz._analyze_calls(f) == []
@@ -303,8 +309,7 @@ class TestAnalyzeCalls:
         """func 不是 Name/Attribute 时不应加入 calls"""
         f = workspace / "sub.py"
         f.write_text(
-            "def f():\n"
-            "    d['k']()\n",  # Subscript 调用
+            "def f():\n" "    d['k']()\n",  # Subscript 调用
             encoding="utf-8",
         )
         funcs = viz._analyze_calls(f)
@@ -348,9 +353,7 @@ class TestStructureEndpoint:
 
     def test_path_not_exists(self, app_client):
         """路径不存在 — 返回 success=False"""
-        resp = app_client.get(
-            "/api/visualize/structure", params={"path": "/nonexistent/path/xyz"}
-        )
+        resp = app_client.get("/api/visualize/structure", params={"path": "/nonexistent/path/xyz"})
         assert resp.status_code == 200
         assert resp.json()["success"] is False
 
@@ -370,8 +373,10 @@ class TestStructureEndpoint:
 
     def test_exception_returns_false(self, app_client, workspace, monkeypatch):
         """端点内异常应返回 success=False"""
+
         def boom(_root, _depth=3, _cur=0):
             raise RuntimeError("boom")
+
         monkeypatch.setattr(viz, "_scan_structure", boom)
 
         resp = app_client.get("/api/visualize/structure")
@@ -428,6 +433,7 @@ class TestImportsEndpoint:
     def test_exception_returns_false(self, app_client, workspace, monkeypatch):
         def boom(_root):
             raise RuntimeError("scan boom")
+
         monkeypatch.setattr(viz, "_analyze_imports", boom)
         # rglob 会调用 _analyze_imports → 抛异常被外层 try/except 捕获
         (workspace / "x.py").write_text("import os\n", encoding="utf-8")
@@ -485,6 +491,7 @@ class TestCallsEndpoint:
     def test_exception_returns_false(self, app_client, workspace, monkeypatch):
         def boom(_f):
             raise RuntimeError("boom")
+
         monkeypatch.setattr(viz, "_analyze_calls", boom)
         f = workspace / "code.py"
         f.write_text("def f():\n    pass\n", encoding="utf-8")

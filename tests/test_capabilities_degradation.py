@@ -10,17 +10,18 @@
   - wrap_handler: 处理返回可调用对象的结果
   - wrap_handler: 错误消息截断
 """
+
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from pycoder.capabilities.degradation import (
     DEGRADATION_HINTS,
     get_degradation_hint,
     wrap_handler,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 辅助函数
@@ -171,10 +172,12 @@ class TestWrapHandler:
     @pytest.mark.asyncio
     async def test_wrap_handler_result_is_callable(self):
         """处理器返回可调用对象时，自动调用它"""
+
         async def handler(params, context):
             # 返回一个可调用对象
             def inner(p, c):
                 return {"called": True, "inner_params": p}
+
             return inner
 
         wrapped = wrap_handler(handler)
@@ -186,6 +189,7 @@ class TestWrapHandler:
     async def test_wrap_handler_long_error_message_truncated(self):
         """长错误消息被截断到 500 字符"""
         long_msg = "x" * 1000
+
         async def handler(params, context):
             raise RuntimeError(long_msg)
 
@@ -197,6 +201,7 @@ class TestWrapHandler:
     @pytest.mark.asyncio
     async def test_wrap_handler_preserves_exception_in_error(self):
         """异常消息被保留在 error 字段中"""
+
         async def handler(params, context):
             raise ConnectionError("网络连接失败")
 

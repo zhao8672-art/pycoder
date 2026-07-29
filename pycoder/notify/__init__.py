@@ -23,46 +23,52 @@ def register_capabilities() -> None:
 def _register_in_app_notifications() -> None:
     """注册应用内通知能力"""
     try:
-        from pycoder.bus.registry import CapabilityRegistry
         from pycoder.bus.protocol import (
-            CapabilityDefinition,
             CapabilityCategory,
+            CapabilityDefinition,
             ExecutionMode,
             SideEffect,
             TrustLevel,
         )
+        from pycoder.bus.registry import CapabilityRegistry
 
         registry = CapabilityRegistry.get_instance()
 
-        registry.register(CapabilityDefinition(
-            id="notify.in_app.send",
-            category=CapabilityCategory.SYSTEM,
-            description="发送应用内通知",
-            execution_mode=ExecutionMode.SYNC,
-            side_effects={SideEffect.NONE},
-            trust_level=TrustLevel.READ_ONLY,
-            handler=_handle_in_app_send,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="notify.in_app.send",
+                category=CapabilityCategory.SYSTEM,
+                description="发送应用内通知",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NONE},
+                trust_level=TrustLevel.READ_ONLY,
+                handler=_handle_in_app_send,
+            )
+        )
 
-        registry.register(CapabilityDefinition(
-            id="notify.in_app.list",
-            category=CapabilityCategory.SYSTEM,
-            description="列出应用内通知",
-            execution_mode=ExecutionMode.SYNC,
-            side_effects={SideEffect.NONE},
-            trust_level=TrustLevel.READ_ONLY,
-            handler=_handle_in_app_list,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="notify.in_app.list",
+                category=CapabilityCategory.SYSTEM,
+                description="列出应用内通知",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NONE},
+                trust_level=TrustLevel.READ_ONLY,
+                handler=_handle_in_app_list,
+            )
+        )
 
-        registry.register(CapabilityDefinition(
-            id="notify.in_app.mark_read",
-            category=CapabilityCategory.SYSTEM,
-            description="标记通知为已读",
-            execution_mode=ExecutionMode.SYNC,
-            side_effects={SideEffect.NONE},
-            trust_level=TrustLevel.READ_ONLY,
-            handler=_handle_in_app_mark_read,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="notify.in_app.mark_read",
+                category=CapabilityCategory.SYSTEM,
+                description="标记通知为已读",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NONE},
+                trust_level=TrustLevel.READ_ONLY,
+                handler=_handle_in_app_mark_read,
+            )
+        )
 
         logger.debug("in_app_notification_capabilities_registered")
     except Exception as e:
@@ -72,36 +78,40 @@ def _register_in_app_notifications() -> None:
 def _register_email_notifications() -> None:
     """注册邮件通知能力"""
     try:
-        from pycoder.bus.registry import CapabilityRegistry
         from pycoder.bus.protocol import (
-            CapabilityDefinition,
             CapabilityCategory,
+            CapabilityDefinition,
             ExecutionMode,
             SideEffect,
             TrustLevel,
         )
+        from pycoder.bus.registry import CapabilityRegistry
 
         registry = CapabilityRegistry.get_instance()
 
-        registry.register(CapabilityDefinition(
-            id="notify.email.send",
-            category=CapabilityCategory.SYSTEM,
-            description="发送邮件通知",
-            execution_mode=ExecutionMode.SYNC,
-            side_effects={SideEffect.NETWORK},
-            trust_level=TrustLevel.SYSTEM_ACCESS,
-            handler=_handle_email_send,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="notify.email.send",
+                category=CapabilityCategory.SYSTEM,
+                description="发送邮件通知",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NETWORK},
+                trust_level=TrustLevel.SYSTEM_ACCESS,
+                handler=_handle_email_send,
+            )
+        )
 
-        registry.register(CapabilityDefinition(
-            id="notify.email.config",
-            category=CapabilityCategory.SYSTEM,
-            description="配置邮件通知设置",
-            execution_mode=ExecutionMode.SYNC,
-            side_effects={SideEffect.NONE},
-            trust_level=TrustLevel.SYSTEM_ACCESS,
-            handler=_handle_email_config,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="notify.email.config",
+                category=CapabilityCategory.SYSTEM,
+                description="配置邮件通知设置",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NONE},
+                trust_level=TrustLevel.SYSTEM_ACCESS,
+                handler=_handle_email_config,
+            )
+        )
 
         logger.debug("email_notification_capabilities_registered")
     except Exception as e:
@@ -111,36 +121,40 @@ def _register_email_notifications() -> None:
 def _register_webhook_notifications() -> None:
     """注册 Webhook 通知能力"""
     try:
-        from pycoder.bus.registry import CapabilityRegistry
         from pycoder.bus.protocol import (
-            CapabilityDefinition,
             CapabilityCategory,
+            CapabilityDefinition,
             ExecutionMode,
             SideEffect,
             TrustLevel,
         )
+        from pycoder.bus.registry import CapabilityRegistry
 
         registry = CapabilityRegistry.get_instance()
 
-        registry.register(CapabilityDefinition(
-            id="notify.webhook.send",
-            category=CapabilityCategory.SYSTEM,
-            description="发送 Webhook 通知",
-            execution_mode=ExecutionMode.SYNC,
-            side_effects={SideEffect.NETWORK},
-            trust_level=TrustLevel.SYSTEM_ACCESS,
-            handler=_handle_webhook_send,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="notify.webhook.send",
+                category=CapabilityCategory.SYSTEM,
+                description="发送 Webhook 通知",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NETWORK},
+                trust_level=TrustLevel.SYSTEM_ACCESS,
+                handler=_handle_webhook_send,
+            )
+        )
 
-        registry.register(CapabilityDefinition(
-            id="notify.webhook.register",
-            category=CapabilityCategory.SYSTEM,
-            description="注册 Webhook URL",
-            execution_mode=ExecutionMode.SYNC,
-            side_effects={SideEffect.NONE},
-            trust_level=TrustLevel.SYSTEM_ACCESS,
-            handler=_handle_webhook_register,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="notify.webhook.register",
+                category=CapabilityCategory.SYSTEM,
+                description="注册 Webhook URL",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NONE},
+                trust_level=TrustLevel.SYSTEM_ACCESS,
+                handler=_handle_webhook_register,
+            )
+        )
 
         logger.debug("webhook_notification_capabilities_registered")
     except Exception as e:
@@ -150,26 +164,28 @@ def _register_webhook_notifications() -> None:
 def _register_desktop_notifications() -> None:
     """注册桌面通知能力"""
     try:
-        from pycoder.bus.registry import CapabilityRegistry
         from pycoder.bus.protocol import (
-            CapabilityDefinition,
             CapabilityCategory,
+            CapabilityDefinition,
             ExecutionMode,
             SideEffect,
             TrustLevel,
         )
+        from pycoder.bus.registry import CapabilityRegistry
 
         registry = CapabilityRegistry.get_instance()
 
-        registry.register(CapabilityDefinition(
-            id="notify.desktop.send",
-            category=CapabilityCategory.SYSTEM,
-            description="发送桌面系统通知",
-            execution_mode=ExecutionMode.SYNC,
-            side_effects={SideEffect.NONE},
-            trust_level=TrustLevel.READ_ONLY,
-            handler=_handle_desktop_send,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="notify.desktop.send",
+                category=CapabilityCategory.SYSTEM,
+                description="发送桌面系统通知",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NONE},
+                trust_level=TrustLevel.READ_ONLY,
+                handler=_handle_desktop_send,
+            )
+        )
 
         logger.debug("desktop_notification_capabilities_registered")
     except Exception as e:
@@ -179,36 +195,40 @@ def _register_desktop_notifications() -> None:
 def _register_notification_preferences() -> None:
     """注册通知偏好设置能力"""
     try:
-        from pycoder.bus.registry import CapabilityRegistry
         from pycoder.bus.protocol import (
-            CapabilityDefinition,
             CapabilityCategory,
+            CapabilityDefinition,
             ExecutionMode,
             SideEffect,
             TrustLevel,
         )
+        from pycoder.bus.registry import CapabilityRegistry
 
         registry = CapabilityRegistry.get_instance()
 
-        registry.register(CapabilityDefinition(
-            id="notify.preferences.get",
-            category=CapabilityCategory.SYSTEM,
-            description="获取通知偏好设置",
-            execution_mode=ExecutionMode.SYNC,
-            side_effects={SideEffect.NONE},
-            trust_level=TrustLevel.READ_ONLY,
-            handler=_handle_preferences_get,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="notify.preferences.get",
+                category=CapabilityCategory.SYSTEM,
+                description="获取通知偏好设置",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NONE},
+                trust_level=TrustLevel.READ_ONLY,
+                handler=_handle_preferences_get,
+            )
+        )
 
-        registry.register(CapabilityDefinition(
-            id="notify.preferences.update",
-            category=CapabilityCategory.SYSTEM,
-            description="更新通知偏好设置",
-            execution_mode=ExecutionMode.SYNC,
-            side_effects={SideEffect.NONE},
-            trust_level=TrustLevel.READ_ONLY,
-            handler=_handle_preferences_update,
-        ))
+        registry.register(
+            CapabilityDefinition(
+                id="notify.preferences.update",
+                category=CapabilityCategory.SYSTEM,
+                description="更新通知偏好设置",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NONE},
+                trust_level=TrustLevel.READ_ONLY,
+                handler=_handle_preferences_update,
+            )
+        )
 
         logger.debug("notification_preferences_capabilities_registered")
     except Exception as e:
@@ -221,6 +241,7 @@ def _register_notification_preferences() -> None:
 async def _handle_in_app_send(args: dict[str, Any]) -> dict[str, Any]:
     """处理 in_app send"""
     from pycoder.notify import NotificationManager
+
     mgr = NotificationManager()
     await mgr.send_in_app(
         title=args.get("title", ""),
@@ -233,6 +254,7 @@ async def _handle_in_app_send(args: dict[str, Any]) -> dict[str, Any]:
 async def _handle_in_app_list(args: dict[str, Any]) -> dict[str, Any]:
     """处理 in_app list"""
     from pycoder.notify import NotificationManager
+
     mgr = NotificationManager()
     notifications = await mgr.list_in_app(
         limit=args.get("limit", 50),
@@ -244,6 +266,7 @@ async def _handle_in_app_list(args: dict[str, Any]) -> dict[str, Any]:
 async def _handle_in_app_mark_read(args: dict[str, Any]) -> dict[str, Any]:
     """处理 in_app mark_read"""
     from pycoder.notify import NotificationManager
+
     mgr = NotificationManager()
     await mgr.mark_read(notification_id=args.get("notification_id", ""))
     return {"success": True}
@@ -252,6 +275,7 @@ async def _handle_in_app_mark_read(args: dict[str, Any]) -> dict[str, Any]:
 async def _handle_email_send(args: dict[str, Any]) -> dict[str, Any]:
     """处理 email send"""
     from pycoder.notify import NotificationManager
+
     mgr = NotificationManager()
     result = await mgr.send_email(
         to=args.get("to", ""),
@@ -264,6 +288,7 @@ async def _handle_email_send(args: dict[str, Any]) -> dict[str, Any]:
 async def _handle_email_config(args: dict[str, Any]) -> dict[str, Any]:
     """处理 email config"""
     from pycoder.notify import NotificationManager
+
     mgr = NotificationManager()
     await mgr.configure_email(
         smtp_server=args.get("smtp_server", ""),
@@ -277,6 +302,7 @@ async def _handle_email_config(args: dict[str, Any]) -> dict[str, Any]:
 async def _handle_webhook_send(args: dict[str, Any]) -> dict[str, Any]:
     """处理 webhook send"""
     from pycoder.notify import NotificationManager
+
     mgr = NotificationManager()
     result = await mgr.send_webhook(
         url=args.get("url", ""),
@@ -288,6 +314,7 @@ async def _handle_webhook_send(args: dict[str, Any]) -> dict[str, Any]:
 async def _handle_webhook_register(args: dict[str, Any]) -> dict[str, Any]:
     """处理 webhook register"""
     from pycoder.notify import NotificationManager
+
     mgr = NotificationManager()
     await mgr.register_webhook(
         url=args.get("url", ""),
@@ -299,6 +326,7 @@ async def _handle_webhook_register(args: dict[str, Any]) -> dict[str, Any]:
 async def _handle_desktop_send(args: dict[str, Any]) -> dict[str, Any]:
     """处理 desktop send"""
     from pycoder.notify import NotificationManager
+
     mgr = NotificationManager()
     await mgr.send_desktop(
         title=args.get("title", ""),
@@ -310,6 +338,7 @@ async def _handle_desktop_send(args: dict[str, Any]) -> dict[str, Any]:
 async def _handle_preferences_get(args: dict[str, Any]) -> dict[str, Any]:
     """处理 preferences get"""
     from pycoder.notify import NotificationManager
+
     mgr = NotificationManager()
     prefs = await mgr.get_preferences()
     return {"success": True, "preferences": prefs}
@@ -318,6 +347,7 @@ async def _handle_preferences_get(args: dict[str, Any]) -> dict[str, Any]:
 async def _handle_preferences_update(args: dict[str, Any]) -> dict[str, Any]:
     """处理 preferences update"""
     from pycoder.notify import NotificationManager
+
     mgr = NotificationManager()
     await mgr.update_preferences(
         email_enabled=args.get("email_enabled"),

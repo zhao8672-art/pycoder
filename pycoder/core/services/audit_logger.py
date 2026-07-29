@@ -33,12 +33,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AuditEntry:
     """审计日志条目"""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     timestamp: float = field(default_factory=time.time)
     agent_role: str = ""
     tool_name: str = ""
     params: dict[str, Any] = field(default_factory=dict)
-    result: str = ""          # success / failed / blocked
+    result: str = ""  # success / failed / blocked
     error: str = ""
     duration_ms: float = 0.0
     workspace: str = ""
@@ -105,6 +106,7 @@ class AuditLogger:
     def _log_file(self) -> Path:
         """当天日志文件"""
         from datetime import datetime
+
         date_str = datetime.now().strftime("%Y-%m-%d")
         return self._log_dir / f"audit_{date_str}.jsonl"
 
@@ -150,7 +152,7 @@ class AuditLogger:
         self._entries.append(entry)
         self._total_count += 1
         if len(self._entries) > self._max_memory:
-            self._entries = self._entries[-self._max_memory:]
+            self._entries = self._entries[-self._max_memory :]
 
         # 统计
         if tool_name not in self._stats:
@@ -215,7 +217,7 @@ class AuditLogger:
             matched.append(entry.to_dict())
             if len(matched) >= limit + offset:
                 break
-        return matched[offset:offset + limit]
+        return matched[offset : offset + limit]
 
     def get_stats(self) -> dict[str, Any]:
         """获取审计统计"""

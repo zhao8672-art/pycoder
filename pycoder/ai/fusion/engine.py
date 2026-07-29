@@ -36,7 +36,6 @@ import asyncio
 import logging
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from pycoder.ai.interface.types import (
@@ -82,9 +81,7 @@ class IFusionProvider(ABC):
         ...
 
     @abstractmethod
-    async def generate(
-        self, prompt: str, system_prompt: str = "", **kwargs
-    ) -> ProviderResult:
+    async def generate(self, prompt: str, system_prompt: str = "", **kwargs) -> ProviderResult:
         """生成回复"""
         ...
 
@@ -93,16 +90,12 @@ class IResultEvaluator(ABC):
     """结果评估器接口"""
 
     @abstractmethod
-    async def evaluate(
-        self, prompt: str, results: list[ProviderResult]
-    ) -> list[float]:
+    async def evaluate(self, prompt: str, results: list[ProviderResult]) -> list[float]:
         """评估多个结果并返回分数"""
         ...
 
     @abstractmethod
-    async def select_best(
-        self, prompt: str, results: list[ProviderResult]
-    ) -> int:
+    async def select_best(self, prompt: str, results: list[ProviderResult]) -> int:
         """选择最佳结果的索引"""
         ...
 
@@ -124,9 +117,7 @@ class HeuristicEvaluator(IResultEvaluator):
             "documentation": 0.10,  # 文档
         }
 
-    async def evaluate(
-        self, prompt: str, results: list[ProviderResult]
-    ) -> list[float]:
+    async def evaluate(self, prompt: str, results: list[ProviderResult]) -> list[float]:
         scores = []
         for r in results:
             if r.error:
@@ -150,9 +141,7 @@ class HeuristicEvaluator(IResultEvaluator):
             structure = 0.7 if has_comments else 0.5
 
             # 文档: 是否有解释
-            has_explanation = (
-                "解释" in content or "说明" in content or "Explanation" in content
-            )
+            has_explanation = "解释" in content or "说明" in content or "Explanation" in content
             documentation = 0.6 if has_explanation else 0.3
 
             score = (
@@ -166,9 +155,7 @@ class HeuristicEvaluator(IResultEvaluator):
 
         return scores
 
-    async def select_best(
-        self, prompt: str, results: list[ProviderResult]
-    ) -> int:
+    async def select_best(self, prompt: str, results: list[ProviderResult]) -> int:
         scores = await self.evaluate(prompt, results)
         if not scores:
             return -1
@@ -317,9 +304,7 @@ class FusionEngine:
         for i, r in enumerate(valid):
             weight = weights.get(r.provider, 0)
             if weight > 0.2:  # 只合并权重 > 20% 的结果
-                parts.append(
-                    f"<!-- 来自 {r.provider} (得分: {scores[i]:.2f}) -->\n{r.content}"
-                )
+                parts.append(f"<!-- 来自 {r.provider} (得分: {scores[i]:.2f}) -->\n{r.content}")
 
         if not parts:
             # 回退到最佳
@@ -360,8 +345,10 @@ class FusionEngine:
             # 贡献递减
             contributions[name] = 1.0 / (i + 1)
 
-        final = results[-1] if results else ProviderResult(
-            provider="unknown", content="", error="Pipeline 无结果"
+        final = (
+            results[-1]
+            if results
+            else ProviderResult(provider="unknown", content="", error="Pipeline 无结果")
         )
 
         return FusionResult(
@@ -456,11 +443,13 @@ class FusionEngine:
         output = []
         for r in results:
             if isinstance(r, Exception):
-                output.append(ProviderResult(
-                    provider="unknown",
-                    content="",
-                    error=str(r),
-                ))
+                output.append(
+                    ProviderResult(
+                        provider="unknown",
+                        content="",
+                        error=str(r),
+                    )
+                )
             else:
                 output.append(r)
         return output

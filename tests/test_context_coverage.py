@@ -8,6 +8,7 @@
     GET /api/context/web
     函数 _guess_lang
 """
+
 from __future__ import annotations
 
 import sys

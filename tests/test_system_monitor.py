@@ -16,16 +16,14 @@
     - 全部失败
     - 去重建议
 """
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from pycoder.server.services.system_monitor import (
     HealthReport,
     check_all_modes,
     check_mode_health,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 辅助函数
@@ -114,9 +112,7 @@ class TestCheckModeHealthFailure:
 
     def test_timeout_failure(self):
         """超时失败"""
-        report = check_mode_health(
-            "chat", duration_ms=150000, success=False, error="timeout"
-        )
+        report = check_mode_health("chat", duration_ms=150000, success=False, error="timeout")
         assert report.overall_ok is False
         assert any("超时" in issue for issue in report.issues)
         assert any("网络连接" in s for s in report.suggestions)
@@ -124,16 +120,12 @@ class TestCheckModeHealthFailure:
 
     def test_timeout_failure_by_duration(self):
         """按耗时判断超时（即使 error 不含 timeout）"""
-        report = check_mode_health(
-            "chat", duration_ms=130000, success=False, error="unknown"
-        )
+        report = check_mode_health("chat", duration_ms=130000, success=False, error="unknown")
         assert any("超时" in issue for issue in report.issues)
 
     def test_401_unauthorized(self):
         """401 认证失败"""
-        report = check_mode_health(
-            "chat", duration_ms=500, success=False, error="401 Unauthorized"
-        )
+        report = check_mode_health("chat", duration_ms=500, success=False, error="401 Unauthorized")
         assert report.overall_ok is False
         assert any("API Key 无效" in issue for issue in report.issues)
         assert any("--setup" in s for s in report.suggestions)
@@ -157,9 +149,7 @@ class TestCheckModeHealthFailure:
 
     def test_connect_timeout(self):
         """连接超时"""
-        report = check_mode_health(
-            "chat", duration_ms=500, success=False, error="connect timeout"
-        )
+        report = check_mode_health("chat", duration_ms=500, success=False, error="connect timeout")
         assert any("网络连接失败" in issue for issue in report.issues)
 
     def test_rate_limit(self):

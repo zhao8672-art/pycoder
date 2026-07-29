@@ -32,28 +32,32 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
-from pycoder.brain.shared_state import SharedState, SharedTaskState, get_shared_state
-from pycoder.brain.model_router import ModelRouter, ModelTier, get_model_router
-from pycoder.brain.cost_controller import CostController, get_cost_controller
+from pycoder.brain.cost_controller import get_cost_controller
 from pycoder.brain.execution_report import (
-    ExecutionReport, ReportBuilder, ReportStatus, get_report_builder,
+    ExecutionReport,
+    ReportStatus,
+    get_report_builder,
 )
-from pycoder.core.services.task_grader import TaskGrader, get_task_grader
+from pycoder.brain.model_router import get_model_router
+from pycoder.brain.shared_state import SharedTaskState, get_shared_state
+from pycoder.core.services.task_grader import get_task_grader
 
 logger = logging.getLogger(__name__)
 
 
 class TaskComplexity(StrEnum):
     """任务复杂度"""
-    SIMPLE = "simple"      # 简单: 5-10 步
-    MEDIUM = "medium"      # 中等: 10-15 步
-    COMPLEX = "complex"    # 复杂: 15-25 步
-    HEAVY = "heavy"        # 重型: 30-120 步
+
+    SIMPLE = "simple"  # 简单: 5-10 步
+    MEDIUM = "medium"  # 中等: 10-15 步
+    COMPLEX = "complex"  # 复杂: 15-25 步
+    HEAVY = "heavy"  # 重型: 30-120 步
 
 
 @dataclass
 class TaskAnalysis:
     """任务解析结果"""
+
     original_task: str
     business_goal: str = ""
     explicit_constraints: list[str] = field(default_factory=list)
@@ -69,6 +73,7 @@ class TaskAnalysis:
 @dataclass
 class DispatchResult:
     """调度结果"""
+
     dispatch_id: str
     task_analysis: TaskAnalysis
     status: str = "pending"
@@ -171,16 +176,22 @@ class HermesAgent:
             sub_tasks = self._plan_execution(analysis, ctx)
             result.sub_tasks = sub_tasks
 
-            self._shared_state.write_trace_log(trace_id, {
-                "event": "dispatch.start",
-                "dispatch_id": dispatch_id,
-                "sub_tasks": len(sub_tasks),
-                "complexity": analysis.complexity.value,
-            })
+            self._shared_state.write_trace_log(
+                trace_id,
+                {
+                    "event": "dispatch.start",
+                    "dispatch_id": dispatch_id,
+                    "sub_tasks": len(sub_tasks),
+                    "complexity": analysis.complexity.value,
+                },
+            )
 
             # 6. 并发调度子任务
             agent_results = await self._execute_sub_tasks(
-                sub_tasks, budget.budget_id, trace_id, shared_task,
+                sub_tasks,
+                budget.budget_id,
+                trace_id,
+                shared_task,
             )
             result.agent_results = agent_results
 
@@ -189,21 +200,27 @@ class HermesAgent:
             result.report = self._aggregate_report(result)
             result.total_duration_ms = (time.time() - start_time) * 1000
 
-            self._shared_state.write_trace_log(trace_id, {
-                "event": "dispatch.complete",
-                "dispatch_id": dispatch_id,
-                "duration_ms": result.total_duration_ms,
-            })
+            self._shared_state.write_trace_log(
+                trace_id,
+                {
+                    "event": "dispatch.complete",
+                    "dispatch_id": dispatch_id,
+                    "duration_ms": result.total_duration_ms,
+                },
+            )
 
         except Exception as e:
             logger.exception("调度异常: %s", e)
             result.status = "failed"
             result.errors.append(str(e))
-            self._shared_state.write_trace_log(trace_id, {
-                "event": "dispatch.error",
-                "dispatch_id": dispatch_id,
-                "error": str(e),
-            })
+            self._shared_state.write_trace_log(
+                trace_id,
+                {
+                    "event": "dispatch.error",
+                    "dispatch_id": dispatch_id,
+                    "error": str(e),
+                },
+            )
 
         finally:
             self._active_dispatches.pop(dispatch_id, None)
@@ -247,9 +264,7 @@ class HermesAgent:
             risks=grade.reasoning,
         )
 
-    def _recommend_agents(
-        self, task: str, complexity: TaskComplexity
-    ) -> list[str]:
+    def _recommend_agents(self, task: str, complexity: TaskComplexity) -> list[str]:
         """根据任务推荐 Agent 团队"""
         task_lower = task.lower()
         agents: list[str] = []
@@ -283,9 +298,7 @@ class HermesAgent:
             return "code-review"
         return "fullstack-dev"
 
-    def _plan_execution(
-        self, analysis: TaskAnalysis, ctx: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def _plan_execution(self, analysis: TaskAnalysis, ctx: dict[str, Any]) -> list[dict[str, Any]]:
         """全局执行规划"""
         sub_tasks: list[dict[str, Any]] = []
 
@@ -334,15 +347,12 @@ class HermesAgent:
 
         while remaining:
             # 找出所有依赖已满足的任务
-            ready = [
-                t for t in remaining
-                if all(d in completed for d in t.get("depends", []))
-            ]
+            ready = [t for t in remaining if all(d in completed for d in t.get("depends", []))]
             if not ready:
                 break
 
             # 并发执行（受并发上限约束）
-            batch = ready[:self.MAX_CONCURRENT_AGENTS]
+            batch = ready[: self.MAX_CONCURRENT_AGENTS]
 
             async def _run_one(task_def: dict[str, Any]) -> tuple[str, Any]:
                 tid = task_def["id"]
@@ -351,7 +361,9 @@ class HermesAgent:
 
                 # 记录成本
                 self._cost_controller.record_cost(
-                    budget_id, agent, 1000,
+                    budget_id,
+                    agent,
+                    1000,
                     cost_usd=model_route.cost_per_1k_tokens,
                     model=model_route.model,
                     operation=f"执行: {task_def['title']}",
@@ -359,12 +371,15 @@ class HermesAgent:
 
                 # 模拟执行
                 await asyncio.sleep(0.1)
-                self._shared_state.write_trace_log(trace_id, {
-                    "event": "subtask.done",
-                    "task_id": tid,
-                    "agent": agent,
-                    "model": model_route.model,
-                })
+                self._shared_state.write_trace_log(
+                    trace_id,
+                    {
+                        "event": "subtask.done",
+                        "task_id": tid,
+                        "agent": agent,
+                        "model": model_route.model,
+                    },
+                )
                 return tid, {
                     "task_id": tid,
                     "agent": agent,

@@ -7,12 +7,12 @@ PERF-001/002 修复：将 /api/health 拆分为：
     - /api/health/ready 深度就绪检查（包含子系统状态）
     - /api/health       兼容旧路径，等价 /api/health/ready
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
-from functools import lru_cache
 
 from fastapi import APIRouter
 
@@ -41,6 +41,7 @@ async def _collect_health_async() -> dict:
             except Exception as e:
                 logger.debug("health_db_stats_failed: %s", e)
                 return {"error": "db unavailable"}
+
         return await asyncio.get_event_loop().run_in_executor(None, _sync)
 
     db_stats = await _get_db_stats()
@@ -97,12 +98,14 @@ async def health_ready_options():
 async def health_head():
     """HEAD 方法 — 返回空 body，状态码 200"""
     from fastapi import Response
+
     return Response(status_code=200)
 
 
 @router.head("/api/health/live", include_in_schema=False)
 async def health_live_head():
     from fastapi import Response
+
     return Response(status_code=200)
 
 

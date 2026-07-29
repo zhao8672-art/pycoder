@@ -13,20 +13,15 @@ code_refactor.py 模块单元测试 — 覆盖率目标 >=95%
 
 from __future__ import annotations
 
-import ast
-import sys
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
-from pycoder.python import code_refactor as refactor_mod
 from pycoder.python.code_refactor import (
-    RefactorResult,
     RefactorEngine,
+    RefactorResult,
     get_refactor_engine,
 )
-
 
 # ── RefactorResult ─────────────────────────────────────────
 
@@ -66,7 +61,9 @@ class TestRenameSymbol:
 
     def test_rename_success(self, tmp_path):
         path = tmp_path / "mod.py"
-        path.write_text("def old_func():\n    return 1\n\n\nclass OldClass:\n    pass\n", encoding="utf-8")
+        path.write_text(
+            "def old_func():\n    return 1\n\n\nclass OldClass:\n    pass\n", encoding="utf-8"
+        )
         engine = RefactorEngine()
         result = engine.rename_symbol(str(path), "old_func", "new_func")
         assert result.success is True
@@ -122,6 +119,7 @@ class TestRenameSymbol:
     def test_general_exception(self, tmp_path, monkeypatch):
         path = tmp_path / "mod.py"
         path.write_text("def f():\n    return 1\n", encoding="utf-8")
+
         # 让 path.read_text 抛异常
         def raise_error(*args, **kwargs):
             raise PermissionError("denied")
@@ -178,6 +176,7 @@ class TestExtractFunction:
     def test_extract_exception(self, tmp_path, monkeypatch):
         path = tmp_path / "mod.py"
         path.write_text("def f():\n    a = 1\n", encoding="utf-8")
+
         # 让 Path.write_text 抛异常
         def raise_error(*args, **kwargs):
             raise PermissionError("denied")
@@ -287,6 +286,7 @@ class TestAddTypeAnnotations:
         path.write_text("def f(x):\n    return x\n", encoding="utf-8")
         # 让 import astor 失败
         import builtins
+
         real_import = builtins.__import__
 
         def fake_import(name, *args, **kwargs):
@@ -346,6 +346,7 @@ class TestGetRefactorEngine:
     def test_returns_instance(self):
         # 重置单例
         import pycoder.python.code_refactor as mod
+
         mod._refactor = None
         engine = get_refactor_engine()
         assert isinstance(engine, RefactorEngine)

@@ -20,12 +20,12 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from pycoder.core.services.task_grader import TaskGrader, TaskGrade, get_task_grader
+from pycoder.core.services.task_grader import TaskGrade, TaskGrader, get_task_grader
 from pycoder.server.services.task_persistence import (
-    TaskPersistence,
-    TaskState,
     VALID_GRADES,
     VALID_STATUSES,
+    TaskPersistence,
+    TaskState,
     get_task_persistence,
 )
 

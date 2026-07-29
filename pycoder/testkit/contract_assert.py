@@ -2,15 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
-
-from pycoder.contracts.base import Layer, ModuleContract, get_contract
+from pycoder.contracts.base import Layer, get_contract
 
 
-def assert_contract_compliant(
-    module_name: str, imported_paths: list[str]
-) -> None:
+def assert_contract_compliant(module_name: str, imported_paths: list[str]) -> None:
     """断言模块的导入列表符合契约
 
     Args:
@@ -42,15 +37,14 @@ def assert_contract_compliant(
 
         violations.append(path)
 
-    assert not violations, (
-        f"模块 '{module_name}' 存在 {len(violations)} 个违规导入：\n"
-        + "\n".join(f"  - {v}" for v in violations)
+    assert (
+        not violations
+    ), f"模块 '{module_name}' 存在 {len(violations)} 个违规导入：\n" + "\n".join(
+        f"  - {v}" for v in violations
     )
 
 
-def assert_layer_rule(
-    source_layer: Layer, target_layer: Layer
-) -> None:
+def assert_layer_rule(source_layer: Layer, target_layer: Layer) -> None:
     """断言层级依赖规则
 
     规则：
@@ -69,6 +63,4 @@ def assert_layer_rule(
         )
 
     if source_layer == Layer.DOMAIN and target_layer == Layer.COMPOSITE:
-        raise AssertionError(
-            "D→C 违规：领域层模块不能依赖组合层模块"
-        )
+        raise AssertionError("D→C 违规：领域层模块不能依赖组合层模块")

@@ -17,11 +17,9 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any
 
 from pycoder.evolution.models import (
-    EvolutionConfig,
     EvolutionPhase,
     EvolutionReport,
     EvolutionTask,
@@ -114,6 +112,7 @@ class EvolutionPipeline:
         # 聚合历史趋势
         try:
             from pycoder.capabilities.self_evo.learning.metrics_tracker import get_metrics_tracker
+
             tracker = get_metrics_tracker()
             metrics["historical_success_rate"] = tracker.get_success_rate()
         except (ImportError, AttributeError):

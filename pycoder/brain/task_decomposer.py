@@ -17,10 +17,11 @@ import json
 import logging
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Callable, Awaitable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ PYCODER_ROOT = Path(__file__).resolve().parents[2]
 
 class TaskPhase(StrEnum):
     """8 阶段流水线规范"""
+
     # 阶段 1: 任务接入与准入校验
     INTAKE = "intake"
     # 阶段 2: 需求解析与方案标准化
@@ -57,6 +59,7 @@ class TaskPhase(StrEnum):
 
 class TaskLevel(StrEnum):
     """任务分级"""
+
     S = "S"  # 3 天以上，高复杂度
     A = "A"  # 1-3 天，中等复杂度
     B = "B"  # 半天以内，低复杂度
@@ -64,6 +67,7 @@ class TaskLevel(StrEnum):
 
 class NodeStatus(StrEnum):
     """节点执行状态"""
+
     PENDING = "pending"
     RUNNING = "running"
     SUCCESS = "success"
@@ -75,22 +79,23 @@ class NodeStatus(StrEnum):
 @dataclass
 class DAGNode:
     """DAG 任务节点 — 增强版（含 Agent 分配、验收标准、超时、重试）"""
+
     id: str
     description: str
     deps: list[str] = field(default_factory=list)
     estimated_duration: float = 0.0
     tool: str = ""
     params: dict = field(default_factory=dict)
-    deliverable: str = ""          # 产出物描述
-    risk: str = "low"              # 风险等级: low/medium/high/critical
+    deliverable: str = ""  # 产出物描述
+    risk: str = "low"  # 风险等级: low/medium/high/critical
     # ── 新增：Agent 分配与执行控制 ──
-    owner_agent: str = ""          # 负责执行的 Agent 角色（design/dev/test/env/review）
+    owner_agent: str = ""  # 负责执行的 Agent 角色（design/dev/test/env/review）
     acceptance_criteria: str = ""  # 验收标准
-    timeout_seconds: float = 300.0 # 超时时间
-    retry_max: int = 3             # 最大重试次数
+    timeout_seconds: float = 300.0  # 超时时间
+    retry_max: int = 3  # 最大重试次数
     status: NodeStatus = NodeStatus.PENDING  # 执行状态
-    result: str = ""               # 执行结果
-    error_msg: str = ""            # 错误信息
+    result: str = ""  # 执行结果
+    error_msg: str = ""  # 错误信息
     started_at: float = 0.0
     completed_at: float = 0.0
 
@@ -98,6 +103,7 @@ class DAGNode:
 @dataclass
 class DAGPlan:
     """DAG 执行计划 — 增强版（含全局任务状态）"""
+
     # 全局标识
     global_task_id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     task_title: str = ""
@@ -135,9 +141,12 @@ class DAGPlan:
             "tech_solution": self.tech_solution[:500],
             "nodes": [
                 {
-                    "id": n.id, "description": n.description[:100],
-                    "deps": n.deps, "owner_agent": n.owner_agent,
-                    "status": n.status.value, "risk": n.risk,
+                    "id": n.id,
+                    "description": n.description[:100],
+                    "deps": n.deps,
+                    "owner_agent": n.owner_agent,
+                    "status": n.status.value,
+                    "risk": n.risk,
                     "deliverable": n.deliverable[:200],
                 }
                 for n in self.nodes
@@ -232,12 +241,14 @@ class TaskDecomposer:
         nodes = self._parse_nodes(response)
         if not nodes:
             # 失败降级：单节点
-            nodes = [DAGNode(
-                id="task_main",
-                description=task,
-                owner_agent="dev",
-                acceptance_criteria="功能正常运行",
-            )]
+            nodes = [
+                DAGNode(
+                    id="task_main",
+                    description=task,
+                    owner_agent="dev",
+                    acceptance_criteria="功能正常运行",
+                )
+            ]
 
         # 计算并行分组
         groups = self._calculate_groups(nodes)
@@ -280,7 +291,7 @@ class TaskDecomposer:
         brace_start = json_str.find("{")
         brace_end = json_str.rfind("}")
         if brace_start >= 0 and brace_end > brace_start:
-            json_str = json_str[brace_start:brace_end + 1]
+            json_str = json_str[brace_start : brace_end + 1]
 
         try:
             data = json.loads(json_str)
@@ -339,9 +350,7 @@ class TaskDecomposer:
             return "medium"
         return "low"
 
-    def _calculate_critical_path(
-        self, nodes: list[DAGNode], groups: list[list[str]]
-    ) -> list[str]:
+    def _calculate_critical_path(self, nodes: list[DAGNode], groups: list[list[str]]) -> list[str]:
         """计算关键路径（最长依赖链）"""
         if not nodes:
             return []
@@ -400,7 +409,7 @@ class TaskDecomposer:
             import importlib
 
             chat_bridge_mod = importlib.import_module("pycoder.server.chat_bridge")
-            ChatBridgeCls = getattr(chat_bridge_mod, "ChatBridge")
+            ChatBridgeCls = chat_bridge_mod.ChatBridge
 
             bridge = ChatBridgeCls()
             bridge.configure(model="deepseek-chat", temperature=0.2, max_tokens=2048)
@@ -486,8 +495,9 @@ class DAGExecutor:
 
         # 校验 DAG 合法性
         if not self._validate_dag(plan):
-            self._audit("dag_validate", {"plan_id": plan.global_task_id}, "failed",
-                        error="DAG 存在循环依赖")
+            self._audit(
+                "dag_validate", {"plan_id": plan.global_task_id}, "failed", error="DAG 存在循环依赖"
+            )
             return {"success": False, "error": "DAG 存在循环依赖", "plan_id": plan.global_task_id}
 
         # 按并行组执行
@@ -500,7 +510,9 @@ class DAGExecutor:
             if self._circuit_breaker and self._circuit_breaker.is_open():
                 msg = "熔断器已打开，暂停执行"
                 logger.warning("circuit_open plan=%s group=%d", plan.global_task_id, group_idx)
-                self._audit("circuit_breaker", {"plan_id": plan.global_task_id}, "blocked", error=msg)
+                self._audit(
+                    "circuit_breaker", {"plan_id": plan.global_task_id}, "blocked", error=msg
+                )
                 break
 
             # 更新阶段
@@ -527,7 +539,9 @@ class DAGExecutor:
 
             # 检查是否应该继续
             if failed_nodes > 0 and self._should_stop_on_failure(plan):
-                logger.warning("stop_on_failure plan=%s failed=%d", plan.global_task_id, failed_nodes)
+                logger.warning(
+                    "stop_on_failure plan=%s failed=%d", plan.global_task_id, failed_nodes
+                )
                 break
 
         plan.is_finish = True
@@ -535,12 +549,16 @@ class DAGExecutor:
         duration_ms = (time.time() - t0) * 1000
 
         # 最终审计
-        self._audit("dag_execute_complete", {
-            "plan_id": plan.global_task_id,
-            "total_nodes": total_nodes,
-            "failed": failed_nodes,
-            "duration_ms": duration_ms,
-        }, "success" if failed_nodes == 0 else "failed")
+        self._audit(
+            "dag_execute_complete",
+            {
+                "plan_id": plan.global_task_id,
+                "total_nodes": total_nodes,
+                "failed": failed_nodes,
+                "duration_ms": duration_ms,
+            },
+            "success" if failed_nodes == 0 else "failed",
+        )
 
         return {
             "success": failed_nodes == 0,
@@ -573,12 +591,16 @@ class DAGExecutor:
         node.status = NodeStatus.RUNNING
         node.started_at = time.time()
 
-        self._audit("node_start", {
-            "node_id": nid,
-            "plan_id": plan.global_task_id,
-            "owner_agent": node.owner_agent,
-            "phase": plan.phase.value,
-        }, "running")
+        self._audit(
+            "node_start",
+            {
+                "node_id": nid,
+                "plan_id": plan.global_task_id,
+                "owner_agent": node.owner_agent,
+                "phase": plan.phase.value,
+            },
+            "running",
+        )
 
         last_error = ""
         max_attempts = node.retry_max + 1 if auto_retry else 1
@@ -599,11 +621,15 @@ class DAGExecutor:
                 node.completed_at = time.time()
                 node.error_msg = ""
 
-                self._audit("node_success", {
-                    "node_id": nid,
-                    "attempt": attempt,
-                    "duration_ms": (node.completed_at - node.started_at) * 1000,
-                }, "success")
+                self._audit(
+                    "node_success",
+                    {
+                        "node_id": nid,
+                        "attempt": attempt,
+                        "duration_ms": (node.completed_at - node.started_at) * 1000,
+                    },
+                    "success",
+                )
 
                 # 记录到熔断器
                 if self._circuit_breaker:
@@ -611,20 +637,28 @@ class DAGExecutor:
 
                 return {"status": "success", "node_id": nid, "result": result, "attempt": attempt}
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 last_error = f"超时 ({node.timeout_seconds}s)"
                 logger.warning("node_timeout node=%s attempt=%d/%d", nid, attempt, max_attempts)
             except Exception as e:
                 last_error = f"{type(e).__name__}: {e}"
-                logger.warning("node_error node=%s attempt=%d/%d: %s", nid, attempt, max_attempts, e)
+                logger.warning(
+                    "node_error node=%s attempt=%d/%d: %s", nid, attempt, max_attempts, e
+                )
 
             # 重试延迟
             if attempt < max_attempts:
                 delay = min(2 ** (attempt - 1), 30)  # 指数退避，最大 30s
-                self._audit("node_retry", {
-                    "node_id": nid, "attempt": attempt,
-                    "delay": delay, "error": last_error,
-                }, "retrying")
+                self._audit(
+                    "node_retry",
+                    {
+                        "node_id": nid,
+                        "attempt": attempt,
+                        "delay": delay,
+                        "error": last_error,
+                    },
+                    "retrying",
+                )
                 await asyncio.sleep(delay)
 
         # 所有重试失败
@@ -632,10 +666,15 @@ class DAGExecutor:
         node.error_msg = last_error
         node.completed_at = time.time()
 
-        self._audit("node_failed", {
-            "node_id": nid, "total_attempts": max_attempts,
-            "error": last_error,
-        }, "failed")
+        self._audit(
+            "node_failed",
+            {
+                "node_id": nid,
+                "total_attempts": max_attempts,
+                "error": last_error,
+            },
+            "failed",
+        )
 
         # 记录到熔断器
         if self._circuit_breaker:
@@ -699,8 +738,7 @@ class DAGExecutor:
         """判断是否应该因失败而停止"""
         # 如果关键路径上有节点失败，停止
         critical_failed = any(
-            n.status == NodeStatus.FAILED and n.id in plan.critical_path
-            for n in plan.nodes
+            n.status == NodeStatus.FAILED and n.id in plan.critical_path for n in plan.nodes
         )
         if critical_failed:
             return True
@@ -720,6 +758,7 @@ class DAGExecutor:
         if self._retry_policy is None:
             try:
                 from pycoder.core.retry_policy import RetryPolicy
+
                 self._retry_policy = RetryPolicy(max_retries=3)
             except ImportError:
                 logger.debug("RetryPolicy 不可用")
@@ -729,6 +768,7 @@ class DAGExecutor:
         if self._circuit_breaker is None:
             try:
                 from pycoder.safety.circuit_breaker import CircuitBreakerRegistry
+
                 self._circuit_breaker = CircuitBreakerRegistry().get("dag_executor")
             except ImportError:
                 logger.debug("CircuitBreaker 不可用")
@@ -738,6 +778,7 @@ class DAGExecutor:
         if self._snapshot is None:
             try:
                 from pycoder.brain.task_snapshot import TaskSnapshot
+
                 self._snapshot = TaskSnapshot(workspace=self._workspace)
             except ImportError:
                 logger.debug("TaskSnapshot 不可用")
@@ -747,6 +788,7 @@ class DAGExecutor:
         if self._audit_logger is None:
             try:
                 from pycoder.core.services.audit_logger import AuditLogger
+
                 self._audit_logger = AuditLogger()
             except ImportError:
                 logger.debug("AuditLogger 不可用")
@@ -756,7 +798,7 @@ class DAGExecutor:
         try:
             if self._snapshot:
                 # 将 DAGPlan 转换为 TaskState 保存
-                from pycoder.brain.task_snapshot import TaskState, SubTask, TaskStatus
+                from pycoder.brain.task_snapshot import SubTask, TaskState
 
                 state = TaskState(
                     global_task_id=plan.global_task_id,
@@ -812,6 +854,7 @@ class DAGExecutor:
         """从快照恢复执行（断点续跑）"""
         try:
             from pycoder.brain.task_snapshot import TaskSnapshot
+
             snapshot = TaskSnapshot(workspace=self._workspace)
             state = snapshot.load(plan_id)
 
@@ -829,7 +872,11 @@ class DAGExecutor:
                     deps=st.depend_task_ids,
                     owner_agent=st.assigned_agent or st.task_type,
                     acceptance_criteria=st.accept_std,
-                    status=NodeStatus(st.status) if st.status in NodeStatus._value2member_map_ else NodeStatus.PENDING,
+                    status=(
+                        NodeStatus(st.status)
+                        if st.status in NodeStatus._value2member_map_
+                        else NodeStatus.PENDING
+                    ),
                     result=st.result,
                     error_msg=st.error_msg,
                 )
@@ -839,7 +886,11 @@ class DAGExecutor:
             plan = DAGPlan(
                 global_task_id=state.global_task_id,
                 task_title=state.task_title,
-                phase=TaskPhase(state.status) if state.status in TaskPhase._value2member_map_ else TaskPhase.DECOMPOSE,
+                phase=(
+                    TaskPhase(state.status)
+                    if state.status in TaskPhase._value2member_map_
+                    else TaskPhase.DECOMPOSE
+                ),
                 nodes=nodes,
                 parallel_groups=self._calculate_groups_from_nodes(nodes),
                 last_run_node=state.last_run_node,
@@ -907,13 +958,18 @@ class CoreSchedulerAgent:
         """
         # 阶段 1-2: 准入校验 + 需求解析
         plan = await self._decomposer.decompose(requirement)
-        plan.task_level = TaskLevel(task_level) if task_level in TaskLevel._value2member_map_ else TaskLevel.B
+        plan.task_level = (
+            TaskLevel(task_level) if task_level in TaskLevel._value2member_map_ else TaskLevel.B
+        )
         plan.phase = TaskPhase.DECOMPOSE
 
         logger.info(
             "task_started plan=%s title=%s level=%s nodes=%d groups=%d",
-            plan.global_task_id, plan.task_title, plan.task_level.value,
-            len(plan.nodes), len(plan.parallel_groups),
+            plan.global_task_id,
+            plan.task_title,
+            plan.task_level.value,
+            len(plan.nodes),
+            len(plan.parallel_groups),
         )
 
         # 阶段 3-8: 执行 DAG
@@ -921,7 +977,9 @@ class CoreSchedulerAgent:
 
         logger.info(
             "task_completed plan=%s success=%s duration=%s",
-            plan.global_task_id, result.get("success"), result.get("duration_ms"),
+            plan.global_task_id,
+            result.get("success"),
+            result.get("duration_ms"),
         )
 
         return result

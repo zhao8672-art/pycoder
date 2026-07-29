@@ -11,15 +11,13 @@
 - _create_package (zip / tar / 回退)
 - _deploy (local / docker / ssh / 异常)
 """
+
 from __future__ import annotations
 
-import os
 import subprocess
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from pycoder.server.chat_bridge import ChatEvent
 from pycoder.server.services.delivery_packager import (
@@ -28,7 +26,6 @@ from pycoder.server.services.delivery_packager import (
     DeliveryReport,
     DeployTarget,
 )
-
 
 # ── 辅助 ───────────────────────────────────────────────
 
@@ -126,9 +123,7 @@ class TestDetectProjectType:
 
     def test_uvicorn_filename_triggers_fastapi(self, tmp_path: Path):
         (tmp_path / "uvicorn.txt").write_text("config", encoding="utf-8")
-        (tmp_path / "main.py").write_text(
-            "from fastapi import FastAPI\n", encoding="utf-8"
-        )
+        (tmp_path / "main.py").write_text("from fastapi import FastAPI\n", encoding="utf-8")
         pkg = DeliveryPackager(tmp_path)
         assert pkg._detect_project_type() == "fastapi"
 
@@ -253,9 +248,9 @@ class TestBuildDeliveryMd:
     def test_basic_content(self, tmp_path: Path):
         (tmp_path / "app.py").write_text("print('x')\n", encoding="utf-8")
         pkg = DeliveryPackager(tmp_path)
-        md = pkg._build_delivery_md("myproj", "user request",
-                                     [{"step": "detect", "status": "ok"}],
-                                     ["app.py"])
+        md = pkg._build_delivery_md(
+            "myproj", "user request", [{"step": "detect", "status": "ok"}], ["app.py"]
+        )
         assert "myproj" in md
         assert "user request" in md
         assert "detect" in md
@@ -264,15 +259,13 @@ class TestBuildDeliveryMd:
 
     def test_step_with_failed_status(self, tmp_path: Path):
         pkg = DeliveryPackager(tmp_path)
-        md = pkg._build_delivery_md("p", "r",
-                                     [{"step": "deploy", "status": "failed"}], [])
+        md = pkg._build_delivery_md("p", "r", [{"step": "deploy", "status": "failed"}], [])
         # 失败步骤用 ❌
         assert "❌" in md
 
     def test_step_with_ok_status(self, tmp_path: Path):
         pkg = DeliveryPackager(tmp_path)
-        md = pkg._build_delivery_md("p", "r",
-                                     [{"step": "detect", "status": "ok"}], [])
+        md = pkg._build_delivery_md("p", "r", [{"step": "detect", "status": "ok"}], [])
         assert "✅" in md
 
     def test_nonexistent_file_size_zero(self, tmp_path: Path):
@@ -289,14 +282,19 @@ class TestCreatePackage:
     async def test_zip_available(self, tmp_path: Path):
         (tmp_path / "app.py").write_text("x", encoding="utf-8")
         pkg = DeliveryPackager(tmp_path)
-        with patch("pycoder.server.services.delivery_packager.shutil.which",
-                    side_effect=lambda x: "/usr/bin/zip" if x == "zip" else None), \
-             patch("pycoder.server.services.delivery_packager.subprocess.run") as mock_run:
+        with (
+            patch(
+                "pycoder.server.services.delivery_packager.shutil.which",
+                side_effect=lambda x: "/usr/bin/zip" if x == "zip" else None,
+            ),
+            patch("pycoder.server.services.delivery_packager.subprocess.run") as mock_run,
+        ):
             # 模拟 zip 命令创建文件
             def _fake_run(cmd, **kwargs):
                 # cmd[2] 是目标 zip 路径
                 Path(cmd[2]).write_bytes(b"PK")
                 return MagicMock(returncode=0)
+
             mock_run.side_effect = _fake_run
             result = await pkg._create_package("myapp")
             assert result.endswith("myapp.zip")
@@ -304,21 +302,26 @@ class TestCreatePackage:
     async def test_tar_fallback(self, tmp_path: Path):
         (tmp_path / "app.py").write_text("x", encoding="utf-8")
         pkg = DeliveryPackager(tmp_path)
-        with patch("pycoder.server.services.delivery_packager.shutil.which",
-                    side_effect=lambda x: "/usr/bin/tar" if x == "tar" else None), \
-             patch("pycoder.server.services.delivery_packager.subprocess.run") as mock_run:
+        with (
+            patch(
+                "pycoder.server.services.delivery_packager.shutil.which",
+                side_effect=lambda x: "/usr/bin/tar" if x == "tar" else None,
+            ),
+            patch("pycoder.server.services.delivery_packager.subprocess.run") as mock_run,
+        ):
+
             def _fake_run(cmd, **kwargs):
                 # tar 目标路径在 cmd[2]
                 Path(cmd[2]).write_bytes(b"x")
                 return MagicMock(returncode=0)
+
             mock_run.side_effect = _fake_run
             result = await pkg._create_package("myapp")
             assert result.endswith("myapp.tar.gz")
 
     async def test_no_zip_no_tar_returns_workspace(self, tmp_path: Path):
         pkg = DeliveryPackager(tmp_path)
-        with patch("pycoder.server.services.delivery_packager.shutil.which",
-                    return_value=None):
+        with patch("pycoder.server.services.delivery_packager.shutil.which", return_value=None):
             result = await pkg._create_package("myapp")
             assert result == str(tmp_path)
 
@@ -340,8 +343,10 @@ class TestDeploy:
 
     async def test_local_failure(self, tmp_path: Path):
         pkg = DeliveryPackager(tmp_path)
-        with patch("pycoder.server.services.delivery_packager.subprocess.run",
-                    side_effect=subprocess.TimeoutExpired(cmd="docker", timeout=120)):
+        with patch(
+            "pycoder.server.services.delivery_packager.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd="docker", timeout=120),
+        ):
             result = await pkg._deploy(DeployTarget.LOCAL, {})
             assert result["status"] == "failed"
 
@@ -365,8 +370,7 @@ class TestDeliver:
     async def test_minimal_local(self, tmp_path: Path):
         (tmp_path / "app.py").write_text("print('hi')\n", encoding="utf-8")
         pkg = DeliveryPackager(tmp_path)
-        with patch("pycoder.server.services.delivery_packager.shutil.which",
-                    return_value=None):
+        with patch("pycoder.server.services.delivery_packager.shutil.which", return_value=None):
             report = await pkg.deliver("myapp", "build app", [])
         assert report.success is True
         assert report.package is not None
@@ -381,8 +385,7 @@ class TestDeliver:
         (tmp_path / "main.py").write_text("print('hi')\n", encoding="utf-8")
         bridge = make_mock_bridge([])
         pkg = DeliveryPackager(tmp_path, chat_bridge=bridge)
-        with patch("pycoder.server.services.delivery_packager.shutil.which",
-                    return_value=None):
+        with patch("pycoder.server.services.delivery_packager.shutil.which", return_value=None):
             report = await pkg.deliver("app", "task", [])
         # 应生成 Dockerfile (python 模板)
         assert (tmp_path / "Dockerfile").exists()
@@ -395,8 +398,7 @@ class TestDeliver:
         (tmp_path / "Dockerfile").write_text("FROM custom:1.0\n", encoding="utf-8")
         bridge = make_mock_bridge([])
         pkg = DeliveryPackager(tmp_path, chat_bridge=bridge)
-        with patch("pycoder.server.services.delivery_packager.shutil.which",
-                    return_value=None):
+        with patch("pycoder.server.services.delivery_packager.shutil.which", return_value=None):
             await pkg.deliver("app", "task", [])
         # 不应被覆盖
         assert "custom:1.0" in (tmp_path / "Dockerfile").read_text(encoding="utf-8")
@@ -405,18 +407,18 @@ class TestDeliver:
         (tmp_path / "main.py").write_text("print('hi')\n", encoding="utf-8")
         (tmp_path / "docker-compose.yml").write_text("custom: compose\n", encoding="utf-8")
         pkg = DeliveryPackager(tmp_path)
-        with patch("pycoder.server.services.delivery_packager.shutil.which",
-                    return_value=None):
+        with patch("pycoder.server.services.delivery_packager.shutil.which", return_value=None):
             await pkg.deliver("app", "task", [])
         assert "custom: compose" in (tmp_path / "docker-compose.yml").read_text()
 
     async def test_deploy_ssh(self, tmp_path: Path):
         (tmp_path / "main.py").write_text("print('hi')\n", encoding="utf-8")
         pkg = DeliveryPackager(tmp_path)
-        with patch("pycoder.server.services.delivery_packager.shutil.which",
-                    return_value=None):
+        with patch("pycoder.server.services.delivery_packager.shutil.which", return_value=None):
             report = await pkg.deliver(
-                "app", "task", [],
+                "app",
+                "task",
+                [],
                 deploy_target=DeployTarget.SSH,
                 deploy_config={"host": "example.com"},
             )
@@ -429,10 +431,11 @@ class TestDeliver:
     async def test_deploy_docker(self, tmp_path: Path):
         (tmp_path / "main.py").write_text("print('hi')\n", encoding="utf-8")
         pkg = DeliveryPackager(tmp_path)
-        with patch("pycoder.server.services.delivery_packager.shutil.which",
-                    return_value=None):
+        with patch("pycoder.server.services.delivery_packager.shutil.which", return_value=None):
             report = await pkg.deliver(
-                "app", "task", [],
+                "app",
+                "task",
+                [],
                 deploy_target=DeployTarget.DOCKER,
             )
         deploy_steps = [s for s in report.steps if s["step"] == "deploy"]
@@ -443,8 +446,7 @@ class TestDeliver:
     async def test_summary_includes_file_count(self, tmp_path: Path):
         (tmp_path / "main.py").write_text("print('hi')\n", encoding="utf-8")
         pkg = DeliveryPackager(tmp_path)
-        with patch("pycoder.server.services.delivery_packager.shutil.which",
-                    return_value=None):
+        with patch("pycoder.server.services.delivery_packager.shutil.which", return_value=None):
             report = await pkg.deliver("app", "task", [])
         assert "个文件" in report.summary
 
@@ -454,9 +456,11 @@ class TestDeliver:
 
         async def _fail(name):
             raise RuntimeError("打包失败")
-        with patch.object(pkg, "_create_package", side_effect=_fail), \
-             patch("pycoder.server.services.delivery_packager.shutil.which",
-                   return_value=None):
+
+        with (
+            patch.object(pkg, "_create_package", side_effect=_fail),
+            patch("pycoder.server.services.delivery_packager.shutil.which", return_value=None),
+        ):
             report = await pkg.deliver("app", "task", [])
         # package 步骤失败但整体报告仍生成
         pkg_steps = [s for s in report.steps if s["step"] == "package"]

@@ -10,24 +10,25 @@
 - 会话记忆：会话管理、搜索、导出
 - 任务调度：任务提交、优先级、依赖链、通知
 """
+
 from __future__ import annotations
 
-import json
 import tempfile
 from pathlib import Path
 
 import pytest
 
-
 # ═══════════════════════════════════════════════════════════════
 # 环境工具检测集成测试
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestEnvIntegration:
     """环境工具检测集成测试"""
 
     def test_detect_all_tools(self):
         from pycoder.env.tool_detector import ToolDetector
+
         detector = ToolDetector()
         results = detector.detect_all()
         assert len(results) >= 5
@@ -35,6 +36,7 @@ class TestEnvIntegration:
 
     def test_get_report(self):
         from pycoder.env.tool_detector import ToolDetector
+
         detector = ToolDetector()
         report = detector.get_report()
         assert "all_ok" in report
@@ -45,6 +47,7 @@ class TestEnvIntegration:
 
     def test_get_tool_by_name(self):
         from pycoder.env.tool_detector import ToolDetector
+
         detector = ToolDetector()
         req = detector.get_tool_by_name("git")
         assert req is not None
@@ -52,8 +55,9 @@ class TestEnvIntegration:
         assert req.required is True
 
     def test_auto_installer_guides(self):
-        from pycoder.env.tool_detector import ToolDetector
         from pycoder.env.auto_installer import AutoInstaller
+        from pycoder.env.tool_detector import ToolDetector
+
         detector = ToolDetector()
         installer = AutoInstaller(detector)
         guides = installer.get_all_missing_guides()
@@ -62,6 +66,7 @@ class TestEnvIntegration:
     def test_v2_env_capability_registration(self):
         from pycoder.bus.registry import CapabilityRegistry
         from pycoder.env import register_capabilities
+
         registry = CapabilityRegistry()
         register_capabilities(registry)
         assert registry.get("env.detect_tools") is not None
@@ -74,6 +79,7 @@ class TestEnvIntegration:
 # 智能 IO 集成测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestIOIntegration:
     """智能 IO 集成测试"""
 
@@ -83,7 +89,6 @@ class TestIOIntegration:
             yield Path(td)
 
     def test_smart_read_with_index(self, temp_dir):
-        from pycoder.io.file_indexer import FileIndexer
         from pycoder.io.smart_reader import SmartReader
 
         # 创建测试文件
@@ -127,6 +132,7 @@ class TestIOIntegration:
     def test_v2_io_capability_registration(self):
         from pycoder.bus.registry import CapabilityRegistry
         from pycoder.io import register_capabilities
+
         registry = CapabilityRegistry()
         register_capabilities(registry)
         assert registry.get("io.smart_read") is not None
@@ -138,6 +144,7 @@ class TestIOIntegration:
 # 会话记忆集成测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestMemoryIntegration:
     """会话记忆集成测试"""
 
@@ -145,10 +152,12 @@ class TestMemoryIntegration:
     def memory_dir(self, tmp_path):
         engine = None
         from pycoder.memory.session_memory import SessionMemoryEngine
+
         engine = SessionMemoryEngine(tmp_path)
         yield engine, tmp_path
         # 清理
         import shutil
+
         sessions = tmp_path / ".pycoder" / "sessions"
         if sessions.exists():
             shutil.rmtree(sessions)
@@ -207,6 +216,7 @@ class TestMemoryIntegration:
     def test_v2_memory_capability_registration(self):
         from pycoder.bus.registry import CapabilityRegistry
         from pycoder.memory import register_capabilities
+
         registry = CapabilityRegistry()
         register_capabilities(registry)
         assert registry.get("memory.session_info") is not None
@@ -220,12 +230,14 @@ class TestMemoryIntegration:
 # 任务调度与通知集成测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestNotifyIntegration:
     """任务调度与通知集成测试"""
 
     @pytest.fixture
     async def scheduler(self):
         from pycoder.notify.task_scheduler import EnhancedScheduler
+
         s = EnhancedScheduler()
         await s.start()
         yield s
@@ -257,6 +269,7 @@ class TestNotifyIntegration:
         async def make_action(name):
             async def action(**kwargs):
                 executed.append(name)
+
             return action
 
         t1 = EnhancedTask(id="p1", name="low", action=await make_action("low"), priority=10)
@@ -276,6 +289,7 @@ class TestNotifyIntegration:
         async def make_action(name):
             async def action(**kwargs):
                 executed.append(name)
+
             return action
 
         t1 = EnhancedTask(id="dep_a", name="A", action=await make_action("A"))
@@ -296,6 +310,7 @@ class TestNotifyIntegration:
 
     def test_progress_tracker(self):
         from pycoder.notify.progress_tracker import ProgressTracker
+
         tracker = ProgressTracker()
         tracker.record("task_1", 0.0, "开始")
         tracker.record("task_1", 0.5, "一半")
@@ -309,6 +324,7 @@ class TestNotifyIntegration:
     def test_v2_notify_capability_registration(self):
         from pycoder.bus.registry import CapabilityRegistry
         from pycoder.notify import register_capabilities
+
         registry = CapabilityRegistry()
         register_capabilities(registry)
         assert registry.get("notify.send") is not None
@@ -323,13 +339,18 @@ class TestNotifyIntegration:
 # 跨工作区集成测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestWorkspaceIntegration:
     """跨工作区集成测试"""
 
     @pytest.fixture
     def setup_workspaces(self, tmp_path):
-        from pycoder.workspace.workspace_registry import WorkspaceRegistry, WorkspaceEntry, ShareLevel
         from pycoder.workspace.share_sandbox import ShareSandbox
+        from pycoder.workspace.workspace_registry import (
+            ShareLevel,
+            WorkspaceEntry,
+            WorkspaceRegistry,
+        )
 
         ws_a = tmp_path / "workspace_a"
         ws_b = tmp_path / "workspace_b"
@@ -340,16 +361,24 @@ class TestWorkspaceIntegration:
         (ws_b / "shared.txt").write_text("secret content", encoding="utf-8")
 
         registry = WorkspaceRegistry()
-        registry.register(WorkspaceEntry(
-            id="ws-a", path=str(ws_a), name="Workspace A",
-            share_level=ShareLevel.NONE,
-        ))
-        registry.register(WorkspaceEntry(
-            id="ws-b", path=str(ws_b), name="Workspace B",
-            share_level=ShareLevel.READ,
-            allowed_workspaces=["ws-a"],
-            shared_paths=["shared.txt"],
-        ))
+        registry.register(
+            WorkspaceEntry(
+                id="ws-a",
+                path=str(ws_a),
+                name="Workspace A",
+                share_level=ShareLevel.NONE,
+            )
+        )
+        registry.register(
+            WorkspaceEntry(
+                id="ws-b",
+                path=str(ws_b),
+                name="Workspace B",
+                share_level=ShareLevel.READ,
+                allowed_workspaces=["ws-a"],
+                shared_paths=["shared.txt"],
+            )
+        )
 
         sandbox = ShareSandbox(registry)
         yield registry, sandbox, ws_a, ws_b
@@ -377,6 +406,7 @@ class TestWorkspaceIntegration:
     def test_v2_workspace_capability_registration(self):
         from pycoder.bus.registry import CapabilityRegistry
         from pycoder.workspace import register_capabilities
+
         registry = CapabilityRegistry()
         register_capabilities(registry)
         assert registry.get("workspace.register") is not None
@@ -390,17 +420,20 @@ class TestWorkspaceIntegration:
 # 浏览器增强集成测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestBrowserIntegration:
     """浏览器增强集成测试"""
 
     def test_access_control_whitelist(self):
         from pycoder.browser.access_control import BrowserAccessControl
+
         ac = BrowserAccessControl()
         allowed, _ = ac.check_url("https://docs.python.org/3/library/os.html")
         assert allowed is True
 
     def test_access_control_blocklist(self):
         from pycoder.browser.access_control import BrowserAccessControl, BrowserAccessPolicy
+
         policy = BrowserAccessPolicy(
             blocked_domains=["evil.com"],
         )
@@ -411,6 +444,7 @@ class TestBrowserIntegration:
 
     def test_access_control_private_ip(self):
         from pycoder.browser.access_control import BrowserAccessControl
+
         ac = BrowserAccessControl()
         allowed, reason = ac.check_url("http://192.168.1.1/admin")
         assert allowed is False
@@ -418,6 +452,7 @@ class TestBrowserIntegration:
 
     def test_rate_limit(self):
         from pycoder.browser.access_control import BrowserAccessControl
+
         ac = BrowserAccessControl()
         # 前 60 次请求应通过
         for _ in range(60):
@@ -428,6 +463,7 @@ class TestBrowserIntegration:
     def test_browser_pool_stats(self):
         """验证浏览器池状态统计"""
         import asyncio
+
         from pycoder.browser.browser_pool import BrowserPool
 
         async def check():
@@ -443,15 +479,16 @@ class TestBrowserIntegration:
 
     def test_browser_pool_max_errors(self):
         """验证错误计数上限"""
-        from pycoder.browser.browser_pool import BrowserPool, BrowserInstance
+        from pycoder.browser.browser_pool import BrowserPool
 
         pool = BrowserPool()
         # 验证 MAX_ERRORS_PER_INSTANCE 常量
         assert pool.MAX_ERRORS_PER_INSTANCE == 3
 
     def test_v2_browser_capability_registration(self):
-        from pycoder.bus.registry import CapabilityRegistry
         from pycoder.browser import register_capabilities
+        from pycoder.bus.registry import CapabilityRegistry
+
         registry = CapabilityRegistry()
         register_capabilities(registry)
         assert registry.get("browser.check_url") is not None
@@ -465,11 +502,13 @@ class TestBrowserIntegration:
 # 知识更新集成测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestKnowledgeIntegration:
     """知识更新集成测试"""
 
     def test_register_and_list_sources(self):
-        from pycoder.knowledge.knowledge_fetcher import KnowledgeFetcher, KnowledgeSource
+        from pycoder.knowledge.knowledge_fetcher import KnowledgeFetcher
+
         fetcher = KnowledgeFetcher()
         fetcher.register_default_sources()
         sources = fetcher.list_sources()
@@ -478,9 +517,12 @@ class TestKnowledgeIntegration:
 
     def test_add_and_remove_source(self):
         from pycoder.knowledge.knowledge_fetcher import KnowledgeFetcher, KnowledgeSource
+
         fetcher = KnowledgeFetcher()
         source = KnowledgeSource(
-            id="test-source", name="Test", url="https://example.com",
+            id="test-source",
+            name="Test",
+            url="https://example.com",
             category="custom",
         )
         fetcher.register_source(source)
@@ -490,7 +532,9 @@ class TestKnowledgeIntegration:
         assert fetcher.get_source("test-source") is None
 
     def test_index_and_search(self, tmp_path):
-        from pycoder.knowledge.knowledge_fetcher import KnowledgeFetcher, KnowledgeSource, KnowledgeChunk
+        from pycoder.knowledge.knowledge_fetcher import (
+            KnowledgeChunk,
+        )
         from pycoder.knowledge.knowledge_index import KnowledgeIndex
 
         index = KnowledgeIndex(persist_dir=tmp_path / "knowledge_test")
@@ -498,15 +542,23 @@ class TestKnowledgeIntegration:
         # 添加测试 chunks
         chunks = [
             KnowledgeChunk(
-                id="chunk_1", source_id="test", content="Python 是一种高级编程语言",
-                url="https://example.com", title="Python 介绍",
-                category="python_docs", fetched_at="2026-01-01T00:00:00",
+                id="chunk_1",
+                source_id="test",
+                content="Python 是一种高级编程语言",
+                url="https://example.com",
+                title="Python 介绍",
+                category="python_docs",
+                fetched_at="2026-01-01T00:00:00",
                 content_hash="abc123",
             ),
             KnowledgeChunk(
-                id="chunk_2", source_id="test", content="FastAPI 是一个现代 Web 框架",
-                url="https://example.com", title="FastAPI 介绍",
-                category="python_docs", fetched_at="2026-01-01T00:00:00",
+                id="chunk_2",
+                source_id="test",
+                content="FastAPI 是一个现代 Web 框架",
+                url="https://example.com",
+                title="FastAPI 介绍",
+                category="python_docs",
+                fetched_at="2026-01-01T00:00:00",
                 content_hash="def456",
             ),
         ]
@@ -520,6 +572,7 @@ class TestKnowledgeIntegration:
     def test_v2_knowledge_capability_registration(self):
         from pycoder.bus.registry import CapabilityRegistry
         from pycoder.knowledge import register_capabilities
+
         registry = CapabilityRegistry()
         register_capabilities(registry)
         assert registry.get("knowledge.list_sources") is not None
@@ -531,6 +584,7 @@ class TestKnowledgeIntegration:
     def test_scheduler_auto_update_lifecycle(self):
         """验证知识调度器自动更新的启动和停止"""
         import asyncio
+
         from pycoder.knowledge.knowledge_fetcher import KnowledgeFetcher
         from pycoder.knowledge.knowledge_index import KnowledgeIndex
         from pycoder.knowledge.update_scheduler import KnowledgeUpdateScheduler
@@ -561,10 +615,14 @@ class TestKnowledgeIntegration:
         from pycoder.knowledge.update_scheduler import KnowledgeUpdateScheduler
 
         fetcher = KnowledgeFetcher()
-        fetcher.register_source(KnowledgeSource(
-            id="test-src", name="Test", url="https://example.com",
-            category="custom",
-        ))
+        fetcher.register_source(
+            KnowledgeSource(
+                id="test-src",
+                name="Test",
+                url="https://example.com",
+                category="custom",
+            )
+        )
         index = KnowledgeIndex()
         scheduler = KnowledgeUpdateScheduler(fetcher, index)
 
@@ -585,6 +643,7 @@ class TestKnowledgeIntegration:
     def test_scheduler_run_update_nonexistent_source(self):
         """验证更新不存在的知识源"""
         import asyncio
+
         from pycoder.knowledge.knowledge_fetcher import KnowledgeFetcher
         from pycoder.knowledge.knowledge_index import KnowledgeIndex
         from pycoder.knowledge.update_scheduler import KnowledgeUpdateScheduler
@@ -607,12 +666,14 @@ class TestKnowledgeIntegration:
 # 多语言 LSP 集成测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestLSPIntegration:
     """多语言 LSP 集成测试"""
 
     def test_register_default_configs(self):
-        from pycoder.lsp.lsp_manager import LSPManager
         from pathlib import Path
+
+        from pycoder.lsp.lsp_manager import LSPManager
 
         manager = LSPManager(Path.cwd())
         # LSPManager 在 __init__ 中已自动注册 DEFAULT_LSP_CONFIGS
@@ -624,8 +685,9 @@ class TestLSPIntegration:
         assert manager.get_language_for_file("test.go") == "go"
 
     def test_language_detection_unknown(self):
-        from pycoder.lsp.lsp_manager import LSPManager
         from pathlib import Path
+
+        from pycoder.lsp.lsp_manager import LSPManager
 
         manager = LSPManager(Path.cwd())
         assert manager.get_language_for_file("test.rs") is None
@@ -633,6 +695,7 @@ class TestLSPIntegration:
     def test_v2_lsp_capability_registration(self):
         from pycoder.bus.registry import CapabilityRegistry
         from pycoder.lsp import register_capabilities
+
         registry = CapabilityRegistry()
         register_capabilities(registry)
         assert registry.get("lsp.diagnostics") is not None
@@ -647,12 +710,14 @@ class TestLSPIntegration:
 # V2 引擎全模块集成测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestV2FullIntegration:
     """V2 引擎全模块集成测试"""
 
     def test_all_modules_registered(self):
         """验证所有 8 个升级模块的能力已注册到 V2 总线"""
         import asyncio
+
         from pycoder.v2 import V2Engine
 
         async def check():
@@ -671,20 +736,29 @@ class TestV2FullIntegration:
     def test_specific_capabilities_registered(self):
         """验证关键能力已注册"""
         import asyncio
+
         from pycoder.v2 import V2Engine
 
         async def check():
             engine = V2Engine()
             await engine.initialize()
             required = [
-                "workspace.register", "workspace.list",
-                "browser.check_url", "browser.check_rate_limit",
-                "knowledge.list_sources", "knowledge.search",
-                "env.detect_tools", "env.check_tool",
-                "io.smart_read", "io.preview_file",
-                "lsp.diagnostics", "lsp.status",
-                "memory.session_info", "memory.search_sessions",
-                "notify.send", "notify.task_status",
+                "workspace.register",
+                "workspace.list",
+                "browser.check_url",
+                "browser.check_rate_limit",
+                "knowledge.list_sources",
+                "knowledge.search",
+                "env.detect_tools",
+                "env.check_tool",
+                "io.smart_read",
+                "io.preview_file",
+                "lsp.diagnostics",
+                "lsp.status",
+                "memory.session_info",
+                "memory.search_sessions",
+                "notify.send",
+                "notify.task_status",
             ]
             missing = [c for c in required if engine.registry.get(c) is None]
             return missing
@@ -695,6 +769,7 @@ class TestV2FullIntegration:
     def test_engine_health_report(self):
         """验证引擎健康报告"""
         import asyncio
+
         from pycoder.v2 import V2Engine
 
         async def check():

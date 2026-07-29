@@ -26,16 +26,15 @@ class VisualizationEngine:
             "type": "mermaid",
             "code": mermaid_code,
             "snippet": (
-                "```mermaid\n" + mermaid_code + "\n```\n\n"
-                "> 💡 在 PyCoder IDE 中可自动渲染此图表"
+                "```mermaid\n" + mermaid_code + "\n```\n\n" "> 💡 在 PyCoder IDE 中可自动渲染此图表"
             ),
         }
 
-    async def render_chart(self, chart_type: str, data: list,
-                           title: str = "", **kwargs) -> dict:
+    async def render_chart(self, chart_type: str, data: list, title: str = "", **kwargs) -> dict:
         """生成 matplotlib 数据图表"""
         try:
             import matplotlib
+
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
 

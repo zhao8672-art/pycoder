@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import ast
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -180,6 +180,96 @@ PERF_RULES: list[PerfRule] = [
         suggestion="使用 dict.get() 一次取值或 try/except KeyError",
         example_fix="val = d.get(key)\nif val is not None:\n    process(val)  # 只查一次",
     ),
+    # ── P2 扩展规则 (2026-07-29 迭代#3) ──
+    # 并发反模式
+    PerfRule(
+        name="async_create_task_not_awaited",
+        description="asyncio.create_task 未保存引用 (可能被 GC 回收)",
+        severity="high",
+        suggestion="保存 task 引用到变量或集合，确保任务不被垃圾回收",
+        example_fix="task = asyncio.create_task(coro())\n# 保存 task 引用\ntasks.add(task)\ntask.add_done_callback(tasks.discard)",
+    ),
+    PerfRule(
+        name="async_wait_without_timeout",
+        description="asyncio.wait() / Lock.acquire() 未设置超时 (可能永久阻塞)",
+        severity="medium",
+        suggestion="添加 timeout 参数或使用 asyncio.wait_for",
+        example_fix="try:\n    await asyncio.wait_for(coro(), timeout=30)\nexcept asyncio.TimeoutError:\n    handle_timeout()",
+    ),
+    PerfRule(
+        name="thread_lock_large_scope",
+        description="线程锁粒度过大 (锁定整个函数导致并发度下降)",
+        severity="medium",
+        suggestion="缩小锁范围，仅保护共享资源的临界区",
+        example_fix="with lock:  # 仅保护共享数据\n    shared_data.update()\n# 锁外执行其他计算",
+    ),
+    # 内存反模式
+    PerfRule(
+        name="list_full_load_large_file",
+        description="使用 readlines()/list() 全量加载大文件到内存",
+        severity="high",
+        suggestion="逐行迭代或使用生成器，避免一次性加载",
+        example_fix="with open(path) as f:\n    for line in f:  # 逐行, O(1) 内存\n        process(line)",
+    ),
+    PerfRule(
+        name="unclosed_resource",
+        description="open()/connect() 等资源未使用 with 语句 (可能泄漏)",
+        severity="high",
+        suggestion="使用 with 语句或 try/finally 确保资源释放",
+        example_fix="with open(path) as f:  # 自动关闭\n    data = f.read()",
+    ),
+    PerfRule(
+        name="large_list_in_memory",
+        description="累积大列表到内存 (可能导致 OOM)",
+        severity="medium",
+        suggestion="使用生成器或分批处理，避免全量累积",
+        example_fix="def iter_items():\n    for item in source:\n        yield transform(item)  # 生成器, 不占内存",
+    ),
+    # 序列化反模式
+    PerfRule(
+        name="pickle_unsafe_load",
+        description="pickle.load 反序列化不可信数据 (安全+性能风险)",
+        severity="high",
+        suggestion="使用 json/schema 验证后再解析，或 shelve/sqlite 替代",
+        example_fix="import json\ndata = json.loads(text)  # 安全的反序列化",
+    ),
+    PerfRule(
+        name="json_dumps_large_object",
+        description="循环内 json.dumps 大对象 (CPU 开销)",
+        severity="medium",
+        suggestion="缓存序列化结果或使用 orjson 加速",
+        example_fix="import orjson\nserialized = orjson.dumps(obj)  # 比 json 快 3-5 倍",
+    ),
+    # 数据结构反模式
+    PerfRule(
+        name="list_as_queue",
+        description="使用 list.pop(0) 当队列 (O(n) 操作)",
+        severity="medium",
+        suggestion="使用 collections.deque (O(1) popleft)",
+        example_fix="from collections import deque\nq = deque()\nq.append(item)\nq.popleft()  # O(1)",
+    ),
+    PerfRule(
+        name="list_as_stack_inefficient",
+        description="频繁在列表头部插入 (insert(0, x) 是 O(n))",
+        severity="medium",
+        suggestion="使用 deque.appendleft 或反转列表后 append",
+        example_fix="from collections import deque\nstack = deque()\nstack.appendleft(item)  # O(1)",
+    ),
+    # 缓存反模式
+    PerfRule(
+        name="no_cache_repeated_compute",
+        description="纯函数重复调用未使用缓存 (重复计算浪费 CPU)",
+        severity="medium",
+        suggestion="使用 functools.lru_cache 缓存纯函数结果",
+        example_fix="from functools import lru_cache\n\n@lru_cache(maxsize=128)\ndef expensive(x):\n    return compute(x)",
+    ),
+    PerfRule(
+        name="cache_unbounded",
+        description="字典作为缓存无大小限制 (内存持续增长)",
+        severity="medium",
+        suggestion="使用 lru_cache 或定期清理过期项",
+        example_fix="from functools import lru_cache\n\n@lru_cache(maxsize=1024)  # 有界\ndef cached(x):\n    ...",
+    ),
 ]
 
 
@@ -245,81 +335,115 @@ class PerformanceAdvisor:
                     if isinstance(node.iter.args[0] if node.iter.args else None, ast.Call):
                         func = node.iter.args[0].func
                         if isinstance(func, ast.Name) and func.id == "len":
-                            warnings.append(PerfWarning(
-                                line=node.lineno,
-                                pattern="repeated_function_call",
-                                severity="medium",
-                                suggestion="range(len(x)) 中 len() 每次迭代都会调用，建议缓存: n = len(x); for i in range(n)",
-                                code_snippet=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                            ))
+                            warnings.append(
+                                PerfWarning(
+                                    line=node.lineno,
+                                    pattern="repeated_function_call",
+                                    severity="medium",
+                                    suggestion="range(len(x)) 中 len() 每次迭代都会调用，建议缓存: n = len(x); for i in range(n)",
+                                    code_snippet=(
+                                        lines[node.lineno - 1].strip()
+                                        if node.lineno <= len(lines)
+                                        else ""
+                                    ),
+                                )
+                            )
 
             # 检测列表上使用 'in'
             if isinstance(node, ast.Compare):
                 for comparator in node.comparators:
                     if isinstance(comparator, (ast.List, ast.Tuple)):
-                        warnings.append(PerfWarning(
-                            line=node.lineno,
-                            pattern="inefficient_membership_test",
-                            severity="medium",
-                            suggestion="在列表/元组上使用 'in' 是 O(n)，建议转为集合: if x in set(lst)",
-                            code_snippet=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                        ))
+                        warnings.append(
+                            PerfWarning(
+                                line=node.lineno,
+                                pattern="inefficient_membership_test",
+                                severity="medium",
+                                suggestion="在列表/元组上使用 'in' 是 O(n)，建议转为集合: if x in set(lst)",
+                                code_snippet=(
+                                    lines[node.lineno - 1].strip()
+                                    if node.lineno <= len(lines)
+                                    else ""
+                                ),
+                            )
+                        )
 
             # 检测 async 函数内的同步 I/O (open/requests.get)
             if isinstance(node, ast.Call) and hasattr(node, "lineno"):
                 if node.lineno in async_func_lines and self._is_sync_io_call(node):
-                    warnings.append(PerfWarning(
-                        line=node.lineno,
-                        pattern="sync_io_in_async",
-                        severity="high",
-                        suggestion="async 函数中调用同步 I/O 会阻塞事件循环，使用 aiofiles / httpx.AsyncClient",
-                        code_snippet=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                    ))
+                    warnings.append(
+                        PerfWarning(
+                            line=node.lineno,
+                            pattern="sync_io_in_async",
+                            severity="high",
+                            suggestion="async 函数中调用同步 I/O 会阻塞事件循环，使用 aiofiles / httpx.AsyncClient",
+                            code_snippet=(
+                                lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
+                            ),
+                        )
+                    )
 
             # 检测循环内的 import
             if isinstance(node, (ast.For, ast.While)) and hasattr(node, "body"):
                 for child in ast.walk(ast.Module(body=node.body, type_ignores=[])):
                     if isinstance(child, ast.Import) or isinstance(child, ast.ImportFrom):
-                        warnings.append(PerfWarning(
-                            line=child.lineno,
-                            pattern="import_in_loop",
-                            severity="medium",
-                            suggestion="循环内 import 会增加查找开销，建议移到模块顶部",
-                            code_snippet=lines[child.lineno - 1].strip() if child.lineno <= len(lines) else "",
-                        ))
+                        warnings.append(
+                            PerfWarning(
+                                line=child.lineno,
+                                pattern="import_in_loop",
+                                severity="medium",
+                                suggestion="循环内 import 会增加查找开销，建议移到模块顶部",
+                                code_snippet=(
+                                    lines[child.lineno - 1].strip()
+                                    if child.lineno <= len(lines)
+                                    else ""
+                                ),
+                            )
+                        )
 
             # 检测 deepcopy 调用
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
                 if node.func.attr == "deepcopy":
-                    warnings.append(PerfWarning(
-                        line=node.lineno,
-                        pattern="deep_copy_large",
-                        severity="medium",
-                        suggestion="deepcopy 对大对象开销大，考虑浅拷贝或显式构造",
-                        code_snippet=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                    ))
+                    warnings.append(
+                        PerfWarning(
+                            line=node.lineno,
+                            pattern="deep_copy_large",
+                            severity="medium",
+                            suggestion="deepcopy 对大对象开销大，考虑浅拷贝或显式构造",
+                            code_snippet=(
+                                lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
+                            ),
+                        )
+                    )
 
             # 检测 sort() 后 reverse() 调用
             if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
                 call = node.value
                 if isinstance(call.func, ast.Attribute) and call.func.attr == "reverse":
-                    warnings.append(PerfWarning(
-                        line=node.lineno,
-                        pattern="sort_then_reverse",
-                        severity="low",
-                        suggestion="使用 sort(reverse=True) 一次到位，避免双次遍历",
-                        code_snippet=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                    ))
+                    warnings.append(
+                        PerfWarning(
+                            line=node.lineno,
+                            pattern="sort_then_reverse",
+                            severity="low",
+                            suggestion="使用 sort(reverse=True) 一次到位，避免双次遍历",
+                            code_snippet=(
+                                lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
+                            ),
+                        )
+                    )
 
             # 检测裸 except
             if isinstance(node, ast.ExceptHandler) and node.type is None:
-                warnings.append(PerfWarning(
-                    line=node.lineno,
-                    pattern="bare_except_perf",
-                    severity="medium",
-                    suggestion="裸 except 会捕获 BaseException，使用具体异常类型",
-                    code_snippet=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                ))
+                warnings.append(
+                    PerfWarning(
+                        line=node.lineno,
+                        pattern="bare_except_perf",
+                        severity="medium",
+                        suggestion="裸 except 会捕获 BaseException，使用具体异常类型",
+                        code_snippet=(
+                            lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
+                        ),
+                    )
+                )
 
             # 检测 list(d.keys()) 调用
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
@@ -327,15 +451,130 @@ class PerformanceAdvisor:
                     arg = node.args[0]
                     if isinstance(arg, ast.Call) and isinstance(arg.func, ast.Attribute):
                         if arg.func.attr == "keys":
-                            warnings.append(PerfWarning(
+                            warnings.append(
+                                PerfWarning(
+                                    line=node.lineno,
+                                    pattern="dict_keys_to_list",
+                                    severity="low",
+                                    suggestion="直接遍历 d.keys() 即可 (Python 3 返回 view)，无需 list()",
+                                    code_snippet=(
+                                        lines[node.lineno - 1].strip()
+                                        if node.lineno <= len(lines)
+                                        else ""
+                                    ),
+                                )
+                            )
+
+            # ── P2 扩展规则检测 (迭代#3) ──
+
+            # 检测 asyncio.create_task 未保存引用 (作为 Expr 语句)
+            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+                call = node.value
+                if self._is_asyncio_call(call, "create_task"):
+                    warnings.append(
+                        PerfWarning(
+                            line=node.lineno,
+                            pattern="async_create_task_not_awaited",
+                            severity="high",
+                            suggestion="asyncio.create_task 结果未保存引用，可能被 GC 回收",
+                            code_snippet=(
+                                lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
+                            ),
+                        )
+                    )
+
+            # 检测 asyncio.wait() 无 timeout 参数
+            if isinstance(node, ast.Call) and self._is_asyncio_call(node, "wait"):
+                kw_names = {kw.arg for kw in node.keywords if kw.arg}
+                if "timeout" not in kw_names:
+                    warnings.append(
+                        PerfWarning(
+                            line=node.lineno,
+                            pattern="async_wait_without_timeout",
+                            severity="medium",
+                            suggestion="asyncio.wait() 未设置 timeout 可能永久阻塞",
+                            code_snippet=(
+                                lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
+                            ),
+                        )
+                    )
+
+            # 检测 pickle.load / pickle.loads (安全+性能)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                if node.func.attr in ("load", "loads") and isinstance(node.func.value, ast.Name):
+                    if node.func.value.id == "pickle":
+                        warnings.append(
+                            PerfWarning(
                                 line=node.lineno,
-                                pattern="dict_keys_to_list",
-                                severity="low",
-                                suggestion="直接遍历 d.keys() 即可 (Python 3 返回 view)，无需 list()",
-                                code_snippet=lines[node.lineno - 1].strip() if node.lineno <= len(lines) else "",
-                            ))
+                                pattern="pickle_unsafe_load",
+                                severity="high",
+                                suggestion="pickle.load 反序列化不可信数据有安全+性能风险，改用 json",
+                                code_snippet=(
+                                    lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
+                                ),
+                            )
+                        )
+
+            # 检测 list.pop(0) 当队列
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                if node.func.attr == "pop" and len(node.args) >= 1:
+                    arg = node.args[0]
+                    if isinstance(arg, ast.Constant) and arg.value == 0:
+                        warnings.append(
+                            PerfWarning(
+                                line=node.lineno,
+                                pattern="list_as_queue",
+                                severity="medium",
+                                suggestion="list.pop(0) 是 O(n)，使用 collections.deque.popleft() O(1)",
+                                code_snippet=(
+                                    lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
+                                ),
+                            )
+                        )
+
+            # 检测 list.insert(0, x) 头部插入
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                if node.func.attr == "insert" and len(node.args) >= 2:
+                    arg = node.args[0]
+                    if isinstance(arg, ast.Constant) and arg.value == 0:
+                        warnings.append(
+                            PerfWarning(
+                                line=node.lineno,
+                                pattern="list_as_stack_inefficient",
+                                severity="medium",
+                                suggestion="list.insert(0, x) 是 O(n)，使用 deque.appendleft() O(1)",
+                                code_snippet=(
+                                    lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
+                                ),
+                            )
+                        )
+
+            # 检测 open() 未在 with 语句中 (简化: open 作为赋值语句)
+            if isinstance(node, ast.Assign):
+                if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Name):
+                    if node.value.func.id == "open":
+                        warnings.append(
+                            PerfWarning(
+                                line=node.lineno,
+                                pattern="unclosed_resource",
+                                severity="high",
+                                suggestion="open() 未使用 with 语句可能泄漏资源，建议 with open(...) as f:",
+                                code_snippet=(
+                                    lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
+                                ),
+                            )
+                        )
 
         return warnings
+
+    @staticmethod
+    def _is_asyncio_call(call: ast.Call, method: str) -> bool:
+        """判断是否为 asyncio.<method>(...) 调用"""
+        func = call.func
+        if isinstance(func, ast.Attribute) and func.attr == method:
+            if isinstance(func.value, ast.Name) and func.value.id == "asyncio":
+                return True
+        return False
 
     def _find_async_functions(self, tree: ast.AST) -> set[int]:
         """收集 async 函数所在的所有行号区间"""
@@ -362,7 +601,11 @@ class PerformanceAdvisor:
                 return True
             if attr in ("get", "post", "put", "delete", "request"):
                 if isinstance(node.func.value, ast.Name) and node.func.value.id in (
-                    "requests", "urllib", "httpx", "socket", "subprocess"
+                    "requests",
+                    "urllib",
+                    "httpx",
+                    "socket",
+                    "subprocess",
                 ):
                     return True
         return False
@@ -380,33 +623,53 @@ class PerformanceAdvisor:
                 func_name = child.func.attr
                 if func_name in ("sleep", "delay") and isinstance(child.func.value, ast.Name):
                     if child.func.value.id in ("time", "pygame", "pygame.time"):
-                        warnings.append(PerfWarning(
-                            line=child.lineno,
-                            pattern="time_delay_in_loop",
-                            severity="high",
-                            suggestion="循环内使用 sleep/delay 会导致卡顿，建议使用事件驱动或 Clock.tick",
-                            code_snippet=lines[child.lineno - 1].strip() if child.lineno <= len(lines) else "",
-                        ))
+                        warnings.append(
+                            PerfWarning(
+                                line=child.lineno,
+                                pattern="time_delay_in_loop",
+                                severity="high",
+                                suggestion="循环内使用 sleep/delay 会导致卡顿，建议使用事件驱动或 Clock.tick",
+                                code_snippet=(
+                                    lines[child.lineno - 1].strip()
+                                    if child.lineno <= len(lines)
+                                    else ""
+                                ),
+                            )
+                        )
 
                 # 检测循环内正则编译
-                if func_name == "compile" and isinstance(child.func.value, ast.Name) and child.func.value.id == "re":
-                    warnings.append(PerfWarning(
-                        line=child.lineno,
-                        pattern="recompile_regex",
-                        severity="medium",
-                        suggestion="循环内重复编译正则表达式，建议在循环外预编译",
-                        code_snippet=lines[child.lineno - 1].strip() if child.lineno <= len(lines) else "",
-                    ))
+                if (
+                    func_name == "compile"
+                    and isinstance(child.func.value, ast.Name)
+                    and child.func.value.id == "re"
+                ):
+                    warnings.append(
+                        PerfWarning(
+                            line=child.lineno,
+                            pattern="recompile_regex",
+                            severity="medium",
+                            suggestion="循环内重复编译正则表达式，建议在循环外预编译",
+                            code_snippet=(
+                                lines[child.lineno - 1].strip()
+                                if child.lineno <= len(lines)
+                                else ""
+                            ),
+                        )
+                    )
 
             # 检测循环内字符串拼接 (AugAssign with +)
             if isinstance(child, ast.AugAssign) and isinstance(child.op, ast.Add):
-                warnings.append(PerfWarning(
-                    line=child.lineno,
-                    pattern="string_concat_in_loop",
-                    severity="medium",
-                    suggestion="循环内 += 拼接字符串是 O(n²)，建议使用列表 + join",
-                    code_snippet=lines[child.lineno - 1].strip() if child.lineno <= len(lines) else "",
-                ))
+                warnings.append(
+                    PerfWarning(
+                        line=child.lineno,
+                        pattern="string_concat_in_loop",
+                        severity="medium",
+                        suggestion="循环内 += 拼接字符串是 O(n²)，建议使用列表 + join",
+                        code_snippet=(
+                            lines[child.lineno - 1].strip() if child.lineno <= len(lines) else ""
+                        ),
+                    )
+                )
 
         return warnings
 
@@ -429,26 +692,30 @@ class PerformanceAdvisor:
             if "pygame.mixer.Sound" in stripped and any(
                 kw in stripped for kw in ["for ", "while "]
             ):
-                warnings.append(PerfWarning(
-                    line=i,
-                    pattern="loop_object_creation",
-                    severity="high",
-                    suggestion="循环内创建 pygame.mixer.Sound 对象，建议在循环外预加载",
-                    code_snippet=stripped,
-                ))
+                warnings.append(
+                    PerfWarning(
+                        line=i,
+                        pattern="loop_object_creation",
+                        severity="high",
+                        suggestion="循环内创建 pygame.mixer.Sound 对象，建议在循环外预加载",
+                        code_snippet=stripped,
+                    )
+                )
 
             # 检测 print 在循环中
             if "print(" in stripped and any(
-                kw in lines[max(0, i-3):i] for kw in ["for ", "while "]
+                kw in lines[max(0, i - 3) : i] for kw in ["for ", "while "]
             ):
                 if not stripped.startswith("#"):
-                    warnings.append(PerfWarning(
-                        line=i,
-                        pattern="loop_io",
-                        severity="low",
-                        suggestion="循环内使用 print 会影响性能，生产环境建议使用 logging",
-                        code_snippet=stripped,
-                    ))
+                    warnings.append(
+                        PerfWarning(
+                            line=i,
+                            pattern="loop_io",
+                            severity="low",
+                            suggestion="循环内使用 print 会影响性能，生产环境建议使用 logging",
+                            code_snippet=stripped,
+                        )
+                    )
 
             # 检测循环内数据库查询 (N+1 查询模式)
             if last_loop_line and i > last_loop_line and i - last_loop_line < 20:
@@ -461,27 +728,33 @@ class PerformanceAdvisor:
                     r"session\.",
                     r"\.objects\.",
                 ]
-                if any(re.search(p, stripped) for p in db_patterns) and not stripped.startswith("#"):
-                    warnings.append(PerfWarning(
-                        line=i,
-                        pattern="n_plus_1_query",
-                        severity="high",
-                        suggestion="循环内执行数据库查询 (N+1)，建议使用批量查询或预加载关联数据",
-                        code_snippet=stripped,
-                    ))
+                if any(re.search(p, stripped) for p in db_patterns) and not stripped.startswith(
+                    "#"
+                ):
+                    warnings.append(
+                        PerfWarning(
+                            line=i,
+                            pattern="n_plus_1_query",
+                            severity="high",
+                            suggestion="循环内执行数据库查询 (N+1)，建议使用批量查询或预加载关联数据",
+                            code_snippet=stripped,
+                        )
+                    )
 
             # 检测 for-break 查找模式 (manual_loop_search)
             if re.match(r"\s*for\s+\w+\s+in\s+.+:", line):
                 # 检查后续 5 行内是否有 break (range 上界需 +1 以包含最后一行)
                 for j in range(i, min(i + 5, len(lines)) + 1):
                     if j <= len(lines) and "break" in lines[j - 1]:
-                        warnings.append(PerfWarning(
-                            line=i,
-                            pattern="manual_loop_search",
-                            severity="low",
-                            suggestion="for+break 查找模式可用 next() + 生成器表达式替代",
-                            code_snippet=stripped,
-                        ))
+                        warnings.append(
+                            PerfWarning(
+                                line=i,
+                                pattern="manual_loop_search",
+                                severity="low",
+                                suggestion="for+break 查找模式可用 next() + 生成器表达式替代",
+                                code_snippet=stripped,
+                            )
+                        )
                         break
 
             # 检测重复字典查询 (简化版: 同行多次出现 d["key"])
@@ -493,14 +766,41 @@ class PerformanceAdvisor:
                     counts[name] = counts.get(name, 0) + 1
                 for name, cnt in counts.items():
                     if cnt >= 2:
-                        warnings.append(PerfWarning(
-                            line=i,
-                            pattern="repeated_dict_lookup",
-                            severity="low",
-                            suggestion=f"行内多次查询 {name}，建议缓存到局部变量",
-                            code_snippet=stripped,
-                        ))
+                        warnings.append(
+                            PerfWarning(
+                                line=i,
+                                pattern="repeated_dict_lookup",
+                                severity="low",
+                                suggestion=f"行内多次查询 {name}，建议缓存到局部变量",
+                                code_snippet=stripped,
+                            )
+                        )
                         break
+
+            # 检测 .readlines() 全量加载 (内存反模式)
+            if ".readlines()" in stripped and not stripped.startswith("#"):
+                warnings.append(
+                    PerfWarning(
+                        line=i,
+                        pattern="list_full_load_large_file",
+                        severity="high",
+                        suggestion=".readlines() 全量加载大文件到内存，建议逐行迭代: for line in f:",
+                        code_snippet=stripped,
+                    )
+                )
+
+            # 检测循环内 json.dumps (CPU 开销)
+            if last_loop_line and i > last_loop_line and i - last_loop_line < 20:
+                if "json.dumps(" in stripped and not stripped.startswith("#"):
+                    warnings.append(
+                        PerfWarning(
+                            line=i,
+                            pattern="json_dumps_large_object",
+                            severity="medium",
+                            suggestion="循环内 json.dumps 重复序列化，建议缓存结果或使用 orjson",
+                            code_snippet=stripped,
+                        )
+                    )
 
         return warnings
 

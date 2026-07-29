@@ -59,9 +59,7 @@ class SinglePassGenerator:
             context_text=context_text,
         )
 
-        llm_code, usage = await self._call_llm(
-            prompt, request.max_tokens, request.temperature
-        )
+        llm_code, usage = await self._call_llm(prompt, request.max_tokens, request.temperature)
 
         duration = (time.time() - start) * 1000
 
@@ -75,14 +73,13 @@ class SinglePassGenerator:
             confidence=0.8,
         )
 
-    async def _call_llm(
-        self, prompt: str, max_tokens: int, temperature: float
-    ) -> tuple[str, dict]:
+    async def _call_llm(self, prompt: str, max_tokens: int, temperature: float) -> tuple[str, dict]:
         """调用 LLM"""
         try:
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.chat_bridge")
-            ChatBridge = getattr(_mod, "ChatBridge")
+            ChatBridge = _mod.ChatBridge
 
             bridge = ChatBridge()
             bridge.configure(
@@ -100,6 +97,7 @@ class SinglePassGenerator:
     def _extract_code(self, response: str) -> str:
         """从 LLM 回复中提取代码块"""
         import re
+
         match = re.search(r"```(?:\w+)?\s*\n(.*?)```", response, re.DOTALL)
         if match:
             return match.group(1).strip()

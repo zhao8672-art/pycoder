@@ -21,11 +21,8 @@ test_generator.py 模块单元测试 — 覆盖率目标 ≥80%
 from __future__ import annotations
 
 import ast
-import asyncio
-import sys
 import textwrap
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -37,8 +34,8 @@ from pycoder.server.services.test_generator import (
     get_test_generator,
 )
 
-
 # ── Fixtures ──
+
 
 @pytest.fixture
 def gen(tmp_path, monkeypatch):
@@ -52,11 +49,13 @@ def no_real_subprocess(monkeypatch):
     """统一替换 subprocess.run, 返回 MagicMock"""
     mock_run = MagicMock()
     import pycoder.server.services.test_generator as mod
+
     monkeypatch.setattr(mod.subprocess, "run", mock_run)
     return mock_run
 
 
 # ── 数据模型 ──
+
 
 def test_test_case_defaults():
     tc = TestCase(name="t", source="def t(): pass")
@@ -74,6 +73,7 @@ def test_test_generation_result_defaults():
 
 # ── __init__ ──
 
+
 def test_init_creates_test_dir(tmp_path):
     """__init__ 创建 .pycoder_tests 目录"""
     gen = TestGenerator(workspace_root=tmp_path)
@@ -89,6 +89,7 @@ def test_init_uses_cwd_if_no_workspace(monkeypatch, tmp_path):
 
 
 # ── generate() 错误分支 ──
+
 
 def test_generate_file_not_exist(gen, tmp_path):
     """generate 对不存在的文件返回 success=False"""
@@ -113,9 +114,11 @@ def test_generate_placeholder_for_empty_module(gen, tmp_path):
     # 替换 _generate_placeholder 验证被调用
     called = {"yes": False}
     orig = gen._generate_placeholder
+
     def patched(path):
         called["yes"] = True
         return orig(path)
+
     gen._generate_placeholder = patched
     result = gen.generate(src)
     assert called["yes"] is True
@@ -142,8 +145,11 @@ def test_generate_success_path(gen, tmp_path, monkeypatch):
     src.write_text("def add(a, b):\n    return a + b\n", encoding="utf-8")
     # mock _run_tests
     gen._run_tests = lambda tf: {
-        "success": True, "passed": 3, "failed": 0,
-        "coverage": 88.5, "output": "OK",
+        "success": True,
+        "passed": 3,
+        "failed": 0,
+        "coverage": 88.5,
+        "output": "OK",
     }
     result = gen.generate(src)
     assert result.success is True
@@ -157,7 +163,8 @@ def test_generate_success_path(gen, tmp_path, monkeypatch):
 def test_generate_with_class_methods(gen, tmp_path):
     """generate 处理包含类的源文件, 覆盖 ast.ClassDef 分支"""
     src = tmp_path / "mod_class.py"
-    src.write_text(textwrap.dedent("""
+    src.write_text(
+        textwrap.dedent("""
         class Calculator:
             def add(self, a: int, b: int) -> int:
                 return a + b
@@ -167,8 +174,16 @@ def test_generate_with_class_methods(gen, tmp_path):
                 return 1
         def helper(x: str):
             return x
-    """), encoding="utf-8")
-    gen._run_tests = lambda tf: {"success": True, "passed": 1, "failed": 0, "coverage": 0.0, "output": ""}
+    """),
+        encoding="utf-8",
+    )
+    gen._run_tests = lambda tf: {
+        "success": True,
+        "passed": 1,
+        "failed": 0,
+        "coverage": 0.0,
+        "output": "",
+    }
     result = gen.generate(src)
     assert result.success is True
     # 应生成多个测试用例（add normal+zero, greet normal+empty_string, no_args basic, helper normal+empty_string）
@@ -183,12 +198,19 @@ def test_generate_relative_path(gen, tmp_path):
     """generate 接受相对路径, 解析为 workspace_root 下"""
     src = tmp_path / "relmod.py"
     src.write_text("def f():\n    return 0\n", encoding="utf-8")
-    gen._run_tests = lambda tf: {"success": True, "passed": 1, "failed": 0, "coverage": 0.0, "output": ""}
+    gen._run_tests = lambda tf: {
+        "success": True,
+        "passed": 1,
+        "failed": 0,
+        "coverage": 0.0,
+        "output": "",
+    }
     result = gen.generate("relmod.py")
     assert result.success is True
 
 
 # ── _analyze_function ──
+
 
 def test_analyze_function_basic_args(gen):
     """_analyze_function 提取参数和返回类型"""
@@ -242,6 +264,7 @@ def test_analyze_function_raises(gen):
 
 # ── _extract_type_name ──
 
+
 def test_extract_type_name_various(gen):
     """覆盖所有 _extract_type_name 分支"""
     # Name
@@ -271,13 +294,18 @@ def test_extract_type_name_subscript_without_name(gen):
 
 # ── _generate_tests_for_function ──
 
+
 def test_generate_tests_for_function_str_arg(gen):
     """字符串参数: 生成 normal + empty_string 测试"""
     func = {
-        "name": "f", "class_name": None,
+        "name": "f",
+        "class_name": None,
         "args": [{"name": "s", "type": "str"}],
-        "return_type": None, "docstring": "", "is_async": False,
-        "has_return": False, "raises": [],
+        "return_type": None,
+        "docstring": "",
+        "is_async": False,
+        "has_return": False,
+        "raises": [],
     }
     cases = gen._generate_tests_for_function(func)
     names = [c.name for c in cases]
@@ -289,10 +317,14 @@ def test_generate_tests_for_function_str_arg(gen):
 def test_generate_tests_for_function_int_arg(gen):
     """int 参数: 生成 normal + zero 测试"""
     func = {
-        "name": "f", "class_name": None,
+        "name": "f",
+        "class_name": None,
         "args": [{"name": "n", "type": "int"}],
-        "return_type": None, "docstring": "", "is_async": False,
-        "has_return": False, "raises": [],
+        "return_type": None,
+        "docstring": "",
+        "is_async": False,
+        "has_return": False,
+        "raises": [],
     }
     cases = gen._generate_tests_for_function(func)
     names = [c.name for c in cases]
@@ -303,10 +335,14 @@ def test_generate_tests_for_function_int_arg(gen):
 def test_generate_tests_for_function_bool_arg(gen):
     """bool 参数: 生成 normal 测试, 用 True"""
     func = {
-        "name": "f", "class_name": None,
+        "name": "f",
+        "class_name": None,
         "args": [{"name": "b", "type": "bool"}],
-        "return_type": None, "docstring": "", "is_async": False,
-        "has_return": False, "raises": [],
+        "return_type": None,
+        "docstring": "",
+        "is_async": False,
+        "has_return": False,
+        "raises": [],
     }
     cases = gen._generate_tests_for_function(func)
     assert len(cases) == 1
@@ -316,10 +352,14 @@ def test_generate_tests_for_function_bool_arg(gen):
 def test_generate_tests_for_function_list_arg(gen):
     """list 参数"""
     func = {
-        "name": "f", "class_name": None,
+        "name": "f",
+        "class_name": None,
         "args": [{"name": "x", "type": "list"}],
-        "return_type": None, "docstring": "", "is_async": False,
-        "has_return": False, "raises": [],
+        "return_type": None,
+        "docstring": "",
+        "is_async": False,
+        "has_return": False,
+        "raises": [],
     }
     cases = gen._generate_tests_for_function(func)
     assert "[1, 2, 3]" in cases[0].source
@@ -328,10 +368,14 @@ def test_generate_tests_for_function_list_arg(gen):
 def test_generate_tests_for_function_dict_arg(gen):
     """dict 参数"""
     func = {
-        "name": "f", "class_name": None,
+        "name": "f",
+        "class_name": None,
         "args": [{"name": "x", "type": "dict"}],
-        "return_type": None, "docstring": "", "is_async": False,
-        "has_return": False, "raises": [],
+        "return_type": None,
+        "docstring": "",
+        "is_async": False,
+        "has_return": False,
+        "raises": [],
     }
     cases = gen._generate_tests_for_function(func)
     assert '{"key": "value"}' in cases[0].source
@@ -340,10 +384,14 @@ def test_generate_tests_for_function_dict_arg(gen):
 def test_generate_tests_for_function_optional_arg(gen):
     """Optional 参数用 None"""
     func = {
-        "name": "f", "class_name": None,
+        "name": "f",
+        "class_name": None,
         "args": [{"name": "x", "type": "Optional"}],
-        "return_type": None, "docstring": "", "is_async": False,
-        "has_return": False, "raises": [],
+        "return_type": None,
+        "docstring": "",
+        "is_async": False,
+        "has_return": False,
+        "raises": [],
     }
     cases = gen._generate_tests_for_function(func)
     assert "None" in cases[0].source
@@ -352,10 +400,14 @@ def test_generate_tests_for_function_optional_arg(gen):
 def test_generate_tests_for_function_unknown_type(gen):
     """未知类型走 default 分支: 'test'"""
     func = {
-        "name": "f", "class_name": None,
+        "name": "f",
+        "class_name": None,
         "args": [{"name": "x", "type": "CustomType"}],
-        "return_type": None, "docstring": "", "is_async": False,
-        "has_return": False, "raises": [],
+        "return_type": None,
+        "docstring": "",
+        "is_async": False,
+        "has_return": False,
+        "raises": [],
     }
     cases = gen._generate_tests_for_function(func)
     assert '"test"' in cases[0].source
@@ -364,10 +416,14 @@ def test_generate_tests_for_function_unknown_type(gen):
 def test_generate_tests_for_function_no_args(gen):
     """无参数函数: 生成 basic 测试"""
     func = {
-        "name": "f", "class_name": None,
+        "name": "f",
+        "class_name": None,
         "args": [],
-        "return_type": None, "docstring": "", "is_async": False,
-        "has_return": False, "raises": [],
+        "return_type": None,
+        "docstring": "",
+        "is_async": False,
+        "has_return": False,
+        "raises": [],
     }
     cases = gen._generate_tests_for_function(func)
     assert len(cases) == 1
@@ -377,10 +433,14 @@ def test_generate_tests_for_function_no_args(gen):
 def test_generate_tests_for_class_method_no_args(gen):
     """类方法无参数的边界分支: 生成 instance.method() 测试"""
     func = {
-        "name": "m", "class_name": "C",
+        "name": "m",
+        "class_name": "C",
         "args": [],
-        "return_type": None, "docstring": "", "is_async": False,
-        "has_return": False, "raises": [],
+        "return_type": None,
+        "docstring": "",
+        "is_async": False,
+        "has_return": False,
+        "raises": [],
     }
     cases = gen._generate_tests_for_function(func)
     assert len(cases) == 1
@@ -391,10 +451,14 @@ def test_generate_tests_for_class_method_no_args(gen):
 def test_generate_tests_for_class_method(gen):
     """类方法生成包含 instance = ClassName()"""
     func = {
-        "name": "method", "class_name": "MyClass",
+        "name": "method",
+        "class_name": "MyClass",
         "args": [{"name": "x", "type": "str"}],
-        "return_type": None, "docstring": "", "is_async": False,
-        "has_return": True, "raises": [],
+        "return_type": None,
+        "docstring": "",
+        "is_async": False,
+        "has_return": True,
+        "raises": [],
     }
     cases = gen._generate_tests_for_function(func)
     assert any("instance = MyClass()" in c.source for c in cases)
@@ -405,10 +469,14 @@ def test_generate_tests_for_class_method(gen):
 def test_generate_tests_for_function_has_return(gen):
     """has_return=True 时 normal 测试包含 assert"""
     func = {
-        "name": "f", "class_name": None,
+        "name": "f",
+        "class_name": None,
         "args": [{"name": "x", "type": "str"}],
-        "return_type": None, "docstring": "", "is_async": False,
-        "has_return": True, "raises": [],
+        "return_type": None,
+        "docstring": "",
+        "is_async": False,
+        "has_return": True,
+        "raises": [],
     }
     cases = gen._generate_tests_for_function(func)
     assert "assert result is not None" in cases[0].source
@@ -417,13 +485,17 @@ def test_generate_tests_for_function_has_return(gen):
 def test_generate_tests_for_function_int_and_str_args(gen):
     """多参数混合: int+str 同时生成 _zero 和 _empty_string 测试"""
     func = {
-        "name": "f", "class_name": None,
+        "name": "f",
+        "class_name": None,
         "args": [
             {"name": "n", "type": "int"},
             {"name": "s", "type": "str"},
         ],
-        "return_type": None, "docstring": "", "is_async": False,
-        "has_return": False, "raises": [],
+        "return_type": None,
+        "docstring": "",
+        "is_async": False,
+        "has_return": False,
+        "raises": [],
     }
     cases = gen._generate_tests_for_function(func)
     names = [c.name for c in cases]
@@ -433,6 +505,7 @@ def test_generate_tests_for_function_int_and_str_args(gen):
 
 
 # ── _build_test_file ──
+
 
 def test_build_test_file(gen):
     """_build_test_file 包含头部和测试用例"""
@@ -448,6 +521,7 @@ def test_build_test_file(gen):
 
 
 # ── _run_tests ──
+
 
 def test_run_tests_success(gen, monkeypatch):
     """_run_tests 调用 subprocess.run 返回 success=True"""
@@ -471,7 +545,9 @@ def test_run_tests_failure(gen, monkeypatch):
     """_run_tests 失败返回 success=False"""
     mock_run = MagicMock()
     mock_run.return_value = MagicMock(
-        returncode=1, stdout="test_a FAILED", stderr="error",
+        returncode=1,
+        stdout="test_a FAILED",
+        stderr="error",
     )
     monkeypatch.setattr("pycoder.server.services.test_generator.subprocess.run", mock_run)
     gen._get_coverage = lambda tf: 0.0
@@ -483,8 +559,10 @@ def test_run_tests_failure(gen, monkeypatch):
 def test_run_tests_timeout(gen, monkeypatch):
     """_run_tests 超时返回超时错误"""
     import subprocess as sp
+
     def raise_timeout(*args, **kwargs):
         raise sp.TimeoutExpired(cmd="pytest", timeout=60)
+
     monkeypatch.setattr("pycoder.server.services.test_generator.subprocess.run", raise_timeout)
     result = gen._run_tests(Path("dummy.py"))
     assert result["success"] is False
@@ -493,8 +571,10 @@ def test_run_tests_timeout(gen, monkeypatch):
 
 def test_run_tests_filenotfound(gen, monkeypatch):
     """_run_tests pytest 未安装"""
+
     def raise_fnf(*args, **kwargs):
         raise FileNotFoundError("pytest")
+
     monkeypatch.setattr("pycoder.server.services.test_generator.subprocess.run", raise_fnf)
     result = gen._run_tests(Path("dummy.py"))
     assert result["success"] is False
@@ -503,8 +583,10 @@ def test_run_tests_filenotfound(gen, monkeypatch):
 
 def test_run_tests_other_exception(gen, monkeypatch):
     """_run_tests 其他异常分支"""
+
     def raise_err(*args, **kwargs):
         raise RuntimeError("boom")
+
     monkeypatch.setattr("pycoder.server.services.test_generator.subprocess.run", raise_err)
     result = gen._run_tests(Path("dummy.py"))
     assert result["success"] is False
@@ -513,9 +595,11 @@ def test_run_tests_other_exception(gen, monkeypatch):
 
 # ── _get_coverage ──
 
+
 def test_get_coverage_no_coverage_module(gen, monkeypatch):
     """coverage 未安装 → ImportError → 尝试 pytest-cov"""
     import sys as _sys
+
     # 暂时让 import coverage 抛 ImportError
     monkeypatch.setitem(_sys.modules, "coverage", None)
     mock_run = MagicMock()
@@ -529,6 +613,7 @@ def test_get_coverage_no_coverage_module(gen, monkeypatch):
 def test_get_coverage_no_coverage_no_match(gen, monkeypatch):
     """coverage ImportError + pytest-cov 输出无匹配 → 0.0"""
     import sys as _sys
+
     monkeypatch.setitem(_sys.modules, "coverage", None)
     mock_run = MagicMock()
     mock_run.return_value = MagicMock(stdout="no total line", stderr="", returncode=0)
@@ -540,10 +625,13 @@ def test_get_coverage_no_coverage_no_match(gen, monkeypatch):
 def test_get_coverage_pytest_cov_subprocess_error(gen, monkeypatch):
     """coverage ImportError + pytest-cov 子进程异常 → 0.0"""
     import sys as _sys
+
     monkeypatch.setitem(_sys.modules, "coverage", None)
     import subprocess as sp
+
     def boom(*a, **k):
         raise sp.SubprocessError("fail")
+
     monkeypatch.setattr("pycoder.server.services.test_generator.subprocess.run", boom)
     result = gen._get_coverage(Path("dummy.py"))
     assert result == 0.0
@@ -559,6 +647,7 @@ def test_get_coverage_with_coverage_module(gen, monkeypatch):
     fake_cov_inst.get_data.return_value = fake_data
     fake_cov_mod.Coverage.return_value = fake_cov_inst
     import sys as _sys
+
     monkeypatch.setitem(_sys.modules, "coverage", fake_cov_mod)
     monkeypatch.setattr("pycoder.server.services.test_generator.subprocess.run", MagicMock())
     result = gen._get_coverage(Path("dummy.py"))
@@ -579,6 +668,7 @@ def test_get_coverage_with_measured_files(gen, monkeypatch, tmp_path):
     fake_cov_inst.get_data.return_value = fake_data
     fake_cov_mod.Coverage.return_value = fake_cov_inst
     import sys as _sys
+
     monkeypatch.setitem(_sys.modules, "coverage", fake_cov_mod)
     monkeypatch.setattr("pycoder.server.services.test_generator.subprocess.run", MagicMock())
     result = gen._get_coverage(Path("dummy.py"))
@@ -600,6 +690,7 @@ def test_get_coverage_with_missing_statements(gen, monkeypatch, tmp_path):
     fake_cov_inst.get_data.return_value = fake_data
     fake_cov_mod.Coverage.return_value = fake_cov_inst
     import sys as _sys
+
     monkeypatch.setitem(_sys.modules, "coverage", fake_cov_mod)
     monkeypatch.setattr("pycoder.server.services.test_generator.subprocess.run", MagicMock())
     result = gen._get_coverage(Path("dummy.py"))
@@ -611,12 +702,14 @@ def test_get_coverage_general_exception(gen, monkeypatch):
     fake_cov_mod = MagicMock()
     fake_cov_mod.Coverage.side_effect = RuntimeError("coverage init failed")
     import sys as _sys
+
     monkeypatch.setitem(_sys.modules, "coverage", fake_cov_mod)
     result = gen._get_coverage(Path("dummy.py"))
     assert result == 0.0
 
 
 # ── _generate_placeholder ──
+
 
 def test_generate_placeholder(gen, tmp_path):
     """_generate_placeholder 写入占位测试文件"""
@@ -631,10 +724,12 @@ def test_generate_placeholder(gen, tmp_path):
 
 # ── get_test_generator 单例 ──
 
+
 def test_get_test_generator_singleton(monkeypatch, tmp_path):
     """get_test_generator 返回同一实例"""
     # 重置模块全局
     import pycoder.server.services.test_generator as mod
+
     monkeypatch.setattr(mod, "_generator", None)
     a = get_test_generator(tmp_path)
     b = get_test_generator()
@@ -644,6 +739,7 @@ def test_get_test_generator_singleton(monkeypatch, tmp_path):
 def test_get_test_generator_creates_new(monkeypatch, tmp_path):
     """_generator 为 None 时创建新实例"""
     import pycoder.server.services.test_generator as mod
+
     monkeypatch.setattr(mod, "_generator", None)
     gen = get_test_generator(tmp_path)
     assert isinstance(gen, TestGenerator)

@@ -11,12 +11,9 @@ pycoder/prompts 模块综合单元测试
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 import pytest
-
 
 # ══════════════════════════════════════════════════════════
 # 1. cache_rules 模块测试
@@ -44,7 +41,7 @@ class TestCacheRulesConstants:
 
     def test_cache_rules_prompts_are_different(self):
         """中英文缓存规则提示应为不同内容"""
-        from pycoder.prompts.cache_rules import CACHE_RULES_PROMPT_ZH, CACHE_RULES_PROMPT_EN
+        from pycoder.prompts.cache_rules import CACHE_RULES_PROMPT_EN, CACHE_RULES_PROMPT_ZH
 
         assert CACHE_RULES_PROMPT_ZH != CACHE_RULES_PROMPT_EN
 
@@ -54,21 +51,21 @@ class TestGetCacheRules:
 
     def test_get_cache_rules_zh(self):
         """lang='zh' 返回中文缓存规则"""
-        from pycoder.prompts.cache_rules import get_cache_rules, CACHE_RULES_PROMPT_ZH
+        from pycoder.prompts.cache_rules import CACHE_RULES_PROMPT_ZH, get_cache_rules
 
         result = get_cache_rules("zh")
         assert result == CACHE_RULES_PROMPT_ZH
 
     def test_get_cache_rules_en(self):
         """lang='en' 返回英文缓存规则"""
-        from pycoder.prompts.cache_rules import get_cache_rules, CACHE_RULES_PROMPT_EN
+        from pycoder.prompts.cache_rules import CACHE_RULES_PROMPT_EN, get_cache_rules
 
         result = get_cache_rules("en")
         assert result == CACHE_RULES_PROMPT_EN
 
     def test_get_cache_rules_default(self):
         """默认参数应返回中文缓存规则"""
-        from pycoder.prompts.cache_rules import get_cache_rules, CACHE_RULES_PROMPT_ZH
+        from pycoder.prompts.cache_rules import CACHE_RULES_PROMPT_ZH, get_cache_rules
 
         result = get_cache_rules()
         assert result == CACHE_RULES_PROMPT_ZH
@@ -642,7 +639,7 @@ class TestGenerateAgentsMd:
 
     def test_with_custom_templates(self):
         """使用自定义模板列表"""
-        from pycoder.prompts.agents_templates import generate_agents_md, AgentTemplate
+        from pycoder.prompts.agents_templates import AgentTemplate, generate_agents_md
 
         custom = [
             AgentTemplate(
@@ -833,7 +830,7 @@ class TestGetPromptWithCacheRules:
 
     def test_base_prompt_included(self):
         """原始 prompt 内容应包含在结果中"""
-        from pycoder.prompts.loader import get_prompt_with_cache_rules, get_prompt
+        from pycoder.prompts.loader import get_prompt, get_prompt_with_cache_rules
 
         base = get_prompt("hermes", "zh")
         result = get_prompt_with_cache_rules("hermes", "zh")
@@ -981,9 +978,7 @@ class TestSkillsLoader:
         from pycoder.prompts import skills_loader
 
         registry_path = tmp_path / ".skills-registry-enhanced.json"
-        registry_data = [
-            {"name": "技能A", "description": "描述A", "stars": 42}
-        ]
+        registry_data = [{"name": "技能A", "description": "描述A", "stars": 42}]
         registry_path.write_text(json.dumps(registry_data, ensure_ascii=False), encoding="utf-8")
 
         monkeypatch.setattr(skills_loader, "SKILLS_DIRS", [tmp_path / "empty2"])
@@ -1004,9 +999,7 @@ class TestSkillsLoader:
 
         # 注册表技能（同名不同源）
         registry_path = tmp_path / ".skills-registry-enhanced.json"
-        registry_data = [
-            {"name": "我的技能", "description": "注册表描述"}
-        ]
+        registry_data = [{"name": "我的技能", "description": "注册表描述"}]
         registry_path.write_text(json.dumps(registry_data, ensure_ascii=False), encoding="utf-8")
 
         monkeypatch.setattr(skills_loader, "SKILLS_DIRS", [tmp_path])
@@ -1075,11 +1068,7 @@ class TestSkillsLoader:
         from pycoder.prompts import skills_loader
 
         registry_path = tmp_path / ".skills-registry.json"
-        registry_data = {
-            "skills": [
-                {"name": "技能X", "description": "dict格式技能"}
-            ]
-        }
+        registry_data = {"skills": [{"name": "技能X", "description": "dict格式技能"}]}
         registry_path.write_text(json.dumps(registry_data, ensure_ascii=False), encoding="utf-8")
 
         monkeypatch.setattr(skills_loader, "SKILLS_DIRS", [tmp_path / "empty3"])

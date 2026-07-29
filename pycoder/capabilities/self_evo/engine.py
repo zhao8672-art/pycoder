@@ -919,7 +919,9 @@ class SelfEvolutionEngine:
         """
         result = {"fixed": 0, "skipped": 0, "errors": 0, "issues_found": 0}
         async for event in self.run_cycle(
-            task_type="auto", auto_apply=True, dry_run=dry_run,
+            task_type="auto",
+            auto_apply=True,
+            dry_run=dry_run,
         ):
             if event.get("type") == "issues_found":
                 result["issues_found"] = event.get("count", 0)
@@ -1193,17 +1195,20 @@ class SelfEvolutionEngine:
         """
         try:
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.chat_bridge")
-            ChatBridge = getattr(_mod, "ChatBridge")
+            ChatBridge = _mod.ChatBridge
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.chat_handler")
-            _get_api_key_for_model = getattr(_mod, "_get_api_key_for_model")
+            _get_api_key_for_model = _mod._get_api_key_for_model
 
             bridge = ChatBridge()
             # BUGFIX: 必须调用 configure() 设置 model 和 api_base
             api_key = _get_api_key_for_model("deepseek-chat")
             if not api_key:
                 import os as _os
+
                 api_key = _os.environ.get("DEEPSEEK_API_KEY", "")
             if not api_key:
                 logger.warning("evo_scan_no_api_key")
@@ -1375,9 +1380,7 @@ class SelfEvolutionEngine:
             )
 
         # 格式2: ```python:path/to/file.py\ncode\n```
-        for m in re.finditer(
-            r"```(\w+):(\S+?\.\w+)\n(.*?)```", analysis, re.DOTALL
-        ):
+        for m in re.finditer(r"```(\w+):(\S+?\.\w+)\n(.*?)```", analysis, re.DOTALL):
             file_path = m.group(2).strip()
             new_content = m.group(3).strip()
             full_path = self._project_root / file_path
@@ -1387,23 +1390,26 @@ class SelfEvolutionEngine:
             old_content = ""
             if full_path.exists():
                 old_content = full_path.read_text(encoding="utf-8")
-            fixes.append({
-                "file": file_path,
-                "original": old_content[:100],
-                "modified": new_content,
-                "reason": f"AI 建议修改 {file_path}",
-            })
+            fixes.append(
+                {
+                    "file": file_path,
+                    "original": old_content[:100],
+                    "modified": new_content,
+                    "reason": f"AI 建议修改 {file_path}",
+                }
+            )
 
         # 格式3: 文件名注释 + ```python\ncode\n``` 块
         for m in re.finditer(
             r"(?:#\s*file:\s*(\S+?\.\w+)|\/\/\s*file:\s*(\S+?\.\w+))",
-            analysis, re.IGNORECASE,
+            analysis,
+            re.IGNORECASE,
         ):
             file_path = (m.group(1) or m.group(2)).strip()
             if any(f["file"] == file_path for f in fixes):
                 continue
             # 查找紧随其后的代码块
-            after = analysis[m.end():]
+            after = analysis[m.end() :]
             cm = re.search(r"```(?:python|py)?\s*\n(.*?)```", after, re.DOTALL)
             if not cm:
                 continue
@@ -1412,12 +1418,14 @@ class SelfEvolutionEngine:
             if not full_path.exists():
                 continue
             old_content = full_path.read_text(encoding="utf-8")
-            fixes.append({
-                "file": file_path,
-                "original": old_content[:100],
-                "modified": new_content,
-                "reason": f"AI 建议修改 {file_path}",
-            })
+            fixes.append(
+                {
+                    "file": file_path,
+                    "original": old_content[:100],
+                    "modified": new_content,
+                    "reason": f"AI 建议修改 {file_path}",
+                }
+            )
 
         return fixes
 
@@ -1457,8 +1465,9 @@ class SelfEvolutionEngine:
             # SnapshotManager 备份
             try:
                 import importlib as _il
+
                 _mod = _il.import_module("pycoder.server.services.version_snapshot")
-                get_snapshot_manager = getattr(_mod, "get_snapshot_manager")
+                get_snapshot_manager = _mod.get_snapshot_manager
 
                 snap = get_snapshot_manager()
                 result = snap.create_snapshot(label=f"evo_{fix['file']}", pipeline_step="apply_fix")
@@ -1519,8 +1528,9 @@ class SelfEvolutionEngine:
         ref = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + str(uuid.uuid4())[:8]
         try:
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.services.version_snapshot")
-            get_snapshot_manager = getattr(_mod, "get_snapshot_manager")
+            get_snapshot_manager = _mod.get_snapshot_manager
 
             snap = get_snapshot_manager()
             snap.create_snapshot(label=f"evo_{ref}", pipeline_step="evolve_backup")
@@ -1532,8 +1542,9 @@ class SelfEvolutionEngine:
         """从快照回滚"""
         try:
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.services.version_snapshot")
-            get_snapshot_manager = getattr(_mod, "get_snapshot_manager")
+            get_snapshot_manager = _mod.get_snapshot_manager
 
             snap = get_snapshot_manager()
             snapshots = snap.list_snapshots()
@@ -1680,8 +1691,9 @@ class SelfEvolutionEngine:
         """记录学习经验到 LearningEngine"""
         try:
             import importlib as _il
+
             _mod = _il.import_module("pycoder.server.learning")
-            get_learning_engine = getattr(_mod, "get_learning_engine")
+            get_learning_engine = _mod.get_learning_engine
 
             engine = get_learning_engine()
             outcome = (

@@ -1,14 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
-import sys
-import time
-import sqlite3
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 # ═══════════════════════════════════════════════════════════════
 # 5. agent_definitions.py 测试
@@ -354,14 +346,14 @@ class TestDetectCompletion:
         assert is_comp is True
 
     def test_detect_completion_summary(self):
-        """"总结:"应检测为完成信号"""
+        """ "总结:"应检测为完成信号"""
         from pycoder.core.services.agent_parser import _detect_completion
 
         is_comp, summary = _detect_completion("总结：本次开发了用户认证模块...")
         assert is_comp is True
 
     def test_detect_completion_emoji(self):
-        """"✅"开头应检测为完成信号"""
+        """ "✅"开头应检测为完成信号"""
         from pycoder.core.services.agent_parser import _detect_completion
 
         is_comp, summary = _detect_completion("✅ 所有任务已完成")
@@ -399,7 +391,9 @@ class TestParseResponse:
         """JSON tool_calls 格式应正确解析"""
         from pycoder.core.services.agent_parser import parse_response
 
-        text = '```json\n{"tool_calls": [{"name": "read_file", "params": {"path": "test.py"}}]}\n```'
+        text = (
+            '```json\n{"tool_calls": [{"name": "read_file", "params": {"path": "test.py"}}]}\n```'
+        )
         result = parse_response(text)
         assert len(result.tool_calls) == 1
         assert result.tool_calls[0]["name"] == "read_file"
@@ -427,7 +421,9 @@ class TestParseResponse:
         """ReAct 格式应正确解析"""
         from pycoder.core.services.agent_parser import parse_response
 
-        text = '{"thought": "需要读文件", "action": "read_file", "action_input": {"path": "test.py"}}'
+        text = (
+            '{"thought": "需要读文件", "action": "read_file", "action_input": {"path": "test.py"}}'
+        )
         result = parse_response(text)
         assert len(result.tool_calls) == 1
         assert result.tool_calls[0]["name"] == "read_file"
@@ -480,12 +476,14 @@ class TestParseJsonBlock:
         """tool_calls 数组格式"""
         from pycoder.core.services.agent_parser import _parse_json_block
 
-        block = json.dumps({
-            "tool_calls": [
-                {"name": "read_file", "params": {}},
-                {"name": "write_file", "params": {}},
-            ]
-        })
+        block = json.dumps(
+            {
+                "tool_calls": [
+                    {"name": "read_file", "params": {}},
+                    {"name": "write_file", "params": {}},
+                ]
+            }
+        )
         result = _parse_json_block(block)
         assert len(result) == 2
 
@@ -502,10 +500,12 @@ class TestParseJsonBlock:
         """直接工具数组格式"""
         from pycoder.core.services.agent_parser import _parse_json_block
 
-        block = json.dumps([
-            {"name": "read_file", "params": {"path": "a.py"}},
-            {"name": "write_file", "params": {"path": "b.py", "content": "c"}},
-        ])
+        block = json.dumps(
+            [
+                {"name": "read_file", "params": {"path": "a.py"}},
+                {"name": "write_file", "params": {"path": "b.py", "content": "c"}},
+            ]
+        )
         result = _parse_json_block(block)
         assert len(result) == 2
 
@@ -554,10 +554,7 @@ class TestExtractFileBlocks:
         """多个 FILE 块应全部提取"""
         from pycoder.core.services.agent_parser import _extract_file_blocks
 
-        text = (
-            "```FILE:a.py\ncontent a\n```\n"
-            "```FILE:b.py\ncontent b\n```"
-        )
+        text = "```FILE:a.py\ncontent a\n```\n" "```FILE:b.py\ncontent b\n```"
         blocks = _extract_file_blocks(text)
         assert len(blocks) == 2
 
@@ -625,5 +622,3 @@ class TestValidateToolCall:
         valid, msg = validate_tool_call({"name": "read_file", "params": "not a dict"})
         assert valid is False
         assert "参数必须是对象" in msg
-
-

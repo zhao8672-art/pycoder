@@ -13,6 +13,7 @@
 - 异常路径在 backup_ref 已创建时触发 _snapshot_rollback（新增）
 - 异常路径在 backup_ref 为空时不抛错（新增）
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,6 +29,7 @@ def _make_engine(tmp_path: Path):
     V2 引擎位于 pycoder.capabilities.self_evo.engine，V1 shim 继承自此。
     """
     from pycoder.server.self_evolution import SelfEvolutionEngine
+
     return SelfEvolutionEngine(project_root=tmp_path)
 
 
@@ -49,9 +51,9 @@ class TestRollbackCallChain:
 
         # Mock 各阶段方法（V2 引擎使用 _snapshot_backup/_snapshot_rollback）
         engine._scan_project = AsyncMock(return_value="analysis content long enough")
-        engine._parse_fixes = MagicMock(return_value=[
-            {"file": "pycoder/foo.py", "modified": "x = 1\n", "original": "x = 0\n"}
-        ])
+        engine._parse_fixes = MagicMock(
+            return_value=[{"file": "pycoder/foo.py", "modified": "x = 1\n", "original": "x = 0\n"}]
+        )
         engine._apply_fix = AsyncMock(return_value=(True, ""))
         engine._run_tests_async = AsyncMock(return_value=(False, "test failed"))
         engine._snapshot_backup = AsyncMock(return_value="backup-123")
@@ -71,10 +73,12 @@ class TestRollbackCallChain:
         engine = _make_engine(tmp_path)
 
         engine._scan_project = AsyncMock(return_value="analysis content long enough")
-        engine._parse_fixes = MagicMock(return_value=[
-            {"file": "pycoder/a.py", "modified": "x = 1\n", "original": "x = 0\n"},
-            {"file": "pycoder/b.py", "modified": "y = 1\n", "original": "y = 0\n"},
-        ])
+        engine._parse_fixes = MagicMock(
+            return_value=[
+                {"file": "pycoder/a.py", "modified": "x = 1\n", "original": "x = 0\n"},
+                {"file": "pycoder/b.py", "modified": "y = 1\n", "original": "y = 0\n"},
+            ]
+        )
         # 所有 fix 应用失败
         engine._apply_fix = AsyncMock(return_value=(False, "syntax error"))
         engine._run_tests_async = AsyncMock(return_value=(True, "all pass"))
@@ -87,9 +91,9 @@ class TestRollbackCallChain:
         # 必须触发回滚
         assert engine._snapshot_rollback.called, "全部 apply 失败时未触发 _snapshot_rollback"
         # 关键：不应运行测试（避免"未修改任何文件 → 测试通过 → 误判成功"）
-        assert not engine._run_tests_async.called, (
-            "全部 apply 失败时仍调用了 _run_tests_async，可能导致虚假成功"
-        )
+        assert (
+            not engine._run_tests_async.called
+        ), "全部 apply 失败时仍调用了 _run_tests_async，可能导致虚假成功"
         # 应有 rolled_back 事件
         assert any(e["type"] == "rolled_back" for e in events), "缺少 rolled_back 事件"
 
@@ -98,10 +102,12 @@ class TestRollbackCallChain:
         engine = _make_engine(tmp_path)
 
         engine._scan_project = AsyncMock(return_value="analysis content long enough")
-        engine._parse_fixes = MagicMock(return_value=[
-            {"file": "pycoder/a.py", "modified": "x = 1\n", "original": "x = 0\n"},
-            {"file": "pycoder/b.py", "modified": "y = 1\n", "original": "y = 0\n"},
-        ])
+        engine._parse_fixes = MagicMock(
+            return_value=[
+                {"file": "pycoder/a.py", "modified": "x = 1\n", "original": "x = 0\n"},
+                {"file": "pycoder/b.py", "modified": "y = 1\n", "original": "y = 0\n"},
+            ]
+        )
         # 第一个成功，第二个失败
         engine._apply_fix = AsyncMock(side_effect=[(True, ""), (False, "syntax error")])
         # 测试通过（因为第一个修复成功应用）
@@ -125,9 +131,11 @@ class TestRollbackCallChain:
         engine = _make_engine(tmp_path)
 
         engine._scan_project = AsyncMock(return_value="analysis content long enough")
-        engine._parse_fixes = MagicMock(return_value=[
-            {"file": "pycoder/a.py", "modified": "x = 1\n", "original": "x = 0\n"},
-        ])
+        engine._parse_fixes = MagicMock(
+            return_value=[
+                {"file": "pycoder/a.py", "modified": "x = 1\n", "original": "x = 0\n"},
+            ]
+        )
         # _apply_fix 抛异常
         engine._apply_fix = AsyncMock(side_effect=RuntimeError("disk full"))
         engine._run_tests_async = AsyncMock()
@@ -150,9 +158,11 @@ class TestRollbackCallChain:
         engine = _make_engine(tmp_path)
 
         engine._scan_project = AsyncMock(return_value="analysis content long enough")
-        engine._parse_fixes = MagicMock(return_value=[
-            {"file": "pycoder/a.py", "modified": "x = 1\n", "original": "x = 0\n"},
-        ])
+        engine._parse_fixes = MagicMock(
+            return_value=[
+                {"file": "pycoder/a.py", "modified": "x = 1\n", "original": "x = 0\n"},
+            ]
+        )
         engine._apply_fix = AsyncMock(return_value=(True, ""))
         # _run_tests_async 抛异常
         engine._run_tests_async = AsyncMock(side_effect=RuntimeError("pytest crashed"))
@@ -191,9 +201,11 @@ class TestRollbackCallChain:
         engine = _make_engine(tmp_path)
 
         engine._scan_project = AsyncMock(return_value="analysis content long enough")
-        engine._parse_fixes = MagicMock(return_value=[
-            {"file": "pycoder/a.py", "modified": "x = 1\n", "original": "x = 0\n"},
-        ])
+        engine._parse_fixes = MagicMock(
+            return_value=[
+                {"file": "pycoder/a.py", "modified": "x = 1\n", "original": "x = 0\n"},
+            ]
+        )
         engine._apply_fix = AsyncMock(side_effect=RuntimeError("original error"))
         engine._snapshot_backup = AsyncMock(return_value="backup-err")
         # 回滚本身抛异常
@@ -220,9 +232,11 @@ class TestRollbackStatsConsistency:
         engine = _make_engine(tmp_path)
 
         engine._scan_project = AsyncMock(return_value="analysis content long enough")
-        engine._parse_fixes = MagicMock(return_value=[
-            {"file": "pycoder/a.py", "modified": "x = 1\n", "original": "x = 0\n"},
-        ])
+        engine._parse_fixes = MagicMock(
+            return_value=[
+                {"file": "pycoder/a.py", "modified": "x = 1\n", "original": "x = 0\n"},
+            ]
+        )
         engine._apply_fix = AsyncMock(side_effect=RuntimeError("boom"))
         engine._snapshot_backup = AsyncMock(return_value="backup-stats")
         engine._snapshot_rollback = AsyncMock(return_value=None)
@@ -244,6 +258,7 @@ class TestRollbackMethodCoverage:
     def test_snapshot_rollback_is_called_in_all_rollback_paths(self, tmp_path: Path):
         """静态检查：evolve 方法源码中 _snapshot_rollback 应出现在多个回滚分支"""
         import inspect
+
         from pycoder.server.self_evolution import SelfEvolutionEngine
 
         source = inspect.getsource(SelfEvolutionEngine.evolve)

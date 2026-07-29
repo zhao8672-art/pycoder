@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -32,7 +32,6 @@ from pycoder.server.services.execution_pipeline import (
     get_tool_names_for_mode,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # 辅助模拟类
 # ══════════════════════════════════════════════════════════
@@ -41,6 +40,7 @@ from pycoder.server.services.execution_pipeline import (
 @dataclass
 class MockChatEvent:
     """模拟 ChatBridge 流式事件"""
+
     event_type: str
     content: str = ""
 
@@ -73,7 +73,7 @@ def _make_token_events(text: str) -> list[MockChatEvent]:
     events: list[MockChatEvent] = []
     # 每 5 个字符一个 token 事件
     for i in range(0, len(text), 5):
-        chunk = text[i:i + 5]
+        chunk = text[i : i + 5]
         events.append(MockChatEvent("token", chunk))
     events.append(MockChatEvent("done", text))
     return events
@@ -286,9 +286,7 @@ class TestExecutionPipeline:
             return_value=chat_config.system_prompt,
         ):
             results = []
-            async for ev in pipeline.execute(
-                "当前消息", bridge, history_context="历史对话"
-            ):
+            async for ev in pipeline.execute("当前消息", bridge, history_context="历史对话"):
                 results.append(ev)
 
         done_events = [e for e in results if e["type"] == "done"]
@@ -450,6 +448,7 @@ class TestExecutionPipeline:
         pipeline = ExecutionPipeline(chat_config)
         # 设置 _last_yield_time 为过去时间以触发 keepalive
         import time
+
         pipeline._last_yield_time = time.monotonic() - 20
 
         keepalive = await pipeline._maybe_keepalive("llm")
@@ -461,6 +460,7 @@ class TestExecutionPipeline:
     async def test_keepalive_not_triggered(self, chat_config: ExecutionConfig) -> None:
         """最近 yield 过时不触发 keepalive"""
         import time
+
         pipeline = ExecutionPipeline(chat_config)
         pipeline._last_yield_time = time.monotonic()  # 重置为当前时间
         keepalive = await pipeline._maybe_keepalive("llm")

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query
 
-from pycoder.plugins.web_search import WebSearchPlugin, get_web_search
+from pycoder.plugins.web_search import get_web_search
 
 router = APIRouter(prefix="/api/web-search", tags=["web-search"])
 

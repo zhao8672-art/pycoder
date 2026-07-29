@@ -3,13 +3,14 @@
 原实现使用同步 subprocess.run，10 个包最多阻塞 1200s 导致服务器无响应。
 现改为 asyncio.create_subprocess_exec，应能在安装期间响应其他请求。
 """
+
 from __future__ import annotations
 
-import sys
 import asyncio
+import sys
+
 import pytest
 from fastapi.testclient import TestClient
-
 
 # 禁用 API 认证（同 test_code_run_security.py 的处理方式）
 import pycoder.server.app  # noqa: E402,F401
@@ -80,7 +81,7 @@ class TestInstallPackagesAsync:
         - 如果 install_packages 阻塞事件循环，心跳任务无法执行
         - 心跳任务应在 install_packages 完成前推进多次
         """
-        from pycoder.server.routers.code_exec import install_packages, PipInstallRequest
+        from pycoder.server.routers.code_exec import PipInstallRequest, install_packages
 
         heartbeat_count = 0
 
@@ -101,15 +102,14 @@ class TestInstallPackagesAsync:
 
         # 如果事件循环被阻塞，心跳次数会显著小于 20
         # 异步实现下，心跳应在 install 期间继续推进
-        assert heartbeat_count >= 15, (
-            f"心跳仅推进 {heartbeat_count}/20 次，事件循环可能被阻塞"
-        )
+        assert heartbeat_count >= 15, f"心跳仅推进 {heartbeat_count}/20 次，事件循环可能被阻塞"
 
     @pytest.mark.asyncio
     async def test_install_timeout_handled_gracefully(self):
         """超时应被优雅处理（不卡死）"""
-        from pycoder.server.routers.code_exec import install_packages, PipInstallRequest
-        from unittest.mock import patch, AsyncMock
+        from unittest.mock import AsyncMock, patch
+
+        from pycoder.server.routers.code_exec import PipInstallRequest, install_packages
 
         # 模拟 install 永不完成，强制触发超时
         async def never_complete(*args, **kwargs):

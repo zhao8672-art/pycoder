@@ -16,30 +16,25 @@
 
 目标覆盖率：23.6% → 80%+
 """
+
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
-from typing import Any
 
 import pytest
 from fastapi import HTTPException
 
 import pycoder.server.routers.files as files_mod
 from pycoder.server.routers.files import (
-    FileItem,
-    LAST_WORKSPACE_FILE,
+    _LANG_MAP,
     MAX_HISTORY,
-    RECENT_WORKSPACES_FILE,
+    FileItem,
     _detect_language,
     _file_icon,
-    _LANG_MAP,
     _safe_path,
     get_workspace_root,
-    restore_workspace,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures — 隔离工作区与配置文件
@@ -50,12 +45,8 @@ from pycoder.server.routers.files import (
 def isolated_workspace(tmp_path: Path, monkeypatch):
     """隔离 _WORKSPACE_ROOT 到 tmp_path，避免影响真实文件系统"""
     (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "app.py").write_text(
-        "print('hello')\n", encoding="utf-8"
-    )
-    (tmp_path / "src" / "data.json").write_text(
-        '{"key": "value"}\n', encoding="utf-8"
-    )
+    (tmp_path / "src" / "app.py").write_text("print('hello')\n", encoding="utf-8")
+    (tmp_path / "src" / "data.json").write_text('{"key": "value"}\n', encoding="utf-8")
     (tmp_path / "readme.md").write_text("# Project\n", encoding="utf-8")
     monkeypatch.setattr(files_mod, "_WORKSPACE_ROOT", tmp_path)
     yield tmp_path
@@ -122,33 +113,36 @@ class TestSafePath:
 class TestDetectLanguage:
     """_detect_language 语言映射"""
 
-    @pytest.mark.parametrize("suffix,expected", [
-        (".py", "python"),
-        (".js", "javascript"),
-        (".ts", "typescript"),
-        (".jsx", "javascript"),
-        (".tsx", "typescript"),
-        (".json", "json"),
-        (".yaml", "yaml"),
-        (".yml", "yaml"),
-        (".toml", "toml"),
-        (".md", "markdown"),
-        (".html", "html"),
-        (".css", "css"),
-        (".java", "java"),
-        (".go", "go"),
-        (".rs", "rust"),
-        (".c", "c"),
-        (".cpp", "cpp"),
-        (".sql", "sql"),
-        (".sh", "shell"),
-        (".ps1", "powershell"),
-        (".bat", "batch"),
-        (".xml", "xml"),
-        (".ini", "ini"),
-        (".txt", "plaintext"),
-        (".csv", "plaintext"),
-    ])
+    @pytest.mark.parametrize(
+        "suffix,expected",
+        [
+            (".py", "python"),
+            (".js", "javascript"),
+            (".ts", "typescript"),
+            (".jsx", "javascript"),
+            (".tsx", "typescript"),
+            (".json", "json"),
+            (".yaml", "yaml"),
+            (".yml", "yaml"),
+            (".toml", "toml"),
+            (".md", "markdown"),
+            (".html", "html"),
+            (".css", "css"),
+            (".java", "java"),
+            (".go", "go"),
+            (".rs", "rust"),
+            (".c", "c"),
+            (".cpp", "cpp"),
+            (".sql", "sql"),
+            (".sh", "shell"),
+            (".ps1", "powershell"),
+            (".bat", "batch"),
+            (".xml", "xml"),
+            (".ini", "ini"),
+            (".txt", "plaintext"),
+            (".csv", "plaintext"),
+        ],
+    )
     def test_known_extensions(self, suffix, expected):
         """已知扩展名映射正确"""
         p = Path(f"file{suffix}")
@@ -216,8 +210,11 @@ class TestFileItem:
     def test_construction_with_all_fields(self):
         """完整字段构造"""
         item = FileItem(
-            name="app.py", is_dir=False, path="src/app.py",
-            size=1024, icon="py",
+            name="app.py",
+            is_dir=False,
+            path="src/app.py",
+            size=1024,
+            icon="py",
         )
         assert item.size == 1024
         assert item.icon == "py"
@@ -282,9 +279,7 @@ class TestListFiles:
         result = await files_mod.list_files(path=".")
         items = result["items"]
         # 找到第一个文件（is_dir=False）的位置
-        first_file_idx = next(
-            (i for i, it in enumerate(items) if not it["is_dir"]), len(items)
-        )
+        first_file_idx = next((i for i, it in enumerate(items) if not it["is_dir"]), len(items))
         # 之后不应再有目录
         for it in items[first_file_idx:]:
             assert not it["is_dir"], f"目录 {it['name']} 出现在文件之后"
@@ -463,9 +458,7 @@ class TestWriteFile:
     @pytest.mark.asyncio
     async def test_write_new_file(self, isolated_workspace):
         """写入新文件"""
-        req = files_mod.FileWriteRequest(
-            path="new.py", content="print('new')\n"
-        )
+        req = files_mod.FileWriteRequest(path="new.py", content="print('new')\n")
         result = await files_mod.write_file(req)
         assert result["success"] is True
         assert result["size"] > 0
@@ -474,19 +467,17 @@ class TestWriteFile:
     @pytest.mark.asyncio
     async def test_write_overwrites_existing(self, isolated_workspace):
         """覆盖已存在文件"""
-        req = files_mod.FileWriteRequest(
-            path="src/app.py", content="# overwritten\n"
-        )
+        req = files_mod.FileWriteRequest(path="src/app.py", content="# overwritten\n")
         result = await files_mod.write_file(req)
         assert result["success"] is True
-        assert (isolated_workspace / "src" / "app.py").read_text(encoding="utf-8") == "# overwritten\n"
+        assert (isolated_workspace / "src" / "app.py").read_text(
+            encoding="utf-8"
+        ) == "# overwritten\n"
 
     @pytest.mark.asyncio
     async def test_write_creates_parent_dirs(self, isolated_workspace):
         """自动创建父目录"""
-        req = files_mod.FileWriteRequest(
-            path="deep/nested/dir/file.py", content="x = 1\n"
-        )
+        req = files_mod.FileWriteRequest(path="deep/nested/dir/file.py", content="x = 1\n")
         result = await files_mod.write_file(req)
         assert result["success"] is True
         assert (isolated_workspace / "deep" / "nested" / "dir" / "file.py").exists()
@@ -494,9 +485,7 @@ class TestWriteFile:
     @pytest.mark.asyncio
     async def test_write_to_directory_raises_400(self, isolated_workspace):
         """写入目录路径返回 400"""
-        req = files_mod.FileWriteRequest(
-            path="src", content="x"
-        )
+        req = files_mod.FileWriteRequest(path="src", content="x")
         with pytest.raises(HTTPException) as exc:
             await files_mod.write_file(req)
         assert exc.value.status_code == 400
@@ -505,9 +494,7 @@ class TestWriteFile:
     @pytest.mark.asyncio
     async def test_write_path_traversal_blocked(self, isolated_workspace):
         """路径穿越被拦截"""
-        req = files_mod.FileWriteRequest(
-            path="../../escape.txt", content="x"
-        )
+        req = files_mod.FileWriteRequest(path="../../escape.txt", content="x")
         with pytest.raises(HTTPException) as exc:
             await files_mod.write_file(req)
         assert exc.value.status_code == 400
@@ -532,9 +519,7 @@ class TestWriteFile:
     @pytest.mark.asyncio
     async def test_write_returns_relative_path(self, isolated_workspace):
         """返回相对路径"""
-        req = files_mod.FileWriteRequest(
-            path="src/new.py", content="x"
-        )
+        req = files_mod.FileWriteRequest(path="src/new.py", content="x")
         result = await files_mod.write_file(req)
         assert result["path"] == "src/new.py"
 
@@ -577,9 +562,7 @@ class TestSwitchWorkspace:
     """switch_workspace API 端点"""
 
     @pytest.mark.asyncio
-    async def test_switch_to_valid_directory(
-        self, isolated_workspace, isolated_config, tmp_path
-    ):
+    async def test_switch_to_valid_directory(self, isolated_workspace, isolated_config, tmp_path):
         """切换到有效目录"""
         new_dir = tmp_path / "new_project"
         new_dir.mkdir()
@@ -594,9 +577,7 @@ class TestSwitchWorkspace:
         assert data["path"] == str(new_dir.resolve())
 
     @pytest.mark.asyncio
-    async def test_switch_missing_path_raises_400(
-        self, isolated_workspace, isolated_config
-    ):
+    async def test_switch_missing_path_raises_400(self, isolated_workspace, isolated_config):
         """缺少 path 参数返回 400"""
         with pytest.raises(HTTPException) as exc:
             await files_mod.switch_workspace({})
@@ -604,9 +585,7 @@ class TestSwitchWorkspace:
         assert "path is required" in exc.value.detail
 
     @pytest.mark.asyncio
-    async def test_switch_to_nonexistent_raises_400(
-        self, isolated_workspace, isolated_config
-    ):
+    async def test_switch_to_nonexistent_raises_400(self, isolated_workspace, isolated_config):
         """切换到不存在的目录返回 400"""
         with pytest.raises(HTTPException) as exc:
             await files_mod.switch_workspace({"path": "/nonexistent/path/xyz"})
@@ -614,9 +593,7 @@ class TestSwitchWorkspace:
         assert "目录不存在" in exc.value.detail
 
     @pytest.mark.asyncio
-    async def test_switch_to_file_raises_400(
-        self, isolated_workspace, isolated_config
-    ):
+    async def test_switch_to_file_raises_400(self, isolated_workspace, isolated_config):
         """切换到文件（非目录）返回 400"""
         file_path = isolated_workspace / "somefile.txt"
         file_path.write_text("x", encoding="utf-8")
@@ -625,9 +602,7 @@ class TestSwitchWorkspace:
         assert exc.value.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_switch_persists_to_recent(
-        self, isolated_workspace, isolated_config, tmp_path
-    ):
+    async def test_switch_persists_to_recent(self, isolated_workspace, isolated_config, tmp_path):
         """切换后追加到 recent_workspaces.json"""
         new_dir = tmp_path / "proj1"
         new_dir.mkdir()
@@ -638,9 +613,7 @@ class TestSwitchWorkspace:
         assert recent[0]["path"] == str(new_dir.resolve())
 
     @pytest.mark.asyncio
-    async def test_switch_deduplicates_recent(
-        self, isolated_workspace, isolated_config, tmp_path
-    ):
+    async def test_switch_deduplicates_recent(self, isolated_workspace, isolated_config, tmp_path):
         """重复切换同一目录时去重"""
         new_dir = tmp_path / "dedup_project"
         new_dir.mkdir()
@@ -678,9 +651,7 @@ class TestGetRecentWorkspaces:
             {"path": "/path/a", "timestamp": 1000},
             {"path": "/path/b", "timestamp": 2000},
         ]
-        isolated_config["recent"].write_text(
-            json.dumps(recent_data), encoding="utf-8"
-        )
+        isolated_config["recent"].write_text(json.dumps(recent_data), encoding="utf-8")
         result = await files_mod.get_recent_workspaces()
         assert len(result["recent"]) == 2
         assert result["recent"][0]["path"] == "/path/a"
@@ -701,6 +672,7 @@ class TestRestoreWorkspace:
         # 模拟重启：重置 _WORKSPACE_ROOT 到原值
         monkeypatch_target = isolated_workspace
         import pycoder.server.routers.files as fm
+
         original = fm._WORKSPACE_ROOT
         fm._WORKSPACE_ROOT = monkeypatch_target
         # 调用 restore
@@ -712,9 +684,7 @@ class TestRestoreWorkspace:
         fm._WORKSPACE_ROOT = original
 
     @pytest.mark.asyncio
-    async def test_no_restore_when_last_file_missing(
-        self, isolated_workspace, isolated_config
-    ):
+    async def test_no_restore_when_last_file_missing(self, isolated_workspace, isolated_config):
         """无 last_workspace.json 时不恢复"""
         result = await files_mod.restore_workspace()
         assert result["success"] is True
@@ -722,9 +692,7 @@ class TestRestoreWorkspace:
         assert result["path"] == str(isolated_workspace)
 
     @pytest.mark.asyncio
-    async def test_restore_with_invalid_json_falls_back(
-        self, isolated_workspace, isolated_config
-    ):
+    async def test_restore_with_invalid_json_falls_back(self, isolated_workspace, isolated_config):
         """last_workspace.json 损坏时回退到当前工作区"""
         isolated_config["last"].write_text("not json {", encoding="utf-8")
         result = await files_mod.restore_workspace()
@@ -761,11 +729,13 @@ class TestFileWriteRequest:
     def test_missing_path_raises_validation_error(self):
         """缺少 path 触发验证错误"""
         from pydantic import ValidationError
+
         with pytest.raises(ValidationError):
             files_mod.FileWriteRequest(content="x")
 
     def test_missing_content_raises_validation_error(self):
         """缺少 content 触发验证错误"""
         from pydantic import ValidationError
+
         with pytest.raises(ValidationError):
             files_mod.FileWriteRequest(path="x.py")

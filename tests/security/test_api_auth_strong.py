@@ -4,11 +4,11 @@
 现实现：未设置时自动生成临时 key，避免无意识暴露；
         显式设置 'disabled' 才完全关闭认证。
 """
+
 from __future__ import annotations
 
-import os
 import sys
-import importlib
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -23,7 +23,6 @@ def _reload_app_module():
     for mod_name in list(sys.modules.keys()):
         if mod_name == "pycoder.server.app" or mod_name.startswith("pycoder.server.app."):
             del sys.modules[mod_name]
-    import pycoder.server.app  # 触发重新导入
     return sys.modules["pycoder.server.app"]
 
 

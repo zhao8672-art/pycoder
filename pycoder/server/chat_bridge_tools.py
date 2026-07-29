@@ -50,27 +50,52 @@ _V1_TO_V2_TOOL_NAMES: dict[str, str] = {
 
 CATEGORY_TOOL_MAP: dict[str, set[str]] = {
     "code_generation": {
-        "file_read", "file_write",
-        "search_code", "execute_python", "file_list", "shell_run",
+        "file_read",
+        "file_write",
+        "search_code",
+        "execute_python",
+        "file_list",
+        "shell_run",
     },
     "debugging": {
-        "file_read", "execute_python", "search_code",
-        "shell_run", "git_diff", "git_log", "lsp_diagnostics",
+        "file_read",
+        "execute_python",
+        "search_code",
+        "shell_run",
+        "git_diff",
+        "git_log",
+        "lsp_diagnostics",
     },
     "refactoring": {
-        "file_read", "file_write", "patch_file",
-        "search_code", "shell_run", "git_diff",
+        "file_read",
+        "file_write",
+        "patch_file",
+        "search_code",
+        "shell_run",
+        "git_diff",
     },
     "code_review": {
-        "file_read", "search_code", "git_diff", "shell_run",
+        "file_read",
+        "search_code",
+        "git_diff",
+        "shell_run",
     },
     "testing": {
-        "file_read", "file_write", "execute_python",
-        "shell_run", "install_package",
+        "file_read",
+        "file_write",
+        "execute_python",
+        "shell_run",
+        "install_package",
     },
     "git_operations": {
-        "git_status", "git_add", "git_commit",
-        "git_diff", "git_log", "git_push", "git_branch", "file_read",
+        "git_status",
+        "git_add",
+        "git_commit",
+        "git_diff",
+        "git_log",
+        "git_push",
+        "git_branch",
+        "file_read",
     },
 }
 
@@ -102,7 +127,8 @@ def _filter_tools_by_category(
     filtered = [t for t in all_tools if t.get("name", "") in allowed]
     logger.debug(
         "tool_selection_filtered before=%d after=%d",
-        full_count, len(filtered),
+        full_count,
+        len(filtered),
     )
     return filtered, allowed
 
@@ -170,8 +196,7 @@ def _build_v2_tools_payload(
                     "function": {
                         "name": cap.id.replace(".", "_"),
                         "description": f"[V2] {cap.description}",
-                        "parameters": cap.schema
-                        or {"type": "object", "properties": {}},
+                        "parameters": cap.schema or {"type": "object", "properties": {}},
                     },
                 }
             )
@@ -216,7 +241,9 @@ def build_tools_payload(
             elif task_grade_reasoning:
                 nlu_cat = task_grade_reasoning[0] if task_grade_reasoning else ""
             all_tools, allowed = _filter_tools_by_category(
-                all_tools, nlu_cat, effective_mode,
+                all_tools,
+                nlu_cat,
+                effective_mode,
             )
 
         # V2 能力（按白名单/类别过滤）

@@ -12,17 +12,17 @@ from pathlib import Path
 from typing import Any
 
 from pycoder.memory.deep_memory_models import (
-    MemoryEntry,
-    MemoryContext,
-    MemoryStats,
     _CHROMA_AVAILABLE,
+    MemoryContext,
+    MemoryEntry,
+    MemoryStats,
     _estimate_tokens,
     _now_iso,
 )
-from pycoder.memory.working_memory import WorkingMemory
+from pycoder.memory.global_memory import GlobalMemory
 from pycoder.memory.iteration_memory import IterationMemory
 from pycoder.memory.project_memory import ProjectMemory
-from pycoder.memory.global_memory import GlobalMemory
+from pycoder.memory.working_memory import WorkingMemory
 
 logger = logging.getLogger(__name__)
 
@@ -69,9 +69,7 @@ class DeepMemorySystem:
     def iteration(self) -> IterationMemory:
         """迭代记忆（首次访问时初始化，触发 SQLite 打开）"""
         if self._iteration is None:
-            self._iteration = IterationMemory(
-                self._project_root / ".pycoder" / "iteration_memory"
-            )
+            self._iteration = IterationMemory(self._project_root / ".pycoder" / "iteration_memory")
             logger.debug("lazy_init iteration_memory")
         return self._iteration
 
@@ -117,9 +115,7 @@ class DeepMemorySystem:
             case 1:
                 return self.working.store(key, value, metadata)
             case 2:
-                return await self.iteration._store(
-                    "note", key, value, metadata or {}
-                )
+                return await self.iteration._store("note", key, value, metadata or {})
             case 3:
                 return await self.project.store(key, value, metadata)
             case 4:
@@ -294,7 +290,10 @@ class DeepMemorySystem:
         return await self.iteration.track_file(file_path, action)
 
     async def track_command(
-        self, command: str, exit_code: int = 0, output: str = "",
+        self,
+        command: str,
+        exit_code: int = 0,
+        output: str = "",
     ) -> MemoryEntry:
         """便捷：追踪命令执行"""
         return await self.iteration.track_command(command, exit_code, output)

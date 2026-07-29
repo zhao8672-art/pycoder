@@ -1,4 +1,5 @@
 """P1-3: Dashboard 单元测试"""
+
 from __future__ import annotations
 
 import shutil
@@ -99,8 +100,9 @@ def test_dashboard_dependencies_overview(sample_project):
     d = dashboard_to_dict(snap)
 
     assert d["dependencies"]["total"] >= 2  # fastapi + pydantic
-    assert "fastapi" in d["dependencies"].get("frameworks", []) or \
-           "FastAPI" in d["dependencies"].get("frameworks", [])
+    assert "fastapi" in d["dependencies"].get("frameworks", []) or "FastAPI" in d[
+        "dependencies"
+    ].get("frameworks", [])
 
 
 def test_dashboard_recent_files(sample_project):
@@ -165,7 +167,6 @@ def test_dashboard_handles_empty_dir():
 
 def test_dashboard_include_graph(sample_project):
     """include_graph=False 时不应构建图（更快）"""
-    import time
 
     from pycoder.server.services.dashboard import DashboardBuilder
 

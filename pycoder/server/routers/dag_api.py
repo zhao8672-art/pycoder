@@ -16,7 +16,7 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from pycoder.brain.dag_scheduler import (
@@ -235,12 +235,8 @@ async def execute_dag(dag_id: str) -> ExecuteDAGResponse:
 
     # 统计结果
     total = len(dag._nodes)
-    done_count = sum(
-        1 for n in dag._nodes.values() if n.status == NodeStatus.DONE
-    )
-    failed_count = sum(
-        1 for n in dag._nodes.values() if n.status == NodeStatus.FAILED
-    )
+    done_count = sum(1 for n in dag._nodes.values() if n.status == NodeStatus.DONE)
+    failed_count = sum(1 for n in dag._nodes.values() if n.status == NodeStatus.FAILED)
     duration = dag._total_duration
 
     logger.info(
@@ -275,16 +271,18 @@ async def get_dag_status(dag_id: str) -> DAGStatusResponse:
     # 构建节点详情
     nodes_detail: list[dict[str, Any]] = []
     for node in dag.get_all_nodes():
-        nodes_detail.append({
-            "id": node.id,
-            "name": node.name,
-            "description": node.description,
-            "status": node.status.value,
-            "priority": node.priority,
-            "dependencies": node.dependencies,
-            "actual_duration": round(node.actual_duration, 2),
-            "error": node.error,
-        })
+        nodes_detail.append(
+            {
+                "id": node.id,
+                "name": node.name,
+                "description": node.description,
+                "status": node.status.value,
+                "priority": node.priority,
+                "dependencies": node.dependencies,
+                "actual_duration": round(node.actual_duration, 2),
+                "error": node.error,
+            }
+        )
 
     return DAGStatusResponse(
         dag_id=dag_id,

@@ -20,7 +20,7 @@ import logging
 import os
 import secrets
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -41,6 +41,7 @@ _oauth_state_ttl = 600  # 10 分钟
 @dataclass
 class OAuthProvider:
     """OAuth2 提供商配置"""
+
     name: str
     client_id: str
     client_secret: str
@@ -157,9 +158,7 @@ class OAuth2Manager:
         query = "&".join(f"{k}={v}" for k, v in params.items())
         return f"{provider.authorize_url}?{query}"
 
-    async def handle_callback(
-        self, provider_name: str, code: str, state: str
-    ) -> dict[str, Any]:
+    async def handle_callback(self, provider_name: str, code: str, state: str) -> dict[str, Any]:
         """处理 OAuth2 回调
 
         Args:
@@ -220,9 +219,7 @@ class OAuth2Manager:
             jwt_token = create_access_token(
                 data={"sub": user_id, "email": email, "name": name, "provider": provider_name}
             )
-            refresh_token = create_refresh_token(
-                data={"sub": user_id, "provider": provider_name}
-            )
+            refresh_token = create_refresh_token(data={"sub": user_id, "provider": provider_name})
 
             logger.info("OAuth2 登录成功: provider=%s user=%s", provider_name, user_id)
 

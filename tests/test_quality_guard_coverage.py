@@ -11,6 +11,7 @@
   - mock subprocess.run 来测试 _run_tool 的 ruff/pylint 解析
   - mock get_feedback_loop 测试自适应阈值分支
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -27,10 +28,10 @@ from pycoder.server.services.quality_guard import (
     QualityReport,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # 数据模型测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestIssue:
     def test_issue_creation(self):
@@ -87,7 +88,8 @@ class TestQualityReport:
 
     def test_is_pass_with_errors(self):
         r = QualityReport(
-            success=True, score=90,
+            success=True,
+            score=90,
             issues=[Issue(1, 0, "error", "e", "lint")],
         )
         assert r.is_pass() is False
@@ -112,6 +114,7 @@ class TestGateResult:
 # ══════════════════════════════════════════════════════════
 # QualityGuard._scan_security 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestScanSecurity:
     def setup_method(self):
@@ -163,9 +166,7 @@ class TestScanSecurity:
         assert issues[0].severity == "error"
 
     def test_format_input_detection(self):
-        issues = self.q._scan_security(
-            '"text".format(input())\n', Path("a.py")
-        )
+        issues = self.q._scan_security('"text".format(input())\n', Path("a.py"))
         assert any("格式化" in i.message for i in issues)
 
     def test_os_system_detection(self):
@@ -184,6 +185,7 @@ class TestScanSecurity:
 # ══════════════════════════════════════════════════════════
 # QualityGuard._scan_complexity 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestScanComplexity:
     def setup_method(self):
@@ -248,6 +250,7 @@ class TestScanComplexity:
 # QualityGuard._scan_style 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestScanStyle:
     def setup_method(self):
         self.q = QualityGuard()
@@ -277,6 +280,7 @@ class TestScanStyle:
 # QualityGuard._check_format 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestCheckFormat:
     def setup_method(self):
         self.q = QualityGuard()
@@ -299,14 +303,17 @@ class TestCheckFormat:
 # QualityGuard._max_nesting 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestMaxNesting:
     def test_empty_node(self):
         import ast
+
         node = ast.parse("x = 1")
         assert QualityGuard._max_nesting(node) == 0
 
     def test_single_if(self):
         import ast
+
         node = ast.parse("if a:\n    pass")
         # 实现可能返回 1 或 2，仅验证非负
         assert QualityGuard._max_nesting(node) >= 0
@@ -315,6 +322,7 @@ class TestMaxNesting:
 # ══════════════════════════════════════════════════════════
 # QualityGuard._calc_*_score 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestCalcScores:
     def test_lint_score_no_issues(self):
@@ -373,11 +381,14 @@ class TestCalcScores:
 # QualityGuard._run_tool 测试（async）
 # ══════════════════════════════════════════════════════════
 
+
 class TestRunTool:
     async def test_tool_not_installed_returns_none(self, monkeypatch):
         """FileNotFoundError → 返回 None（工具未安装）"""
+
         def raise_fnf(*a, **k):
             raise FileNotFoundError("ruff not found")
+
         monkeypatch.setattr(subprocess, "run", raise_fnf)
         q = QualityGuard()
         result = await q._run_tool("ruff", ["check", "x.py"])
@@ -425,6 +436,7 @@ class TestRunTool:
     async def test_tool_timeout_returns_empty(self, monkeypatch):
         def raise_timeout(*a, **k):
             raise subprocess.TimeoutExpired(cmd="ruff", timeout=30)
+
         monkeypatch.setattr(subprocess, "run", raise_timeout)
         q = QualityGuard()
         result = await q._run_tool("ruff", ["check", "app.py"])
@@ -447,6 +459,7 @@ class TestRunTool:
 # ══════════════════════════════════════════════════════════
 # QualityGuard._run_external_linter 测试（async）
 # ══════════════════════════════════════════════════════════
+
 
 class TestRunExternalLinter:
     async def test_ruff_available_returns_its_issues(self, tmp_path, monkeypatch):
@@ -497,6 +510,7 @@ class TestRunExternalLinter:
 # QualityGuard.check 测试（async）
 # ══════════════════════════════════════════════════════════
 
+
 class TestQualityGuardCheck:
     async def test_check_nonexistent_file(self):
         q = QualityGuard()
@@ -509,10 +523,13 @@ class TestQualityGuardCheck:
         f = tmp_path / "mod.py"
         f.write_text("x = 1\n", encoding="utf-8")
         q = QualityGuard(workspace_root=tmp_path)
+
         # mock _run_external_linter 返回空
         async def mock_lint(self, p):
             return []
+
         import pycoder.server.services.quality_guard as qg_mod
+
         with pytest.MonkeyPatch.context() as mp:
             mp.setattr(qg_mod.QualityGuard, "_run_external_linter", mock_lint)
             report = await q.check("mod.py")
@@ -553,6 +570,7 @@ class TestQualityGuardCheck:
 # QualityGate 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestQualityGateInit:
     def test_default_init(self, tmp_path):
         gate = QualityGate(workspace_root=tmp_path, use_adaptive_threshold=False)
@@ -571,6 +589,7 @@ class TestQualityGateInit:
 
         # 注入到 sys.modules 以便 import 成功（注意实际的 import 路径）
         import sys
+
         fake_module = MagicMock()
         fake_module.get_feedback_loop.return_value = fake_fb
         sys.modules["pycoder.capabilities.self_evo.learning.feedback_loop"] = fake_module
@@ -585,15 +604,19 @@ class TestQualityGateInit:
         """adaptive threshold 加载失败时静默回退到默认"""
         # 模拟 ImportError
         import sys
+
         # 确保没有缓存的模块
         sys.modules.pop("pycoder.capabilities.self_evo.learning.feedback_loop", None)
         # 让 import 直接抛 ImportError
         import builtins
+
         real_import = builtins.__import__
+
         def fake_import(name, *args, **kwargs):
             if name == "pycoder.capabilities.self_evo.learning.feedback_loop":
                 raise ImportError("no module")
             return real_import(name, *args, **kwargs)
+
         monkeypatch.setattr(builtins, "__import__", fake_import)
         gate = QualityGate(workspace_root=tmp_path, use_adaptive_threshold=True)
         assert gate.PASS_THRESHOLD == 85.0  # 默认

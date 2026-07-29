@@ -10,7 +10,7 @@ def generate_capabilities() -> str:
     动态生成 pycoder 能力清单 Markdown。
     """
     sections: list[str] = []
-    
+
     sections.append(_build_header())
     sections.append(_build_mcp_tools_section())
     sections.append(_build_skills_section())
@@ -26,7 +26,7 @@ def generate_capabilities() -> str:
     sections.append(_build_k8s_section())
     sections.append(_build_permissions_section())
     sections.append(_build_guidance_section())
-    
+
     return "\n".join(sections)
 
 
@@ -44,6 +44,7 @@ def _build_mcp_tools_section() -> str:
     lines.append("你可以通过对话直接调用以下内置工具（不需要额外配置）：")
     try:
         from pycoder.server.mcp_tools import list_builtin_tools
+
         tools = list_builtin_tools()
         if tools:
             for t in tools:
@@ -52,9 +53,10 @@ def _build_mcp_tools_section() -> str:
             lines.append("  (暂无内置工具)")
     except ImportError:
         lines.append("  (MCP 模块未加载)")
-    
+
     try:
         from pycoder.server.mcp_tools import get_mcp_client_manager
+
         mgr = get_mcp_client_manager()
         connected = mgr.connected_servers
         if connected:
@@ -65,7 +67,7 @@ def _build_mcp_tools_section() -> str:
         )
     except ImportError:
         pass
-    
+
     lines.append("")
     return "\n".join(lines)
 
@@ -75,6 +77,7 @@ def _build_skills_section() -> str:
     lines = ["## 2. Skills 技能"]
     try:
         from pycoder.prompts.skills_loader import discover_skills
+
         skills = discover_skills()
         if skills:
             lines.append(f"当前加载了 {len(skills)} 个技能：")

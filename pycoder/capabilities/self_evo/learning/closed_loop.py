@@ -490,8 +490,7 @@ class ClosedLearningLoop:
                 id=skill_id,
                 name=skill_name,
                 description=(
-                    f"从任务 {reflection.get('task_id', 'unknown')} "
-                    f"习得的模式: {pattern[:200]}"
+                    f"从任务 {reflection.get('task_id', 'unknown')} " f"习得的模式: {pattern[:200]}"
                 ),
                 pattern=pattern,
                 strategy=pattern_info.get("suggestion", f"应用模式: {pattern}"),
@@ -507,7 +506,9 @@ class ClosedLearningLoop:
             generated.append(skill)
             logger.info(
                 "新技能已生成: %s (id=%s, rate=%.2f)",
-                skill_name, skill_id, skill.success_rate,
+                skill_name,
+                skill_id,
+                skill.success_rate,
             )
 
         # 也从 patterns_avoid 中生成"反面教材"技能（低成功率标记）
@@ -643,7 +644,9 @@ class ClosedLearningLoop:
                     del self._skill_cache[skill.id]
                 logger.info(
                     "技能已淘汰: %s (rate=%.2f, usage=%d)",
-                    skill.name, skill.success_rate, skill.usage_count,
+                    skill.name,
+                    skill.success_rate,
+                    skill.usage_count,
                 )
 
             # 提升高成功率技能的权重（记录精炼时间）
@@ -709,7 +712,10 @@ class ClosedLearningLoop:
                     last_error = e
                     logger.warning(
                         "closed_loop_stage_retry: stage=%s attempt=%d/%d error=%s",
-                        stage_name, attempt + 1, max_retries + 1, str(e)[:200],
+                        stage_name,
+                        attempt + 1,
+                        max_retries + 1,
+                        str(e)[:200],
                     )
             return None, last_error
 
@@ -727,11 +733,14 @@ class ClosedLearningLoop:
             }
 
         # 阶段 2: 反思
-        reflection, err = await _run_stage_with_retry(
-            "reflect", lambda: self.reflect(observation)
-        )
+        reflection, err = await _run_stage_with_retry("reflect", lambda: self.reflect(observation))
         if err or not reflection:
-            reflection = {"patterns_found": [], "patterns_avoid": [], "confidence": 0, "recommendations": []}
+            reflection = {
+                "patterns_found": [],
+                "patterns_avoid": [],
+                "confidence": 0,
+                "recommendations": [],
+            }
             logger.warning("closed_loop_reflect_degraded task=%s", task_id)
 
         # 阶段 3: 生成技能
@@ -803,9 +812,7 @@ class ClosedLearningLoop:
             统计字典，包含观察数、技能数、成功率等
         """
         with self._get_conn() as conn:
-            total_obs = conn.execute(
-                "SELECT COUNT(*) FROM learning_observations"
-            ).fetchone()[0]
+            total_obs = conn.execute("SELECT COUNT(*) FROM learning_observations").fetchone()[0]
             success_obs = conn.execute(
                 "SELECT COUNT(*) FROM learning_observations WHERE success = 1"
             ).fetchone()[0]
@@ -856,9 +863,7 @@ class ClosedLearningLoop:
         return {
             "total_observations": total_obs,
             "successful_observations": success_obs,
-            "observation_success_rate": (
-                success_obs / total_obs if total_obs > 0 else 0.0
-            ),
+            "observation_success_rate": (success_obs / total_obs if total_obs > 0 else 0.0),
             "total_skills": total_skills,
             "active_skills": active_skills,
             "pruned_skills": pruned_count,
@@ -895,9 +900,7 @@ class ClosedLearningLoop:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def _count_pattern_success(
-        self, pattern: str, observations: list[dict[str, Any]]
-    ) -> int:
+    def _count_pattern_success(self, pattern: str, observations: list[dict[str, Any]]) -> int:
         """统计某模式在历史观察中的成功次数"""
         count = 0
         for obs in observations:
@@ -957,9 +960,7 @@ class ClosedLearningLoop:
 
             return [self._row_to_skill(r) for r in rows]
 
-    def _search_skills_like(
-        self, keywords: list[str], limit: int = 5
-    ) -> list[LearnedSkill]:
+    def _search_skills_like(self, keywords: list[str], limit: int = 5) -> list[LearnedSkill]:
         """LIKE 降级搜索"""
         if not keywords:
             return []
@@ -992,9 +993,7 @@ class ClosedLearningLoop:
             return []
 
         with self._get_conn() as conn:
-            conditions = " OR ".join(
-                ["task_description LIKE ?"] * len(keywords)
-            )
+            conditions = " OR ".join(["task_description LIKE ?"] * len(keywords))
             params = [f"%{kw}%" for kw in keywords]
 
             rows = conn.execute(
@@ -1030,9 +1029,7 @@ class ClosedLearningLoop:
         """加载所有技能"""
         with self._get_conn() as conn:
             if exclude_pruned:
-                rows = conn.execute(
-                    "SELECT * FROM learned_skills WHERE pruned = 0"
-                ).fetchall()
+                rows = conn.execute("SELECT * FROM learned_skills WHERE pruned = 0").fetchall()
             else:
                 rows = conn.execute("SELECT * FROM learned_skills").fetchall()
             return [self._row_to_skill(r) for r in rows]
@@ -1133,17 +1130,13 @@ class ClosedLearningLoop:
                 )
 
         if patterns_avoid:
-            recommendations.append(
-                f"识别 {len(patterns_avoid)} 个应避免的模式，将在后续任务中标记"
-            )
+            recommendations.append(f"识别 {len(patterns_avoid)} 个应避免的模式，将在后续任务中标记")
 
         if not observation.success and not patterns_found:
             recommendations.append("任务失败且未发现可复用模式，建议人工审查")
 
         if observation.steps_taken > 10:
-            recommendations.append(
-                f"任务步骤较多 ({observation.steps_taken}步)，考虑拆分为子任务"
-            )
+            recommendations.append(f"任务步骤较多 ({observation.steps_taken}步)，考虑拆分为子任务")
 
         return recommendations
 
@@ -1233,16 +1226,81 @@ class ClosedLearningLoop:
 # ──────────────────────────────────────────────
 
 STOP_WORDS: set[str] = {
-    "the", "is", "at", "which", "on", "and", "or", "not", "but",
-    "for", "with", "this", "that", "from", "are", "was", "were",
-    "has", "have", "had", "been", "can", "will", "would", "could",
-    "should", "may", "might", "shall", "did", "does", "doing",
-    "its", "his", "her", "our", "their", "these", "those",
-    "what", "when", "where", "who", "how", "all", "each", "every",
-    "both", "few", "more", "most", "some", "any", "such", "only",
-    "other", "than", "too", "very", "just", "also", "now", "then",
-    "here", "there", "into", "over", "about", "after",
-    "before", "between", "under", "again", "further", "once",
+    "the",
+    "is",
+    "at",
+    "which",
+    "on",
+    "and",
+    "or",
+    "not",
+    "but",
+    "for",
+    "with",
+    "this",
+    "that",
+    "from",
+    "are",
+    "was",
+    "were",
+    "has",
+    "have",
+    "had",
+    "been",
+    "can",
+    "will",
+    "would",
+    "could",
+    "should",
+    "may",
+    "might",
+    "shall",
+    "did",
+    "does",
+    "doing",
+    "its",
+    "his",
+    "her",
+    "our",
+    "their",
+    "these",
+    "those",
+    "what",
+    "when",
+    "where",
+    "who",
+    "how",
+    "all",
+    "each",
+    "every",
+    "both",
+    "few",
+    "more",
+    "most",
+    "some",
+    "any",
+    "such",
+    "only",
+    "other",
+    "than",
+    "too",
+    "very",
+    "just",
+    "also",
+    "now",
+    "then",
+    "here",
+    "there",
+    "into",
+    "over",
+    "about",
+    "after",
+    "before",
+    "between",
+    "under",
+    "again",
+    "further",
+    "once",
 }
 
 
@@ -1458,9 +1516,7 @@ async def _handle_reflect(
                 errors_encountered=ClosedLearningLoop._ensure_list(
                     obs_data.get("errors_encountered", [])
                 ),
-                patterns_used=ClosedLearningLoop._ensure_list(
-                    obs_data.get("patterns_used", [])
-                ),
+                patterns_used=ClosedLearningLoop._ensure_list(obs_data.get("patterns_used", [])),
                 patterns_failed=ClosedLearningLoop._ensure_list(
                     obs_data.get("patterns_failed", [])
                 ),

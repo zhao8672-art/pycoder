@@ -14,13 +14,10 @@
   - mock detect_environment 返回 EnvironmentInfo 测试各 framework 分支
   - 通过 monkeypatch 重置全局 Path.cwd 避免污染当前工作目录
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import MagicMock
-
-import pytest
 
 from pycoder.prompts import agents_generator as ag_mod
 from pycoder.prompts.agents_generator import (
@@ -30,8 +27,8 @@ from pycoder.prompts.agents_generator import (
     load_agents_md,
 )
 
-
 # ── 工厂: 构造 EnvironmentInfo ────────────────────────────
+
 
 def _make_env(
     python_version="3.14.0",
@@ -42,6 +39,7 @@ def _make_env(
 ):
     """构造一个 EnvironmentInfo 对象"""
     from pycoder.python.env_detector import EnvironmentInfo
+
     return EnvironmentInfo(
         python_version=python_version,
         venv_type=venv_type,
@@ -54,6 +52,7 @@ def _make_env(
 # ══════════════════════════════════════════════════════════
 # generate_agents_md
 # ══════════════════════════════════════════════════════════
+
 
 class TestGenerateAgentsMd:
     def test_no_env(self, monkeypatch, tmp_path):
@@ -161,7 +160,19 @@ class TestGenerateAgentsMd:
 
     def test_frameworks_truncated_to_8(self, monkeypatch, tmp_path):
         """frameworks 列表截断到前 8 个"""
-        env = _make_env(frameworks=["FastAPI", "Flask", "Django", "PyTorch", "pandas", "NumPy", "Other1", "Other2", "Other3"])
+        env = _make_env(
+            frameworks=[
+                "FastAPI",
+                "Flask",
+                "Django",
+                "PyTorch",
+                "pandas",
+                "NumPy",
+                "Other1",
+                "Other2",
+                "Other3",
+            ]
+        )
         monkeypatch.setattr(ag_mod, "detect_environment", lambda path: env)
         content = generate_agents_md(str(tmp_path))
         assert "Other3" not in content  # 第 9 个被截断
@@ -171,11 +182,14 @@ class TestGenerateAgentsMd:
 # generate_and_write
 # ══════════════════════════════════════════════════════════
 
+
 class TestGenerateAndWrite:
     def test_writes_file(self, tmp_path, monkeypatch):
         # 跳过 env 检测，避免依赖当前目录
         monkeypatch.setattr(ag_mod, "detect_environment", lambda path: None)
-        result = generate_and_write(str(tmp_path), )
+        result = generate_and_write(
+            str(tmp_path),
+        )
         assert result == tmp_path / "AGENTS.md"
         assert result.exists()
         content = result.read_text(encoding="utf-8")
@@ -193,6 +207,7 @@ class TestGenerateAndWrite:
 # ══════════════════════════════════════════════════════════
 # load_agents_md
 # ══════════════════════════════════════════════════════════
+
 
 class TestLoadAgentsMd:
     def test_file_exists(self, tmp_path):
@@ -212,10 +227,12 @@ class TestLoadAgentsMd:
 
         # mock Path.read_text 抛异常
         original_read_text = Path.read_text
+
         def fake_read_text(self, *args, **kwargs):
             if self.name == "AGENTS.md":
                 raise OSError("perm denied")
             return original_read_text(self, *args, **kwargs)
+
         monkeypatch.setattr(Path, "read_text", fake_read_text)
 
         result = load_agents_md(str(tmp_path))
@@ -231,6 +248,7 @@ class TestLoadAgentsMd:
 # ══════════════════════════════════════════════════════════
 # get_agents_context
 # ══════════════════════════════════════════════════════════
+
 
 class TestGetAgentsContext:
     def test_with_existing_agents_md(self, tmp_path):

@@ -1,14 +1,6 @@
 from __future__ import annotations
 
-import json
-import os
 import sys
-import time
-import sqlite3
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 # ══════════════════════════════════════════════════════════
 # 第一部分: log.py 模块测试
@@ -22,7 +14,6 @@ class TestLogModule:
         """get_logger 返回一个有效的日志对象"""
         # 确保 structlog 可用
         monkeypatch.setattr("pycoder.core.services.log._has_structlog", True)
-        import structlog
 
         from pycoder.core.services.log import get_logger
 
@@ -54,10 +45,9 @@ class TestLogModule:
 
     def test_get_logger_fallback_no_structlog(self, monkeypatch):
         """没有 structlog 时降级使用标准 logging"""
-        import logging
-
         # 模拟 structlog 导入失败：在模块导入前阻止 structlog
         import builtins
+        import logging
 
         original_import = builtins.__import__
 
@@ -80,9 +70,8 @@ class TestLogModule:
 
     def test_get_logger_none_name_fallback(self, monkeypatch):
         """get_logger(None) 降级时返回标准 logger"""
-        import logging
-
         import builtins
+        import logging
 
         original_import = builtins.__import__
 
@@ -101,5 +90,3 @@ class TestLogModule:
 
         logger = log_mod.get_logger(None)
         assert isinstance(logger, logging.Logger)
-
-

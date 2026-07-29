@@ -340,16 +340,25 @@ class MetricsTracker:
         # ✅ BUGFIX: 测试环境中跳过，避免 pytest 递归调用
         if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("PYCODER_TEST_MODE"):
             self._latest_quality = {
-                "lint_score": 100.0, "file_count": 0, "issue_count": 0,
-                "test_coverage": 0.0, "total_score": 100.0,
+                "lint_score": 100.0,
+                "file_count": 0,
+                "issue_count": 0,
+                "test_coverage": 0.0,
+                "total_score": 100.0,
                 "source": "test_mode_skip",
             }
             return
 
         import subprocess as _sp
+
         _root = project_root or os.getcwd()
-        _result = {"lint_score": 100.0, "file_count": 0, "issue_count": 0,
-                   "test_coverage": 0.0, "total_score": 100.0}
+        _result = {
+            "lint_score": 100.0,
+            "file_count": 0,
+            "issue_count": 0,
+            "test_coverage": 0.0,
+            "total_score": 100.0,
+        }
         _py_files = 0
 
         # 统计 Python 文件数
@@ -357,8 +366,9 @@ class MetricsTracker:
             for _dirpath, _dirs, _files in os.walk(
                 os.path.join(_root, "pycoder"),
             ):
-                _dirs[:] = [d for d in _dirs if d not in
-                            ("__pycache__", ".venv", "node_modules", ".git")]
+                _dirs[:] = [
+                    d for d in _dirs if d not in ("__pycache__", ".venv", "node_modules", ".git")
+                ]
                 _py_files += sum(1 for f in _files if f.endswith(".py"))
             _result["file_count"] = _py_files
         except (OSError, ValueError):
@@ -367,9 +377,16 @@ class MetricsTracker:
         # ruff 扫描
         try:
             _proc = _sp.run(
-                ["ruff", "check", os.path.join(_root, "pycoder"),
-                 "--output-format=json", "--no-cache"],
-                capture_output=True, text=True, timeout=15,
+                [
+                    "ruff",
+                    "check",
+                    os.path.join(_root, "pycoder"),
+                    "--output-format=json",
+                    "--no-cache",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=15,
                 cwd=_root,
             )
             if _proc.stdout:
@@ -386,13 +403,17 @@ class MetricsTracker:
                 for _dirpath, _dirs, _files in os.walk(
                     os.path.join(_root, "pycoder"),
                 ):
-                    _dirs[:] = [d for d in _dirs if d not in
-                                ("__pycache__", ".venv", "node_modules", ".git")]
+                    _dirs[:] = [
+                        d
+                        for d in _dirs
+                        if d not in ("__pycache__", ".venv", "node_modules", ".git")
+                    ]
                     for _f in _files:
                         if _f.endswith(".py"):
                             _fp = os.path.join(_dirpath, _f)
                             try:
                                 import py_compile as _pcomp
+
                                 _pcomp.compile(_fp, doraise=False)
                             except (_pcomp.PyCompileError, Exception):
                                 _err_count += 1
@@ -405,12 +426,15 @@ class MetricsTracker:
         try:
             _proc = _sp.run(
                 ["pytest", "--cov=pycoder", "--cov-report=term", "-q"],
-                capture_output=True, text=True, timeout=30,
+                capture_output=True,
+                text=True,
+                timeout=30,
                 cwd=_root,
             )
             _out = _proc.stdout + _proc.stderr
             # 解析 coverage 百分比
             import re
+
             _m = re.search(r"TOTAL\s+\d+\s+\d+\s+(\d+)%", _out)
             if _m:
                 _result["test_coverage"] = float(_m.group(1))
@@ -420,9 +444,7 @@ class MetricsTracker:
         # 综合评分: 0.5*lint + 0.3*coverage + 0.2*(100 - 2*issues)
         _security_score = max(60.0, 100.0 - _result["issue_count"] * 2.0)
         _result["total_score"] = round(
-            0.5 * _result["lint_score"]
-            + 0.3 * _result["test_coverage"]
-            + 0.2 * _security_score,
+            0.5 * _result["lint_score"] + 0.3 * _result["test_coverage"] + 0.2 * _security_score,
             1,
         )
 
@@ -437,8 +459,10 @@ class MetricsTracker:
         )
         logger.info(
             "quality_snapshot_real lint=%.1f files=%d issues=%d total=%.1f",
-            _result["lint_score"], _result["file_count"],
-            _result["issue_count"], _result["total_score"],
+            _result["lint_score"],
+            _result["file_count"],
+            _result["issue_count"],
+            _result["total_score"],
         )
 
     def get_daily_summary(self, days: int = 7) -> list[dict]:

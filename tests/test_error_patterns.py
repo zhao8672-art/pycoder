@@ -2,13 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
-
 from pycoder.capabilities.self_evo.learning.error_patterns import (
     ERROR_PATTERN_DB,
-    ROOT_CAUSE_CHAINS,
-    ErrorPattern,
-    RootCauseChain,
     get_root_cause_chain,
     lookup_by_message,
     lookup_pattern,
@@ -79,7 +74,9 @@ class TestLookup:
         assert pattern.error_type == "TypeError"
 
     def test_lookup_by_message_file_not_found(self) -> None:
-        pattern = lookup_by_message("FileNotFoundError: [Errno 2] No such file or directory: 'config.json'")
+        pattern = lookup_by_message(
+            "FileNotFoundError: [Errno 2] No such file or directory: 'config.json'"
+        )
         assert pattern is not None
         assert pattern.error_type == "FileNotFoundError"
 

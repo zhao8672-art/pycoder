@@ -12,15 +12,14 @@
   - 全局单例 registry 可用性
   - 错误路径: 未注册解析、类型错误、缺少参数
 """
+
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Protocol
 
 import pytest
 
 from pycoder.core.di import Registry, registry
-
 
 # ══════════════════════════════════════════════════════════
 # 测试用 Protocol 定义
@@ -319,6 +318,7 @@ class TestGlobalRegistry:
     def test_global_registry_is_singleton(self):
         """多次导入应为同一实例"""
         from pycoder.core.di import registry as r2
+
         assert registry is r2
 
     def test_global_registry_clear_and_restore(self):

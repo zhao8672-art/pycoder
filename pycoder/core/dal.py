@@ -204,7 +204,10 @@ class DAL:
                     continue
 
                 columns = [
-                    d[0] for d in old_conn.execute(f"PRAGMA table_info({old_table})").fetchall()  # nosec B608
+                    d[0]
+                    for d in old_conn.execute(
+                        f"PRAGMA table_info({old_table})"
+                    ).fetchall()  # nosec B608
                 ]
 
                 for row in old_rows:

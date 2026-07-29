@@ -6,6 +6,7 @@
 - 线程安全
 - 过期清理
 """
+
 from __future__ import annotations
 
 import threading
@@ -22,7 +23,6 @@ from pycoder.memory.deep_memory import (
     WorkingMemory,
 )
 from pycoder.memory.sharded_memory import ShardedEntry, ShardedMemory
-
 
 # ──────────────────────────────────────────────────────────────
 # ShardedMemory 测试
@@ -340,17 +340,13 @@ class TestDeepMemoryLazyLoading:
         g2 = deep_system.global_memory
         assert g1 is g2
 
-    def test_repeated_access_returns_same_instance(
-        self, deep_system: DeepMemorySystem
-    ) -> None:
+    def test_repeated_access_returns_same_instance(self, deep_system: DeepMemorySystem) -> None:
         """重复访问返回同一实例（不重复初始化）"""
         w1 = deep_system.working
         w2 = deep_system.working
         assert w1 is w2
 
-    def test_store_level_1_triggers_working_init(
-        self, deep_system: DeepMemorySystem
-    ) -> None:
+    def test_store_level_1_triggers_working_init(self, deep_system: DeepMemorySystem) -> None:
         """store(level=1) 触发 working 初始化"""
         import asyncio
 

@@ -3,6 +3,7 @@
 
 端点前缀: /api/workspace/manage
 """
+
 from __future__ import annotations
 
 import logging
@@ -159,8 +160,16 @@ async def list_templates():
     """列出可用项目模板"""
     return {
         "templates": [
-            {"id": "basic", "name": "基础 Python 项目", "description": "Python 项目骨架，含 pytest"},
+            {
+                "id": "basic",
+                "name": "基础 Python 项目",
+                "description": "Python 项目骨架，含 pytest",
+            },
             {"id": "fastapi", "name": "FastAPI 项目", "description": "FastAPI Web 服务项目"},
-            {"id": "react", "name": "React + Vite 项目", "description": "TypeScript React 前端项目"},
+            {
+                "id": "react",
+                "name": "React + Vite 项目",
+                "description": "TypeScript React 前端项目",
+            },
         ]
     }

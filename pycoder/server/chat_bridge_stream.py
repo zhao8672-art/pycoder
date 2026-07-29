@@ -77,9 +77,7 @@ def extract_stream_delta(
         for tc in delta["tool_calls"]:
             idx = tc.get("index", 0)
             while len(tool_calls) <= idx:
-                tool_calls.append(
-                    {"id": "", "function": {"name": "", "arguments": ""}}
-                )
+                tool_calls.append({"id": "", "function": {"name": "", "arguments": ""}})
             if tc.get("id"):
                 tool_calls[idx]["id"] += tc["id"]
             if tc.get("function"):

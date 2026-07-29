@@ -26,7 +26,6 @@ from pycoder.brain.task_planner import (
     TaskPlanner,
 )
 
-
 logger = logging.getLogger(__name__)
 
 # ══════════════════════════════════════════════════════════
@@ -37,6 +36,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ExecutionConfig:
     """三合一的执行配置"""
+
     name: str
     max_iterations: int
     tool_timeout: int
@@ -63,7 +63,7 @@ CHAT_CONFIG = ExecutionConfig(
     system_prompt=(
         "你是 PyCoder 编程助手。"
         "你可以用 JSON 工具调用来执行实际操作。"
-        "格式: {\"tool_calls\": [{\"name\": \"read_file\", \"params\": {\"path\": \"xxx\"}}]}\n"
+        '格式: {"tool_calls": [{"name": "read_file", "params": {"path": "xxx"}}]}\n'
         "对于纯知识问答直接文字回复。"
         "对于需要操作文件/命令/代码的任务，必须调用工具执行。"
     ),
@@ -118,11 +118,11 @@ AGENT_CONFIG = ExecutionConfig(
     max_empty_retries=2,
     system_prompt=(
         "你是 PyCoder 全自主 Agent。面对任务必须调用工具一步步完成。\n\n"
-        '## 🔴 必须遵守\n'
-        '1. 每次回复必须以 JSON 格式输出工具调用\n'
+        "## 🔴 必须遵守\n"
+        "1. 每次回复必须以 JSON 格式输出工具调用\n"
         '2. 格式: {"tool_calls": [{"name": "工具名", "params": {}}]}\n'
         "3. 不可输出纯文字描述而不调用工具\n"
-        '4. 任务完成后输出总结报告\n'
+        "4. 任务完成后输出总结报告\n"
     ),
     stages=[
         {"id": "intent", "label": "🔍 意图解析", "desc": "分析用户意图"},
@@ -152,15 +152,30 @@ def get_execution_config(mode: str) -> ExecutionConfig:
 
 TOOL_TIERS: dict[str, list[str] | None] = {
     "chat": [
-        "read_file", "write_file", "list_files", "search",
-        "run_terminal", "git_status", "execute_python", "python_env",
+        "read_file",
+        "write_file",
+        "list_files",
+        "search",
+        "run_terminal",
+        "git_status",
+        "execute_python",
+        "python_env",
     ],
     "hermes": [
-        "read_file", "write_file", "list_files", "search",
-        "run_terminal", "git_status", "git_log",
-        "execute_python", "python_env",
-        "code_review", "format_code", "docker_status",
-        "security_scan", "dependency_analysis",
+        "read_file",
+        "write_file",
+        "list_files",
+        "search",
+        "run_terminal",
+        "git_status",
+        "git_log",
+        "execute_python",
+        "python_env",
+        "code_review",
+        "format_code",
+        "docker_status",
+        "security_scan",
+        "dependency_analysis",
     ],
     "agent": None,  # 全部 48 个工具
 }
@@ -235,21 +250,16 @@ class ExecutionPipeline:
 
         # ── Stage 1: Context Assembly ──
         from pycoder.prompts.cache_rules import inject_cache_rules
-        bridge.config.system_prompt = inject_cache_rules(
-            strategy.system_prompt, lang="zh"
-        )
+
+        bridge.config.system_prompt = inject_cache_rules(strategy.system_prompt, lang="zh")
         effective_message = message
         if history_context:
-            effective_message = (
-                f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
-            )
+            effective_message = f"[对话历史回顾]\n{history_context}\n\n[当前消息] {message}"
 
         yield {
             "type": "agent_status",
             "status": "started",
-            "message": (
-                f"🔍 意图解析: {strategy.name.upper()} 模式"
-            ),
+            "message": (f"🔍 意图解析: {strategy.name.upper()} 模式"),
         }
         yield {
             "type": "progress",
@@ -287,9 +297,7 @@ class ExecutionPipeline:
                 # 2. 任务分解（补充1：注入上下文提升分解质量）
                 planner = TaskPlanner()
                 plan_context = self._build_plan_context(message, history_context)
-                plan = planner.plan(
-                    decision.intent.normalized_intent, context=plan_context
-                )
+                plan = planner.plan(decision.intent.normalized_intent, context=plan_context)
 
                 # 3. 正反可行性分析（补充2）
                 analyzer = FeasibilityAnalyzer()
@@ -326,10 +334,7 @@ class ExecutionPipeline:
                 if feasibility.recommendation == "abort":
                     yield {
                         "type": "error",
-                        "message": (
-                            f"❌ 可行性分析未通过: "
-                            f"{'; '.join(feasibility.risks[:3])}"
-                        ),
+                        "message": (f"❌ 可行性分析未通过: " f"{'; '.join(feasibility.risks[:3])}"),
                     }
                     yield {
                         "type": "done",
@@ -353,8 +358,7 @@ class ExecutionPipeline:
                         "type": "plan_review",
                         "plan": {
                             "tasks": [
-                                {"id": t.task_id, "desc": t.description[:60]}
-                                for t in plan.tasks
+                                {"id": t.task_id, "desc": t.description[:60]} for t in plan.tasks
                             ],
                             "strategy": plan.strategy.value,
                             "risks": feasibility.risks,
@@ -425,23 +429,19 @@ class ExecutionPipeline:
             # 构建 prompt
             if iter_count == 1:
                 if strategy.name != "chat":
-                    prompt = (
-                        f"请直接输出 JSON 工具调用来完成任务:\n\n"
-                        f"{effective_message}\n\n"
-                    )
+                    prompt = f"请直接输出 JSON 工具调用来完成任务:\n\n" f"{effective_message}\n\n"
                 else:
                     prompt = effective_message
                 if strategy.enable_rumination:
                     prompt += "\n\n请先分析需求，再逐步执行。每3步进行一次反思复盘。"
             elif self._last_had_tools:
                 prompt = (
-                    "以上是工具执行结果。如需继续请输出 JSON 工具调用。"
-                    "已完成请直接输出总结。"
+                    "以上是工具执行结果。如需继续请输出 JSON 工具调用。" "已完成请直接输出总结。"
                 )
             else:
                 prompt = (
                     "【紧急】你上一轮没有调用任何工具！"
-                    '你必须以 JSON 格式输出工具调用: '
+                    "你必须以 JSON 格式输出工具调用: "
                     '{"tool_calls": [{"name": "工具名", "params": {}}]}'
                 )
 
@@ -476,21 +476,16 @@ class ExecutionPipeline:
 
             try:
                 async with asyncio.timeout(120):  # 单轮LLM调用最多120秒
-                    async for ev in bridge.chat_stream(
-                        prompt, tool_names=tool_names
-                    ):
+                    async for ev in bridge.chat_stream(prompt, tool_names=tool_names):
                         # ── 流中取消检查 ──
                         await _check_cancel()
                         if ev.event_type == "token":
                             self._last_yield_time = time.monotonic()
                             response_text += ev.content
                             total_tokens += len(ev.content)
-                            yield {"type": "token", "data": ev.content,
-                                   "content": ev.content}
+                            yield {"type": "token", "data": ev.content, "content": ev.content}
                             if "🔧" in ev.content:
-                                tn = ev.content.replace(
-                                    "🔧 执行 ", ""
-                                ).strip()[:40]
+                                tn = ev.content.replace("🔧 执行 ", "").strip()[:40]
                                 tool_call_names.append(tn)
                                 has_tool_calls = True
                         elif ev.event_type == "reasoning":
@@ -509,8 +504,7 @@ class ExecutionPipeline:
                     break  # 有部分内容就继续
                 continue  # 无内容重试
             except Exception as e:
-                yield {"type": "error",
-                       "message": f"LLM 调用失败: {str(e)[:200]}"}
+                yield {"type": "error", "message": f"LLM 调用失败: {str(e)[:200]}"}
                 return
 
             self._last_had_tools = has_tool_calls
@@ -525,6 +519,7 @@ class ExecutionPipeline:
                     from pycoder.server.services.hallucination_guard import (
                         get_hallucination_guard,
                     )
+
                     guard = get_hallucination_guard()
                     h_result = await guard.validate(
                         response_text,
@@ -541,9 +536,7 @@ class ExecutionPipeline:
                             "score": hallucination_score,
                             "issues": h_result.consistency_issues[:5],
                             "recommendations": h_result.recommendations[:3],
-                            "message": (
-                                f"⚠️ 幻觉风险: 可信度 {hallucination_score:.0f}/100"
-                            ),
+                            "message": (f"⚠️ 幻觉风险: 可信度 {hallucination_score:.0f}/100"),
                         }
                         # 幻觉熔断：连续低分则注入纠正提示
                         self._hallucination_low_count = (
@@ -559,7 +552,8 @@ class ExecutionPipeline:
                         self._hallucination_low_count = 0
                     logger.debug(
                         "pipeline_hallucination_check score=%.1f iter=%d",
-                        hallucination_score, iter_count,
+                        hallucination_score,
+                        iter_count,
                     )
                 except Exception as e:
                     logger.debug("hallucination_guard_skipped error=%s", str(e)[:100])
@@ -578,8 +572,7 @@ class ExecutionPipeline:
                         "type": "agent_status",
                         "status": "working",
                         "message": (
-                            f"⚠️ Token预算使用 {budget.usage_ratio:.0%}，"
-                            "建议简化后续操作"
+                            f"⚠️ Token预算使用 {budget.usage_ratio:.0%}，" "建议简化后续操作"
                         ),
                     }
                 elif budget.status == "replan":
@@ -621,13 +614,11 @@ class ExecutionPipeline:
                             "type": "agent_status",
                             "status": "working",
                             "message": (
-                                f"📐 偏差检测: {len(dev_report.deviations)}项"
-                                " → 已注入纠正提示"
+                                f"📐 偏差检测: {len(dev_report.deviations)}项" " → 已注入纠正提示"
                             ),
                         }
                         logger.info(
-                            "deviation_correction_injected "
-                            "deviations=%d",
+                            "deviation_correction_injected " "deviations=%d",
                             len(dev_report.deviations),
                         )
 
@@ -654,6 +645,7 @@ class ExecutionPipeline:
             if not has_tool_calls and response_text:
                 try:
                     from pycoder.server.chat_handler import _execute_xml_tool_calls as _xml_exec
+
                     cleaned, tool_results = await _xml_exec(response_text)
                     if tool_results:
                         has_tool_calls = True
@@ -666,7 +658,8 @@ class ExecutionPipeline:
                                 full_content += f"\n❌ [{tn}] 失败: {tr.get('output', '')[:100]}\n"
                             logger.info(
                                 "pipeline_xml_tool_call tool=%s success=%s",
-                                tn, tr.get("success"),
+                                tn,
+                                tr.get("success"),
                             )
                     if cleaned != response_text:
                         response_text = cleaned
@@ -719,16 +712,13 @@ class ExecutionPipeline:
                         "message": f"🔍 后验验证发现 {len(post_verify_issues)} 个问题",
                     }
                     logger.warning(
-                        "post_verify_issues count=%d", len(post_verify_issues),
+                        "post_verify_issues count=%d",
+                        len(post_verify_issues),
                     )
             except Exception as e:
                 logger.debug("post_verify_skipped error=%s", str(e)[:100])
 
-        summary_line = (
-            f"⚡ 工具调用 {tool_count} 次"
-            if tool_count > 0
-            else ""
-        )
+        summary_line = f"⚡ 工具调用 {tool_count} 次" if tool_count > 0 else ""
         time_line = f"⏱ 耗时 {elapsed:.1f}s"
 
         # 计划完成度
@@ -785,9 +775,7 @@ class ExecutionPipeline:
 
         final_content = full_content.rstrip()
         if summary:
-            final_content += (
-                f"\n\n---\n📊 执行摘要\n{summary}"
-            )
+            final_content += f"\n\n---\n📊 执行摘要\n{summary}"
 
         # ════════════════════════════════════════════════════
         # P1-1: 结构化执行报告
@@ -801,9 +789,7 @@ class ExecutionPipeline:
             "tool_calls": self.tool_calls,
             "plan": plan_status_dict if plan_status_dict else None,
             "budget": budget.to_dict() if budget else None,
-            "hallucination_score": (
-                getattr(self, "_hallucination_low_count", 0)
-            ),
+            "hallucination_score": (getattr(self, "_hallucination_low_count", 0)),
             "post_verify_issues": post_verify_issues[:10],
             "success": len(post_verify_issues) == 0,
         }
@@ -830,10 +816,7 @@ class ExecutionPipeline:
                 f"✅ {strategy.name.upper()} 完成"
                 f" ({len(full_content)} 字符)"
                 + (f", {tool_count} 次工具调用" if tool_count else "")
-                + (
-                    f", {len(post_verify_issues)} 个验证问题"
-                    if post_verify_issues else ""
-                )
+                + (f", {len(post_verify_issues)} 个验证问题" if post_verify_issues else "")
             ),
         }
 
@@ -875,9 +858,7 @@ class ExecutionPipeline:
 
         risk_text = ""
         if feasibility.risks:
-            risk_text = "\n⚠️ 已知风险:\n" + "\n".join(
-                f"  - {r}" for r in feasibility.risks[:3]
-            )
+            risk_text = "\n⚠️ 已知风险:\n" + "\n".join(f"  - {r}" for r in feasibility.risks[:3])
 
         mitigation_text = ""
         if feasibility.mitigation:
@@ -917,9 +898,7 @@ class ExecutionPipeline:
             # 计算执行指标
             completed = len(detector._report.completed_task_ids) if detector else 0
             total = len(plan.tasks)
-            deviations = (
-                len(detector._report.deviations) if detector else 0
-            )
+            deviations = len(detector._report.deviations) if detector else 0
             budget_ratio = budget.usage_ratio if budget else 0.0
 
             # 判断成功/失败
@@ -942,11 +921,7 @@ class ExecutionPipeline:
 
             # 如果有失败任务，记录教训
             if not success and detector is not None:
-                failed_tasks = [
-                    t.task_id
-                    for t in plan.tasks
-                    if t.status.value == "failed"
-                ]
+                failed_tasks = [t.task_id for t in plan.tasks if t.status.value == "failed"]
                 if failed_tasks:
                     experience["failed_tasks"] = failed_tasks
                     experience["lesson"] = (
@@ -967,9 +942,7 @@ class ExecutionPipeline:
             logger.debug("学习反馈异常（非致命）: %s", e)
 
     @staticmethod
-    async def _post_execution_verify(
-        content: str, written_files: list[str]
-    ) -> list[str]:
+    async def _post_execution_verify(content: str, written_files: list[str]) -> list[str]:
         """P1-3: 后验验证 — 验证LLM声称的操作是否实际生效
 
         检查项目:
@@ -988,6 +961,7 @@ class ExecutionPipeline:
 
             # 1. 验证声称写入的文件
             import re
+
             write_pattern = re.compile(
                 r"(?:write_file|创建|写入|修改|更新).*?[\"'`]([^\"'`]+\.\w{1,10})[\"'`]",
                 re.IGNORECASE,
@@ -1017,8 +991,7 @@ class ExecutionPipeline:
                     age_s = time.time() - mtime
                     if age_s > 300:  # 超过5分钟未修改
                         issues.append(
-                            f"声称修改的文件未实际变更: {fpath} "
-                            f"(最后修改 {age_s:.0f}s 前)"
+                            f"声称修改的文件未实际变更: {fpath} " f"(最后修改 {age_s:.0f}s 前)"
                         )
 
             # 2. 验证引用的文件路径
@@ -1048,9 +1021,7 @@ class ExecutionPipeline:
                     target = (cwd / fpath).resolve()
                     if target.exists() and target.suffix == ".py":
                         try:
-                            file_content = target.read_text(
-                                encoding="utf-8", errors="ignore"
-                            )
+                            file_content = target.read_text(encoding="utf-8", errors="ignore")
                             for m in code_ref_pattern.finditer(content):
                                 symbol = m.group(1)
                                 if (

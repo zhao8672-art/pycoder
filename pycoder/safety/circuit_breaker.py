@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 class CircuitBreakerOpenError(Exception):
     """熔断器打开时抛出的异常"""
+
     def __init__(self, name: str, last_error: str = ""):
         self.name = name
         self.breaker_name = name  # 兼容测试引用
@@ -42,13 +43,15 @@ class CircuitBreakerOpenError(Exception):
 
 class CircuitState(StrEnum):
     """熔断器状态"""
-    CLOSED = "closed"           # 正常
-    OPEN = "open"               # 已熔断
-    HALF_OPEN = "half_open"     # 半开（试探性恢复）
+
+    CLOSED = "closed"  # 正常
+    OPEN = "open"  # 已熔断
+    HALF_OPEN = "half_open"  # 半开（试探性恢复）
 
 
 class RiskLevel(StrEnum):
     """操作风险等级"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -57,16 +60,16 @@ class RiskLevel(StrEnum):
 
 # ── 高危代码模式 ──
 _HIGH_RISK_PATTERNS = [
-    r"rm\s+-rf\s+/",                    # 删除根目录
-    r"os\.system\(.*rm\s+-rf",          # 调用系统删除
-    r"DROP\s+(TABLE|DATABASE)",         # 删库
-    r"DELETE\s+FROM\s+\w+\s*$",        # 无 WHERE 的 DELETE
-    r"eval\(.*__import__",              # 动态 eval 导入
-    r"exec\(.*input",                   # exec 用户输入
+    r"rm\s+-rf\s+/",  # 删除根目录
+    r"os\.system\(.*rm\s+-rf",  # 调用系统删除
+    r"DROP\s+(TABLE|DATABASE)",  # 删库
+    r"DELETE\s+FROM\s+\w+\s*$",  # 无 WHERE 的 DELETE
+    r"eval\(.*__import__",  # 动态 eval 导入
+    r"exec\(.*input",  # exec 用户输入
     r"subprocess\.call\(.*shell=True",  # shell=True 风险
-    r"pickle\.loads",                   # 不安全的反序列化
+    r"pickle\.loads",  # 不安全的反序列化
     r"yaml\.load\(.*Loader=yaml\.Loader",  # 不安全的 YAML
-    r"__import__\(.*os\.",              # 动态导入 OS 模块
+    r"__import__\(.*os\.",  # 动态导入 OS 模块
 ]
 
 
@@ -82,25 +85,28 @@ def scan_code_risk(code: str) -> list[dict[str, Any]]:
     for line_no, line in enumerate(code.split("\n"), 1):
         for pattern in _HIGH_RISK_PATTERNS:
             if re.search(pattern, line, re.IGNORECASE):
-                risks.append({
-                    "pattern": pattern,
-                    "severity": "critical",
-                    "line": line_no,
-                    "content": line.strip()[:100],
-                })
+                risks.append(
+                    {
+                        "pattern": pattern,
+                        "severity": "critical",
+                        "line": line_no,
+                        "content": line.strip()[:100],
+                    }
+                )
     return risks
 
 
 @dataclass
 class CircuitBreakerConfig:
     """熔断器配置"""
-    failure_threshold: int = 5          # 连续失败次数阈值
-    success_threshold: int = 3          # 半开状态需连续成功次数
-    timeout_seconds: float = 60.0       # 恢复超时（秒）
-    half_open_max_requests: int = 1     # 半开状态最大探测请求数
+
+    failure_threshold: int = 5  # 连续失败次数阈值
+    success_threshold: int = 3  # 半开状态需连续成功次数
+    timeout_seconds: float = 60.0  # 恢复超时（秒）
+    half_open_max_requests: int = 1  # 半开状态最大探测请求数
     error_types: tuple[type[Exception], ...] = ()  # 计入失败的异常类型（空=全部计入）
-    recovery_timeout: float = 300.0     # 恢复超时（秒）— 兼容旧代码
-    progress_timeout: float = 600.0     # 进度超时（秒）
+    recovery_timeout: float = 300.0  # 恢复超时（秒）— 兼容旧代码
+    progress_timeout: float = 600.0  # 进度超时（秒）
     risk_level: RiskLevel = RiskLevel.MEDIUM
 
 
@@ -123,7 +129,7 @@ class CircuitBreaker:
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._success_count = 0
-        self._half_open_count = 0       # 半开状态已处理的请求数
+        self._half_open_count = 0  # 半开状态已处理的请求数
         self._last_failure_time: float = 0.0
         self._last_success_time: float = 0.0
         self._total_failures: int = 0
@@ -228,7 +234,9 @@ class CircuitBreaker:
             self._state = CircuitState.OPEN
             logger.warning(
                 "circuit_open: name=%s failures=%d error=%s",
-                self.name, self._failure_count, self._last_error[:100],
+                self.name,
+                self._failure_count,
+                self._last_error[:100],
             )
 
     def reset(self) -> None:
@@ -329,7 +337,9 @@ class CircuitBreakerRegistry:
         if elapsed > effective_timeout:
             logger.warning(
                 "progress_timeout: name=%s elapsed=%.0fs timeout=%.0fs",
-                name, elapsed, effective_timeout,
+                name,
+                elapsed,
+                effective_timeout,
             )
             cb.record_failure(f"进度超时: {elapsed:.0f}s > {effective_timeout:.0f}s")
             return True

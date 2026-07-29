@@ -2,6 +2,7 @@
 
 检测慢请求，输出结构化日志，便于性能分析。
 """
+
 from __future__ import annotations
 
 import logging

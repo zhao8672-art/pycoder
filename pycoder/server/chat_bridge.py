@@ -212,10 +212,9 @@ class ChatBridge:
             return ""
 
         tried: set[str] = set()
-        for try_model, try_key, try_base, try_prov in (
-            [(self.config.model, api_key, self.config.api_base, _detect_provider(self.config.model))]
-            + fallback_providers
-        ):
+        for try_model, try_key, try_base, try_prov in [
+            (self.config.model, api_key, self.config.api_base, _detect_provider(self.config.model))
+        ] + fallback_providers:
             model_key = f"{try_prov}:{try_model}"
             if model_key in tried:
                 continue
@@ -245,7 +244,9 @@ class ChatBridge:
                     logger.warning("chat_sync_401 provider=%s key_invalid, trying next", try_prov)
                     continue
                 else:
-                    logger.warning("chat_sync_error provider=%s status=%d", try_prov, resp.status_code)
+                    logger.warning(
+                        "chat_sync_error provider=%s status=%d", try_prov, resp.status_code
+                    )
                     continue
             except (OSError, ValueError, KeyError, AttributeError) as e:
                 # OSError 不覆盖 httpx 的 TransportError（TimeoutException/ConnectError 等）
@@ -268,6 +269,7 @@ class ChatBridge:
             async with cls._client_lock:
                 if cls._shared_client is None:  # double-check
                     import httpx
+
                     cls._shared_client = httpx.AsyncClient(
                         timeout=httpx.Timeout(120.0),
                         headers={
@@ -315,6 +317,7 @@ class ChatBridge:
         # 检查用户自定义 API Base（最高优先级）
         try:
             from pycoder.providers.auth import ModelManager
+
             custom_base = ModelManager().get_custom_api_base(self.config.model)
             if custom_base:
                 self.config.api_base = custom_base
@@ -348,18 +351,74 @@ class ChatBridge:
     # ════════════════════════════════════════════════════
 
     _SIMPLE_CHAT_PATTERNS: list[str] = [
-        "你好", "hello", "嗨", "hi", "谢谢", "thanks", "再见", "bye",
-        "你是谁", "介绍", "能做什么", "帮助", "help", "功能",
-        "什么是", "什么是pycoder", "版本", "version",
-        "天气", "今天", "日期", "时间", "joke", "笑话",
+        "你好",
+        "hello",
+        "嗨",
+        "hi",
+        "谢谢",
+        "thanks",
+        "再见",
+        "bye",
+        "你是谁",
+        "介绍",
+        "能做什么",
+        "帮助",
+        "help",
+        "功能",
+        "什么是",
+        "什么是pycoder",
+        "版本",
+        "version",
+        "天气",
+        "今天",
+        "日期",
+        "时间",
+        "joke",
+        "笑话",
     ]
     _TOOL_NEEDED_KEYWORDS: list[str] = [
-        "写", "创建", "修改", "删除", "运行", "执行", "测试", "安装",
-        "生成", "构建", "分析", "审查", "重构", "修复", "查找", "搜索",
-        "create", "write", "modify", "delete", "run", "execute", "test",
-        "install", "generate", "build", "analyze", "review", "refactor",
-        "fix", "search", "find", "commit", "git", "deploy", "部署",
-        "file", "code", "代码", "文件", "项目", "project",
+        "写",
+        "创建",
+        "修改",
+        "删除",
+        "运行",
+        "执行",
+        "测试",
+        "安装",
+        "生成",
+        "构建",
+        "分析",
+        "审查",
+        "重构",
+        "修复",
+        "查找",
+        "搜索",
+        "create",
+        "write",
+        "modify",
+        "delete",
+        "run",
+        "execute",
+        "test",
+        "install",
+        "generate",
+        "build",
+        "analyze",
+        "review",
+        "refactor",
+        "fix",
+        "search",
+        "find",
+        "commit",
+        "git",
+        "deploy",
+        "部署",
+        "file",
+        "code",
+        "代码",
+        "文件",
+        "项目",
+        "project",
     ]
 
     def _classify_intent(self, message: str) -> tuple[str, bool, int]:
@@ -377,9 +436,7 @@ class ChatBridge:
                 return ("chat", False, 0)
 
         # 2. 超短消息（<10 字符）→ chat 模式
-        if msg_len < 10 and not any(
-            kw in msg_lower for kw in self._TOOL_NEEDED_KEYWORDS
-        ):
+        if msg_len < 10 and not any(kw in msg_lower for kw in self._TOOL_NEEDED_KEYWORDS):
             return ("chat", False, 0)
 
         # 3. 包含工具操作关键词 → tool 模式
@@ -420,16 +477,17 @@ class ChatBridge:
         # Layer 2 & 3: 中等/复杂消息 → CompositeNLUEngine（类级缓存）
         try:
             from pycoder.ai.nlu.composite_nlu import CompositeNLUEngine
+
             if ChatBridge._nlu_engine is None:
                 ChatBridge._nlu_engine = CompositeNLUEngine()
             _nlu = ChatBridge._nlu_engine
-            _result = await asyncio.wait_for(
-                _nlu.understand(message), timeout=2.0
-            )
-            self._nlu_cache = dict(intent=_result, category=_result.task_category)
+            _result = await asyncio.wait_for(_nlu.understand(message), timeout=2.0)
+            self._nlu_cache = {"intent": _result, "category": _result.task_category}
 
             if _result.task_category in (
-                "code_generation", "refactoring", "debugging",
+                "code_generation",
+                "refactoring",
+                "debugging",
             ):
                 _complexity = getattr(_result, "complexity", 0.5)
                 result = ("tool", True, 8 if _complexity > 0.6 else 5)
@@ -440,7 +498,7 @@ class ChatBridge:
 
             self._nlu_result_cache[cache_key] = (time.time(), result)
             return result
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug("nlu_route_timeout, falling back to keyword match")
             return (mode, needs_tools, rounds)
         except (ImportError, RuntimeError, ValueError, TypeError, AttributeError) as e:
@@ -481,13 +539,12 @@ class ChatBridge:
         max_tool_rounds = 5
         force_tools = True
         if mode == "auto":
-            effective_mode, force_tools, max_tool_rounds = (
-                await self._route_with_nlu(message)
-            )
+            effective_mode, force_tools, max_tool_rounds = await self._route_with_nlu(message)
             if effective_mode == "chat":
                 logger.debug(
                     "intent_router chat_mode msg_len=%d preview=%s",
-                    len(message), message[:50],
+                    len(message),
+                    message[:50],
                 )
 
         # ── P0-3: 任务难度分级（注入项目真实上下文）──
@@ -499,13 +556,18 @@ class ChatBridge:
                 def _build_context():
                     _cwd = os.getcwd()
                     import glob as _glob
-                    _py_files = _glob.glob(
-                        f"{_cwd}/**/*.py", recursive=True,
-                    ) if _cwd else []
+
+                    _py_files = (
+                        _glob.glob(
+                            f"{_cwd}/**/*.py",
+                            recursive=True,
+                        )
+                        if _cwd
+                        else []
+                    )
                     _ctx_local = {"files": len(_py_files)}
                     _ctx_local["domain"] = (
-                        self._nlu_cache.get("category", "")
-                        if self._nlu_cache else ""
+                        self._nlu_cache.get("category", "") if self._nlu_cache else ""
                     )
                     _req = os.path.join(_cwd, "requirements.txt")
                     if os.path.exists(_req):
@@ -514,6 +576,7 @@ class ChatBridge:
                                 [l for l in _f if l.strip()],
                             )
                     return _ctx_local
+
                 _ctx = await asyncio.to_thread(_build_context)
             except (OSError, ValueError, RuntimeError):
                 pass
@@ -523,8 +586,10 @@ class ChatBridge:
                 self.config.temperature = _task_grade.temperature
                 logger.debug(
                     "task_grader level=%s score=%.0f rounds=%d temp=%.2f",
-                    _task_grade.level.name, _task_grade.score,
-                    max_tool_rounds, _task_grade.temperature,
+                    _task_grade.level.name,
+                    _task_grade.score,
+                    max_tool_rounds,
+                    _task_grade.temperature,
                 )
 
         # ── 构建 Provider 降级链 ──
@@ -641,6 +706,7 @@ class ChatBridge:
         if not force_tools and len(fallback_providers) >= 2:
             try:
                 from pycoder.ai.fusion.engine import FusionEngine, FusionMode
+
                 _fusion = FusionEngine()
                 _f_result = await _fusion.fuse(
                     prompt=message,
@@ -652,7 +718,8 @@ class ChatBridge:
                     if content:
                         yield ChatEvent(event_type="token", content=content)
                         yield ChatEvent(
-                            event_type="done", content=content,
+                            event_type="done",
+                            content=content,
                             usage={"fusion": True, "provider": "multi"},
                         )
                         return
@@ -699,8 +766,10 @@ class ChatBridge:
                             current_provider = _detect_provider(current_model)
                             logger.error(
                                 "D2_CHAT_401 model=%s base=%s status=%d body=%s",
-                                current_model, self.config.api_base,
-                                response.status_code, err_text[:100],
+                                current_model,
+                                self.config.api_base,
+                                response.status_code,
+                                err_text[:100],
                             )
                             tried_providers.add(current_model)
                             mark_provider_key_invalid(current_provider)
@@ -715,7 +784,9 @@ class ChatBridge:
                                 nm, nk, nb = next_prov
                                 logger.warning(
                                     "provider_401_fallback from=%s to=%s reason=%s",
-                                    current_model, nm, err_text[:100],
+                                    current_model,
+                                    nm,
+                                    err_text[:100],
                                 )
                                 self.config.model = nm
                                 self.config.api_key = nk
@@ -755,13 +826,12 @@ class ChatBridge:
 
                             content_delta, reasoning_delta, tool_calls, finish_is_tool = (
                                 extract_stream_delta(
-                                    data, existing_tool_calls=tool_calls,
+                                    data,
+                                    existing_tool_calls=tool_calls,
                                 )
                             )
                             if reasoning_delta:
-                                yield ChatEvent(
-                                    event_type="reasoning", content=reasoning_delta
-                                )
+                                yield ChatEvent(event_type="reasoning", content=reasoning_delta)
                                 if content_delta:
                                     round_content += content_delta
                                     yield ChatEvent(event_type="token", content=content_delta)
@@ -777,7 +847,8 @@ class ChatBridge:
             except TimeoutError:
                 logger.warning(
                     "chat_stream_timeout round=%s model=%s",
-                    round_num + 1, self.config.model,
+                    round_num + 1,
+                    self.config.model,
                 )
                 yield ChatEvent(
                     event_type="token",
@@ -841,16 +912,17 @@ class ChatBridge:
                     yield ChatEvent(
                         event_type="token",
                         content=(
-                            f"📋 {tool_name} (缓存): 📁 "
-                            f"{tool_args.get('path', '')} 已缓存\n"
+                            f"📋 {tool_name} (缓存): 📁 " f"{tool_args.get('path', '')} 已缓存\n"
                         ),
                     )
                     self._repeating_round_count += 1
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tc["id"],
-                        "content": cached,
-                    })
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tc["id"],
+                            "content": cached,
+                        }
+                    )
                     continue
 
                 yield ChatEvent(
@@ -859,7 +931,9 @@ class ChatBridge:
                 )
                 logger.info(
                     "mcp_tool_call_from_ai round=%d tool=%s args=%s",
-                    round_num + 1, tool_name, str(tool_args)[:200],
+                    round_num + 1,
+                    tool_name,
+                    str(tool_args)[:200],
                 )
 
                 # 执行工具调用
@@ -867,7 +941,10 @@ class ChatBridge:
 
                 # 文件读取缓存
                 cache_file_read(
-                    self._read_file_cache, tool_name, tool_args, result_str,
+                    self._read_file_cache,
+                    tool_name,
+                    tool_args,
+                    result_str,
                 )
 
                 yield ChatEvent(
@@ -889,12 +966,15 @@ class ChatBridge:
             if self._repeating_round_count >= 3 and round_num > 2:
                 logger.warning(
                     "early_termination repeating=%d round=%d",
-                    self._repeating_round_count, round_num + 1,
+                    self._repeating_round_count,
+                    round_num + 1,
                 )
-                messages.append({
-                    "role": "system",
-                    "content": "⚠️ 检测到重复操作，请直接输出当前结果报告，不要再调用工具。",
-                })
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": "⚠️ 检测到重复操作，请直接输出当前结果报告，不要再调用工具。",
+                    }
+                )
                 self._repeating_round_count = 0
 
             # ── P0-2: 幻觉抑制（工具结果验证）──
@@ -907,7 +987,9 @@ class ChatBridge:
                 )
                 if guard_result and guard_result.overall_score < 50:
                     try:
-                        parsed = json.loads(result_str) if result_str.startswith("{") else result_str
+                        parsed = (
+                            json.loads(result_str) if result_str.startswith("{") else result_str
+                        )
                     except json.JSONDecodeError:
                         parsed = result_str
                     result_str = json.dumps(
@@ -916,20 +998,25 @@ class ChatBridge:
                             "⚠️ 幻觉风险": f"可信度 {guard_result.overall_score}/100",
                             "建议": guard_result.recommendations[:2],
                         },
-                        ensure_ascii=False, indent=2,
+                        ensure_ascii=False,
+                        indent=2,
                     )
 
             # ── P1-1: RuminationEngine（事前+事中）──
             if force_tools and round_num > 0:
                 await rumination_pre_execute(tool_name, tool_args)
                 rumination_result = await rumination_mid_execute(
-                    tool_name, result_str or "", round_num,
+                    tool_name,
+                    result_str or "",
+                    round_num,
                 )
                 if rumination_result.deviation_score > 0.4:
-                    messages.append({
-                        "role": "system",
-                        "content": rumination_result.correction_msg,
-                    })
+                    messages.append(
+                        {
+                            "role": "system",
+                            "content": rumination_result.correction_msg,
+                        }
+                    )
                 self._rumination_count += 1
 
             # ── P2-3: 代码自愈回滚 ──
@@ -973,10 +1060,12 @@ class ChatBridge:
                     content=f"\n📋 📌 阶段报告 {stage_num}/{max_tool_rounds} 已请求...\n",
                 )
             elif round_num == max_tool_rounds - 1 and max_tool_rounds <= 1:
-                messages.append({
-                    "role": "system",
-                    "content": "🔴 **输出任务报告**：请输出完整任务报告（需求、步骤、状态、产出物），不要继续调用工具。",
-                })
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": "🔴 **输出任务报告**：请输出完整任务报告（需求、步骤、状态、产出物），不要继续调用工具。",
+                    }
+                )
 
         # P5: 可观测性
         elapsed_ms = (time.perf_counter() - _start_time) * 1000
@@ -995,12 +1084,14 @@ class ChatBridge:
             )
             if guard_result and guard_result.overall_score < 60:
                 _hallucination_warning = format_hallucination_warning(
-                    guard_result.overall_score, guard_result.recommendations,
+                    guard_result.overall_score,
+                    guard_result.recommendations,
                 )
 
         # ── P1-1: Rumination 最终反思评分 ──
         _rumination_summary, _ = await rumination_post_execute(
-            all_content, is_tool_mode=force_tools,
+            all_content,
+            is_tool_mode=force_tools,
         )
 
         # ── P2-2: 在线自进化 — 每次 chat 结束记录经验 ──
@@ -1013,7 +1104,7 @@ class ChatBridge:
 
         # ── 报告完整性二次确认 ──
         if force_tools and all_content:
-            _has_report = ("报告" in all_content or "📋" in all_content or "📌" in all_content)
+            _has_report = "报告" in all_content or "📋" in all_content or "📌" in all_content
             if not _has_report:
                 all_content += (
                     "\n\n---\n📋 **任务摘要**\n"
@@ -1027,7 +1118,7 @@ class ChatBridge:
         yield ChatEvent(
             event_type="done",
             content=(all_content or "（AI 未生成有效回复，请尝试重新发送您的问题。）")
-                     + _hallucination_warning,
+            + _hallucination_warning,
             usage=total_usage,
         )
 
@@ -1082,6 +1173,7 @@ class ChatBridge:
 
 async def self_heal_after_write_async(file_path: str) -> AsyncIterator[ChatEvent]:
     """异步生成器：自愈检查并 yield ChatEvent"""
+
     async def yield_event(content: str):
         yield ChatEvent(event_type="token", content=content)
 
@@ -1108,6 +1200,7 @@ async def self_heal_after_write_async(file_path: str) -> AsyncIterator[ChatEvent
 
 async def analyze_after_write_async(file_path: str) -> AsyncIterator[ChatEvent]:
     """异步生成器：五层代码分析并 yield ChatEvent"""
+
     async def event_yield(content: str):
         yield ChatEvent(event_type="token", content=content)
 

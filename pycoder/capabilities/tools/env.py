@@ -11,7 +11,7 @@ from typing import Any
 from pycoder.bus.protocol import CapabilityCategory, CapabilityDefinition, ExecutionMode, SideEffect
 from pycoder.capabilities.permissions import TOOL_PERMISSIONS
 
-_logger = logging.getLogger('pycoder.capabilities.tools.env')
+_logger = logging.getLogger("pycoder.capabilities.tools.env")
 from pycoder.capabilities.degradation import wrap_handler
 
 _CT = CapabilityCategory.SYSTEM
@@ -88,12 +88,13 @@ async def _handle_python_env(params: dict, context: dict) -> dict:
 async def _handle_docker_status(params: dict, context: dict) -> dict:
     try:
         import importlib as _il
+
         _mod = _il.import_module("pycoder.server.docker_backend")
-        get_docker_backend = getattr(_mod, "get_docker_backend")
+        get_docker_backend = _mod.get_docker_backend
 
         backend = get_docker_backend()
         return await backend.get_status()
-    except Exception as e:
+    except Exception:
         _logger.warning("silently_swallowed: {err}", exc_info=False)
         return {
             "available": False,
@@ -104,8 +105,9 @@ async def _handle_docker_status(params: dict, context: dict) -> dict:
 
 async def _handle_docker_execute(params: dict, context: dict) -> dict:
     import importlib as _il
+
     _mod = _il.import_module("pycoder.server.docker_backend")
-    get_docker_backend = getattr(_mod, "get_docker_backend")
+    get_docker_backend = _mod.get_docker_backend
 
     backend = get_docker_backend()
     if not backend.is_available:

@@ -14,16 +14,14 @@
   10. evo_evaluator.py    — 数据模型 + EvoEvaluator
   11. error_classifier.py — 枚举 + 数据类 + ErrorClassifier
 """
+
 from __future__ import annotations
 
-import json
-import sqlite3
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ═══════════════════════════════════════════════════════════════
 # 模块 1: engine.py — 数据模型
@@ -37,7 +35,9 @@ class TestCodeIssue:
         """最小字段创建"""
         from pycoder.capabilities.self_evo.engine import CodeIssue
 
-        issue = CodeIssue(file="test.py", line=10, severity="high", issue_type="bug", title="裸 except")
+        issue = CodeIssue(
+            file="test.py", line=10, severity="high", issue_type="bug", title="裸 except"
+        )
         assert issue.file == "test.py"
         assert issue.line == 10
         assert issue.severity == "high"
@@ -52,8 +52,13 @@ class TestCodeIssue:
         from pycoder.capabilities.self_evo.engine import CodeIssue
 
         issue = CodeIssue(
-            file="app.py", line=42, severity="critical", issue_type="security",
-            title="硬编码密钥", description="发现 API Key", suggestion="使用环境变量",
+            file="app.py",
+            line=42,
+            severity="critical",
+            issue_type="security",
+            title="硬编码密钥",
+            description="发现 API Key",
+            suggestion="使用环境变量",
             code_snippet="KEY='sk-xxx'",
         )
         assert issue.description == "发现 API Key"
@@ -108,8 +113,13 @@ class TestFixResult:
 
         issue = CodeIssue(file="a.py", line=1, severity="high", issue_type="bug", title="test")
         proposal = FixProposal(issue=issue, action="replace", file_path="a.py")
-        result = FixResult(proposal=proposal, success=True, test_passed=True,
-                           git_branch="evo/123", git_commit="abc123")
+        result = FixResult(
+            proposal=proposal,
+            success=True,
+            test_passed=True,
+            git_branch="evo/123",
+            git_commit="abc123",
+        )
         assert result.success is True
         assert result.test_passed is True
         assert result.git_branch == "evo/123"
@@ -121,8 +131,7 @@ class TestFixResult:
 
         issue = CodeIssue(file="a.py", line=1, severity="high", issue_type="bug", title="test")
         proposal = FixProposal(issue=issue, action="replace", file_path="a.py")
-        result = FixResult(proposal=proposal, success=False, error="测试失败",
-                           rollback_needed=True)
+        result = FixResult(proposal=proposal, success=False, error="测试失败", rollback_needed=True)
         assert result.success is False
         assert result.rollback_needed is True
         assert result.error == "测试失败"
@@ -144,8 +153,13 @@ class TestEvolutionRecord:
         from pycoder.capabilities.self_evo.engine import EvolutionRecord
 
         record = EvolutionRecord(
-            action="fix", issue_type="bug", file="a.py", success=True,
-            fix_description="修复了裸 except", test_result="passed", lessons="使用except Exception",
+            action="fix",
+            issue_type="bug",
+            file="a.py",
+            success=True,
+            fix_description="修复了裸 except",
+            test_result="passed",
+            lessons="使用except Exception",
         )
         assert record.action == "fix"
         assert record.success is True
@@ -196,7 +210,9 @@ class TestEvolutionStats:
         """to_dict 序列化"""
         from pycoder.capabilities.self_evo.engine import EvolutionStats
 
-        stats = EvolutionStats(total_tasks=5, successful=4, failed=1, bugs_fixed=3, lines_changed=50)
+        stats = EvolutionStats(
+            total_tasks=5, successful=4, failed=1, bugs_fixed=3, lines_changed=50
+        )
         d = stats.to_dict()
         assert d["total_tasks"] == 5
         assert d["successful"] == 4
@@ -423,7 +439,11 @@ class TestSelfEvolutionEngineGenerateFix:
 
         engine = SelfEvolutionEngine()
         issue = CodeIssue(
-            file="test.py", line=5, severity="high", issue_type="bug", title="裸 except 吞掉所有异常",
+            file="test.py",
+            line=5,
+            severity="high",
+            issue_type="bug",
+            title="裸 except 吞掉所有异常",
         )
         proposal = engine._template_fix(issue)
         assert proposal.old_code == "except:"
@@ -435,7 +455,10 @@ class TestSelfEvolutionEngineGenerateFix:
 
         engine = SelfEvolutionEngine()
         issue = CodeIssue(
-            file="test.py", line=3, severity="medium", issue_type="bug",
+            file="test.py",
+            line=3,
+            severity="medium",
+            issue_type="bug",
             title="函数 'foo' 使用了可变默认参数",
         )
         proposal = engine._template_fix(issue)
@@ -447,8 +470,12 @@ class TestSelfEvolutionEngineGenerateFix:
 
         engine = SelfEvolutionEngine()
         issue = CodeIssue(
-            file="test.py", line=1, severity="low", issue_type="style",
-            title="未知问题", suggestion="手动修复",
+            file="test.py",
+            line=1,
+            severity="low",
+            issue_type="style",
+            title="未知问题",
+            suggestion="手动修复",
         )
         proposal = engine._template_fix(issue)
         assert "手动修复" in proposal.reasoning
@@ -511,7 +538,9 @@ class TestSelfEvolutionEngineApplyFix:
 
         engine = SelfEvolutionEngine()
         # 模拟已修改 3 个文件
-        with patch.object(engine, "_get_modified_in_session", return_value=["a.py", "b.py", "c.py"]):
+        with patch.object(
+            engine, "_get_modified_in_session", return_value=["a.py", "b.py", "c.py"]
+        ):
             issue = CodeIssue(file="d.py", line=1, severity="high", issue_type="bug", title="test")
             proposal = FixProposal(issue=issue, action="replace", file_path="d.py")
             result = await engine.apply_fix(proposal)
@@ -567,8 +596,9 @@ class TestSelfEvolutionEngineEvolutionToken:
 
         # 临时修改令牌目录
         with patch.object(SelfEvolutionEngine, "_EVOLUTION_TOKEN_DIR", tmp_path):
-            with patch.object(SelfEvolutionEngine, "_EVOLUTION_TOKEN_FILE",
-                              tmp_path / "token.json"):
+            with patch.object(
+                SelfEvolutionEngine, "_EVOLUTION_TOKEN_FILE", tmp_path / "token.json"
+            ):
                 token = SelfEvolutionEngine.generate_evolution_token(["test.py"])
                 assert len(token) == 16
                 assert (tmp_path / "token.json").exists()
@@ -662,8 +692,13 @@ class TestLearningObservation:
         from pycoder.capabilities.self_evo.learning.closed_loop import LearningObservation
 
         obs = LearningObservation(
-            task_id="T002", task_description="测试任务", success=True, steps_taken=5,
-            errors_encountered=["err1"], patterns_used=["pat1"], patterns_failed=["pat2"],
+            task_id="T002",
+            task_description="测试任务",
+            success=True,
+            steps_taken=5,
+            errors_encountered=["err1"],
+            patterns_used=["pat1"],
+            patterns_failed=["pat2"],
             metadata={"key": "val"},
         )
         assert obs.success is True
@@ -757,9 +792,17 @@ class TestClosedLearningLoopInit:
         from pycoder.capabilities.self_evo.learning.closed_loop import ClosedLearningLoop
 
         row = {
-            "id": "s1", "name": "test", "description": "", "pattern": "", "strategy": "",
-            "success_rate": 0.8, "usage_count": 5, "created_at": 0.0, "updated_at": 0.0,
-            "source_task_id": "", "pruned": 0,
+            "id": "s1",
+            "name": "test",
+            "description": "",
+            "pattern": "",
+            "strategy": "",
+            "success_rate": 0.8,
+            "usage_count": 5,
+            "created_at": 0.0,
+            "updated_at": 0.0,
+            "source_task_id": "",
+            "pruned": 0,
         }
         skill = ClosedLearningLoop._row_to_skill(row)
         assert skill.id == "s1"
@@ -777,10 +820,17 @@ class TestClosedLearningLoopObserve:
 
         db_path = tmp_path / "obs.db"
         loop = ClosedLearningLoop(db_path=db_path)
-        obs = await loop.observe("T001", {
-            "description": "测试", "success": True, "steps": 3,
-            "errors": [], "patterns_used": ["pat1"], "patterns_failed": [],
-        })
+        obs = await loop.observe(
+            "T001",
+            {
+                "description": "测试",
+                "success": True,
+                "steps": 3,
+                "errors": [],
+                "patterns_used": ["pat1"],
+                "patterns_failed": [],
+            },
+        )
         assert obs.task_id == "T001"
         assert obs.success is True
         assert obs.steps_taken == 3
@@ -792,9 +842,13 @@ class TestClosedLearningLoopObserve:
 
         db_path = tmp_path / "obs2.db"
         loop = ClosedLearningLoop(db_path=db_path)
-        obs = await loop.observe("T002", {
-            "success": False, "errors": ["NameError"],
-        })
+        obs = await loop.observe(
+            "T002",
+            {
+                "success": False,
+                "errors": ["NameError"],
+            },
+        )
         assert obs.success is False
         assert obs.errors_encountered == ["NameError"]
 
@@ -806,14 +860,18 @@ class TestClosedLearningLoopReflect:
     async def test_reflect_success(self, tmp_path):
         """反思成功任务"""
         from pycoder.capabilities.self_evo.learning.closed_loop import (
-            ClosedLearningLoop, LearningObservation,
+            ClosedLearningLoop,
+            LearningObservation,
         )
 
         db_path = tmp_path / "reflect.db"
         loop = ClosedLearningLoop(db_path=db_path)
         obs = LearningObservation(
-            task_id="T001", success=True, steps_taken=2,
-            patterns_used=["pattern_a"], patterns_failed=[],
+            task_id="T001",
+            success=True,
+            steps_taken=2,
+            patterns_used=["pattern_a"],
+            patterns_failed=[],
         )
         reflection = await loop.reflect(obs)
         assert reflection["task_id"] == "T001"
@@ -825,13 +883,16 @@ class TestClosedLearningLoopReflect:
     async def test_reflect_failure(self, tmp_path):
         """反思失败任务"""
         from pycoder.capabilities.self_evo.learning.closed_loop import (
-            ClosedLearningLoop, LearningObservation,
+            ClosedLearningLoop,
+            LearningObservation,
         )
 
         db_path = tmp_path / "reflect2.db"
         loop = ClosedLearningLoop(db_path=db_path)
         obs = LearningObservation(
-            task_id="T002", success=False, errors_encountered=["TypeError"],
+            task_id="T002",
+            success=False,
+            errors_encountered=["TypeError"],
         )
         reflection = await loop.reflect(obs)
         assert reflection["success"] is False
@@ -851,8 +912,11 @@ class TestClosedLearningLoopGenerateSkill:
         reflection = {
             "task_id": "T001",
             "patterns_found": [
-                {"pattern": "fix_bare_except", "confidence": 0.9,
-                 "suggestion": "使用 except Exception"},
+                {
+                    "pattern": "fix_bare_except",
+                    "confidence": 0.9,
+                    "suggestion": "使用 except Exception",
+                },
             ],
             "patterns_avoid": [],
         }
@@ -925,10 +989,15 @@ class TestClosedLearningLoopRunCycle:
 
         db_path = tmp_path / "cycle.db"
         loop = ClosedLearningLoop(db_path=db_path)
-        result = await loop.run_cycle("T001", {
-            "description": "测试任务", "success": True, "steps": 2,
-            "patterns_used": ["pattern_a"],
-        })
+        result = await loop.run_cycle(
+            "T001",
+            {
+                "description": "测试任务",
+                "success": True,
+                "steps": 2,
+                "patterns_used": ["pattern_a"],
+            },
+        )
         assert result["task_id"] == "T001"
         assert "cycle_duration_ms" in result
         assert result["observation"]["success"] is True
@@ -1011,6 +1080,7 @@ class TestDetectBugs:
     def test_detect_bare_except(self):
         """检测裸 except"""
         import ast
+
         from pycoder.capabilities.self_evo import _detect_bugs
 
         source = "try:\n    pass\nexcept:\n    pass\n"
@@ -1021,6 +1091,7 @@ class TestDetectBugs:
     def test_detect_mutable_default(self):
         """检测可变默认参数"""
         import ast
+
         from pycoder.capabilities.self_evo import _detect_bugs
 
         source = "def foo(x=[]):\n    pass\n"
@@ -1031,6 +1102,7 @@ class TestDetectBugs:
     def test_detect_unnecessary_fstring(self):
         """检测不必要的 f-string"""
         import ast
+
         from pycoder.capabilities.self_evo import _detect_bugs
 
         source = "x = f'hello'\n"
@@ -1045,6 +1117,7 @@ class TestDetectComplexity:
     def test_detect_long_function(self):
         """检测过长函数"""
         import ast
+
         from pycoder.capabilities.self_evo import _detect_complexity
 
         # 构造一个超过 100 行的函数
@@ -1061,6 +1134,7 @@ class TestDetectSecurity:
     def test_detect_dangerous_call(self):
         """检测危险函数调用"""
         import ast
+
         from pycoder.capabilities.self_evo import _detect_security
 
         source = "eval('1+1')\n"
@@ -1071,6 +1145,7 @@ class TestDetectSecurity:
     def test_detect_hardcoded_secret(self):
         """检测硬编码密钥"""
         import ast
+
         from pycoder.capabilities.self_evo import _detect_security
 
         source = "API_KEY = 'sk-abcdefghijklmnop'\n"
@@ -1085,6 +1160,7 @@ class TestDetectStyle:
     def test_detect_print(self):
         """检测 print 使用"""
         import ast
+
         from pycoder.capabilities.self_evo import _detect_style
 
         source = "print('hello')\n"
@@ -1135,7 +1211,11 @@ class TestTemplateFixForIssue:
         from pycoder.capabilities.self_evo.engine import CodeIssue
 
         issue = CodeIssue(
-            file="test.py", line=5, severity="high", issue_type="bug", title="裸 except 吞掉所有异常",
+            file="test.py",
+            line=5,
+            severity="high",
+            issue_type="bug",
+            title="裸 except 吞掉所有异常",
         )
         fix = _template_fix_for_issue(issue)
         assert fix["old_code"] == "except:"
@@ -1147,7 +1227,10 @@ class TestTemplateFixForIssue:
         from pycoder.capabilities.self_evo.engine import CodeIssue
 
         issue = CodeIssue(
-            file="test.py", line=1, severity="critical", issue_type="security",
+            file="test.py",
+            line=1,
+            severity="critical",
+            issue_type="security",
             title="检测到硬编码密钥",
         )
         fix = _template_fix_for_issue(issue)
@@ -1159,8 +1242,12 @@ class TestTemplateFixForIssue:
         from pycoder.capabilities.self_evo.engine import CodeIssue
 
         issue = CodeIssue(
-            file="test.py", line=1, severity="low", issue_type="style",
-            title="未知问题", suggestion="手动修复一下",
+            file="test.py",
+            line=1,
+            severity="low",
+            issue_type="style",
+            title="未知问题",
+            suggestion="手动修复一下",
         )
         fix = _template_fix_for_issue(issue)
         assert "TODO" in fix["fix_code"]
@@ -1208,8 +1295,12 @@ class TestTaskExperience:
         from pycoder.capabilities.self_evo.learning.experience_buffer import TaskExperience
 
         exp = TaskExperience(
-            id="EXP-001", task_type="fix", outcome="success",
-            test_passed=True, quality_score=90, reward=0.8,
+            id="EXP-001",
+            task_type="fix",
+            outcome="success",
+            test_passed=True,
+            quality_score=90,
+            reward=0.8,
         )
         assert exp.id == "EXP-001"
         assert exp.outcome == "success"
@@ -1254,11 +1345,12 @@ class TestExperienceBuffer:
     def test_init_empty(self, tmp_path):
         """初始化为空"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, EXP_DIR,
+            ExperienceBuffer,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer(capacity=10)
             assert len(buf) == 0
             assert buf.is_full is False
@@ -1266,15 +1358,20 @@ class TestExperienceBuffer:
     def test_store_and_retrieve(self, tmp_path):
         """存储和检索"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, TaskExperience, EXP_DIR,
+            ExperienceBuffer,
+            TaskExperience,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer(capacity=10)
             exp = TaskExperience(
-                id="EXP-001", task_type="fix", outcome="success",
-                test_passed=True, quality_score=90,
+                id="EXP-001",
+                task_type="fix",
+                outcome="success",
+                test_passed=True,
+                quality_score=90,
             )
             exp_id = buf.store(exp)
             assert exp_id == "EXP-001"
@@ -1282,15 +1379,19 @@ class TestExperienceBuffer:
     def test_sample_priority(self, tmp_path):
         """优先级采样"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, TaskExperience, EXP_DIR,
+            ExperienceBuffer,
+            TaskExperience,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer(capacity=20)
             for i in range(5):
                 exp = TaskExperience(
-                    id=f"EXP-{i}", outcome="success", test_passed=True,
+                    id=f"EXP-{i}",
+                    outcome="success",
+                    test_passed=True,
                     quality_score=80 + i * 5,
                 )
                 buf.store(exp)
@@ -1300,11 +1401,13 @@ class TestExperienceBuffer:
     def test_sample_recent(self, tmp_path):
         """最近采样"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, TaskExperience, EXP_DIR,
+            ExperienceBuffer,
+            TaskExperience,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer(capacity=20)
             for i in range(5):
                 exp = TaskExperience(id=f"EXP-{i}", outcome="success", test_passed=True)
@@ -1315,11 +1418,13 @@ class TestExperienceBuffer:
     def test_sample_random(self, tmp_path):
         """随机采样"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, TaskExperience, EXP_DIR,
+            ExperienceBuffer,
+            TaskExperience,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer(capacity=20)
             for i in range(5):
                 exp = TaskExperience(id=f"EXP-{i}", outcome="success", test_passed=True)
@@ -1330,11 +1435,12 @@ class TestExperienceBuffer:
     def test_sample_empty(self, tmp_path):
         """空缓冲区采样"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, EXP_DIR,
+            ExperienceBuffer,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer()
             sample = buf.sample(batch_size=10)
             assert sample == []
@@ -1342,11 +1448,13 @@ class TestExperienceBuffer:
     def test_get_failures(self, tmp_path):
         """获取失败经验"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, TaskExperience, EXP_DIR,
+            ExperienceBuffer,
+            TaskExperience,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer(capacity=20)
             buf.store(TaskExperience(id="E1", outcome="failure"))
             buf.store(TaskExperience(id="E2", outcome="success"))
@@ -1357,11 +1465,13 @@ class TestExperienceBuffer:
     def test_get_successes(self, tmp_path):
         """获取成功经验"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, TaskExperience, EXP_DIR,
+            ExperienceBuffer,
+            TaskExperience,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer(capacity=20)
             buf.store(TaskExperience(id="E1", outcome="success"))
             buf.store(TaskExperience(id="E2", outcome="failure"))
@@ -1371,11 +1481,13 @@ class TestExperienceBuffer:
     def test_update_priority(self, tmp_path):
         """更新优先级"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, TaskExperience, EXP_DIR,
+            ExperienceBuffer,
+            TaskExperience,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer(capacity=10)
             exp = TaskExperience(id="E1", outcome="success", test_passed=True)
             buf.store(exp)
@@ -1385,11 +1497,12 @@ class TestExperienceBuffer:
     def test_update_priority_not_found(self, tmp_path):
         """更新不存在的优先级"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, EXP_DIR,
+            ExperienceBuffer,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer()
             result = buf.update_priority("nonexistent", 0.5)
             assert result is False
@@ -1397,11 +1510,13 @@ class TestExperienceBuffer:
     def test_mark_learned(self, tmp_path):
         """标记已学习"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, TaskExperience, EXP_DIR,
+            ExperienceBuffer,
+            TaskExperience,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer(capacity=10)
             exp = TaskExperience(id="E1", outcome="success", test_passed=True)
             buf.store(exp)
@@ -1411,13 +1526,17 @@ class TestExperienceBuffer:
     def test_get_stats(self, tmp_path):
         """获取统计"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, TaskExperience, EXP_DIR,
+            ExperienceBuffer,
+            TaskExperience,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer(capacity=20)
-            buf.store(TaskExperience(id="E1", outcome="success", test_passed=True, quality_score=90))
+            buf.store(
+                TaskExperience(id="E1", outcome="success", test_passed=True, quality_score=90)
+            )
             stats = buf.get_stats()
             assert stats.total == 1
             assert stats.success == 1
@@ -1425,11 +1544,13 @@ class TestExperienceBuffer:
     def test_get_novel(self, tmp_path):
         """获取新颖经验"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, TaskExperience, EXP_DIR,
+            ExperienceBuffer,
+            TaskExperience,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer(capacity=20)
             for i in range(5):
                 buf.store(TaskExperience(id=f"E{i}", outcome="success", test_passed=True))
@@ -1443,17 +1564,23 @@ class TestExperienceBufferCapacity:
     def test_eviction(self, tmp_path):
         """容量满时淘汰"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            ExperienceBuffer, TaskExperience, EXP_DIR,
+            ExperienceBuffer,
+            TaskExperience,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR",
-                   tmp_path / "exp"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer.EXP_DIR", tmp_path / "exp"
+        ):
             buf = ExperienceBuffer(capacity=5)
             for i in range(10):
-                buf.store(TaskExperience(
-                    id=f"E{i}", outcome="success", test_passed=True,
-                    quality_score=50 + i * 5,
-                ))
+                buf.store(
+                    TaskExperience(
+                        id=f"E{i}",
+                        outcome="success",
+                        test_passed=True,
+                        quality_score=50 + i * 5,
+                    )
+                )
             assert len(buf) <= 5
 
 
@@ -1463,11 +1590,10 @@ class TestIterationMemory:
     def test_start_iteration(self, tmp_path):
         """开始迭代"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            IterationMemory, MEMORY_DIR,
+            IterationMemory,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR", tmp_path):
             mem = IterationMemory()
             record = mem.start_iteration("test_feature")
             assert record.feature_name == "test_feature"
@@ -1476,11 +1602,10 @@ class TestIterationMemory:
     def test_record_file_change(self, tmp_path):
         """记录文件变更"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            IterationMemory, MEMORY_DIR,
+            IterationMemory,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR", tmp_path):
             mem = IterationMemory()
             mem.start_iteration("feature")
             mem.record_file_change("test.py")
@@ -1489,11 +1614,10 @@ class TestIterationMemory:
     def test_record_error(self, tmp_path):
         """记录错误"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            IterationMemory, MEMORY_DIR,
+            IterationMemory,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR", tmp_path):
             mem = IterationMemory()
             mem.start_iteration("feature")
             mem.record_error("NameError")
@@ -1502,11 +1626,10 @@ class TestIterationMemory:
     def test_record_commit(self, tmp_path):
         """记录提交"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            IterationMemory, MEMORY_DIR,
+            IterationMemory,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR", tmp_path):
             mem = IterationMemory()
             mem.start_iteration("feature")
             mem.record_commit("fix: something")
@@ -1515,11 +1638,10 @@ class TestIterationMemory:
     def test_record_test(self, tmp_path):
         """记录测试"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            IterationMemory, MEMORY_DIR,
+            IterationMemory,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR", tmp_path):
             mem = IterationMemory()
             mem.start_iteration("feature")
             mem.record_test("test_foo", True)
@@ -1528,11 +1650,10 @@ class TestIterationMemory:
     def test_record_rollback(self, tmp_path):
         """记录回滚"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            IterationMemory, MEMORY_DIR,
+            IterationMemory,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR", tmp_path):
             mem = IterationMemory()
             mem.start_iteration("feature")
             mem.record_rollback()
@@ -1541,11 +1662,10 @@ class TestIterationMemory:
     def test_finish_iteration(self, tmp_path):
         """结束迭代"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            IterationMemory, MEMORY_DIR,
+            IterationMemory,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR", tmp_path):
             mem = IterationMemory()
             mem.start_iteration("feature")
             record = mem.finish_iteration()
@@ -1555,11 +1675,10 @@ class TestIterationMemory:
     def test_load_iteration_not_found(self, tmp_path):
         """加载不存在的迭代"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            IterationMemory, MEMORY_DIR,
+            IterationMemory,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR", tmp_path):
             mem = IterationMemory()
             result = mem.load_iteration("nonexistent")
             assert result is None
@@ -1592,25 +1711,30 @@ class TestEngineerProfile:
     def test_get_engineer_profile(self, tmp_path):
         """获取工程师记忆"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            get_engineer_profile, _PROFILE_PATH,
+            get_engineer_profile,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer._PROFILE_PATH",
-                   tmp_path / "profile.json"):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer._PROFILE_PATH",
+            tmp_path / "profile.json",
+        ):
             profile = get_engineer_profile()
             assert profile.naming_convention == "snake_case"
 
     def test_save_engineer_profile(self, tmp_path):
         """保存工程师记忆"""
         from pycoder.capabilities.self_evo.learning.experience_buffer import (
-            EngineerProfile, save_engineer_profile, _PROFILE_PATH,
+            EngineerProfile,
+            save_engineer_profile,
         )
 
         profile_path = tmp_path / "profile.json"
-        with patch("pycoder.capabilities.self_evo.learning.experience_buffer._PROFILE_PATH",
-                   profile_path):
-            with patch("pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR",
-                       tmp_path):
+        with patch(
+            "pycoder.capabilities.self_evo.learning.experience_buffer._PROFILE_PATH", profile_path
+        ):
+            with patch(
+                "pycoder.capabilities.self_evo.learning.experience_buffer.MEMORY_DIR", tmp_path
+            ):
                 profile = EngineerProfile()
                 save_engineer_profile(profile)
                 assert profile_path.exists()
@@ -1709,11 +1833,11 @@ class TestPendingUpgrade:
     def test_save_and_load(self, tmp_path):
         """保存和加载"""
         from pycoder.capabilities.self_evo.upgrade import (
-            save_pending_upgrade, load_pending_upgrade, PENDING_FILE,
+            load_pending_upgrade,
+            save_pending_upgrade,
         )
 
-        with patch("pycoder.capabilities.self_evo.upgrade.PENDING_FILE",
-                   tmp_path / "pending.json"):
+        with patch("pycoder.capabilities.self_evo.upgrade.PENDING_FILE", tmp_path / "pending.json"):
             save_pending_upgrade("0.5.0", "0.6.0", "git_pull")
             pending = load_pending_upgrade()
             assert pending["from_version"] == "0.5.0"
@@ -1721,17 +1845,19 @@ class TestPendingUpgrade:
 
     def test_load_none(self, tmp_path):
         """加载不存在文件"""
-        from pycoder.capabilities.self_evo.upgrade import load_pending_upgrade, PENDING_FILE
+        from pycoder.capabilities.self_evo.upgrade import load_pending_upgrade
 
-        with patch("pycoder.capabilities.self_evo.upgrade.PENDING_FILE",
-                   tmp_path / "nonexistent.json"):
+        with patch(
+            "pycoder.capabilities.self_evo.upgrade.PENDING_FILE", tmp_path / "nonexistent.json"
+        ):
             result = load_pending_upgrade()
             assert result is None
 
     def test_clear(self, tmp_path):
         """清除"""
         from pycoder.capabilities.self_evo.upgrade import (
-            save_pending_upgrade, clear_pending_upgrade, PENDING_FILE,
+            clear_pending_upgrade,
+            save_pending_upgrade,
         )
 
         pending_file = tmp_path / "pending.json"
@@ -1790,11 +1916,10 @@ class TestFeedbackLoop:
     def test_collect_signal(self, tmp_path):
         """收集反馈信号"""
         from pycoder.capabilities.self_evo.learning.feedback_loop import (
-            FeedbackLoop, FEEDBACK_DIR,
+            FeedbackLoop,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR", tmp_path):
             fl = FeedbackLoop()
             fl.collect(task_id="T001", outcome="success", quality_score=90, test_passed=True)
             assert len(fl._signals) == 1
@@ -1802,11 +1927,10 @@ class TestFeedbackLoop:
     def test_collect_explicit(self, tmp_path):
         """显式反馈信号类型"""
         from pycoder.capabilities.self_evo.learning.feedback_loop import (
-            FeedbackLoop, FEEDBACK_DIR,
+            FeedbackLoop,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR", tmp_path):
             fl = FeedbackLoop()
             fl.collect(task_id="T001", outcome="success", user_rating=1)
             assert fl._signals[0].signal_type == "explicit"
@@ -1814,11 +1938,10 @@ class TestFeedbackLoop:
     def test_collect_implicit(self, tmp_path):
         """隐式反馈信号类型"""
         from pycoder.capabilities.self_evo.learning.feedback_loop import (
-            FeedbackLoop, FEEDBACK_DIR,
+            FeedbackLoop,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR", tmp_path):
             fl = FeedbackLoop()
             fl.collect(task_id="T001", outcome="success", user_rating=0)
             assert fl._signals[0].signal_type == "implicit"
@@ -1826,11 +1949,10 @@ class TestFeedbackLoop:
     def test_get_adaptive_config(self, tmp_path):
         """获取自适应配置"""
         from pycoder.capabilities.self_evo.learning.feedback_loop import (
-            FeedbackLoop, FEEDBACK_DIR,
+            FeedbackLoop,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR", tmp_path):
             fl = FeedbackLoop()
             config = fl.get_adaptive_config()
             assert isinstance(config.quality_threshold, float)
@@ -1838,11 +1960,10 @@ class TestFeedbackLoop:
     def test_get_recent_feedback(self, tmp_path):
         """获取最近反馈"""
         from pycoder.capabilities.self_evo.learning.feedback_loop import (
-            FeedbackLoop, FEEDBACK_DIR,
+            FeedbackLoop,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR", tmp_path):
             fl = FeedbackLoop()
             fl.collect(task_id="T001", outcome="success", quality_score=90)
             recent = fl.get_recent_feedback(limit=5)
@@ -1851,11 +1972,10 @@ class TestFeedbackLoop:
     def test_get_stats_empty(self, tmp_path):
         """空信号统计"""
         from pycoder.capabilities.self_evo.learning.feedback_loop import (
-            FeedbackLoop, FEEDBACK_DIR,
+            FeedbackLoop,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR", tmp_path):
             fl = FeedbackLoop()
             stats = fl.get_stats()
             assert stats["total_signals"] == 0
@@ -1864,11 +1984,10 @@ class TestFeedbackLoop:
     def test_force_adjust(self, tmp_path):
         """强制调整"""
         from pycoder.capabilities.self_evo.learning.feedback_loop import (
-            FeedbackLoop, FEEDBACK_DIR,
+            FeedbackLoop,
         )
 
-        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR",
-                   tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.feedback_loop.FEEDBACK_DIR", tmp_path):
             fl = FeedbackLoop()
             config = fl.force_adjust()
             assert isinstance(config.quality_threshold, float)
@@ -1876,7 +1995,8 @@ class TestFeedbackLoop:
     def test_signal_to_dict(self):
         """信号序列化"""
         from pycoder.capabilities.self_evo.learning.feedback_loop import (
-            FeedbackLoop, FeedbackSignal,
+            FeedbackLoop,
+            FeedbackSignal,
         )
 
         sig = FeedbackSignal(task_id="T001", outcome="success")
@@ -1908,18 +2028,20 @@ class TestMetricsTrackerRecord:
     def test_record_evolution(self, tmp_path):
         """记录进化"""
         from pycoder.capabilities.self_evo.learning.metrics_tracker import (
-            MetricsTracker, METRICS_DB,
+            MetricsTracker,
         )
 
         db_path = tmp_path / "metrics.db"
-        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.METRICS_DB",
-                   db_path):
-            with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.DB_DIR",
-                       tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.METRICS_DB", db_path):
+            with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.DB_DIR", tmp_path):
                 mt = MetricsTracker()
                 row_id = mt.record_evolution(
-                    task_id="T001", operation="fix", outcome="success",
-                    lines_changed=10, bugs_fixed=2, test_passed=True,
+                    task_id="T001",
+                    operation="fix",
+                    outcome="success",
+                    lines_changed=10,
+                    bugs_fixed=2,
+                    test_passed=True,
                     quality_score=90,
                 )
                 assert row_id > 0
@@ -1927,32 +2049,30 @@ class TestMetricsTrackerRecord:
     def test_record_quality_snapshot(self, tmp_path):
         """记录质量快照"""
         from pycoder.capabilities.self_evo.learning.metrics_tracker import (
-            MetricsTracker, METRICS_DB,
+            MetricsTracker,
         )
 
         db_path = tmp_path / "metrics2.db"
-        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.METRICS_DB",
-                   db_path):
-            with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.DB_DIR",
-                       tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.METRICS_DB", db_path):
+            with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.DB_DIR", tmp_path):
                 mt = MetricsTracker()
                 mt.record_quality_snapshot(
-                    lint_score=90, security_score=95,
-                    test_coverage=80, total_score=88,
+                    lint_score=90,
+                    security_score=95,
+                    test_coverage=80,
+                    total_score=88,
                 )
                 # 只要不抛异常就算成功
 
     def test_record_learning_event(self, tmp_path):
         """记录学习事件"""
         from pycoder.capabilities.self_evo.learning.metrics_tracker import (
-            MetricsTracker, METRICS_DB,
+            MetricsTracker,
         )
 
         db_path = tmp_path / "metrics3.db"
-        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.METRICS_DB",
-                   db_path):
-            with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.DB_DIR",
-                       tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.METRICS_DB", db_path):
+            with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.DB_DIR", tmp_path):
                 mt = MetricsTracker()
                 mt.record_learning_event(
                     event_type="pattern_discovered",
@@ -1969,14 +2089,12 @@ class TestMetricsTrackerQuery:
     def test_get_evolution_stats_empty(self, tmp_path):
         """空数据库统计"""
         from pycoder.capabilities.self_evo.learning.metrics_tracker import (
-            MetricsTracker, METRICS_DB,
+            MetricsTracker,
         )
 
         db_path = tmp_path / "metrics4.db"
-        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.METRICS_DB",
-                   db_path):
-            with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.DB_DIR",
-                       tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.METRICS_DB", db_path):
+            with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.DB_DIR", tmp_path):
                 mt = MetricsTracker()
                 stats = mt.get_evolution_stats(days=30)
                 assert stats["total_evolutions"] == 0
@@ -1984,14 +2102,12 @@ class TestMetricsTrackerQuery:
     def test_get_operation_breakdown(self, tmp_path):
         """操作分解统计"""
         from pycoder.capabilities.self_evo.learning.metrics_tracker import (
-            MetricsTracker, METRICS_DB,
+            MetricsTracker,
         )
 
         db_path = tmp_path / "metrics5.db"
-        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.METRICS_DB",
-                   db_path):
-            with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.DB_DIR",
-                       tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.METRICS_DB", db_path):
+            with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.DB_DIR", tmp_path):
                 mt = MetricsTracker()
                 mt.record_evolution(operation="fix", outcome="success")
                 breakdown = mt.get_operation_breakdown()
@@ -2000,14 +2116,12 @@ class TestMetricsTrackerQuery:
     def test_get_daily_summary(self, tmp_path):
         """每日汇总"""
         from pycoder.capabilities.self_evo.learning.metrics_tracker import (
-            MetricsTracker, METRICS_DB,
+            MetricsTracker,
         )
 
         db_path = tmp_path / "metrics6.db"
-        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.METRICS_DB",
-                   db_path):
-            with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.DB_DIR",
-                       tmp_path):
+        with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.METRICS_DB", db_path):
+            with patch("pycoder.capabilities.self_evo.learning.metrics_tracker.DB_DIR", tmp_path):
                 mt = MetricsTracker()
                 summary = mt.get_daily_summary(days=7)
                 assert isinstance(summary, list)
@@ -2090,8 +2204,11 @@ class TestCachedScan:
         from pycoder.capabilities.self_evo.learning.evo_cache import CachedScan
 
         entry = CachedScan(
-            file_path="test.py", content_hash="abc123", issues_found=3,
-            issues_json="[]", scanned_at=time.time(),
+            file_path="test.py",
+            content_hash="abc123",
+            issues_found=3,
+            issues_json="[]",
+            scanned_at=time.time(),
         )
         assert entry.file_path == "test.py"
         assert entry.issues_found == 3
@@ -2105,9 +2222,12 @@ class TestHotRule:
         from pycoder.capabilities.self_evo.learning.evo_cache import HotRule
 
         rule = HotRule(
-            rule_id="HR-001", error_signature="bare_except",
-            fix_template="except Exception as e:", success_rate=0.9,
-            use_count=10, last_used=time.time(),
+            rule_id="HR-001",
+            error_signature="bare_except",
+            fix_template="except Exception as e:",
+            success_rate=0.9,
+            use_count=10,
+            last_used=time.time(),
         )
         assert rule.rule_id == "HR-001"
         assert rule.success_rate == 0.9
@@ -2223,7 +2343,7 @@ class TestEvoCache:
 
     def test_save_and_load(self, tmp_path):
         """持久化和加载"""
-        from pycoder.capabilities.self_evo.learning.evo_cache import EvoCache, CACHE_DIR
+        from pycoder.capabilities.self_evo.learning.evo_cache import EvoCache
 
         with patch("pycoder.capabilities.self_evo.learning.evo_cache.CACHE_DIR", tmp_path):
             cache = EvoCache()
@@ -2355,7 +2475,8 @@ class TestErrorTicket:
     def test_defaults(self):
         """默认值"""
         from pycoder.capabilities.self_evo.learning.error_classifier import (
-            ErrorCategory, ErrorTicket,
+            ErrorCategory,
+            ErrorTicket,
         )
 
         ticket = ErrorTicket()
@@ -2370,7 +2491,8 @@ class TestErrorClassifier:
     def test_classify_syntax_error(self):
         """分类语法错误"""
         from pycoder.capabilities.self_evo.learning.error_classifier import (
-            ErrorCategory, ErrorClassifier,
+            ErrorCategory,
+            ErrorClassifier,
         )
 
         ec = ErrorClassifier()
@@ -2379,7 +2501,8 @@ class TestErrorClassifier:
     def test_classify_runtime_error(self):
         """分类运行时错误"""
         from pycoder.capabilities.self_evo.learning.error_classifier import (
-            ErrorCategory, ErrorClassifier,
+            ErrorCategory,
+            ErrorClassifier,
         )
 
         ec = ErrorClassifier()
@@ -2388,7 +2511,8 @@ class TestErrorClassifier:
     def test_classify_key_error(self):
         """分类 KeyError"""
         from pycoder.capabilities.self_evo.learning.error_classifier import (
-            ErrorCategory, ErrorClassifier,
+            ErrorCategory,
+            ErrorClassifier,
         )
 
         ec = ErrorClassifier()
@@ -2397,7 +2521,8 @@ class TestErrorClassifier:
     def test_classify_security(self):
         """分类安全问题"""
         from pycoder.capabilities.self_evo.learning.error_classifier import (
-            ErrorCategory, ErrorClassifier,
+            ErrorCategory,
+            ErrorClassifier,
         )
 
         ec = ErrorClassifier()
@@ -2406,7 +2531,8 @@ class TestErrorClassifier:
     def test_classify_unknown(self):
         """分类未知错误"""
         from pycoder.capabilities.self_evo.learning.error_classifier import (
-            ErrorCategory, ErrorClassifier,
+            ErrorCategory,
+            ErrorClassifier,
         )
 
         ec = ErrorClassifier()
@@ -2415,7 +2541,8 @@ class TestErrorClassifier:
     def test_recommend_strategy(self):
         """推荐修复策略"""
         from pycoder.capabilities.self_evo.learning.error_classifier import (
-            ErrorCategory, ErrorClassifier,
+            ErrorCategory,
+            ErrorClassifier,
         )
 
         ec = ErrorClassifier()
@@ -2426,7 +2553,8 @@ class TestErrorClassifier:
     def test_recommend_strategy_unknown(self):
         """未知类别的策略"""
         from pycoder.capabilities.self_evo.learning.error_classifier import (
-            ErrorCategory, ErrorClassifier,
+            ErrorCategory,
+            ErrorClassifier,
         )
 
         ec = ErrorClassifier()
@@ -2439,7 +2567,10 @@ class TestErrorClassifier:
 
         ec = ErrorClassifier()
         ticket = ec.open_ticket(
-            "bare_except", "except: found", file_path="test.py", line=10,
+            "bare_except",
+            "except: found",
+            file_path="test.py",
+            line=10,
         )
         assert ticket.error_signature == "bare_except"
         assert ticket.file_path == "test.py"

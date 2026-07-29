@@ -20,6 +20,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
+
 # SQLAlchemy 2.0+ 推荐使用 sqlalchemy.orm.declarative_base，旧的 ext 路径已弃用
 from sqlalchemy.orm import declarative_base, relationship
 

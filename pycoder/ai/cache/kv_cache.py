@@ -12,7 +12,7 @@ import os
 import sqlite3
 import time
 
-_logger = logging.getLogger('pycoder.ai.cache.kv_cache')
+_logger = logging.getLogger("pycoder.ai.cache.kv_cache")
 
 from dataclasses import dataclass
 
@@ -124,10 +124,14 @@ class PromptCache:
 
                 # 回填内存缓存
                 self._local[key] = CacheEntry(
-                    prefix_hash=prefix_hash, model=model, temperature=temperature,
-                    cached_output=output, token_count=0,
+                    prefix_hash=prefix_hash,
+                    model=model,
+                    temperature=temperature,
+                    cached_output=output,
+                    token_count=0,
                     hit_count=int(hit_count) + 1,
-                    created_at=time.time(), expires_at=time.time() + DEFAULT_TTL,
+                    created_at=time.time(),
+                    expires_at=time.time() + DEFAULT_TTL,
                 )
 
                 logger.debug("KV Cache SQLite 命中: key=%.16s, hits=%d", prefix_hash, hit_count + 1)
@@ -139,9 +143,13 @@ class PromptCache:
         return None
 
     def set(
-        self, prompt: str, cached_output: str,
-        model: str = "", temperature: float = 0.7,
-        token_count: int = 0, ttl: int = DEFAULT_TTL,
+        self,
+        prompt: str,
+        cached_output: str,
+        model: str = "",
+        temperature: float = 0.7,
+        token_count: int = 0,
+        ttl: int = DEFAULT_TTL,
     ) -> None:
         """缓存结果
 
@@ -163,9 +171,14 @@ class PromptCache:
 
         # 内存缓存
         self._local[key] = CacheEntry(
-            prefix_hash=prefix_hash, model=model, temperature=temperature,
-            cached_output=cached_output, token_count=token_count,
-            hit_count=0, created_at=now, expires_at=now + ttl,
+            prefix_hash=prefix_hash,
+            model=model,
+            temperature=temperature,
+            cached_output=cached_output,
+            token_count=token_count,
+            hit_count=0,
+            created_at=now,
+            expires_at=now + ttl,
         )
 
         # 限制内存缓存大小
@@ -183,8 +196,7 @@ class PromptCache:
             )
             conn.execute(
                 sql,
-                (prefix_hash, model, temperature, cached_output,
-                 token_count, 0, now, now + ttl),
+                (prefix_hash, model, temperature, cached_output, token_count, 0, now, now + ttl),
             )
             conn.commit()
             conn.close()
@@ -216,7 +228,7 @@ class PromptCache:
             if total == 0:
                 return 0.0
             return hits / (total * 10)  # 估算
-        except Exception as e:
+        except Exception:
             _logger.warning("silently_swallowed: {err}", exc_info=False)
             return 0.0
 
@@ -231,7 +243,7 @@ class PromptCache:
             conn.commit()
             conn.close()
             return count
-        except Exception as e:
+        except Exception:
             _logger.warning("silently_swallowed: {err}", exc_info=False)
             return 0
 
@@ -243,7 +255,7 @@ class PromptCache:
             conn.execute("DELETE FROM prompt_cache")
             conn.commit()
             conn.close()
-        except Exception as e:
+        except Exception:
             _logger.warning("silently_swallowed: {err}", exc_info=False)
             pass
 

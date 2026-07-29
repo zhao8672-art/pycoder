@@ -15,18 +15,16 @@
     - mock _infer_project_name
     - WebSocket 测试用 TestClient.websocket_connect + monkeypatch verify_ws_auth
 """
+
 from __future__ import annotations
 
-import json
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pycoder.server.routers import autonomous_api as auto_mod
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -59,10 +57,12 @@ def app_client(mock_pipeline, monkeypatch):
 
     # WS 端点 verify_ws_auth 默认需要 API Key，让 verify_ws_auth 总是返回 True
     import sys
+
     app_module = sys.modules["pycoder.server.app"]
 
     async def _true(_ws):
         return True
+
     monkeypatch.setattr(app_module, "verify_ws_auth", _true)
 
     app = FastAPI()
@@ -85,17 +85,22 @@ class TestRun:
             "pycoder.server.services.autonomous_pipeline._infer_project_name",
             lambda task: "my-project",
         )
+
         # mock pipeline.run 是 async generator
         async def fake_run(*a, **kw):
             yield {"type": "phase", "phase": "init"}
+
         mock_pipeline.run = fake_run
 
-        resp = app_client.post("/api/autonomous/run", json={
-            "task": "请实现一个 hello world 程序",
-            "model": "deepseek-chat",
-            "project_name": "hello",
-            "auto_accept": True,
-        })
+        resp = app_client.post(
+            "/api/autonomous/run",
+            json={
+                "task": "请实现一个 hello world 程序",
+                "model": "deepseek-chat",
+                "project_name": "hello",
+                "auto_accept": True,
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -110,13 +115,18 @@ class TestRun:
             "pycoder.server.services.autonomous_pipeline._infer_project_name",
             lambda task: "inferred",
         )
+
         async def fake_run(*a, **kw):
             yield {"type": "done"}
+
         mock_pipeline.run = fake_run
 
-        resp = app_client.post("/api/autonomous/run", json={
-            "task": "实现登录页面",
-        })
+        resp = app_client.post(
+            "/api/autonomous/run",
+            json={
+                "task": "实现登录页面",
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["project_name"] == "inferred"
 
@@ -126,15 +136,20 @@ class TestRun:
             "pycoder.server.services.autonomous_pipeline._infer_project_name",
             lambda task: "p",
         )
+
         # pipeline.run 抛异常
         async def fake_run(*a, **kw):
             raise RuntimeError("bg crash")
             yield  # unreachable
+
         mock_pipeline.run = fake_run
 
-        resp = app_client.post("/api/autonomous/run", json={
-            "task": "需要至少3个字符",  # min_length=3
-        })
+        resp = app_client.post(
+            "/api/autonomous/run",
+            json={
+                "task": "需要至少3个字符",  # min_length=3
+            },
+        )
         # 即使后台任务崩，主请求仍返回成功（已预创建 run_id）
         assert resp.status_code == 200
         assert resp.json()["success"] is True
@@ -145,38 +160,46 @@ class TestRun:
             "pycoder.server.services.autonomous_pipeline._infer_project_name",
             lambda task: "p",
         )
+
         # pipeline.run 抛异常
         async def fake_run(*a, **kw):
             raise RuntimeError("bg crash")
             yield
+
         mock_pipeline.run = fake_run
 
         # 让 log.error 抛异常 → 进入内层 except → 调用 logger.debug
         from pycoder.core.services.log import log as pycoder_log
+
         original_error = pycoder_log.error
 
         def failing_error(*a, **kw):
             raise RuntimeError("log subsystem failure")
+
         monkeypatch.setattr(pycoder_log, "error", failing_error)
 
         # 捕获 logger.debug 调用
         debug_calls = []
         monkeypatch.setattr(
-            auto_mod.logger, "debug",
+            auto_mod.logger,
+            "debug",
             lambda *a, **kw: debug_calls.append((a, kw)),
         )
 
-        resp = app_client.post("/api/autonomous/run", json={
-            "task": "需要至少3个字符",
-        })
+        resp = app_client.post(
+            "/api/autonomous/run",
+            json={
+                "task": "需要至少3个字符",
+            },
+        )
         assert resp.status_code == 200
         # 等待后台任务执行
         import time as _time
+
         _time.sleep(0.2)
         # 验证 logger.debug 被调用（说明 log.error 失败后被捕获）
         assert any(
-            "autonomous_log_failed" in str(args[0]) if args else False
-            for args, _ in debug_calls
+            "autonomous_log_failed" in str(args[0]) if args else False for args, _ in debug_calls
         )
 
 
@@ -266,9 +289,11 @@ class TestRetryRun:
 class TestWsAutonomous:
     def test_run_with_task(self, app_client, mock_pipeline, monkeypatch):
         """action=run + task → 接收事件流 + ws_closed"""
+
         async def fake_run(task):
             yield {"type": "phase", "phase": "init"}
             yield {"type": "done", "run_id": "x"}
+
         mock_pipeline.run = fake_run
 
         with app_client.websocket_connect("/ws/autonomous/progress") as ws:
@@ -291,11 +316,13 @@ class TestWsAutonomous:
     def test_auth_failure(self, mock_pipeline, monkeypatch):
         """verify_ws_auth 返回 False → 关闭连接"""
         import sys
+
         app_module = sys.modules["pycoder.server.app"]
 
         async def _false(ws):
             await ws.close(code=1008, reason="未授权")
             return False
+
         monkeypatch.setattr(app_module, "verify_ws_auth", _false)
         monkeypatch.setattr(
             "pycoder.server.services.autonomous_pipeline.get_pipeline",
@@ -306,6 +333,7 @@ class TestWsAutonomous:
         app.include_router(auto_mod.router)
         app.include_router(auto_mod.ws_router)
         from starlette.websockets import WebSocketDisconnect
+
         with TestClient(app) as c:
             with pytest.raises((WebSocketDisconnect, Exception)):
                 with c.websocket_connect("/ws/autonomous/progress") as ws:
@@ -320,6 +348,7 @@ class TestWsAutonomous:
         def fake_run(task):
             raise RuntimeError("pipeline boom")
             yield  # unreachable
+
         mock_pipeline.run = fake_run
 
         with app_client.websocket_connect("/ws/autonomous/progress") as ws:
@@ -335,9 +364,11 @@ class TestWsAutonomous:
 
     def test_websocket_disconnect_handler(self, app_client, mock_pipeline, monkeypatch):
         """客户端断开 → 服务端 receive_json 抛 WebSocketDisconnect → pass 分支"""
+
         # pipeline.run 是 async generator，但客户端在收到一条消息后断开
         async def fake_run(task):
             yield {"type": "phase", "phase": "init"}
+
         mock_pipeline.run = fake_run
 
         with app_client.websocket_connect("/ws/autonomous/progress") as ws:
@@ -353,6 +384,7 @@ class TestWsAutonomous:
             pass  # 立即关闭
         # 服务端在 receive_json() 处等待时被断开 → 抛 WebSocketDisconnect → pass
         import time as _time
+
         _time.sleep(0.1)
 
     def test_send_json_inner_failure(self, app_client, mock_pipeline, monkeypatch):
@@ -366,7 +398,8 @@ class TestWsAutonomous:
 
         debug_calls = []
         monkeypatch.setattr(
-            auto_mod.logger, "debug",
+            auto_mod.logger,
+            "debug",
             lambda *a, **kw: debug_calls.append((a, kw)),
         )
 
@@ -374,11 +407,13 @@ class TestWsAutonomous:
         async def fake_run(task):
             raise RuntimeError("pipeline boom")
             yield
+
         mock_pipeline.run = fake_run
 
         # patch WebSocket.send_json 抛 RuntimeError（仅影响业务发送，不影响 accept）
         async def failing_send_json(self, data, mode="text"):
             raise RuntimeError("connection closed")
+
         monkeypatch.setattr(WebSocket, "send_json", failing_send_json)
 
         # 发送后立即退出 with 块（不调用 receive_json，避免无限阻塞）
@@ -387,6 +422,7 @@ class TestWsAutonomous:
             # 退出 with 块 → 客户端关闭 → 服务端后续操作触发 send 失败
         # 等待服务端处理异常并记录 debug 日志
         import time as _time
+
         _time.sleep(0.2)
         # 验证 debug 被调用（说明 except (RuntimeError, ...) 分支已触发）
         assert any(

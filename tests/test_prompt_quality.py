@@ -8,12 +8,10 @@
 
 非工具调用类提示词（如 SELF_EVOLVE 使用 [FILE:...] 格式）不要求 JSON 但应有示例。
 """
+
 from __future__ import annotations
 
 import warnings
-
-import pytest
-
 
 # 抑制 team_orchestrator 的 DeprecationWarning
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -23,11 +21,10 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 # 提示词常量导入
 # ══════════════════════════════════════════════════════════
 
-from pycoder.server.services.team.agent_tool_loop import AGENT_SYSTEM_PROMPT
+from pycoder.server.self_evolution import SELF_EVOLVE_SYSTEM_PROMPT
 from pycoder.server.services.agent_react_loop import REACT_SYSTEM_PROMPT
 from pycoder.server.services.task_decomposer import DECOMPOSE_SYSTEM_PROMPT
-from pycoder.server.self_evolution import SELF_EVOLVE_SYSTEM_PROMPT
-
+from pycoder.server.services.team.agent_tool_loop import AGENT_SYSTEM_PROMPT
 
 # P2-2 验收阈值
 MAX_PROMPT_LENGTH = 1500
@@ -203,7 +200,11 @@ class TestToolCallParsing:
         import json as _json
 
         # 提取示例部分的 JSON
-        example_section = DECOMPOSE_SYSTEM_PROMPT.split("## 示例")[1] if "## 示例" in DECOMPOSE_SYSTEM_PROMPT else ""
+        example_section = (
+            DECOMPOSE_SYSTEM_PROMPT.split("## 示例")[1]
+            if "## 示例" in DECOMPOSE_SYSTEM_PROMPT
+            else ""
+        )
         # 找到 JSON 对象（花括号包裹）
         start = example_section.find("{")
         end = example_section.rfind("}") + 1
@@ -241,7 +242,14 @@ class TestPromptStructure:
 
     def test_agent_prompt_lists_tools(self):
         """AGENT_SYSTEM_PROMPT 列出所有可用工具"""
-        for tool in ["read_file", "write_file", "search_code", "run_command", "list_files", "git_diff"]:
+        for tool in [
+            "read_file",
+            "write_file",
+            "search_code",
+            "run_command",
+            "list_files",
+            "git_diff",
+        ]:
             assert tool in AGENT_SYSTEM_PROMPT
 
     def test_react_prompt_defines_finish(self):

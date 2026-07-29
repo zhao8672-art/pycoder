@@ -10,6 +10,7 @@
   - get_config: 单个 key 获取、完整字典获取
   - DEFAULT_CONFIG 结构验证
 """
+
 from __future__ import annotations
 
 import json
@@ -38,7 +39,6 @@ from pycoder.config.settings import (
     load_config,
     save_config,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -119,6 +119,7 @@ class TestEnvironmentVariables:
         with patch.dict(os.environ, {"PYCODER_HOME": custom}, clear=True):
             # 重新导入以获取环境变量
             import importlib
+
             import pycoder.config.settings as settings_mod
 
             importlib.reload(settings_mod)
@@ -135,6 +136,7 @@ class TestEnvironmentVariables:
         custom_port = "9999"
         with patch.dict(os.environ, {"PYCODER_PORT": custom_port}, clear=True):
             import importlib
+
             import pycoder.config.settings as settings_mod
 
             importlib.reload(settings_mod)
@@ -357,6 +359,4 @@ class TestPathConstants:
 
     def test_config_path_under_pycoder_home(self):
         """CONFIG_PATH 应在 PYCODER_HOME 下"""
-        assert os.path.normpath(str(CONFIG_PATH)).startswith(
-            os.path.normpath(PYCODER_HOME)
-        )
+        assert os.path.normpath(str(CONFIG_PATH)).startswith(os.path.normpath(PYCODER_HOME))

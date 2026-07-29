@@ -2,20 +2,16 @@
 
 验证历史失败经验的相似度匹配、上下文构建与 prompt 注入。
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
-
-import pytest
 
 from pycoder.server.learning.feedback_applier import (
-    FeedbackApplier,
-    SIMILARITY_THRESHOLD,
     MAX_CONTEXT_LENGTH,
+    FeedbackApplier,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 测试桩 — 模拟 TaskExperience 和 ExperienceBuffer
@@ -25,6 +21,7 @@ from pycoder.server.learning.feedback_applier import (
 @dataclass
 class StubExperience:
     """模拟 TaskExperience（避免依赖真实持久化）"""
+
     id: str = "exp-1"
     task_type: str = "fix"
     description: str = ""
@@ -173,22 +170,26 @@ class TestBuildContextForTask:
         assert applier.build_context_for_task("fix", "修复登录页面") == ""
 
     def test_returns_markdown_with_header(self):
-        failures = [StubExperience(
-            description="修复登录bug",
-            error_message="NameError: name 'x' not defined",
-            file_paths=["app.py"],
-        )]
+        failures = [
+            StubExperience(
+                description="修复登录bug",
+                error_message="NameError: name 'x' not defined",
+                file_paths=["app.py"],
+            )
+        ]
         applier = FeedbackApplier(StubBuffer(failures))
         ctx = applier.build_context_for_task("fix", "修复登录功能")
         assert "历史失败教训" in ctx
         assert "NameError" in ctx
 
     def test_includes_file_paths(self):
-        failures = [StubExperience(
-            description="修复登录",
-            error_message="some error",
-            file_paths=["src/login.py", "tests/test_login.py"],
-        )]
+        failures = [
+            StubExperience(
+                description="修复登录",
+                error_message="some error",
+                file_paths=["src/login.py", "tests/test_login.py"],
+            )
+        ]
         applier = FeedbackApplier(StubBuffer(failures))
         ctx = applier.build_context_for_task("fix", "修复登录页面")
         assert "login.py" in ctx
@@ -210,8 +211,7 @@ class TestBuildContextForTask:
     def test_at_most_three_lessons(self):
         """最多注入 3 条教训（避免 prompt 膨胀）"""
         failures = [
-            StubExperience(description="修复登录", error_message=f"err{i}")
-            for i in range(10)
+            StubExperience(description="修复登录", error_message=f"err{i}") for i in range(10)
         ]
         applier = FeedbackApplier(StubBuffer(failures))
         ctx = applier.build_context_for_task("fix", "修复登录")
@@ -230,18 +230,19 @@ class TestFeedbackApplierIntegration:
     def test_real_buffer_round_trip(self, tmp_path: Path, monkeypatch):
         """存储失败经验后能查询并构建上下文"""
         from pycoder.server.learning.experience_buffer import (
-            ExperienceBuffer, TaskExperience, EXP_DIR,
+            ExperienceBuffer,
+            TaskExperience,
         )
+
         # 隔离 EXP_DIR 避免污染全局
         tmp_exp_dir = tmp_path / "experiences"
-        monkeypatch.setattr(
-            "pycoder.server.learning.experience_buffer.EXP_DIR", tmp_exp_dir
-        )
+        monkeypatch.setattr("pycoder.server.learning.experience_buffer.EXP_DIR", tmp_exp_dir)
         buf = ExperienceBuffer(capacity=100)
         buf._exp_dir = tmp_exp_dir  # 覆盖实例目录
         # 强制使用新目录
-        import importlib
+
         import pycoder.server.learning.experience_buffer as eb_mod
+
         monkeypatch.setattr(eb_mod, "EXP_DIR", tmp_exp_dir)
         buf2 = ExperienceBuffer(capacity=100)
 
@@ -265,8 +266,10 @@ class TestFeedbackApplierIntegration:
         """get_feedback_applier 单例复用 LearningEngine 的 buffer"""
         from pycoder.server.learning import get_learning_engine
         from pycoder.server.learning.feedback_applier import (
-            get_feedback_applier, reset_feedback_applier,
+            get_feedback_applier,
+            reset_feedback_applier,
         )
+
         # 隔离学习数据目录
         monkeypatch.setenv("PYCODER_EXPERIENCE_DIR", str(tmp_path / "exp"))
         monkeypatch.setenv("PYCODER_FEEDBACK_DIR", str(tmp_path / "fb"))

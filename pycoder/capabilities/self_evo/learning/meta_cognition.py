@@ -94,10 +94,7 @@ class MetaCognition:
         if META_DB.exists():
             try:
                 data = json.loads(META_DB.read_text(encoding="utf-8"))
-                return [
-                    SelfAssessment(**item)
-                    for item in data.get("assessments", [])
-                ]
+                return [SelfAssessment(**item) for item in data.get("assessments", [])]
             except (json.JSONDecodeError, TypeError):
                 pass
         return []
@@ -105,9 +102,7 @@ class MetaCognition:
     def _save_history(self) -> None:
         META_DB.parent.mkdir(parents=True, exist_ok=True)
         data = {
-            "assessments": [
-                self._assessment_to_dict(a) for a in self._history[-50:]
-            ],
+            "assessments": [self._assessment_to_dict(a) for a in self._history[-50:]],
             "updated_at": time.time(),
         }
         META_DB.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -232,16 +227,12 @@ class MetaCognition:
 
         # 高频错误模式
         if self._error_patterns:
-            top_errors = sorted(
-                self._error_patterns.items(), key=lambda x: x[1], reverse=True
-            )[:5]
+            top_errors = sorted(self._error_patterns.items(), key=lambda x: x[1], reverse=True)[:5]
             patterns.append(
                 {
                     "type": "high_frequency_errors",
                     "severity": "high" if errors > 5 else "medium",
-                    "details": [
-                        {"operation": op, "count": count} for op, count in top_errors
-                    ],
+                    "details": [{"operation": op, "count": count} for op, count in top_errors],
                     "recommendation": "建议对高频错误操作进行根因分析",
                 }
             )
@@ -266,7 +257,7 @@ class MetaCognition:
                     "severity": "medium",
                     "details": {
                         "count": len(slow_ops),
-                        "operations": list(set(s["operation"] for s in slow_ops)),
+                        "operations": list({s["operation"] for s in slow_ops}),
                     },
                     "recommendation": "存在慢操作，建议检查性能瓶颈",
                 }
@@ -279,7 +270,9 @@ class MetaCognition:
             insights.append("错误率偏高，需要关注")
         if self._error_patterns:
             most_common = max(self._error_patterns, key=self._error_patterns.get)
-            insights.append(f"最常见错误操作: {most_common} ({self._error_patterns[most_common]}次)")
+            insights.append(
+                f"最常见错误操作: {most_common} ({self._error_patterns[most_common]}次)"
+            )
 
         return {
             "patterns": patterns,
@@ -406,7 +399,9 @@ class MetaCognition:
         # 计算进化分数
         cap_scores = [c.score for c in capabilities]
         avg_cap_score = sum(cap_scores) / max(len(cap_scores), 1)
-        health_score = 100 if health.overall == "healthy" else (60 if health.overall == "degraded" else 30)
+        health_score = (
+            100 if health.overall == "healthy" else (60 if health.overall == "degraded" else 30)
+        )
         evolution_score = round((avg_cap_score * 0.6 + health_score * 0.4), 1)
 
         # 优先级排序

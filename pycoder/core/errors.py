@@ -13,6 +13,7 @@
   - ConfigurationError (配置错误 → 500)
   - DependencyError (依赖未就绪 → 503)
 """
+
 from __future__ import annotations
 
 from typing import Any

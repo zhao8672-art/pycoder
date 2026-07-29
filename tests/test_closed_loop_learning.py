@@ -17,10 +17,8 @@
 
 from __future__ import annotations
 
-import json
 import time
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -30,7 +28,6 @@ from pycoder.capabilities.self_evo.learning.closed_loop import (
     LearningObservation,
     get_closed_loop,
 )
-
 
 # ── Fixtures ──────────────────────────────────────────────
 
@@ -111,9 +108,7 @@ class TestInitialization:
         instance._init_db_no_fts()
         # 验证表已创建
         with instance._get_conn() as conn:
-            tables = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()
+            tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
             table_names = [t[0] for t in tables]
             assert "learning_observations" in table_names
             assert "learned_skills" in table_names
@@ -134,7 +129,9 @@ class TestObserve:
 
     @pytest.mark.asyncio
     async def test_observe_success(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """观察成功的执行"""
         obs = await loop.observe("T-001", success_execution)
@@ -148,7 +145,9 @@ class TestObserve:
 
     @pytest.mark.asyncio
     async def test_observe_failure(
-        self, loop: ClosedLearningLoop, failure_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        failure_execution: dict,
     ) -> None:
         """观察失败的执行"""
         obs = await loop.observe("T-002", failure_execution)
@@ -159,7 +158,9 @@ class TestObserve:
 
     @pytest.mark.asyncio
     async def test_observe_persists_to_db(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """观察记录持久化到数据库"""
         await loop.observe("T-003", success_execution)
@@ -183,7 +184,9 @@ class TestObserve:
 
     @pytest.mark.asyncio
     async def test_observe_with_metadata(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """观察结果包含元数据"""
         obs = await loop.observe("T-meta", success_execution)
@@ -191,7 +194,8 @@ class TestObserve:
 
     @pytest.mark.asyncio
     async def test_observe_converts_non_list_patterns(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """非列表模式自动转换为列表"""
         result = {
@@ -208,20 +212,22 @@ class TestObserve:
 
     @pytest.mark.asyncio
     async def test_observe_multiple_tasks(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """多次观察独立记录"""
         await loop.observe("T-A", success_execution)
         await loop.observe("T-B", success_execution)
         with loop._get_conn() as conn:
-            count = conn.execute(
-                "SELECT COUNT(*) FROM learning_observations"
-            ).fetchone()[0]
+            count = conn.execute("SELECT COUNT(*) FROM learning_observations").fetchone()[0]
             assert count == 2
 
     @pytest.mark.asyncio
     async def test_observe_timestamp_is_set(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """观察记录包含时间戳"""
         before = time.time()
@@ -238,7 +244,9 @@ class TestReflect:
 
     @pytest.mark.asyncio
     async def test_reflect_success_with_patterns(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """反思成功的执行并发现模式"""
         obs = await loop.observe("T-010", success_execution)
@@ -251,7 +259,9 @@ class TestReflect:
 
     @pytest.mark.asyncio
     async def test_reflect_failure_with_errors(
-        self, loop: ClosedLearningLoop, failure_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        failure_execution: dict,
     ) -> None:
         """反思失败的执行并记录应避免模式"""
         obs = await loop.observe("T-011", failure_execution)
@@ -263,21 +273,27 @@ class TestReflect:
 
     @pytest.mark.asyncio
     async def test_reflect_no_patterns(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """反思无模式的任务"""
-        obs = await loop.observe("T-no-pattern", {
-            "description": "简单任务",
-            "success": True,
-            "steps": 2,
-        })
+        obs = await loop.observe(
+            "T-no-pattern",
+            {
+                "description": "简单任务",
+                "success": True,
+                "steps": 2,
+            },
+        )
         reflection = await loop.reflect(obs)
         assert len(reflection["patterns_found"]) == 0
         assert len(reflection["patterns_avoid"]) == 0
 
     @pytest.mark.asyncio
     async def test_reflect_confidence_high_for_success(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """成功且无错误的信心评分较高"""
         obs = await loop.observe("T-conf", success_execution)
@@ -286,7 +302,9 @@ class TestReflect:
 
     @pytest.mark.asyncio
     async def test_reflect_confidence_low_for_failure(
-        self, loop: ClosedLearningLoop, failure_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        failure_execution: dict,
     ) -> None:
         """失败任务的信心评分较低"""
         obs = await loop.observe("T-low-conf", failure_execution)
@@ -295,7 +313,9 @@ class TestReflect:
 
     @pytest.mark.asyncio
     async def test_reflect_generates_recommendations(
-        self, loop: ClosedLearningLoop, failure_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        failure_execution: dict,
     ) -> None:
         """反思生成改进建议"""
         obs = await loop.observe("T-rec", failure_execution)
@@ -304,22 +324,27 @@ class TestReflect:
 
     @pytest.mark.asyncio
     async def test_reflect_many_steps_recommendation(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """步骤过多时建议拆分任务"""
-        obs = await loop.observe("T-many", {
-            "description": "大型任务",
-            "success": True,
-            "steps": 15,
-            "patterns_used": ["monolith"],
-        })
+        obs = await loop.observe(
+            "T-many",
+            {
+                "description": "大型任务",
+                "success": True,
+                "steps": 15,
+                "patterns_used": ["monolith"],
+            },
+        )
         reflection = await loop.reflect(obs)
         recs = reflection["recommendations"]
         assert any("拆分" in r for r in recs)
 
     @pytest.mark.asyncio
     async def test_reflect_empty_observation(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """反思空观察"""
         obs = LearningObservation(task_id="T-empty-obs")
@@ -330,7 +355,9 @@ class TestReflect:
 
     @pytest.mark.asyncio
     async def test_reflect_has_context_observations(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """反思包含上下文观察计数"""
         obs = await loop.observe("T-ctx", success_execution)
@@ -347,7 +374,9 @@ class TestGenerateSkill:
 
     @pytest.mark.asyncio
     async def test_generate_skill_from_success(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """从成功模式生成技能"""
         obs = await loop.observe("T-020", success_execution)
@@ -362,7 +391,9 @@ class TestGenerateSkill:
 
     @pytest.mark.asyncio
     async def test_generate_skill_deduplication(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """高成功率已有技能会阻止重复生成"""
         obs = await loop.observe("T-021", success_execution)
@@ -380,19 +411,24 @@ class TestGenerateSkill:
 
     @pytest.mark.asyncio
     async def test_generate_skill_empty_reflection(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """空反思结果不生成技能"""
-        skills = await loop.generate_skill({
-            "task_id": "T-empty",
-            "patterns_found": [],
-            "patterns_avoid": [],
-        })
+        skills = await loop.generate_skill(
+            {
+                "task_id": "T-empty",
+                "patterns_found": [],
+                "patterns_avoid": [],
+            }
+        )
         assert len(skills) == 0
 
     @pytest.mark.asyncio
     async def test_generate_skill_persists(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """生成的技能持久化到数据库"""
         obs = await loop.observe("T-022", success_execution)
@@ -410,7 +446,9 @@ class TestGenerateSkill:
 
     @pytest.mark.asyncio
     async def test_generate_skill_source_task_id(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """技能记录来源任务 ID"""
         obs = await loop.observe("T-source", success_execution)
@@ -421,14 +459,18 @@ class TestGenerateSkill:
 
     @pytest.mark.asyncio
     async def test_generate_skill_updates_existing(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """生成技能时更新已有技能的使用计数"""
-        obs = await loop.observe("T-update", {
-            "description": "更新测试",
-            "success": True,
-            "patterns_used": ["test_pattern"],
-        })
+        obs = await loop.observe(
+            "T-update",
+            {
+                "description": "更新测试",
+                "success": True,
+                "patterns_used": ["test_pattern"],
+            },
+        )
         reflection = await loop.reflect(obs)
         # 第一次生成
         skills1 = await loop.generate_skill(reflection)
@@ -448,25 +490,32 @@ class TestGenerateSkill:
 
     @pytest.mark.asyncio
     async def test_generate_skill_from_failure_lowers_rate(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """失败模式降低已有技能成功率"""
         # 首先创建一个技能
-        obs1 = await loop.observe("T-pre", {
-            "description": "预备任务",
-            "success": True,
-            "patterns_used": ["some_pattern"],
-        })
+        obs1 = await loop.observe(
+            "T-pre",
+            {
+                "description": "预备任务",
+                "success": True,
+                "patterns_used": ["some_pattern"],
+            },
+        )
         ref1 = await loop.reflect(obs1)
         skills = await loop.generate_skill(ref1)
         original_rate = skills[0].success_rate
 
         # 现在让同一模式失败
-        obs2 = await loop.observe("T-fail", {
-            "description": "失败任务",
-            "success": False,
-            "patterns_failed": ["some_pattern"],
-        })
+        obs2 = await loop.observe(
+            "T-fail",
+            {
+                "description": "失败任务",
+                "success": False,
+                "patterns_failed": ["some_pattern"],
+            },
+        )
         ref2 = await loop.reflect(obs2)
         await loop.generate_skill(ref2)
 
@@ -484,7 +533,8 @@ class TestApplyFeedback:
 
     @pytest.mark.asyncio
     async def test_apply_feedback_no_skills(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """无技能时应用反馈"""
         feedback = await loop.apply_feedback("实现用户认证")
@@ -494,7 +544,9 @@ class TestApplyFeedback:
 
     @pytest.mark.asyncio
     async def test_apply_feedback_with_skills(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """有技能时应用反馈"""
         # 先创建技能
@@ -508,7 +560,8 @@ class TestApplyFeedback:
 
     @pytest.mark.asyncio
     async def test_apply_feedback_high_confidence_skill(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """高置信度技能产生高置信度提示"""
         skill = LearnedSkill(
@@ -530,7 +583,8 @@ class TestApplyFeedback:
 
     @pytest.mark.asyncio
     async def test_apply_feedback_low_confidence_skill(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """低置信度技能产生警告提示"""
         skill = LearnedSkill(
@@ -559,15 +613,19 @@ class TestApplyFeedback:
 
     @pytest.mark.asyncio
     async def test_apply_feedback_with_historical_observations(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """应用反馈包含历史观察"""
-        await loop.observe("T-hist", {
-            "description": "数据库连接池修复",
-            "success": False,
-            "errors": ["ConnectionError: 连接池耗尽"],
-            "patterns_used": ["connection_pool"],
-        })
+        await loop.observe(
+            "T-hist",
+            {
+                "description": "数据库连接池修复",
+                "success": False,
+                "errors": ["ConnectionError: 连接池耗尽"],
+                "patterns_used": ["connection_pool"],
+            },
+        )
         feedback = await loop.apply_feedback("数据库连接池")
         assert "relevant_observations_count" in feedback
 
@@ -580,7 +638,9 @@ class TestRunCycle:
 
     @pytest.mark.asyncio
     async def test_run_cycle_success(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """成功执行完整闭环"""
         result = await loop.run_cycle("T-100", success_execution)
@@ -596,7 +656,9 @@ class TestRunCycle:
 
     @pytest.mark.asyncio
     async def test_run_cycle_failure(
-        self, loop: ClosedLearningLoop, failure_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        failure_execution: dict,
     ) -> None:
         """失败执行完整闭环"""
         result = await loop.run_cycle("T-101", failure_execution)
@@ -605,7 +667,9 @@ class TestRunCycle:
 
     @pytest.mark.asyncio
     async def test_run_cycle_generates_skills(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """成功闭环生成技能"""
         result = await loop.run_cycle("T-102", success_execution)
@@ -614,36 +678,42 @@ class TestRunCycle:
 
     @pytest.mark.asyncio
     async def test_run_cycle_returns_refine_result(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """闭环返回精炼结果"""
         result = await loop.run_cycle("T-103", success_execution)
         assert "refine" in result
         # 第一次调用可能跳过精炼（间隔未到）
-        is_valid = (
-            "skipped" in result["refine"]
-            or "total_skills" in result["refine"]
-        )
+        is_valid = "skipped" in result["refine"] or "total_skills" in result["refine"]
         assert is_valid
 
     @pytest.mark.asyncio
     async def test_run_cycle_multiple_cycles(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """多轮闭环执行"""
         r1 = await loop.run_cycle("T-cycle-1", success_execution)
-        r2 = await loop.run_cycle("T-cycle-2", {
-            "description": "另一个任务",
-            "success": True,
-            "steps": 3,
-            "patterns_used": ["observer_pattern"],
-        })
+        r2 = await loop.run_cycle(
+            "T-cycle-2",
+            {
+                "description": "另一个任务",
+                "success": True,
+                "steps": 3,
+                "patterns_used": ["observer_pattern"],
+            },
+        )
         assert r1["task_id"] == "T-cycle-1"
         assert r2["task_id"] == "T-cycle-2"
 
     @pytest.mark.asyncio
     async def test_run_cycle_has_all_phases(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """闭环结果包含所有四个阶段"""
         result = await loop.run_cycle("T-phases", success_execution)
@@ -661,7 +731,9 @@ class TestPersistence:
 
     @pytest.mark.asyncio
     async def test_save_and_load_observation(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """保存并加载观察记录"""
         await loop.observe("T-persist", success_execution)
@@ -677,7 +749,9 @@ class TestPersistence:
 
     @pytest.mark.asyncio
     async def test_save_and_load_skill(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """保存并加载技能"""
         obs = await loop.observe("T-persist-skill", success_execution)
@@ -692,14 +766,18 @@ class TestPersistence:
 
     @pytest.mark.asyncio
     async def test_persistence_across_instances(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """跨实例持久化"""
-        await loop.observe("T-cross", {
-            "description": "跨实例测试",
-            "success": True,
-            "steps": 1,
-        })
+        await loop.observe(
+            "T-cross",
+            {
+                "description": "跨实例测试",
+                "success": True,
+                "steps": 1,
+            },
+        )
         stats1 = loop.get_stats()
 
         loop2 = ClosedLearningLoop(db_path=loop._db_path)
@@ -708,7 +786,9 @@ class TestPersistence:
 
     @pytest.mark.asyncio
     async def test_skill_cache_repopulated_on_load(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """新实例加载时技能缓存为空但数据库可查询"""
         obs = await loop.observe("T-cache", success_execution)
@@ -737,7 +817,9 @@ class TestStatistics:
 
     @pytest.mark.asyncio
     async def test_stats_after_observations(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
         failure_execution: dict,
     ) -> None:
         """多次观察后统计"""
@@ -750,7 +832,9 @@ class TestStatistics:
 
     @pytest.mark.asyncio
     async def test_stats_after_skills_generated(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """生成技能后统计"""
         obs = await loop.observe("T-stats-skill", success_execution)
@@ -773,7 +857,9 @@ class TestStatistics:
 
     @pytest.mark.asyncio
     async def test_stats_top_errors(
-        self, loop: ClosedLearningLoop, failure_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        failure_execution: dict,
     ) -> None:
         """统计包含高频错误"""
         await loop.observe("T-err", failure_execution)
@@ -782,7 +868,9 @@ class TestStatistics:
 
     @pytest.mark.asyncio
     async def test_stats_recent_24h(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """统计包含最近24小时数据"""
         await loop.observe("T-recent", success_execution)
@@ -792,7 +880,9 @@ class TestStatistics:
 
     @pytest.mark.asyncio
     async def test_stats_has_avg_skill_success_rate(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """统计包含平均技能成功率"""
         obs = await loop.observe("T-avg", success_execution)
@@ -811,74 +901,90 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_observe_with_none_values(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """观察包含 None 值的执行结果（steps/errors/patterns 可为 None）"""
-        obs = await loop.observe("T-none", {
-            "description": None,
-            "success": None,
-            "steps": 0,
-            "errors": None,
-            "patterns_used": None,
-            "patterns_failed": None,
-            "metadata": None,
-        })
+        obs = await loop.observe(
+            "T-none",
+            {
+                "description": None,
+                "success": None,
+                "steps": 0,
+                "errors": None,
+                "patterns_used": None,
+                "patterns_failed": None,
+                "metadata": None,
+            },
+        )
         assert obs.success is False
         assert obs.steps_taken == 0
         assert obs.task_description == "None"
 
     @pytest.mark.asyncio
     async def test_observe_steps_as_float(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """步骤数为浮点数时强制转换"""
-        obs = await loop.observe("T-steps", {
-            "description": "test",
-            "steps": 3.7,
-        })
+        obs = await loop.observe(
+            "T-steps",
+            {
+                "description": "test",
+                "steps": 3.7,
+            },
+        )
         assert obs.steps_taken == 3  # int(3.7) = 3
 
     @pytest.mark.asyncio
     async def test_apply_feedback_with_special_characters(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """反馈应用处理特殊字符"""
-        feedback = await loop.apply_feedback(
-            "修复 [BUG] 数据库连接 @#$% 异常!!!"
-        )
+        feedback = await loop.apply_feedback("修复 [BUG] 数据库连接 @#$% 异常!!!")
         assert feedback["task_description"] is not None
         assert isinstance(feedback["keywords"], list)
 
     @pytest.mark.asyncio
     async def test_observe_very_long_task_description(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """超长任务描述"""
         long_desc = "测试" * 1000
-        obs = await loop.observe("T-long", {
-            "description": long_desc,
-            "success": True,
-        })
+        obs = await loop.observe(
+            "T-long",
+            {
+                "description": long_desc,
+                "success": True,
+            },
+        )
         assert obs.task_description == long_desc
 
     @pytest.mark.asyncio
     async def test_observe_with_complex_metadata(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """复杂嵌套元数据"""
         complex_meta = {
             "nested": {"a": [1, 2, 3], "b": {"c": "deep"}},
             "list": [{"x": 1}, {"y": 2}],
         }
-        obs = await loop.observe("T-meta", {
-            "description": "test",
-            "metadata": complex_meta,
-        })
+        obs = await loop.observe(
+            "T-meta",
+            {
+                "description": "test",
+                "metadata": complex_meta,
+            },
+        )
         assert obs.metadata == complex_meta
 
     @pytest.mark.asyncio
     async def test_reflect_with_corrupted_db_observation(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """反思时数据库中有损坏的 JSON 数据"""
         # 直接插入损坏的 JSON
@@ -890,9 +996,15 @@ class TestErrorHandling:
                     timestamp, metadata)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    "T-corrupt", "test", 1, 3,
-                    "NOT_VALID_JSON", "NOT_VALID_JSON", "[]",
-                    time.time(), "{}",
+                    "T-corrupt",
+                    "test",
+                    1,
+                    3,
+                    "NOT_VALID_JSON",
+                    "NOT_VALID_JSON",
+                    "[]",
+                    time.time(),
+                    "{}",
                 ),
             )
             conn.commit()
@@ -903,24 +1015,32 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_observe_with_unicode_in_description(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """Unicode 任务描述"""
-        obs = await loop.observe("T-unicode", {
-            "description": "修复 🐛 编码问题 → 测试 ✓",
-            "success": True,
-        })
+        obs = await loop.observe(
+            "T-unicode",
+            {
+                "description": "修复 🐛 编码问题 → 测试 ✓",
+                "success": True,
+            },
+        )
         assert "🐛" in obs.task_description
 
     @pytest.mark.asyncio
     async def test_observe_errors_with_non_string_items(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """错误列表包含非字符串项"""
-        obs = await loop.observe("T-mixed", {
-            "description": "test",
-            "errors": [42, None, "real_error"],
-        })
+        obs = await loop.observe(
+            "T-mixed",
+            {
+                "description": "test",
+                "errors": [42, None, "real_error"],
+            },
+        )
         # _ensure_list 将每个元素转为 str
         assert "42" in obs.errors_encountered
         assert "None" in obs.errors_encountered
@@ -935,7 +1055,9 @@ class TestSkillValidation:
 
     @pytest.mark.asyncio
     async def test_skill_has_valid_id(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """技能 ID 格式正确"""
         obs = await loop.observe("T-valid", success_execution)
@@ -947,7 +1069,9 @@ class TestSkillValidation:
 
     @pytest.mark.asyncio
     async def test_skill_success_rate_in_range(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """技能成功率在有效范围"""
         obs = await loop.observe("T-range", success_execution)
@@ -958,7 +1082,9 @@ class TestSkillValidation:
 
     @pytest.mark.asyncio
     async def test_skill_not_pruned_by_default(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """新技能默认未被淘汰"""
         obs = await loop.observe("T-pruned", success_execution)
@@ -969,7 +1095,9 @@ class TestSkillValidation:
 
     @pytest.mark.asyncio
     async def test_skill_usage_count_starts_at_one(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """新技能使用计数从 1 开始"""
         obs = await loop.observe("T-usage", success_execution)
@@ -980,7 +1108,8 @@ class TestSkillValidation:
 
     @pytest.mark.asyncio
     async def test_find_similar_skill(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """查找相似技能"""
         skill = LearnedSkill(
@@ -999,7 +1128,8 @@ class TestSkillValidation:
 
     @pytest.mark.asyncio
     async def test_find_similar_skill_not_found(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """查找不存在的技能返回 None"""
         found = loop._find_similar_skill("nonexistent_pattern")
@@ -1007,7 +1137,8 @@ class TestSkillValidation:
 
     @pytest.mark.asyncio
     async def test_find_similar_skill_from_cache(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """从缓存查找技能"""
         skill = LearnedSkill(
@@ -1022,7 +1153,8 @@ class TestSkillValidation:
 
     @pytest.mark.asyncio
     async def test_find_similar_skill_skips_pruned(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """查找时跳过已淘汰技能"""
         skill = LearnedSkill(
@@ -1038,7 +1170,9 @@ class TestSkillValidation:
 
     @pytest.mark.asyncio
     async def test_skill_has_description(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """技能包含描述信息"""
         obs = await loop.observe("T-desc", success_execution)
@@ -1049,7 +1183,9 @@ class TestSkillValidation:
 
     @pytest.mark.asyncio
     async def test_skill_has_strategy(
-        self, loop: ClosedLearningLoop, success_execution: dict,
+        self,
+        loop: ClosedLearningLoop,
+        success_execution: dict,
     ) -> None:
         """技能包含执行策略"""
         obs = await loop.observe("T-strategy", success_execution)
@@ -1067,7 +1203,8 @@ class TestRefineSkills:
 
     @pytest.mark.asyncio
     async def test_refine_skills_skips_when_interval_not_reached(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """精炼间隔未到时跳过"""
         loop._last_refine_time = time.time()  # 刚精炼过
@@ -1076,7 +1213,8 @@ class TestRefineSkills:
 
     @pytest.mark.asyncio
     async def test_refine_skills_prunes_low_performance(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """淘汰低成功率技能"""
         skill = LearnedSkill(
@@ -1100,7 +1238,8 @@ class TestRefineSkills:
 
     @pytest.mark.asyncio
     async def test_refine_skills_boosts_high_performance(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """提升高成功率技能"""
         skill = LearnedSkill(
@@ -1123,7 +1262,8 @@ class TestRefineSkills:
 
     @pytest.mark.asyncio
     async def test_refine_skills_skips_low_usage(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """使用次数不足的低成功率技能不被淘汰"""
         skill = LearnedSkill(
@@ -1145,7 +1285,8 @@ class TestRefineSkills:
 
     @pytest.mark.asyncio
     async def test_refine_skills_cleans_old_observations(
-        self, loop: ClosedLearningLoop,
+        self,
+        loop: ClosedLearningLoop,
     ) -> None:
         """精炼时清理过期观察"""
         # 插入一个很旧的观察
@@ -1157,8 +1298,13 @@ class TestRefineSkills:
                     timestamp, metadata)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    "T-old", "旧任务", 1, 1,
-                    "[]", "[]", "[]",
+                    "T-old",
+                    "旧任务",
+                    1,
+                    1,
+                    "[]",
+                    "[]",
+                    "[]",
                     time.time() - 100 * 86400,  # 100 天前
                     "{}",
                 ),
@@ -1198,9 +1344,7 @@ class TestStaticHelpers:
 
     def test_extract_keywords_basic(self) -> None:
         """_extract_keywords 基本提取"""
-        keywords = ClosedLearningLoop._extract_keywords(
-            "implement user authentication module"
-        )
+        keywords = ClosedLearningLoop._extract_keywords("implement user authentication module")
         assert len(keywords) > 0
         assert "user" in keywords or "implement" in keywords
 
@@ -1210,13 +1354,8 @@ class TestStaticHelpers:
 
     def test_extract_keywords_filters_stop_words(self) -> None:
         """_extract_keywords 过滤停用词"""
-        keywords = ClosedLearningLoop._extract_keywords(
-            "the and for with this is at"
-        )
-        assert all(
-            kw not in keywords
-            for kw in ["the", "and", "for", "with", "this", "is", "at"]
-        )
+        keywords = ClosedLearningLoop._extract_keywords("the and for with this is at")
+        assert all(kw not in keywords for kw in ["the", "and", "for", "with", "this", "is", "at"])
 
     def test_extract_keywords_short_words_filtered(self) -> None:
         """_extract_keywords 过滤短词"""
@@ -1227,16 +1366,12 @@ class TestStaticHelpers:
 
     def test_derive_skill_name_from_pattern(self) -> None:
         """_derive_skill_name 从模式派生名称"""
-        name = ClosedLearningLoop._derive_skill_name(
-            "skill:JWT认证模式", {}
-        )
+        name = ClosedLearningLoop._derive_skill_name("skill:JWT认证模式", {})
         assert name == "JWT认证模式"
 
     def test_derive_skill_name_no_colon(self) -> None:
         """_derive_skill_name 无冒号模式"""
-        name = ClosedLearningLoop._derive_skill_name(
-            "simple_pattern_name", {}
-        )
+        name = ClosedLearningLoop._derive_skill_name("simple_pattern_name", {})
         assert name == "simple_pattern_name"
 
     def test_derive_skill_name_long_pattern(self) -> None:
@@ -1248,27 +1383,21 @@ class TestStaticHelpers:
     def test_calculate_confidence_success(self, tmp_path: Path) -> None:
         """_calculate_confidence 成功任务"""
         loop = ClosedLearningLoop(db_path=str(tmp_path / "conf.db"))
-        obs = LearningObservation(
-            task_id="T", success=True, errors_encountered=[]
-        )
+        obs = LearningObservation(task_id="T", success=True, errors_encountered=[])
         conf = loop._calculate_confidence(obs, [], [])
         assert conf == 0.9
 
     def test_calculate_confidence_failure(self, tmp_path: Path) -> None:
         """_calculate_confidence 失败任务"""
         loop = ClosedLearningLoop(db_path=str(tmp_path / "conf2.db"))
-        obs = LearningObservation(
-            task_id="T", success=False, errors_encountered=["error"]
-        )
+        obs = LearningObservation(task_id="T", success=False, errors_encountered=["error"])
         conf = loop._calculate_confidence(obs, [], [])
         assert conf == 0.3
 
     def test_calculate_confidence_with_patterns(self, tmp_path: Path) -> None:
         """_calculate_confidence 有模式时调整"""
         loop = ClosedLearningLoop(db_path=str(tmp_path / "conf3.db"))
-        obs = LearningObservation(
-            task_id="T", success=True, errors_encountered=[]
-        )
+        obs = LearningObservation(task_id="T", success=True, errors_encountered=[])
         patterns_found = [{"confidence": 0.9}]
         conf = loop._calculate_confidence(obs, patterns_found, [])
         # base=0.9, avg=0.9, result=(0.9+0.9)/2 = 0.9
@@ -1277,9 +1406,7 @@ class TestStaticHelpers:
     def test_calculate_confidence_with_avoid_patterns(self, tmp_path: Path) -> None:
         """_calculate_confidence 有应避免模式时减分"""
         loop = ClosedLearningLoop(db_path=str(tmp_path / "conf4.db"))
-        obs = LearningObservation(
-            task_id="T", success=True, errors_encountered=[]
-        )
+        obs = LearningObservation(task_id="T", success=True, errors_encountered=[])
         conf = loop._calculate_confidence(obs, [], [{"pattern": "bad"}])
         # base=0.9, *0.8 = 0.72
         assert conf == 0.72
@@ -1292,7 +1419,8 @@ class TestGlobalSingleton:
     """get_closed_loop 全局单例"""
 
     def test_get_closed_loop_returns_instance(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """获取全局单例"""
         import pycoder.capabilities.self_evo.learning.closed_loop as cl_mod
@@ -1302,7 +1430,8 @@ class TestGlobalSingleton:
         assert isinstance(instance, ClosedLearningLoop)
 
     def test_get_closed_loop_same_instance(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """多次调用返回同一实例"""
         import pycoder.capabilities.self_evo.learning.closed_loop as cl_mod

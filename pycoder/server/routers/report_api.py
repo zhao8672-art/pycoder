@@ -34,9 +34,7 @@ class GenerateReportRequest(BaseModel):
         description="报告生成模式: closed_loop | git_diff",
     )
     task_id: str = Field(default="", description="任务 ID（closed_loop 模式下使用）")
-    base_branch: str = Field(
-        default="master", description="基准分支（git_diff 模式下使用）"
-    )
+    base_branch: str = Field(default="master", description="基准分支（git_diff 模式下使用）")
 
 
 class GenerateReportResponse(BaseModel):
@@ -133,9 +131,7 @@ async def generate_report(
 
     try:
         if payload.mode == "git_diff":
-            report = await generator.generate_from_git_diff(
-                base_branch=payload.base_branch
-            )
+            report = await generator.generate_from_git_diff(base_branch=payload.base_branch)
         else:
             # closed_loop 模式 — 从 task_id 获取报告（如果已存在闭环结果）
             # 此处使用简化的报告生成，实际闭环结果由外部注入
@@ -178,9 +174,7 @@ async def generate_report(
 
     except Exception as e:
         log.error("report_generate_error", mode=payload.mode, error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"报告生成失败: {e}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"报告生成失败: {e}") from e
 
 
 # ─────────────────────────────────────────────────────────
@@ -217,9 +211,7 @@ async def list_reports(
         }
     except Exception as e:
         log.error("report_list_error", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"获取报告列表失败: {e}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"获取报告列表失败: {e}") from e
 
 
 # ─────────────────────────────────────────────────────────
@@ -264,9 +256,7 @@ async def get_report(
 
     except Exception as e:
         log.error("report_get_error", task_id=task_id, error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"获取报告失败: {e}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"获取报告失败: {e}") from e
 
 
 __all__ = ["router"]

@@ -1,4 +1,5 @@
 """测试升级版 Skills Market"""
+
 import asyncio
 import sys
 from pathlib import Path
@@ -6,7 +7,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from pycoder.server.skills_market_v2 import get_enhanced_market
-from pycoder.server.skills_updater_v2 import get_enhanced_fetcher
 
 
 async def test_enhanced_sync():

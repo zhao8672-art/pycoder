@@ -1,12 +1,7 @@
 from __future__ import annotations
 
 import json
-import os
-import sys
-import time
-import sqlite3
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -254,9 +249,7 @@ class TestPack:
             "description": "A test",
             "author": "test",
         }
-        (src / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (src / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (src / "extension.py").write_text("# test", encoding="utf-8")
 
         output = pack(str(src))
@@ -277,9 +270,7 @@ class TestPack:
             "description": "A test",
             "author": "test",
         }
-        (ext_dir / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (ext_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (ext_dir / "extension.py").write_text("# test", encoding="utf-8")
 
         output = pack(str(src))
@@ -299,9 +290,7 @@ class TestPack:
             "description": "A test",
             "author": "test",
         }
-        (src / "manifest.json").write_text(
-            json.dumps(manifest), encoding="utf-8"
-        )
+        (src / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         (src / "extension.py").write_text("# test", encoding="utf-8")
 
         custom_out = tmp_path / "custom.python-ext"
@@ -377,9 +366,8 @@ class TestPackInstalled:
 
     def test_pack_installed_not_found(self, tmp_path, monkeypatch):
         """扩展未安装时抛出 FileNotFoundError"""
-        from pycoder.extensions.packaging import pack_installed
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import pack_installed
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -392,9 +380,8 @@ class TestScaffold:
 
     def test_scaffold_creates_directory(self, tmp_path, monkeypatch):
         """scaffold 创建扩展目录"""
-        from pycoder.extensions.packaging import scaffold
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import scaffold
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -404,9 +391,8 @@ class TestScaffold:
 
     def test_scaffold_creates_manifest(self, tmp_path, monkeypatch):
         """scaffold 创建 manifest.json"""
-        from pycoder.extensions.packaging import scaffold
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import scaffold
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -420,9 +406,8 @@ class TestScaffold:
 
     def test_scaffold_creates_extension_py(self, tmp_path, monkeypatch):
         """scaffold 创建 extension.py"""
-        from pycoder.extensions.packaging import scaffold
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import scaffold
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -436,9 +421,8 @@ class TestScaffold:
 
     def test_scaffold_creates_readme(self, tmp_path, monkeypatch):
         """scaffold 创建 README.md"""
-        from pycoder.extensions.packaging import scaffold
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import scaffold
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -451,9 +435,8 @@ class TestScaffold:
 
     def test_scaffold_default_description(self, tmp_path, monkeypatch):
         """scaffold 默认描述"""
-        from pycoder.extensions.packaging import scaffold
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import scaffold
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -464,9 +447,8 @@ class TestScaffold:
 
     def test_scaffold_default_author(self, tmp_path, monkeypatch):
         """scaffold 默认作者"""
-        from pycoder.extensions.packaging import scaffold
-
         import pycoder.extensions.manager as mgr
+        from pycoder.extensions.packaging import scaffold
 
         monkeypatch.setattr(mgr, "EXTENSIONS_DIR", tmp_path)
 
@@ -474,5 +456,3 @@ class TestScaffold:
         manifest_path = Path(result) / "manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         assert manifest["author"] == "anonymous"
-
-

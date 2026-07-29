@@ -26,7 +26,6 @@ from pycoder.core.services.log import log
 from pycoder.server.skills_data_sources import make_github_request
 from pycoder.server.skills_updater_v2 import EnhancedSkill
 
-
 # ── Tech Leads Club ─────────────────────────────
 
 TECHLEADS_OWNER = "tech-leads-club"
@@ -76,10 +75,7 @@ def fetch_techleads_skills() -> list[EnhancedSkill]:
     if not isinstance(categories_raw, list):
         return []
 
-    categories = [
-        item for item in categories_raw
-        if item.get("type") == "dir"
-    ]
+    categories = [item for item in categories_raw if item.get("type") == "dir"]
     total_categories = len(categories)
     log.info("techleads_categories_found", count=total_categories)
 
@@ -160,8 +156,11 @@ def fetch_openclaw_skills() -> list[EnhancedSkill]:
     if not isinstance(cat_files_raw, list):
         return []
 
-    md_files = [item for item in cat_files_raw
-                if item.get("type") == "file" and item["name"].endswith(".md")]
+    md_files = [
+        item
+        for item in cat_files_raw
+        if item.get("type") == "file" and item["name"].endswith(".md")
+    ]
     log.info("openclaw_category_files_found", count=len(md_files))
 
     import base64
@@ -243,19 +242,23 @@ def fetch_all_external_skills() -> list[EnhancedSkill]:
         tlc_skills = fetch_techleads_skills()
         for s in tlc_skills:
             all_skills[s.id] = s
-        sources_status.append({
-            "source": "techleads-club",
-            "count": len(tlc_skills),
-            "success": True,
-        })
+        sources_status.append(
+            {
+                "source": "techleads-club",
+                "count": len(tlc_skills),
+                "success": True,
+            }
+        )
         log.info("external_source_done", source="techleads-club", count=len(tlc_skills))
     except Exception as e:
-        sources_status.append({
-            "source": "techleads-club",
-            "count": 0,
-            "success": False,
-            "error": str(e)[:80],
-        })
+        sources_status.append(
+            {
+                "source": "techleads-club",
+                "count": 0,
+                "success": False,
+                "error": str(e)[:80],
+            }
+        )
         log.warning("external_source_failed", source="techleads-club", error=str(e)[:80])
 
     # 2. OpenClaw Awesome (5400+)
@@ -264,19 +267,23 @@ def fetch_all_external_skills() -> list[EnhancedSkill]:
         for s in oc_skills:
             if s.id not in all_skills:
                 all_skills[s.id] = s
-        sources_status.append({
-            "source": "openclaw",
-            "count": len(oc_skills),
-            "success": True,
-        })
+        sources_status.append(
+            {
+                "source": "openclaw",
+                "count": len(oc_skills),
+                "success": True,
+            }
+        )
         log.info("external_source_done", source="openclaw", count=len(oc_skills))
     except Exception as e:
-        sources_status.append({
-            "source": "openclaw",
-            "count": 0,
-            "success": False,
-            "error": str(e)[:80],
-        })
+        sources_status.append(
+            {
+                "source": "openclaw",
+                "count": 0,
+                "success": False,
+                "error": str(e)[:80],
+            }
+        )
         log.warning("external_source_failed", source="openclaw", error=str(e)[:80])
 
     return list(all_skills.values()), sources_status

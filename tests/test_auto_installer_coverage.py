@@ -24,24 +24,21 @@
 
 from __future__ import annotations
 
-import asyncio
 import importlib
-import json
-from pathlib import Path
-from unittest.mock import MagicMock
 
 import httpx
 import pytest
 
 from pycoder.server.services import auto_installer as ai
 
-
 # ══════════════════════════════════════════════════════════
 # Mock 辅助
 # ══════════════════════════════════════════════════════════
 
+
 class MockProcess:
     """模拟 asyncio 子进程"""
+
     def __init__(self, returncode=0, stdout=b"", stderr=b""):
         self.returncode = returncode
         self._stdout = stdout
@@ -53,6 +50,7 @@ class MockProcess:
 
 class MockResp:
     """模拟 httpx 响应"""
+
     def __init__(self, status_code=200, json_data=None):
         self.status_code = status_code
         self._json = json_data if json_data is not None else {}
@@ -63,6 +61,7 @@ class MockResp:
 
 class MockSearchClient:
     """模拟 httpx.AsyncClient (搜索用)"""
+
     def __init__(self, responses=None):
         self._responses = responses or []
         self._idx = 0
@@ -95,8 +94,7 @@ def make_subprocess_factory(returncodes, stdouts=None, stderrs=None):
     async def fake_exec(*args, **kwargs):
         i = min(calls[0], len(returncodes) - 1)
         calls[0] += 1
-        return MockProcess(returncode=returncodes[i],
-                          stdout=stdouts[i], stderr=stderrs[i])
+        return MockProcess(returncode=returncodes[i], stdout=stdouts[i], stderr=stderrs[i])
 
     fake_exec.call_count = lambda: calls[0]
     return fake_exec
@@ -105,6 +103,7 @@ def make_subprocess_factory(returncodes, stdouts=None, stderrs=None):
 def make_raising_subprocess(exc):
     async def fake_exec(*args, **kwargs):
         raise exc
+
     return fake_exec
 
 
@@ -116,6 +115,7 @@ def installer():
 # ══════════════════════════════════════════════════════════
 # _detect_source
 # ══════════════════════════════════════════════════════════
+
 
 def test_detect_source_npm(installer):
     assert installer._detect_source("react") == "npm"
@@ -152,10 +152,12 @@ def test_detect_source_python_prefix(installer, monkeypatch):
 # install_package
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_install_package_pip(installer, monkeypatch):
     async def fake_pip(name, version):
         return {"success": True, "message": "ok", "source": "pip"}
+
     monkeypatch.setattr(installer, "_install_pip", fake_pip)
     result = await installer.install_package("requests", source="pip")
     assert result["success"] is True
@@ -165,6 +167,7 @@ async def test_install_package_pip(installer, monkeypatch):
 async def test_install_package_npm(installer, monkeypatch):
     async def fake_npm(name):
         return {"success": True, "message": "ok", "source": "npm"}
+
     monkeypatch.setattr(installer, "_install_npm", fake_npm)
     result = await installer.install_package("react", source="npm")
     assert result["success"] is True
@@ -174,6 +177,7 @@ async def test_install_package_npm(installer, monkeypatch):
 async def test_install_package_system(installer, monkeypatch):
     async def fake_system(name):
         return {"success": True, "message": "ok", "source": "system"}
+
     monkeypatch.setattr(installer, "_install_system", fake_system)
     result = await installer.install_package("docker", source="system")
     assert result["success"] is True
@@ -183,6 +187,7 @@ async def test_install_package_system(installer, monkeypatch):
 async def test_install_package_auto_detect(installer, monkeypatch):
     async def fake_npm(name):
         return {"success": True, "message": "ok", "source": "npm"}
+
     monkeypatch.setattr(installer, "_install_npm", fake_npm)
     result = await installer.install_package("react", source="auto")
     assert result["source"] == "npm"
@@ -212,6 +217,7 @@ async def test_install_package_with_version(installer, monkeypatch):
 # ══════════════════════════════════════════════════════════
 # _install_pip
 # ══════════════════════════════════════════════════════════
+
 
 @pytest.mark.asyncio
 async def test_install_pip_success(installer, monkeypatch):
@@ -244,7 +250,8 @@ async def test_install_pip_fail_both(installer, monkeypatch):
 async def test_install_pip_timeout(installer, monkeypatch):
     async def fake_wait_for(coro, timeout):
         coro.close()
-        raise asyncio.TimeoutError()
+        raise TimeoutError()
+
     monkeypatch.setattr(ai.asyncio, "wait_for", fake_wait_for)
     result = await installer._install_pip("slow-pkg")
     assert result["success"] is False
@@ -272,6 +279,7 @@ async def test_install_pip_with_version(installer, monkeypatch):
 # _install_npm
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_install_npm_not_installed(installer, monkeypatch):
     monkeypatch.setattr(ai.shutil, "which", lambda name: None)
@@ -282,7 +290,9 @@ async def test_install_npm_not_installed(installer, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_install_npm_success(installer, monkeypatch):
-    monkeypatch.setattr(ai.shutil, "which", lambda name: "/usr/bin/npm" if name in ("npm", "npm.cmd") else None)
+    monkeypatch.setattr(
+        ai.shutil, "which", lambda name: "/usr/bin/npm" if name in ("npm", "npm.cmd") else None
+    )
     fake = make_subprocess_factory([0])
     monkeypatch.setattr(ai.asyncio, "create_subprocess_exec", fake)
     result = await installer._install_npm("react")
@@ -291,7 +301,9 @@ async def test_install_npm_success(installer, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_install_npm_fail(installer, monkeypatch):
-    monkeypatch.setattr(ai.shutil, "which", lambda name: "/usr/bin/npm" if name in ("npm", "npm.cmd") else None)
+    monkeypatch.setattr(
+        ai.shutil, "which", lambda name: "/usr/bin/npm" if name in ("npm", "npm.cmd") else None
+    )
     fake = make_subprocess_factory([1])
     monkeypatch.setattr(ai.asyncio, "create_subprocess_exec", fake)
     result = await installer._install_npm("react")
@@ -301,11 +313,14 @@ async def test_install_npm_fail(installer, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_install_npm_timeout(installer, monkeypatch):
-    monkeypatch.setattr(ai.shutil, "which", lambda name: "/usr/bin/npm" if name in ("npm", "npm.cmd") else None)
+    monkeypatch.setattr(
+        ai.shutil, "which", lambda name: "/usr/bin/npm" if name in ("npm", "npm.cmd") else None
+    )
 
     async def fake_wait_for(coro, timeout):
         coro.close()
-        raise asyncio.TimeoutError()
+        raise TimeoutError()
+
     monkeypatch.setattr(ai.asyncio, "wait_for", fake_wait_for)
     result = await installer._install_npm("react")
     assert result["success"] is False
@@ -314,7 +329,9 @@ async def test_install_npm_timeout(installer, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_install_npm_exception(installer, monkeypatch):
-    monkeypatch.setattr(ai.shutil, "which", lambda name: "/usr/bin/npm" if name in ("npm", "npm.cmd") else None)
+    monkeypatch.setattr(
+        ai.shutil, "which", lambda name: "/usr/bin/npm" if name in ("npm", "npm.cmd") else None
+    )
     fake = make_raising_subprocess(RuntimeError("boom"))
     monkeypatch.setattr(ai.asyncio, "create_subprocess_exec", fake)
     result = await installer._install_npm("react")
@@ -326,6 +343,7 @@ async def test_install_npm_exception(installer, monkeypatch):
 # _install_system
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_install_system_windows_winget_success(installer, monkeypatch):
     monkeypatch.setattr(ai.os, "name", "nt")
@@ -334,6 +352,7 @@ async def test_install_system_windows_winget_success(installer, monkeypatch):
         if name in ("winget", "winget.exe"):
             return "C:/winget.exe"
         return None
+
     monkeypatch.setattr(ai.shutil, "which", fake_which)
 
     fake = make_subprocess_factory([0])
@@ -352,6 +371,7 @@ async def test_install_system_windows_choco_fallback(installer, monkeypatch):
         if name in ("choco", "choco.exe"):
             return "C:/choco.exe"
         return None
+
     monkeypatch.setattr(ai.shutil, "which", fake_which)
 
     fake = make_subprocess_factory([0])
@@ -378,6 +398,7 @@ async def test_install_system_windows_subprocess_exception(installer, monkeypatc
         if name in ("winget", "winget.exe"):
             return "C:/winget.exe"
         return None
+
     monkeypatch.setattr(ai.shutil, "which", fake_which)
 
     fake = make_raising_subprocess(RuntimeError("boom"))
@@ -395,6 +416,7 @@ async def test_install_system_linux_apt_success(installer, monkeypatch):
         if name == "apt-get":
             return "/usr/bin/apt-get"
         return None
+
     monkeypatch.setattr(ai.shutil, "which", fake_which)
 
     fake = make_subprocess_factory([0])
@@ -412,6 +434,7 @@ async def test_install_system_linux_brew_success(installer, monkeypatch):
         if name == "brew":
             return "/usr/local/bin/brew"
         return None
+
     monkeypatch.setattr(ai.shutil, "which", fake_which)
 
     fake = make_subprocess_factory([0])
@@ -433,10 +456,10 @@ async def test_install_system_linux_no_manager(installer, monkeypatch):
 # _search_pypi / _search_npm / _search_github
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_search_pypi_success(installer, monkeypatch):
-    resp = MockResp(200, {"info": {"name": "requests", "summary": "HTTP lib",
-                                    "version": "2.31.0"}})
+    resp = MockResp(200, {"info": {"name": "requests", "summary": "HTTP lib", "version": "2.31.0"}})
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: MockSearchClient([resp]))
     result = await installer._search_pypi("requests")
     assert len(result) == 1
@@ -467,9 +490,14 @@ async def test_search_pypi_final_fallback(installer, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_search_npm_success(installer, monkeypatch):
-    resp = MockResp(200, {"objects": [
-        {"package": {"name": "react", "description": "UI lib", "version": "18.0"}},
-    ]})
+    resp = MockResp(
+        200,
+        {
+            "objects": [
+                {"package": {"name": "react", "description": "UI lib", "version": "18.0"}},
+            ]
+        },
+    )
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: MockSearchClient([resp]))
     result = await installer._search_npm("react")
     assert len(result) == 1
@@ -479,18 +507,28 @@ async def test_search_npm_success(installer, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_search_npm_exception(installer, monkeypatch):
-    monkeypatch.setattr(httpx, "AsyncClient",
-                        lambda **kwargs: MockSearchClient([ConnectionError("boom")]))
+    monkeypatch.setattr(
+        httpx, "AsyncClient", lambda **kwargs: MockSearchClient([ConnectionError("boom")])
+    )
     result = await installer._search_npm("react")
     assert result == []
 
 
 @pytest.mark.asyncio
 async def test_search_github_success(installer, monkeypatch):
-    resp = MockResp(200, {"items": [
-        {"full_name": "user/repo", "description": "a repo",
-         "html_url": "https://github.com/user/repo", "stargazers_count": 100},
-    ]})
+    resp = MockResp(
+        200,
+        {
+            "items": [
+                {
+                    "full_name": "user/repo",
+                    "description": "a repo",
+                    "html_url": "https://github.com/user/repo",
+                    "stargazers_count": 100,
+                },
+            ]
+        },
+    )
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: MockSearchClient([resp]))
     result = await installer._search_github("repo")
     assert len(result) == 1
@@ -501,8 +539,9 @@ async def test_search_github_success(installer, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_search_github_exception(installer, monkeypatch):
-    monkeypatch.setattr(httpx, "AsyncClient",
-                        lambda **kwargs: MockSearchClient([ConnectionError("boom")]))
+    monkeypatch.setattr(
+        httpx, "AsyncClient", lambda **kwargs: MockSearchClient([ConnectionError("boom")])
+    )
     result = await installer._search_github("repo")
     assert result == []
 
@@ -511,12 +550,21 @@ async def test_search_github_exception(installer, monkeypatch):
 # search_package
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_search_package_all(installer, monkeypatch):
     pypi_resp = MockResp(200, {"info": {"name": "x", "summary": "s", "version": "1.0"}})
-    npm_resp = MockResp(200, {"objects": [{"package": {"name": "y", "description": "d", "version": "1.0"}}]})
-    gh_resp = MockResp(200, {"items": [{"full_name": "z/r", "description": "d",
-                                         "html_url": "u", "stargazers_count": 5}]})
+    npm_resp = MockResp(
+        200, {"objects": [{"package": {"name": "y", "description": "d", "version": "1.0"}}]}
+    )
+    gh_resp = MockResp(
+        200,
+        {
+            "items": [
+                {"full_name": "z/r", "description": "d", "html_url": "u", "stargazers_count": 5}
+            ]
+        },
+    )
 
     call_count = [0]
     responses = [pypi_resp, npm_resp, gh_resp]
@@ -525,6 +573,7 @@ async def test_search_package_all(installer, monkeypatch):
         c = MockSearchClient([responses[call_count[0]]])
         call_count[0] += 1
         return c
+
     monkeypatch.setattr(httpx, "AsyncClient", fake_client)
 
     result = await installer.search_package("test", source="all")
@@ -542,7 +591,9 @@ async def test_search_package_pypi_only(installer, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_search_package_npm_only(installer, monkeypatch):
-    resp = MockResp(200, {"objects": [{"package": {"name": "y", "description": "d", "version": "1.0"}}]})
+    resp = MockResp(
+        200, {"objects": [{"package": {"name": "y", "description": "d", "version": "1.0"}}]}
+    )
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: MockSearchClient([resp]))
     result = await installer.search_package("test", source="npm")
     assert result["total"] == 1
@@ -550,8 +601,14 @@ async def test_search_package_npm_only(installer, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_search_package_github_only(installer, monkeypatch):
-    resp = MockResp(200, {"items": [{"full_name": "z/r", "description": "d",
-                                      "html_url": "u", "stargazers_count": 5}]})
+    resp = MockResp(
+        200,
+        {
+            "items": [
+                {"full_name": "z/r", "description": "d", "html_url": "u", "stargazers_count": 5}
+            ]
+        },
+    )
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: MockSearchClient([resp]))
     result = await installer.search_package("test", source="github")
     assert result["total"] == 1
@@ -560,8 +617,9 @@ async def test_search_package_github_only(installer, monkeypatch):
 @pytest.mark.asyncio
 async def test_search_package_exception_handled(installer, monkeypatch):
     """搜索异常被捕获，返回空结果"""
-    monkeypatch.setattr(httpx, "AsyncClient",
-                        lambda **kwargs: MockSearchClient([ConnectionError("boom")]))
+    monkeypatch.setattr(
+        httpx, "AsyncClient", lambda **kwargs: MockSearchClient([ConnectionError("boom")])
+    )
     result = await installer.search_package("test", source="all")
     assert result["total"] == 0
 
@@ -569,8 +627,10 @@ async def test_search_package_exception_handled(installer, monkeypatch):
 @pytest.mark.asyncio
 async def test_search_package_results_capped(installer, monkeypatch):
     """结果限制为 20"""
-    items = [{"full_name": f"r{i}", "description": "d", "html_url": "u", "stargazers_count": i}
-             for i in range(30)]
+    items = [
+        {"full_name": f"r{i}", "description": "d", "html_url": "u", "stargazers_count": i}
+        for i in range(30)
+    ]
     resp = MockResp(200, {"items": items})
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: MockSearchClient([resp]))
     result = await installer.search_package("test", source="github")
@@ -580,6 +640,7 @@ async def test_search_package_results_capped(installer, monkeypatch):
 # ══════════════════════════════════════════════════════════
 # ensure_tool
 # ══════════════════════════════════════════════════════════
+
 
 @pytest.mark.asyncio
 async def test_ensure_tool_already_exists_via_which(installer, monkeypatch):
@@ -607,6 +668,7 @@ async def test_ensure_tool_install_success(installer, monkeypatch):
     async def fake_install(name, source="auto", version=""):
         which_results["nonexist-tool"] = "/usr/bin/nonexist-tool"  # 安装后可用
         return {"success": True, "message": "ok", "source": "system"}
+
     monkeypatch.setattr(installer, "install_package", fake_install)
 
     result = await installer.ensure_tool("nonexist-tool")
@@ -624,6 +686,7 @@ async def test_ensure_tool_install_fail_but_which_succeeds(installer, monkeypatc
         # 安装报告失败，但实际工具已可用
         which_results["nonexist-tool"] = "/usr/bin/nonexist-tool"
         return {"success": False, "message": "install failed", "source": "system"}
+
     monkeypatch.setattr(installer, "install_package", fake_install)
 
     result = await installer.ensure_tool("nonexist-tool")
@@ -638,6 +701,7 @@ async def test_ensure_tool_complete_fail(installer, monkeypatch):
 
     async def fake_install(name, source="auto"):
         return {"success": False, "message": "cannot install", "source": "pip"}
+
     monkeypatch.setattr(installer, "install_package", fake_install)
 
     result = await installer.ensure_tool("nonexistent-tool")
@@ -648,6 +712,7 @@ async def test_ensure_tool_complete_fail(installer, monkeypatch):
 # ══════════════════════════════════════════════════════════
 # detect_missing_imports
 # ══════════════════════════════════════════════════════════
+
 
 def test_detect_missing_imports_stdlib_only(installer):
     code = "import os\nimport sys\nfrom pathlib import Path"
@@ -683,6 +748,7 @@ def test_detect_missing_imports_empty_code(installer):
 # install_missing_imports
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_install_missing_imports_none(installer):
     code = "import os\nimport sys"
@@ -696,6 +762,7 @@ async def test_install_missing_imports_some(installer, monkeypatch):
 
     async def fake_install(name, source="auto", version=""):
         return {"success": True, "message": "ok", "source": "pip"}
+
     monkeypatch.setattr(installer, "install_package", fake_install)
 
     code = "import nonexist_xyz\nimport another_missing"
@@ -715,6 +782,7 @@ async def test_install_missing_imports_with_mapping(installer, monkeypatch):
     async def fake_install(name, source="auto", version=""):
         captured.append(name)
         return {"success": True, "message": "ok", "source": "pip"}
+
     monkeypatch.setattr(installer, "install_package", fake_install)
 
     code = "import yaml"
@@ -725,6 +793,7 @@ async def test_install_missing_imports_with_mapping(installer, monkeypatch):
 # ══════════════════════════════════════════════════════════
 # detect_requirements_file
 # ══════════════════════════════════════════════════════════
+
 
 def test_detect_requirements_file_missing(installer, tmp_path):
     result = installer.detect_requirements_file(tmp_path)
@@ -758,6 +827,7 @@ def test_detect_requirements_file_with_missing(installer, tmp_path, monkeypatch)
 # install_requirements
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_install_requirements_no_missing(installer, tmp_path):
     (tmp_path / "requirements.txt").write_text("os\nsys\n", encoding="utf-8")
@@ -773,6 +843,7 @@ async def test_install_requirements_with_missing(installer, tmp_path, monkeypatc
 
     async def fake_install(name, source="auto", version=""):
         return {"success": True, "message": "ok", "source": "pip"}
+
     monkeypatch.setattr(installer, "install_package", fake_install)
 
     result = await installer.install_requirements(tmp_path)
@@ -789,6 +860,7 @@ async def test_install_requirements_partial_failure(installer, tmp_path, monkeyp
         if name == "bad-pkg":
             return {"success": False, "message": "fail", "source": "pip"}
         return {"success": True, "message": "ok", "source": "pip"}
+
     monkeypatch.setattr(installer, "install_package", fake_install)
 
     result = await installer.install_requirements(tmp_path)
@@ -799,6 +871,7 @@ async def test_install_requirements_partial_failure(installer, tmp_path, monkeyp
 # ══════════════════════════════════════════════════════════
 # get_installer 单例
 # ══════════════════════════════════════════════════════════
+
 
 def test_get_installer_singleton():
     ai._INSTALLER = None
@@ -811,6 +884,7 @@ def test_get_installer_singleton():
 # Agent 工具函数
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.asyncio
 async def test_agent_install_package(installer, monkeypatch):
     ai._INSTALLER = None
@@ -818,6 +892,7 @@ async def test_agent_install_package(installer, monkeypatch):
 
     async def fake_install(name, source="auto", version=""):
         return {"success": True, "message": "✅ installed", "source": "pip"}
+
     monkeypatch.setattr(installer, "install_package", fake_install)
 
     result = await ai.agent_install_package({"name": "requests", "source": "pip"})
@@ -832,6 +907,7 @@ async def test_agent_install_package_empty(monkeypatch):
 
     async def fake_install(name, source="auto", version=""):
         return {"success": False, "message": "failed", "source": "pip"}
+
     monkeypatch.setattr(installer, "install_package", fake_install)
 
     result = await ai.agent_install_package({})
@@ -853,6 +929,7 @@ async def test_agent_search_package_with_results(monkeypatch):
             "total": 2,
             "query": query,
         }
+
     monkeypatch.setattr(installer, "search_package", fake_search)
 
     result = await ai.agent_search_package({"query": "pkg"})
@@ -868,6 +945,7 @@ async def test_agent_search_package_no_results(monkeypatch):
 
     async def fake_search(query, source="all"):
         return {"results": [], "total": 0, "query": query}
+
     monkeypatch.setattr(installer, "search_package", fake_search)
 
     result = await ai.agent_search_package({"query": "nothing"})
@@ -882,6 +960,7 @@ async def test_agent_ensure_tool(monkeypatch):
 
     async def fake_ensure(tool_name):
         return {"success": True, "message": "✅ ready", "action": "already_exists"}
+
     monkeypatch.setattr(installer, "ensure_tool", fake_ensure)
 
     result = await ai.agent_ensure_tool({"name": "python"})
@@ -923,6 +1002,7 @@ async def test_agent_install_deps_with_missing(tmp_path, monkeypatch):
             {"module": "missing_pkg", "package": "missing-pkg", "success": True, "message": "ok"},
             {"module": "bad_pkg", "package": "bad-pkg", "success": False, "message": "fail"},
         ]
+
     monkeypatch.setattr(installer, "install_missing_imports", fake_install_missing)
 
     f = tmp_path / "code.py"
@@ -943,6 +1023,7 @@ async def test_agent_install_deps_all_success(tmp_path, monkeypatch):
         return [
             {"module": "pkg1", "package": "pkg1", "success": True, "message": "ok"},
         ]
+
     monkeypatch.setattr(installer, "install_missing_imports", fake_install_missing)
 
     f = tmp_path / "code.py"
@@ -953,6 +1034,7 @@ async def test_agent_install_deps_all_success(tmp_path, monkeypatch):
 
 
 # ── 辅助函数 ──
+
 
 def _raise_import_error(name):
     raise ImportError(f"cannot import {name}")

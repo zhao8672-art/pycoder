@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
 
 
-def register_domain_routes(app: "FastAPI") -> None:
+def register_domain_routes(app: FastAPI) -> None:
     """按域注册所有路由（委托到现有 router_groups）
 
     这是域组织层的入口，未来可逐步将各域注册函数

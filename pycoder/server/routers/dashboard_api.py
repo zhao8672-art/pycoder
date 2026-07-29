@@ -7,6 +7,7 @@
 - GET  /api/dashboard/tasks  - 仅任务概览
 - GET  /api/dashboard/project - 仅项目信息
 """
+
 from __future__ import annotations
 
 import logging

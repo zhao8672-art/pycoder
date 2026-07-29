@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-_logger = logging.getLogger('pycoder.multimodal.ocr_engine')
+_logger = logging.getLogger("pycoder.multimodal.ocr_engine")
 
 from io import BytesIO
 
@@ -28,6 +28,7 @@ class OCREngine:
     def _init_tesseract(self):
         try:
             import pytesseract  # noqa: F401
+
             return True
         except ImportError:
             return False
@@ -35,6 +36,7 @@ class OCREngine:
     def _init_paddle(self):
         try:
             from paddleocr import PaddleOCR  # noqa: F401
+
             return True
         except ImportError:
             return False
@@ -44,6 +46,7 @@ class OCREngine:
         self.last_method = "none"
         try:
             from PIL import Image
+
             img = Image.open(BytesIO(image_data))
         except Exception as e:
             _logger.warning("image_open_failed: %s", e)
@@ -53,6 +56,7 @@ class OCREngine:
         if self._tesseract:
             try:
                 import pytesseract
+
                 text = pytesseract.image_to_string(img, lang="chi_sim+eng")
                 if text.strip():
                     self.last_method = "tesseract"
@@ -64,8 +68,10 @@ class OCREngine:
         if self._paddle:
             try:
                 from paddleocr import PaddleOCR
+
                 ocr = PaddleOCR(use_angle_cls=True, lang="ch", show_log=False)
                 import numpy as np
+
                 result = ocr.ocr(np.array(img))
                 if result and result[0]:
                     texts = [line[1][0] for line in result[0]]
@@ -77,15 +83,14 @@ class OCREngine:
         # Layer 3: LLM Vision 回退 (3-8s, 受超时控制)
         # 在测试/无网络/无 API Key 场景下快速降级，避免阻塞
         import asyncio
+
         if not self._has_vision_key():
             self.last_method = "none"
             return ""
         try:
-            result = await asyncio.wait_for(
-                self._vision_llm_ocr(img), timeout=self._vision_timeout
-            )
+            result = await asyncio.wait_for(self._vision_llm_ocr(img), timeout=self._vision_timeout)
             return result
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("LLM Vision OCR 超时 (%.1fs)", self._vision_timeout)
             self.last_method = "timeout"
             return ""
@@ -108,6 +113,7 @@ class OCREngine:
         """使用 LLM 视觉模型进行 OCR"""
         try:
             from pycoder.multimodal.vision_client import get_vision_client
+
             client = get_vision_client()
             return await client.ocr(image)
         except Exception as exc:
@@ -119,8 +125,15 @@ class OCREngine:
         try:
             text = await self.extract_text(image_data)
             code_keywords = [
-                "def ", "class ", "import ", "return ", "if __name__",
-                "function", "var ", "const ", "let ",
+                "def ",
+                "class ",
+                "import ",
+                "return ",
+                "if __name__",
+                "function",
+                "var ",
+                "const ",
+                "let ",
             ]
             is_code = bool(text.strip()) and any(kw in text for kw in code_keywords)
             return {

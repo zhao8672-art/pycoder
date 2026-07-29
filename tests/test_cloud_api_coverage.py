@@ -20,6 +20,7 @@
     - mock CloudAuthService / CloudSyncEngine 的所有方法
     - 直接 patch DeviceInfo 查询路径以覆盖设备注册/删除的内部逻辑
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -29,7 +30,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pycoder.server.routers import cloud_api as cloud_mod
-
 
 # ══════════════════════════════════════════════════════════
 # 通用 Fixtures
@@ -71,7 +71,6 @@ def app_client(mock_db):
 class TestGetDb:
     def test_get_db_yields_and_closes(self, monkeypatch):
         """get_db 生成器应 yield session 并在结束时 close"""
-        from sqlalchemy.orm import sessionmaker
 
         fake_session = MagicMock()
         fake_sessionmaker = MagicMock(return_value=fake_session)
@@ -79,6 +78,7 @@ class TestGetDb:
 
         # 模拟 sqlalchemy.create_engine 与 sessionmaker
         import sys
+
         fake_sa = MagicMock()
         fake_sa.create_engine = MagicMock(return_value=fake_engine)
 
@@ -109,9 +109,11 @@ class TestGetCurrentUser:
         """非 Bearer 前缀 → 401"""
         app = FastAPI()
         app.include_router(cloud_mod.router)
+
         # 不 override get_current_user，让真实逻辑跑
         async def _override_db():
             yield mock_db
+
         app.dependency_overrides[cloud_mod.get_db] = _override_db
 
         with TestClient(app) as c:
@@ -126,8 +128,10 @@ class TestGetCurrentUser:
         """verify_access_token 返回 None → 401"""
         app = FastAPI()
         app.include_router(cloud_mod.router)
+
         async def _override_db():
             yield mock_db
+
         app.dependency_overrides[cloud_mod.get_db] = _override_db
         # mock verify_access_token 返回 None
         monkeypatch.setattr(cloud_mod, "verify_access_token", lambda token: None)
@@ -144,13 +148,13 @@ class TestGetCurrentUser:
         """有效 token → 返回用户字典"""
         app = FastAPI()
         app.include_router(cloud_mod.router)
+
         async def _override_db():
             yield mock_db
+
         app.dependency_overrides[cloud_mod.get_db] = _override_db
 
-        fake_token_data = MagicMock(
-            user_id="u1", username="bob", device_id="d1"
-        )
+        fake_token_data = MagicMock(user_id="u1", username="bob", device_id="d1")
         monkeypatch.setattr(cloud_mod, "verify_access_token", lambda token: fake_token_data)
 
         with TestClient(app) as c:
@@ -172,12 +176,21 @@ class TestRegister:
         """注册成功"""
         with patch.object(cloud_mod, "CloudAuthService") as MockSvc:
             instance = MockSvc.return_value
-            instance.register_user = AsyncMock(return_value={
-                "success": True, "user_id": "u1", "message": "注册成功",
-            })
-            resp = app_client.post("/api/cloud/auth/register", json={
-                "username": "alice", "email": "a@b.com", "password": "secret",
-            })
+            instance.register_user = AsyncMock(
+                return_value={
+                    "success": True,
+                    "user_id": "u1",
+                    "message": "注册成功",
+                }
+            )
+            resp = app_client.post(
+                "/api/cloud/auth/register",
+                json={
+                    "username": "alice",
+                    "email": "a@b.com",
+                    "password": "secret",
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -194,14 +207,23 @@ class TestLogin:
         """登录成功"""
         with patch.object(cloud_mod, "CloudAuthService") as MockSvc:
             instance = MockSvc.return_value
-            instance.login_user = AsyncMock(return_value={
-                "success": True, "user_id": "u1",
-                "access_token": "a", "refresh_token": "r",
-            })
-            resp = app_client.post("/api/cloud/auth/login", json={
-                "username": "alice", "password": "secret",
-                "device_id": "d1", "device_name": "dev",
-            })
+            instance.login_user = AsyncMock(
+                return_value={
+                    "success": True,
+                    "user_id": "u1",
+                    "access_token": "a",
+                    "refresh_token": "r",
+                }
+            )
+            resp = app_client.post(
+                "/api/cloud/auth/login",
+                json={
+                    "username": "alice",
+                    "password": "secret",
+                    "device_id": "d1",
+                    "device_name": "dev",
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -211,13 +233,21 @@ class TestLogin:
         """登录失败 → 401"""
         with patch.object(cloud_mod, "CloudAuthService") as MockSvc:
             instance = MockSvc.return_value
-            instance.login_user = AsyncMock(return_value={
-                "success": False, "error": "密码错误",
-            })
-            resp = app_client.post("/api/cloud/auth/login", json={
-                "username": "alice", "password": "wrong",
-                "device_id": "d1", "device_name": "dev",
-            })
+            instance.login_user = AsyncMock(
+                return_value={
+                    "success": False,
+                    "error": "密码错误",
+                }
+            )
+            resp = app_client.post(
+                "/api/cloud/auth/login",
+                json={
+                    "username": "alice",
+                    "password": "wrong",
+                    "device_id": "d1",
+                    "device_name": "dev",
+                },
+            )
         assert resp.status_code == 401
         assert "密码错误" in resp.json()["detail"]
 
@@ -231,12 +261,19 @@ class TestRefresh:
     def test_success(self, app_client, mock_db):
         with patch.object(cloud_mod, "CloudAuthService") as MockSvc:
             instance = MockSvc.return_value
-            instance.refresh_access_token = AsyncMock(return_value={
-                "success": True, "access_token": "new", "expires_in": 900,
-            })
-            resp = app_client.post("/api/cloud/auth/refresh", json={
-                "refresh_token": "rtoken",
-            })
+            instance.refresh_access_token = AsyncMock(
+                return_value={
+                    "success": True,
+                    "access_token": "new",
+                    "expires_in": 900,
+                }
+            )
+            resp = app_client.post(
+                "/api/cloud/auth/refresh",
+                json={
+                    "refresh_token": "rtoken",
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -245,12 +282,18 @@ class TestRefresh:
     def test_failure(self, app_client, mock_db):
         with patch.object(cloud_mod, "CloudAuthService") as MockSvc:
             instance = MockSvc.return_value
-            instance.refresh_access_token = AsyncMock(return_value={
-                "success": False, "error": "无效刷新令牌",
-            })
-            resp = app_client.post("/api/cloud/auth/refresh", json={
-                "refresh_token": "expired",
-            })
+            instance.refresh_access_token = AsyncMock(
+                return_value={
+                    "success": False,
+                    "error": "无效刷新令牌",
+                }
+            )
+            resp = app_client.post(
+                "/api/cloud/auth/refresh",
+                json={
+                    "refresh_token": "expired",
+                },
+            )
         assert resp.status_code == 401
         assert "无效刷新令牌" in resp.json()["detail"]
 
@@ -279,16 +322,27 @@ class TestSyncUpload:
     def test_success(self, app_client, mock_db):
         with patch.object(cloud_mod, "CloudSyncEngine") as MockEngine:
             inst = MockEngine.return_value
-            inst.upload_ratings = AsyncMock(return_value={
-                "success": True, "uploaded": 1, "conflicts": [],
-                "timestamp": "2026-07-09T10:00:00",
-            })
-            resp = app_client.post("/api/cloud/sync/upload", json={
-                "ratings": [
-                    {"skill_id": "s1", "rating": 4, "review": "ok",
-                     "timestamp": "2026-07-09T10:00:00"},
-                ],
-            })
+            inst.upload_ratings = AsyncMock(
+                return_value={
+                    "success": True,
+                    "uploaded": 1,
+                    "conflicts": [],
+                    "timestamp": "2026-07-09T10:00:00",
+                }
+            )
+            resp = app_client.post(
+                "/api/cloud/sync/upload",
+                json={
+                    "ratings": [
+                        {
+                            "skill_id": "s1",
+                            "rating": 4,
+                            "review": "ok",
+                            "timestamp": "2026-07-09T10:00:00",
+                        },
+                    ],
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -297,13 +351,19 @@ class TestSyncUpload:
     def test_failure(self, app_client, mock_db):
         with patch.object(cloud_mod, "CloudSyncEngine") as MockEngine:
             inst = MockEngine.return_value
-            inst.upload_ratings = AsyncMock(return_value={
-                "success": False, "error": "网络错误",
-                "timestamp": "2026-07-09T10:00:00",
-            })
-            resp = app_client.post("/api/cloud/sync/upload", json={
-                "ratings": [],
-            })
+            inst.upload_ratings = AsyncMock(
+                return_value={
+                    "success": False,
+                    "error": "网络错误",
+                    "timestamp": "2026-07-09T10:00:00",
+                }
+            )
+            resp = app_client.post(
+                "/api/cloud/sync/upload",
+                json={
+                    "ratings": [],
+                },
+            )
         assert resp.status_code == 400
         assert "网络错误" in resp.json()["detail"]
 
@@ -317,10 +377,14 @@ class TestSyncDownload:
     def test_success(self, app_client, mock_db):
         with patch.object(cloud_mod, "CloudSyncEngine") as MockEngine:
             inst = MockEngine.return_value
-            inst.download_ratings = AsyncMock(return_value={
-                "success": True, "ratings": [{"skill_id": "s1"}],
-                "count": 1, "timestamp": "2026-07-09T10:00:00",
-            })
+            inst.download_ratings = AsyncMock(
+                return_value={
+                    "success": True,
+                    "ratings": [{"skill_id": "s1"}],
+                    "count": 1,
+                    "timestamp": "2026-07-09T10:00:00",
+                }
+            )
             resp = app_client.get("/api/cloud/sync/download")
         assert resp.status_code == 200
         data = resp.json()
@@ -331,10 +395,14 @@ class TestSyncDownload:
         """since 参数为合法 ISO 格式"""
         with patch.object(cloud_mod, "CloudSyncEngine") as MockEngine:
             inst = MockEngine.return_value
-            inst.download_ratings = AsyncMock(return_value={
-                "success": True, "ratings": [], "count": 0,
-                "timestamp": "2026-07-09T10:00:00",
-            })
+            inst.download_ratings = AsyncMock(
+                return_value={
+                    "success": True,
+                    "ratings": [],
+                    "count": 0,
+                    "timestamp": "2026-07-09T10:00:00",
+                }
+            )
             resp = app_client.get(
                 "/api/cloud/sync/download",
                 params={"since": "2026-07-09T00:00:00"},
@@ -353,10 +421,13 @@ class TestSyncDownload:
     def test_failure(self, app_client, mock_db):
         with patch.object(cloud_mod, "CloudSyncEngine") as MockEngine:
             inst = MockEngine.return_value
-            inst.download_ratings = AsyncMock(return_value={
-                "success": False, "error": "数据库异常",
-                "timestamp": "2026-07-09T10:00:00",
-            })
+            inst.download_ratings = AsyncMock(
+                return_value={
+                    "success": False,
+                    "error": "数据库异常",
+                    "timestamp": "2026-07-09T10:00:00",
+                }
+            )
             resp = app_client.get("/api/cloud/sync/download")
         assert resp.status_code == 400
         assert "数据库异常" in resp.json()["detail"]
@@ -371,11 +442,16 @@ class TestSyncStatus:
     def test_success(self, app_client, mock_db):
         with patch.object(cloud_mod, "CloudSyncEngine") as MockEngine:
             inst = MockEngine.return_value
-            inst.get_sync_status = AsyncMock(return_value={
-                "success": True, "last_sync": "2026-07-09T10:00:00",
-                "upload_count": 1, "download_count": 2,
-                "conflict_count": 0, "is_syncing": False,
-            })
+            inst.get_sync_status = AsyncMock(
+                return_value={
+                    "success": True,
+                    "last_sync": "2026-07-09T10:00:00",
+                    "upload_count": 1,
+                    "download_count": 2,
+                    "conflict_count": 0,
+                    "is_syncing": False,
+                }
+            )
             resp = app_client.get("/api/cloud/sync/status")
         assert resp.status_code == 200
         data = resp.json()
@@ -385,9 +461,12 @@ class TestSyncStatus:
     def test_failure(self, app_client, mock_db):
         with patch.object(cloud_mod, "CloudSyncEngine") as MockEngine:
             inst = MockEngine.return_value
-            inst.get_sync_status = AsyncMock(return_value={
-                "success": False, "error": "查询失败",
-            })
+            inst.get_sync_status = AsyncMock(
+                return_value={
+                    "success": False,
+                    "error": "查询失败",
+                }
+            )
             resp = app_client.get("/api/cloud/sync/status")
         assert resp.status_code == 400
         assert "查询失败" in resp.json()["detail"]
@@ -401,21 +480,32 @@ class TestSyncStatus:
 class TestSyncResolve:
     def test_invalid_resolution(self, app_client):
         """非法解决策略 → 400"""
-        resp = app_client.post("/api/cloud/sync/resolve", json={
-            "skill_id": "s1", "resolution": "invalid_strategy",
-        })
+        resp = app_client.post(
+            "/api/cloud/sync/resolve",
+            json={
+                "skill_id": "s1",
+                "resolution": "invalid_strategy",
+            },
+        )
         assert resp.status_code == 400
         assert "无效的解决策略" in resp.json()["detail"]
 
     def test_success(self, app_client, mock_db):
         with patch.object(cloud_mod, "CloudSyncEngine") as MockEngine:
             inst = MockEngine.return_value
-            inst.resolve_conflict = AsyncMock(return_value={
-                "success": True, "message": "冲突已解决",
-            })
-            resp = app_client.post("/api/cloud/sync/resolve", json={
-                "skill_id": "s1", "resolution": "local_wins",
-            })
+            inst.resolve_conflict = AsyncMock(
+                return_value={
+                    "success": True,
+                    "message": "冲突已解决",
+                }
+            )
+            resp = app_client.post(
+                "/api/cloud/sync/resolve",
+                json={
+                    "skill_id": "s1",
+                    "resolution": "local_wins",
+                },
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -423,12 +513,19 @@ class TestSyncResolve:
     def test_failure(self, app_client, mock_db):
         with patch.object(cloud_mod, "CloudSyncEngine") as MockEngine:
             inst = MockEngine.return_value
-            inst.resolve_conflict = AsyncMock(return_value={
-                "success": False, "error": "评分不存在",
-            })
-            resp = app_client.post("/api/cloud/sync/resolve", json={
-                "skill_id": "s1", "resolution": "remote_wins",
-            })
+            inst.resolve_conflict = AsyncMock(
+                return_value={
+                    "success": False,
+                    "error": "评分不存在",
+                }
+            )
+            resp = app_client.post(
+                "/api/cloud/sync/resolve",
+                json={
+                    "skill_id": "s1",
+                    "resolution": "remote_wins",
+                },
+            )
         assert resp.status_code == 400
         assert "评分不存在" in resp.json()["detail"]
 
@@ -442,9 +539,13 @@ class TestListDevices:
     def test_success(self, app_client, mock_db):
         with patch.object(cloud_mod, "CloudAuthService") as MockSvc:
             inst = MockSvc.return_value
-            inst.get_user_devices = AsyncMock(return_value={
-                "success": True, "devices": [{"device_id": "d1"}], "count": 1,
-            })
+            inst.get_user_devices = AsyncMock(
+                return_value={
+                    "success": True,
+                    "devices": [{"device_id": "d1"}],
+                    "count": 1,
+                }
+            )
             resp = app_client.get("/api/cloud/devices")
         assert resp.status_code == 200
         data = resp.json()
@@ -454,9 +555,12 @@ class TestListDevices:
     def test_failure(self, app_client, mock_db):
         with patch.object(cloud_mod, "CloudAuthService") as MockSvc:
             inst = MockSvc.return_value
-            inst.get_user_devices = AsyncMock(return_value={
-                "success": False, "error": "查询失败",
-            })
+            inst.get_user_devices = AsyncMock(
+                return_value={
+                    "success": False,
+                    "error": "查询失败",
+                }
+            )
             resp = app_client.get("/api/cloud/devices")
         assert resp.status_code == 400
         assert "查询失败" in resp.json()["detail"]
@@ -484,9 +588,14 @@ class TestRegisterDevice:
     def test_already_exists(self, app_client, mock_db):
         """设备已存在 → 返回 success=False"""
         self._setup_db_query(mock_db, found_existing=True)
-        resp = app_client.post("/api/cloud/devices/register", json={
-            "device_id": "d1", "device_name": "Laptop", "device_type": "desktop",
-        })
+        resp = app_client.post(
+            "/api/cloud/devices/register",
+            json={
+                "device_id": "d1",
+                "device_name": "Laptop",
+                "device_type": "desktop",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
@@ -495,9 +604,14 @@ class TestRegisterDevice:
     def test_success(self, app_client, mock_db):
         """新设备注册成功"""
         self._setup_db_query(mock_db, found_existing=False)
-        resp = app_client.post("/api/cloud/devices/register", json={
-            "device_id": "d-new", "device_name": "Tablet", "device_type": "mobile",
-        })
+        resp = app_client.post(
+            "/api/cloud/devices/register",
+            json={
+                "device_id": "d-new",
+                "device_name": "Tablet",
+                "device_type": "mobile",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -509,9 +623,13 @@ class TestRegisterDevice:
     def test_exception(self, app_client, mock_db):
         """注册过程抛异常 → 400"""
         self._setup_db_query(mock_db, found_existing=False, raise_exc=RuntimeError("db"))
-        resp = app_client.post("/api/cloud/devices/register", json={
-            "device_id": "d2", "device_name": "Phone",
-        })
+        resp = app_client.post(
+            "/api/cloud/devices/register",
+            json={
+                "device_id": "d2",
+                "device_name": "Phone",
+            },
+        )
         assert resp.status_code == 400
         assert "设备注册失败" in resp.json()["detail"]
         mock_db.rollback.assert_called()

@@ -25,9 +25,7 @@ from pycoder.capabilities.self_evo.engine import (  # noqa: F401
     FixResult,
     ScanReport,
 )
-from pycoder.capabilities.self_evo.engine import (
-    SelfEvolutionEngine as _V2SelfEvolutionEngine,
-)
+from pycoder.capabilities.self_evo.engine import SelfEvolutionEngine as _V2SelfEvolutionEngine
 
 # 从 V2 引擎继承常量
 EVOLUTION_TOKEN_DIR = _V2SelfEvolutionEngine._EVOLUTION_TOKEN_DIR

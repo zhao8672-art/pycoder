@@ -15,10 +15,9 @@
 
 from __future__ import annotations
 
-import json
 import sqlite3
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -26,7 +25,6 @@ from pycoder.server.services.memory_augmentor import (
     LongTermMemory,
     MemoryAugmentor,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # 测试：LongTermMemory 数据类

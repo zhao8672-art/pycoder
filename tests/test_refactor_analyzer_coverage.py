@@ -13,28 +13,30 @@ from __future__ import annotations
 import ast
 import textwrap
 
-import pytest
-
 from pycoder.python.refactor_analyzer import (
     DuplicateCode,
     FunctionMetrics,
+    RefactoringAnalyzer,
     RefactoringExecutor,
     RefactoringIssue,
     RefactoringResult,
-    RefactoringAnalyzer,
     analyze_refactoring,
     extract_function,
     rename_variable,
 )
-
 
 # ── 数据模型 ──────────────────────────────────────────────
 
 
 def test_refactoring_issue_defaults():
     issue = RefactoringIssue(
-        type="unused_import", severity="low", location="", line=1, column=0,
-        message="msg", suggestion="sug",
+        type="unused_import",
+        severity="low",
+        location="",
+        line=1,
+        column=0,
+        message="msg",
+        suggestion="sug",
     )
     assert issue.code_snippet == ""
     assert issue.fixable is False
@@ -53,7 +55,9 @@ def test_duplicate_code_defaults():
 
 
 def test_function_metrics_defaults():
-    m = FunctionMetrics(name="f", line_count=1, complexity=1, parameter_count=0, calls=0, max_nesting=0)
+    m = FunctionMetrics(
+        name="f", line_count=1, complexity=1, parameter_count=0, calls=0, max_nesting=0
+    )
     assert m.has_duplicates is False
 
 
@@ -86,14 +90,14 @@ def test_analyze_code_with_file_path():
 
 def test_detect_unused_imports():
     analyzer = RefactoringAnalyzer()
-    code = textwrap.dedent('''
+    code = textwrap.dedent("""
         import os
         import unused_mod
         from sys import path
         from json import loads as l
 
         print(os.getcwd())
-    ''')
+    """)
     tree = ast.parse(code)
     lines = code.split("\n")
     analyzer._detect_unused_imports(tree, "test.py", lines)
@@ -146,14 +150,14 @@ def test_calculate_complexity_simple():
 
 def test_calculate_complexity_branches():
     analyzer = RefactoringAnalyzer()
-    code = textwrap.dedent('''
+    code = textwrap.dedent("""
         def f(a, b):
             if a and b:
                 for i in []:
                     while False:
                         pass
             return 1 if a else 0
-    ''')
+    """)
     node = ast.parse(code).body[0]
     # if(1) + and(1) + for(1) + while(1) + IfExp(1) = base 1 + 5 = 6
     assert analyzer._calculate_complexity(node) >= 6
@@ -161,7 +165,7 @@ def test_calculate_complexity_branches():
 
 def test_calculate_complexity_try():
     analyzer = RefactoringAnalyzer()
-    code = textwrap.dedent('''
+    code = textwrap.dedent("""
         def f():
             try:
                 pass
@@ -169,7 +173,7 @@ def test_calculate_complexity_try():
                 pass
             except TypeError:
                 pass
-    ''')
+    """)
     node = ast.parse(code).body[0]
     # base 1 + 2 handlers = 3
     assert analyzer._calculate_complexity(node) == 3
@@ -225,14 +229,14 @@ def test_calculate_nesting_flat():
 
 def test_calculate_nesting_deep():
     analyzer = RefactoringAnalyzer()
-    code = textwrap.dedent('''
+    code = textwrap.dedent("""
         def f():
             if a:
                 if b:
                     if c:
                         if d:
                             pass
-    ''')
+    """)
     node = ast.parse(code).body[0]
     # def > if > if > if > if = 4 层 (if 计数)
     assert analyzer._calculate_nesting(node) >= 4
@@ -240,14 +244,14 @@ def test_calculate_nesting_deep():
 
 def test_detect_deep_nesting():
     analyzer = RefactoringAnalyzer()
-    code = textwrap.dedent('''
+    code = textwrap.dedent("""
         def f():
             if a:
                 if b:
                     if c:
                         if d:
                             pass
-    ''')
+    """)
     tree = ast.parse(code)
     analyzer._detect_deep_nesting(tree, "test.py", code.split("\n"))
     types = [i.type for i in analyzer._issues]
@@ -358,7 +362,7 @@ def test_extract_code_blocks_function():
 
 def test_extract_code_blocks_if_for():
     analyzer = RefactoringAnalyzer()
-    code = textwrap.dedent('''
+    code = textwrap.dedent("""
         if x:
             a = 1
             b = 2
@@ -371,7 +375,7 @@ def test_extract_code_blocks_if_for():
             c = 3
             d = 4
             e = 5
-    ''')
+    """)
     tree = ast.parse(code)
     blocks = analyzer._extract_code_blocks(tree, code.split("\n"))
     assert len(blocks) >= 2
@@ -379,13 +383,13 @@ def test_extract_code_blocks_if_for():
 
 def test_detect_duplicate_code_three_identical_functions():
     analyzer = RefactoringAnalyzer()
-    func_def = textwrap.dedent('''
+    func_def = textwrap.dedent("""
         def f():
             x = 1
             y = 2
             z = 3
             return x + y + z
-    ''').strip()
+    """).strip()
     code = func_def + "\n\n" + func_def + "\n\n" + func_def + "\n"
     tree = ast.parse(code)
     analyzer._detect_duplicate_code(tree, "test.py", code.split("\n"))
@@ -413,16 +417,31 @@ def test_generate_summary_no_issues():
 def test_generate_summary_with_issues():
     analyzer = RefactoringAnalyzer()
     analyzer._add_issue(
-        type="unused_import", severity="low", location="", line=1, column=0,
-        message="msg", suggestion="sug",
+        type="unused_import",
+        severity="low",
+        location="",
+        line=1,
+        column=0,
+        message="msg",
+        suggestion="sug",
     )
     analyzer._add_issue(
-        type="long_function", severity="high", location="", line=1, column=0,
-        message="msg", suggestion="sug",
+        type="long_function",
+        severity="high",
+        location="",
+        line=1,
+        column=0,
+        message="msg",
+        suggestion="sug",
     )
     analyzer._add_issue(
-        type="magic_number", severity="medium", location="", line=1, column=0,
-        message="msg", suggestion="sug",
+        type="magic_number",
+        severity="medium",
+        location="",
+        line=1,
+        column=0,
+        message="msg",
+        suggestion="sug",
     )
     summary = analyzer._generate_summary()
     assert "3 个重构问题" in summary
@@ -435,8 +454,13 @@ def test_generate_summary_with_issues():
 def test_generate_summary_unknown_type():
     analyzer = RefactoringAnalyzer()
     analyzer._add_issue(
-        type="custom_type", severity="low", location="", line=1, column=0,
-        message="msg", suggestion="sug",
+        type="custom_type",
+        severity="low",
+        location="",
+        line=1,
+        column=0,
+        message="msg",
+        suggestion="sug",
     )
     summary = analyzer._generate_summary()
     assert "custom_type" in summary  # 未知类型直接显示类型名
@@ -448,8 +472,13 @@ def test_generate_summary_unknown_type():
 def test_add_issue_appends():
     analyzer = RefactoringAnalyzer()
     analyzer._add_issue(
-        type="test", severity="low", location="", line=1, column=0,
-        message="m", suggestion="s",
+        type="test",
+        severity="low",
+        location="",
+        line=1,
+        column=0,
+        message="m",
+        suggestion="s",
     )
     assert len(analyzer._issues) == 1
     assert analyzer._issues[0].type == "test"
@@ -550,11 +579,11 @@ def test_inline_function_not_found():
 
 def test_inline_function_success():
     executor = RefactoringExecutor()
-    code = textwrap.dedent('''
+    code = textwrap.dedent("""
         def helper():
             return 42
         result = helper()
-    ''').strip()
+    """).strip()
     result = executor.inline_function(code, "helper")
     assert result.success is True
     assert "成功内联函数" in result.summary

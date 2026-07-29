@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PerceptionResult:
     """感知结果数据类"""
+
     success: bool = True
     text_content: str = ""
     structured_data: dict[str, Any] = field(default_factory=dict)
@@ -70,7 +71,6 @@ class ImageAnalyzer:
 
     def _analyze_colors(self, img: Any) -> dict[str, Any]:
         """分析图像颜色分布"""
-        from PIL import Image
 
         if img.mode != "RGB":
             img = img.convert("RGB")
@@ -81,6 +81,7 @@ class ImageAnalyzer:
         pixels = list(img.getdata())
         if len(pixels) > sample_size:
             import random
+
             pixels = random.sample(pixels, sample_size)
 
         if not pixels:
@@ -403,7 +404,7 @@ def _register_audio_analysis(registry: Any) -> None:
 async def _handle_image_analyze(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理图像分析"""
     from pycoder.multimodal import ImageAnalyzer
-    
+
     analyzer = ImageAnalyzer()
     result = await analyzer.analyze(
         image_path=params["image_path"],
@@ -416,7 +417,7 @@ async def _handle_image_analyze(params: dict[str, Any], context: dict[str, Any])
 async def _handle_ocr_recognize(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理 OCR 识别"""
     from pycoder.multimodal import OCRProcessor
-    
+
     ocr = OCRProcessor()
     result = await ocr.recognize(
         image_path=params["image_path"],
@@ -426,10 +427,12 @@ async def _handle_ocr_recognize(params: dict[str, Any], context: dict[str, Any])
     return {"success": True, "text": result}
 
 
-async def _handle_screenshot_capture(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+async def _handle_screenshot_capture(
+    params: dict[str, Any], context: dict[str, Any]
+) -> dict[str, Any]:
     """处理截图"""
     from pycoder.multimodal import ScreenshotCapture
-    
+
     capture = ScreenshotCapture()
     result = await capture.capture(
         region=params.get("region"),
@@ -441,7 +444,7 @@ async def _handle_screenshot_capture(params: dict[str, Any], context: dict[str, 
 async def _handle_video_analyze(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     """处理视频分析"""
     from pycoder.multimodal import VideoAnalyzer
-    
+
     analyzer = VideoAnalyzer()
     result = await analyzer.analyze(
         video_path=params["video_path"],
@@ -451,10 +454,12 @@ async def _handle_video_analyze(params: dict[str, Any], context: dict[str, Any])
     return {"success": True, "result": result}
 
 
-async def _handle_audio_transcribe(params: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+async def _handle_audio_transcribe(
+    params: dict[str, Any], context: dict[str, Any]
+) -> dict[str, Any]:
     """处理音频转文字"""
     from pycoder.multimodal import AudioTranscriber
-    
+
     transcriber = AudioTranscriber()
     result = await transcriber.transcribe(
         audio_path=params["audio_path"],

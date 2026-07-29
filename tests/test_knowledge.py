@@ -1,8 +1,10 @@
 """knowledge 模块测试"""
+
 from __future__ import annotations
 
 import pytest
-from pycoder.knowledge.knowledge_fetcher import KnowledgeFetcher, KnowledgeSource, KnowledgeChunk
+
+from pycoder.knowledge.knowledge_fetcher import KnowledgeChunk, KnowledgeFetcher, KnowledgeSource
 from pycoder.knowledge.knowledge_index import KnowledgeIndex
 from pycoder.knowledge.update_scheduler import KnowledgeUpdateScheduler
 
@@ -17,9 +19,14 @@ class TestKnowledgeFetcher:
 
     def test_register_custom_source(self):
         fetcher = KnowledgeFetcher()
-        fetcher.register_source(KnowledgeSource(
-            id="custom", name="自定义", url="https://example.com", category="custom",
-        ))
+        fetcher.register_source(
+            KnowledgeSource(
+                id="custom",
+                name="自定义",
+                url="https://example.com",
+                category="custom",
+            )
+        )
         assert fetcher.get_source("custom") is not None
 
     def test_get_source_not_found(self):

@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 
 class TaskStatus(StrEnum):
     """任务状态"""
+
     PENDING = "pending"
     RUNNING = "running"
     PAUSED = "paused"
@@ -45,6 +46,7 @@ class TaskStatus(StrEnum):
 
 class TaskPhase(StrEnum):
     """任务阶段"""
+
     INIT = "init"
     INTAKE = "intake"
     DESIGN = "design"
@@ -60,6 +62,7 @@ class TaskPhase(StrEnum):
 @dataclass
 class ValidationContract:
     """验证合约 — 定义任务验收标准"""
+
     contract_id: str
     task_id: str
     requirements: list[str] = field(default_factory=list)
@@ -89,6 +92,7 @@ class ValidationContract:
 @dataclass
 class SharedTaskState:
     """共享任务状态"""
+
     task_id: str
     title: str
     description: str = ""
@@ -155,8 +159,12 @@ class SharedState:
 
         # 确保所有目录存在
         for d in [
-            self._tasks_dir, self._contracts_dir, self._evaluations_dir,
-            self._budgets_dir, self._traces_dir, self._checkpoints_dir,
+            self._tasks_dir,
+            self._contracts_dir,
+            self._evaluations_dir,
+            self._budgets_dir,
+            self._traces_dir,
+            self._checkpoints_dir,
         ]:
             d.mkdir(parents=True, exist_ok=True)
 
@@ -303,18 +311,20 @@ class SharedState:
         trace_dir = self._traces_dir / tid
         trace_dir.mkdir(parents=True, exist_ok=True)
         (trace_dir / "metadata.json").write_text(
-            json.dumps({
-                "trace_id": tid,
-                "created_at": time.time(),
-                "entries": 0,
-            }, ensure_ascii=False, indent=2),
+            json.dumps(
+                {
+                    "trace_id": tid,
+                    "created_at": time.time(),
+                    "entries": 0,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
             encoding="utf-8",
         )
         return tid
 
-    def write_trace_log(
-        self, trace_id: str, entry: dict[str, Any]
-    ) -> None:
+    def write_trace_log(self, trace_id: str, entry: dict[str, Any]) -> None:
         """写入追踪日志"""
         trace_dir = self._traces_dir / trace_id
         trace_dir.mkdir(parents=True, exist_ok=True)
@@ -329,7 +339,7 @@ class SharedState:
         if not log_file.exists():
             return []
         entries: list[dict[str, Any]] = []
-        with open(log_file, "r", encoding="utf-8") as f:
+        with open(log_file, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:
@@ -396,7 +406,9 @@ class SharedState:
             return None
         try:
             data = json.loads(contract_file.read_text(encoding="utf-8"))
-            return ValidationContract(**{k: v for k, v in data.items() if k in ValidationContract.__dataclass_fields__})
+            return ValidationContract(
+                **{k: v for k, v in data.items() if k in ValidationContract.__dataclass_fields__}
+            )
         except (json.JSONDecodeError, KeyError) as e:
             logger.warning("加载合约失败: %s", e)
             return None

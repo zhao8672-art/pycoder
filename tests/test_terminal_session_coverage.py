@@ -7,14 +7,12 @@
 
 测试策略：mock subprocess.run（在 run() 内导入），隔离 cwd 解析逻辑。
 """
+
 from __future__ import annotations
 
 import subprocess
 import time
-from pathlib import Path
 from unittest.mock import MagicMock
-
-import pytest
 
 import pycoder.server.terminal_session as ts_mod
 from pycoder.server.terminal_session import (
@@ -22,7 +20,6 @@ from pycoder.server.terminal_session import (
     TerminalSessionManager,
     get_terminal_manager,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # TerminalSession 初始化

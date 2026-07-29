@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from unittest import mock
 
 import pytest
 
@@ -22,7 +21,6 @@ from pycoder.observability.tracing import (
     status,
     traced,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -416,9 +414,7 @@ class TestStructuredLogBridge:
 
     def test_traced_function_does_not_break_log_context(self):
         """@traced 装饰的函数不会破坏现有 log 上下文"""
-        from pycoder.observability.structured_log import (
-            get_current_trace_id as slog_trace_id,
-        )
+        from pycoder.observability.structured_log import get_current_trace_id as slog_trace_id
 
         @traced("with_log_bridge")
         def my_function() -> str:

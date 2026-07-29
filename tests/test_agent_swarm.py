@@ -1,8 +1,6 @@
 """Agent 集群编排器测试 — AgentSwarmOrchestrator"""
-from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from __future__ import annotations
 
 import pytest
 
@@ -12,7 +10,6 @@ from pycoder.brain.agent_swarm import (
     AgentSwarmOrchestrator,
     AgentTask,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # AgentRole 枚举测试
@@ -231,9 +228,7 @@ class TestAgentSwarmOrchestrator:
             AgentTask("1", AgentRole.DEVELOPER, "任务 1"),
             AgentTask("2", AgentRole.DEVELOPER, "任务 2"),
         ]
-        results = await orchestrator.execute(
-            tasks, parallel=False, on_progress=on_progress
-        )
+        results = await orchestrator.execute(tasks, parallel=False, on_progress=on_progress)
         assert len(results) == 2
         # 顺序执行时每个任务完成都会调用回调
         assert len(progress_calls) == 2

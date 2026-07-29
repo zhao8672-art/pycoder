@@ -1,15 +1,24 @@
 """全面测试 GitHub 集成所有端点"""
-import json, urllib.request, sys
+
+import json
+import urllib.request
 
 BASE = "http://127.0.0.1:8423"
-PASS = 0; FAIL = 0; ISSUES = []
+PASS = 0
+FAIL = 0
+ISSUES = []
+
 
 def test(name, method, url, body=None, expect_code=200, expect_key=None):
     global PASS, FAIL
     try:
         data = json.dumps(body).encode() if body else None
-        req = urllib.request.Request(BASE + url, data=data, method=method,
-            headers={"Content-Type": "application/json"} if body else {})
+        req = urllib.request.Request(
+            BASE + url,
+            data=data,
+            method=method,
+            headers={"Content-Type": "application/json"} if body else {},
+        )
         resp = urllib.request.urlopen(req, timeout=15)
         code = resp.status
         d = json.loads(resp.read().decode())
@@ -34,6 +43,7 @@ def test(name, method, url, body=None, expect_code=200, expect_key=None):
         FAIL += 1
         print(f"  ❌ {name}: {str(e)[:150]}")
         ISSUES.append(f"{name}: {e}")
+
 
 # ══════════════════════════════
 print("=" * 55)
@@ -60,12 +70,22 @@ test("Repo detail (public)", "GET", "/api/github/repo/torvalds/linux", expect_ke
 
 # ── 4. GitHub PRs ──
 print("\n--- 4. GitHub PRs ---")
-test("List PRs (public repo)", "GET", "/api/github/pulls/torvalds/linux?state=open", expect_key="pulls")
+test(
+    "List PRs (public repo)",
+    "GET",
+    "/api/github/pulls/torvalds/linux?state=open",
+    expect_key="pulls",
+)
 test("PR detail (public)", "GET", "/api/github/pulls/torvalds/linux/1")
 
 # ── 5. GitHub Issues ──
 print("\n--- 5. GitHub Issues ---")
-test("List issues (public repo)", "GET", "/api/github/issues/torvalds/linux?state=open&per_page=3", expect_key="issues")
+test(
+    "List issues (public repo)",
+    "GET",
+    "/api/github/issues/torvalds/linux?state=open&per_page=3",
+    expect_key="issues",
+)
 
 # ── 6. Clone (测试URL验证, 不实际clone) ──
 print("\n--- 6. Clone (URL验证) ---")
@@ -73,7 +93,13 @@ test("Clone empty url (should 400)", "POST", "/api/github/clone", {"url": ""}, e
 
 # ── 7. Create Repo (无token测试) ──
 print("\n--- 7. Create Repo (无token) ---")
-test("Create repo no token", "POST", "/api/github/create-repo", {"name": "test-repo"}, expect_code=401)
+test(
+    "Create repo no token",
+    "POST",
+    "/api/github/create-repo",
+    {"name": "test-repo"},
+    expect_code=401,
+)
 test("Publish no token", "POST", "/api/github/publish", {"repo_name": "test"}, expect_code=401)
 
 # ══════════════════════════════

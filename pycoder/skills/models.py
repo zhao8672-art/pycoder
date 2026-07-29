@@ -68,9 +68,7 @@ class SkillDefinition:
     def has_update(self) -> bool:
         """是否有可用更新（前端字段）"""
         return bool(
-            self.remote_version
-            and self.local_version
-            and self.remote_version != self.local_version
+            self.remote_version and self.local_version and self.remote_version != self.local_version
         )
 
     def to_dict(self) -> dict[str, Any]:

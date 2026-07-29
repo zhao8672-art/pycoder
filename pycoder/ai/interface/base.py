@@ -42,9 +42,7 @@ class ICodeGenerator(ABC):
         ...
 
     @abstractmethod
-    async def generate_stream(
-        self, request: CodeGenerationRequest
-    ) -> AsyncIterator[str]:
+    async def generate_stream(self, request: CodeGenerationRequest) -> AsyncIterator[str]:
         """流式生成代码"""
         ...
 
@@ -89,9 +87,7 @@ class ICodeAnalyzer(ABC):
         ...
 
     @abstractmethod
-    async def suggest_improvements(
-        self, code: str, language: str = ""
-    ) -> list[dict]:
+    async def suggest_improvements(self, code: str, language: str = "") -> list[dict]:
         """建议改进"""
         ...
 
@@ -247,9 +243,7 @@ class IPlanner(ABC):
         ...
 
     @abstractmethod
-    async def replan(
-        self, original_plan: PlanResult, failure_reason: str
-    ) -> PlanResult:
+    async def replan(self, original_plan: PlanResult, failure_reason: str) -> PlanResult:
         """失败后重新规划"""
         ...
 
@@ -429,9 +423,7 @@ class AIFacade:
             self._record_metric("code_analysis", time.time() - start)
             return result
         except Exception:
-            self._error_counts["code_analysis"] = (
-                self._error_counts.get("code_analysis", 0) + 1
-            )
+            self._error_counts["code_analysis"] = self._error_counts.get("code_analysis", 0) + 1
             raise
 
     # ── NLU ──

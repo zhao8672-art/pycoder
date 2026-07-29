@@ -14,9 +14,7 @@ ws_handler.py 模块单元测试 — 覆盖率目标 ≥70%
 
 from __future__ import annotations
 
-import asyncio
 import json
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -24,8 +22,8 @@ from fastapi import WebSocketDisconnect
 
 from pycoder.server.ws_handler import _strip_code_fence, websocket_chat
 
-
 # ── FakeWebSocket ──
+
 
 class FakeWebSocket:
     """模拟 WebSocket, 通过队列控制 receive_text 返回值"""
@@ -57,6 +55,7 @@ class FakeWebSocket:
 
 
 # ── Mock 依赖 Fixture ──
+
 
 @pytest.fixture
 def setup_mocks(monkeypatch, tmp_path):
@@ -95,10 +94,12 @@ def setup_mocks(monkeypatch, tmp_path):
         "pycoder.server.ws_handler._get_effective_model",
         lambda m: m or "deepseek-chat",
     )
+
     # 默认空异步生成器
     async def empty_async_gen(*a, **k):
         if False:
             yield {}
+
     monkeypatch.setattr(
         "pycoder.server.ws_handler.chat_stream_fn",
         empty_async_gen,
@@ -127,6 +128,7 @@ def setup_mocks(monkeypatch, tmp_path):
 
     # 6. cloud_service: 注入 MagicMock 防止真实导入失败
     import sys as _sys
+
     fake_cs_mod = MagicMock()
     fake_cs = MagicMock()
     fake_cs_mod.get_cloud_service = lambda: fake_cs
@@ -141,6 +143,7 @@ def setup_mocks(monkeypatch, tmp_path):
 
 
 # ── _strip_code_fence ──
+
 
 def test_strip_code_fence_with_language():
     """剥离 ```lang ... ``` 包裹"""
@@ -176,6 +179,7 @@ def test_strip_code_fence_only_closing_fence():
 
 
 # ── websocket_chat 连接初始化 ──
+
 
 async def test_websocket_chat_connect_no_history(setup_mocks):
     """初次连接, 无历史会话, 创建新会话"""
@@ -221,6 +225,7 @@ async def test_websocket_chat_connect_empty_session_reuse(setup_mocks):
 
 # ── 消息类型: create_session ──
 
+
 async def test_msg_create_session(setup_mocks):
     """create_session 消息创建新会话"""
     setup_mocks["store"].get_session.return_value = MagicMock(id="new-id")
@@ -234,11 +239,14 @@ async def test_msg_create_session(setup_mocks):
 
 # ── 会话共享 ──
 
+
 async def test_msg_session_share_join(setup_mocks):
     """session_share_join 加入共享会话"""
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "session_share_join", "share_session_id": "shared-1"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "session_share_join", "share_session_id": "shared-1"}),
+        ]
+    )
     await websocket_chat(ws)
     setup_mocks["share"].join.assert_called_once()
     status_msgs = [m for m in ws.sent if m.get("type") == "session_share_status"]
@@ -249,9 +257,11 @@ async def test_msg_session_share_join(setup_mocks):
 
 async def test_msg_session_share_leave(setup_mocks):
     """session_share_leave 离开共享会话"""
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "session_share_leave"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "session_share_leave"}),
+        ]
+    )
     await websocket_chat(ws)
     setup_mocks["share"].leave.assert_called()
     status_msgs = [m for m in ws.sent if m.get("type") == "session_share_status"]
@@ -260,12 +270,15 @@ async def test_msg_session_share_leave(setup_mocks):
 
 # ── 会话切换 ──
 
+
 async def test_msg_switch_session_existing(setup_mocks):
     """switch_session 切换到存在的会话"""
     setup_mocks["store"].get_session.return_value = MagicMock(id="target-sess")
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "switch_session", "session_id": "target-sess"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "switch_session", "session_id": "target-sess"}),
+        ]
+    )
     await websocket_chat(ws)
     switched = [m for m in ws.sent if m.get("type") == "session_switched"]
     assert len(switched) == 1
@@ -274,9 +287,11 @@ async def test_msg_switch_session_existing(setup_mocks):
 async def test_msg_switch_session_nonexistent(setup_mocks):
     """switch_session 切换到不存在的会话: 不发 switched 消息"""
     setup_mocks["store"].get_session.return_value = None
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "switch_session", "session_id": "no-such"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "switch_session", "session_id": "no-such"}),
+        ]
+    )
     await websocket_chat(ws)
     switched = [m for m in ws.sent if m.get("type") == "session_switched"]
     assert len(switched) == 0
@@ -308,6 +323,7 @@ async def test_msg_history(setup_mocks):
 
 # ── execute_plan ──
 
+
 async def test_msg_execute_plan_missing_plan(setup_mocks):
     """execute_plan 缺少 plan 字段返回错误"""
     ws = FakeWebSocket(messages=[json.dumps({"type": "execute_plan"})])
@@ -319,14 +335,18 @@ async def test_msg_execute_plan_missing_plan(setup_mocks):
 
 async def test_msg_execute_plan_success(setup_mocks, monkeypatch):
     """execute_plan 成功调用 agent_chat_stream"""
+
     async def fake_agent_stream(plan, model=None):
         yield {"type": "chunk", "content": "step1"}
         yield {"type": "done", "content": "final"}
+
     monkeypatch.setattr(
         "pycoder.server.services.agent_orchestrator.agent_chat_stream",
         fake_agent_stream,
     )
-    ws = FakeWebSocket(messages=[json.dumps({"type": "execute_plan", "plan": "do x", "model": "gpt"})])
+    ws = FakeWebSocket(
+        messages=[json.dumps({"type": "execute_plan", "plan": "do x", "model": "gpt"})]
+    )
     await websocket_chat(ws)
     # 应收到 chunk 和 done 事件
     chunk_msgs = [m for m in ws.sent if m.get("type") == "chunk"]
@@ -347,6 +367,7 @@ async def test_msg_agent_chunk_triggers_exception_path(setup_mocks):
 
 # ── write_file ──
 
+
 async def test_msg_write_file_missing_path(setup_mocks):
     """write_file 缺少 path 返回错误"""
     ws = FakeWebSocket(messages=[json.dumps({"type": "write_file"})])
@@ -359,9 +380,11 @@ async def test_msg_write_file_missing_path(setup_mocks):
 async def test_msg_write_file_success(setup_mocks):
     """write_file 成功调用 hermes_engine"""
     setup_mocks["hermes"].return_value = {"success": True, "path": "/x.py"}
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "write_file", "path": "/x.py", "content": "code"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "write_file", "path": "/x.py", "content": "code"}),
+        ]
+    )
     await websocket_chat(ws)
     setup_mocks["hermes"].assert_awaited_once_with("/x.py", "code")
     result_msgs = [m for m in ws.sent if m.get("type") == "file_write_result"]
@@ -371,9 +394,12 @@ async def test_msg_write_file_success(setup_mocks):
 
 # ── project_tree ──
 
+
 async def test_msg_project_tree_success(setup_mocks):
     """project_tree 成功返回"""
-    ws = FakeWebSocket(messages=[json.dumps({"type": "project_tree", "path": "/x", "max_depth": 2})])
+    ws = FakeWebSocket(
+        messages=[json.dumps({"type": "project_tree", "path": "/x", "max_depth": 2})]
+    )
     await websocket_chat(ws)
     tree_msgs = [m for m in ws.sent if m.get("type") == "project_tree"]
     assert len(tree_msgs) == 1
@@ -395,6 +421,7 @@ async def test_msg_project_tree_exception(setup_mocks, monkeypatch):
 
 # ── file_open ──
 
+
 async def test_msg_file_open_missing_path(setup_mocks):
     """file_open 缺少 path 返回错误"""
     ws = FakeWebSocket(messages=[json.dumps({"type": "file_open"})])
@@ -414,7 +441,11 @@ async def test_msg_file_open_not_found(setup_mocks, monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "pycoder.server.routers.files.HTTPException",
-        type("FakeHTTPException", (Exception,), {"__init__": lambda self, **kw: setattr(self, "detail", kw.get("detail", ""))}),
+        type(
+            "FakeHTTPException",
+            (Exception,),
+            {"__init__": lambda self, **kw: setattr(self, "detail", kw.get("detail", ""))},
+        ),
     )
     ws = FakeWebSocket(messages=[json.dumps({"type": "file_open", "path": "/no.py"})])
     await websocket_chat(ws)
@@ -433,7 +464,11 @@ async def test_msg_file_open_success(setup_mocks, monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "pycoder.server.routers.files.HTTPException",
-        type("FakeHTTPException", (Exception,), {"__init__": lambda self, **kw: setattr(self, "detail", kw.get("detail", ""))}),
+        type(
+            "FakeHTTPException",
+            (Exception,),
+            {"__init__": lambda self, **kw: setattr(self, "detail", kw.get("detail", ""))},
+        ),
     )
     ws = FakeWebSocket(messages=[json.dumps({"type": "file_open", "path": "test.py"})])
     await websocket_chat(ws)
@@ -445,15 +480,19 @@ async def test_msg_file_open_success(setup_mocks, monkeypatch, tmp_path):
 
 async def test_msg_file_open_http_exception(setup_mocks, monkeypatch):
     """file_open 触发 HTTPException"""
+
     class FakeHTTPException(Exception):
         def __init__(self, **kw):
             self.detail = kw.get("detail", "")
+
     monkeypatch.setattr(
         "pycoder.server.routers.files.HTTPException",
         FakeHTTPException,
     )
+
     def raise_http(p):
         raise FakeHTTPException(detail="forbidden")
+
     monkeypatch.setattr("pycoder.server.routers.files._safe_path", raise_http)
     ws = FakeWebSocket(messages=[json.dumps({"type": "file_open", "path": "/x"})])
     await websocket_chat(ws)
@@ -466,10 +505,16 @@ async def test_msg_file_open_generic_exception(setup_mocks, monkeypatch):
     """file_open 触发非 HTTPException 的异常 (覆盖 line 164-165)"""
     monkeypatch.setattr(
         "pycoder.server.routers.files.HTTPException",
-        type("FakeHTTPException", (Exception,), {"__init__": lambda self, **kw: setattr(self, "detail", kw.get("detail", ""))}),
+        type(
+            "FakeHTTPException",
+            (Exception,),
+            {"__init__": lambda self, **kw: setattr(self, "detail", kw.get("detail", ""))},
+        ),
     )
+
     def raise_runtime(p):
         raise RuntimeError("disk error")
+
     monkeypatch.setattr("pycoder.server.routers.files._safe_path", raise_runtime)
     ws = FakeWebSocket(messages=[json.dumps({"type": "file_open", "path": "/x"})])
     await websocket_chat(ws)
@@ -480,8 +525,11 @@ async def test_msg_file_open_generic_exception(setup_mocks, monkeypatch):
 
 # ── diff_preview / git_status ──
 
+
 async def test_msg_diff_preview_success(setup_mocks):
-    ws = FakeWebSocket(messages=[json.dumps({"type": "diff_preview", "file": "x.py", "staged": True})])
+    ws = FakeWebSocket(
+        messages=[json.dumps({"type": "diff_preview", "file": "x.py", "staged": True})]
+    )
     await websocket_chat(ws)
     diff_msgs = [m for m in ws.sent if m.get("type") == "diff_preview"]
     assert len(diff_msgs) == 1
@@ -519,6 +567,7 @@ async def test_msg_git_status_exception(setup_mocks, monkeypatch):
 
 
 # ── MCP 消息 ──
+
 
 async def test_msg_mcp_list(setup_mocks, monkeypatch):
     """mcp_list 列出工具"""
@@ -563,7 +612,9 @@ async def test_msg_mcp_call_builtin(setup_mocks, monkeypatch):
         "pycoder.server.mcp_tools.get_mcp_client_manager",
         lambda: MagicMock(connected_servers=[]),
     )
-    ws = FakeWebSocket(messages=[json.dumps({"type": "mcp_call", "tool": "builtin_tool", "args": {}})])
+    ws = FakeWebSocket(
+        messages=[json.dumps({"type": "mcp_call", "tool": "builtin_tool", "args": {}})]
+    )
     await websocket_chat(ws)
     result_msgs = [m for m in ws.sent if m.get("type") == "mcp_result"]
     assert len(result_msgs) == 1
@@ -580,9 +631,11 @@ async def test_msg_mcp_call_external_valid(setup_mocks, monkeypatch):
         "pycoder.server.mcp_tools.get_mcp_client_manager",
         lambda: fake_mgr,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "mcp_call", "tool": "mcp:server1/tool1", "args": {}}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "mcp_call", "tool": "mcp:server1/tool1", "args": {}}),
+        ]
+    )
     await websocket_chat(ws)
     result_msgs = [m for m in ws.sent if m.get("type") == "mcp_result"]
     assert len(result_msgs) == 1
@@ -595,9 +648,11 @@ async def test_msg_mcp_call_external_invalid_format(setup_mocks, monkeypatch):
         "pycoder.server.mcp_tools.get_mcp_client_manager",
         lambda: MagicMock(connected_servers=[]),
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "mcp_call", "tool": "mcp:noslash", "args": {}}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "mcp_call", "tool": "mcp:noslash", "args": {}}),
+        ]
+    )
     await websocket_chat(ws)
     errors = [m for m in ws.sent if m.get("type") == "error"]
     assert len(errors) == 1
@@ -621,9 +676,11 @@ async def test_msg_mcp_connect_success(setup_mocks, monkeypatch):
         "pycoder.server.mcp_tools.get_mcp_client_manager",
         lambda: fake_mgr,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "mcp_connect", "name": "x", "command": "cmd", "args": []}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "mcp_connect", "name": "x", "command": "cmd", "args": []}),
+        ]
+    )
     await websocket_chat(ws)
     connect_msgs = [m for m in ws.sent if m.get("type") == "mcp_connect_result"]
     assert len(connect_msgs) == 1
@@ -656,6 +713,7 @@ async def test_msg_mcp_disconnect_success(setup_mocks, monkeypatch):
 
 # ── inline_edit ──
 
+
 async def test_msg_inline_edit_missing_args(setup_mocks):
     """inline_edit 缺少 code 或 instruction"""
     ws = FakeWebSocket(messages=[json.dumps({"type": "inline_edit", "code": "x"})])
@@ -667,19 +725,28 @@ async def test_msg_inline_edit_missing_args(setup_mocks):
 
 async def test_msg_inline_edit_success(setup_mocks, monkeypatch):
     """inline_edit 成功调用 chat_stream 并返回结果"""
+
     async def fake_stream(*args, **kwargs):
         yield {"type": "chunk", "content": "part"}
         yield {"type": "done", "content": "```python\nfinal code\n```"}
+
     monkeypatch.setattr(
         "pycoder.server.ws_handler.chat_stream_fn",
         fake_stream,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({
-            "type": "inline_edit", "code": "x", "instruction": "fix",
-            "language": "python", "request_id": "r1",
-        }),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps(
+                {
+                    "type": "inline_edit",
+                    "code": "x",
+                    "instruction": "fix",
+                    "language": "python",
+                    "request_id": "r1",
+                }
+            ),
+        ]
+    )
     await websocket_chat(ws)
     done_msgs = [m for m in ws.sent if m.get("type") == "inline_edit_done"]
     assert len(done_msgs) == 1
@@ -689,6 +756,7 @@ async def test_msg_inline_edit_success(setup_mocks, monkeypatch):
 
 
 # ── run_fix ──
+
 
 async def test_msg_run_fix_missing_task(setup_mocks):
     """run_fix 缺少 task"""
@@ -702,16 +770,24 @@ async def test_msg_run_fix_missing_task(setup_mocks):
 async def test_msg_run_fix_success(setup_mocks, monkeypatch):
     """run_fix 成功执行"""
     from pycoder.server.services.run_fix_loop import RunFixLoop
+
     fake_loop = MagicMock()
-    fake_loop.execute = AsyncMock(return_value=MagicMock(
-        success=True, total_retries=2, final_code="code",
-        exec_output="output", duration_ms=100.0,
-        steps=[],
-    ))
+    fake_loop.execute = AsyncMock(
+        return_value=MagicMock(
+            success=True,
+            total_retries=2,
+            final_code="code",
+            exec_output="output",
+            duration_ms=100.0,
+            steps=[],
+        )
+    )
     monkeypatch.setattr(RunFixLoop, "execute", fake_loop.execute)
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "run_fix", "task": "do x", "target_file": "sol.py"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "run_fix", "task": "do x", "target_file": "sol.py"}),
+        ]
+    )
     await websocket_chat(ws)
     done_msgs = [m for m in ws.sent if m.get("type") == "run_fix_done"]
     assert len(done_msgs) == 1
@@ -719,6 +795,7 @@ async def test_msg_run_fix_success(setup_mocks, monkeypatch):
 
 
 # ── dep_agent ──
+
 
 async def test_msg_dep_agent_missing_code(setup_mocks):
     """dep_agent 缺少 code"""
@@ -743,6 +820,7 @@ async def test_msg_dep_agent_success(setup_mocks, monkeypatch):
 
 
 # ── quality_check ──
+
 
 async def test_msg_quality_check_missing_file(setup_mocks):
     """quality_check 缺少 file_path"""
@@ -779,6 +857,7 @@ async def test_msg_quality_check_success(setup_mocks, monkeypatch):
 
 # ── test_generator ──
 
+
 async def test_msg_test_generator_missing_file(setup_mocks):
     """test_generator 缺少 file_path"""
     ws = FakeWebSocket(messages=[json.dumps({"type": "test_generator"})])
@@ -792,9 +871,15 @@ async def test_msg_test_generator_success(setup_mocks, monkeypatch):
     """test_generator 成功"""
     fake_gen = MagicMock()
     fake_gen.generate.return_value = MagicMock(
-        success=True, test_file="t.py", test_count=3,
-        passed=3, failed=0, coverage_percent=80.0,
-        output="ok", error="", duration_ms=100.0,
+        success=True,
+        test_file="t.py",
+        test_count=3,
+        passed=3,
+        failed=0,
+        coverage_percent=80.0,
+        output="ok",
+        error="",
+        duration_ms=100.0,
     )
     monkeypatch.setattr(
         "pycoder.server.services.test_generator.TestGenerator",
@@ -809,6 +894,7 @@ async def test_msg_test_generator_success(setup_mocks, monkeypatch):
 
 # ── team_ws ──
 
+
 async def test_msg_team_ws_create(setup_mocks, monkeypatch):
     """team_ws create 子命令"""
     fake_tw = MagicMock()
@@ -817,9 +903,13 @@ async def test_msg_team_ws_create(setup_mocks, monkeypatch):
         "pycoder.server.services.team_workspace.get_team_workspace_manager",
         lambda: fake_tw,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "team_ws", "subcommand": "create", "name": "W", "created_by": "alice"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps(
+                {"type": "team_ws", "subcommand": "create", "name": "W", "created_by": "alice"}
+            ),
+        ]
+    )
     await websocket_chat(ws)
     fake_tw.create_workspace.assert_called_once_with("W", "alice")
     result_msgs = [m for m in ws.sent if m.get("type") == "team_ws_result"]
@@ -846,9 +936,11 @@ async def test_msg_team_ws_unknown_subcmd(setup_mocks, monkeypatch):
         "pycoder.server.services.team_workspace.get_team_workspace_manager",
         lambda: MagicMock(),
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "team_ws", "subcommand": "unknown_cmd"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "team_ws", "subcommand": "unknown_cmd"}),
+        ]
+    )
     await websocket_chat(ws)
     errors = [m for m in ws.sent if m.get("type") == "error"]
     assert len(errors) == 1
@@ -863,9 +955,11 @@ async def test_msg_team_ws_get(setup_mocks, monkeypatch):
         "pycoder.server.services.team_workspace.get_team_workspace_manager",
         lambda: fake_tw,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "team_ws", "subcommand": "get", "workspace_id": "w1"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "team_ws", "subcommand": "get", "workspace_id": "w1"}),
+        ]
+    )
     await websocket_chat(ws)
     fake_tw.get_workspace.assert_called_once_with("w1")
     result_msgs = [m for m in ws.sent if m.get("type") == "team_ws_result"]
@@ -880,9 +974,11 @@ async def test_msg_team_ws_delete(setup_mocks, monkeypatch):
         "pycoder.server.services.team_workspace.get_team_workspace_manager",
         lambda: fake_tw,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "team_ws", "subcommand": "delete", "workspace_id": "w1"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "team_ws", "subcommand": "delete", "workspace_id": "w1"}),
+        ]
+    )
     await websocket_chat(ws)
     fake_tw.delete_workspace.assert_called_once_with("w1")
 
@@ -895,9 +991,18 @@ async def test_msg_team_ws_join(setup_mocks, monkeypatch):
         "pycoder.server.services.team_workspace.get_team_workspace_manager",
         lambda: fake_tw,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "team_ws", "subcommand": "join", "workspace_id": "w1", "display_name": "bob"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps(
+                {
+                    "type": "team_ws",
+                    "subcommand": "join",
+                    "workspace_id": "w1",
+                    "display_name": "bob",
+                }
+            ),
+        ]
+    )
     await websocket_chat(ws)
     fake_tw.join_workspace.assert_called_once_with("w1", "bob")
 
@@ -910,9 +1015,11 @@ async def test_msg_team_ws_leave(setup_mocks, monkeypatch):
         "pycoder.server.services.team_workspace.get_team_workspace_manager",
         lambda: fake_tw,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "team_ws", "subcommand": "leave", "member_id": "m1"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "team_ws", "subcommand": "leave", "member_id": "m1"}),
+        ]
+    )
     await websocket_chat(ws)
     fake_tw.leave_workspace.assert_called_once_with("m1")
 
@@ -925,9 +1032,11 @@ async def test_msg_team_ws_members(setup_mocks, monkeypatch):
         "pycoder.server.services.team_workspace.get_team_workspace_manager",
         lambda: fake_tw,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "team_ws", "subcommand": "members", "workspace_id": "w1"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "team_ws", "subcommand": "members", "workspace_id": "w1"}),
+        ]
+    )
     await websocket_chat(ws)
     result_msgs = [m for m in ws.sent if m.get("type") == "team_ws_result"]
     assert result_msgs[0]["members"] == [{"id": "m1"}]
@@ -941,17 +1050,32 @@ async def test_msg_team_ws_review_create(setup_mocks, monkeypatch):
         "pycoder.server.services.team_workspace.get_team_workspace_manager",
         lambda: fake_tw,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({
-            "type": "team_ws", "subcommand": "review_create",
-            "workspace_id": "w1", "title": "T", "requested_by": "alice",
-            "file_path": "x.py", "code_snippet": "code", "description": "desc",
-            "assigned_to": ["bob"],
-        }),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps(
+                {
+                    "type": "team_ws",
+                    "subcommand": "review_create",
+                    "workspace_id": "w1",
+                    "title": "T",
+                    "requested_by": "alice",
+                    "file_path": "x.py",
+                    "code_snippet": "code",
+                    "description": "desc",
+                    "assigned_to": ["bob"],
+                }
+            ),
+        ]
+    )
     await websocket_chat(ws)
     fake_tw.create_review_request.assert_called_once_with(
-        "w1", "T", "alice", "x.py", "code", "desc", ["bob"],
+        "w1",
+        "T",
+        "alice",
+        "x.py",
+        "code",
+        "desc",
+        ["bob"],
     )
 
 
@@ -963,12 +1087,18 @@ async def test_msg_team_ws_review_list(setup_mocks, monkeypatch):
         "pycoder.server.services.team_workspace.get_team_workspace_manager",
         lambda: fake_tw,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({
-            "type": "team_ws", "subcommand": "review_list",
-            "workspace_id": "w1", "status": "open",
-        }),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps(
+                {
+                    "type": "team_ws",
+                    "subcommand": "review_list",
+                    "workspace_id": "w1",
+                    "status": "open",
+                }
+            ),
+        ]
+    )
     await websocket_chat(ws)
     fake_tw.list_review_requests.assert_called_once_with("w1", "open")
     result_msgs = [m for m in ws.sent if m.get("type") == "team_ws_result"]
@@ -983,12 +1113,19 @@ async def test_msg_team_ws_review_comment(setup_mocks, monkeypatch):
         "pycoder.server.services.team_workspace.get_team_workspace_manager",
         lambda: fake_tw,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({
-            "type": "team_ws", "subcommand": "review_comment",
-            "review_id": "r1", "user": "alice", "comment": "ok",
-        }),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps(
+                {
+                    "type": "team_ws",
+                    "subcommand": "review_comment",
+                    "review_id": "r1",
+                    "user": "alice",
+                    "comment": "ok",
+                }
+            ),
+        ]
+    )
     await websocket_chat(ws)
     fake_tw.add_review_comment.assert_called_once_with("r1", "alice", "ok")
 
@@ -1001,12 +1138,18 @@ async def test_msg_team_ws_review_status(setup_mocks, monkeypatch):
         "pycoder.server.services.team_workspace.get_team_workspace_manager",
         lambda: fake_tw,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({
-            "type": "team_ws", "subcommand": "review_status",
-            "review_id": "r1", "status": "approved",
-        }),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps(
+                {
+                    "type": "team_ws",
+                    "subcommand": "review_status",
+                    "review_id": "r1",
+                    "status": "approved",
+                }
+            ),
+        ]
+    )
     await websocket_chat(ws)
     fake_tw.update_review_status.assert_called_once_with("r1", "approved")
 
@@ -1019,12 +1162,18 @@ async def test_msg_team_ws_activity(setup_mocks, monkeypatch):
         "pycoder.server.services.team_workspace.get_team_workspace_manager",
         lambda: fake_tw,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({
-            "type": "team_ws", "subcommand": "activity",
-            "workspace_id": "w1", "limit": 10,
-        }),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps(
+                {
+                    "type": "team_ws",
+                    "subcommand": "activity",
+                    "workspace_id": "w1",
+                    "limit": 10,
+                }
+            ),
+        ]
+    )
     await websocket_chat(ws)
     fake_tw.get_activity_feed.assert_called_once_with("w1", 10)
 
@@ -1037,24 +1186,36 @@ async def test_msg_team_ws_share_session(setup_mocks, monkeypatch):
         "pycoder.server.services.team_workspace.get_team_workspace_manager",
         lambda: fake_tw,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({
-            "type": "team_ws", "subcommand": "share_session",
-            "workspace_id": "w1", "session_id": "sess-1", "user_name": "alice",
-        }),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps(
+                {
+                    "type": "team_ws",
+                    "subcommand": "share_session",
+                    "workspace_id": "w1",
+                    "session_id": "sess-1",
+                    "user_name": "alice",
+                }
+            ),
+        ]
+    )
     await websocket_chat(ws)
     fake_tw.share_session.assert_called_once_with("w1", "sess-1", "alice")
 
 
 # ── cloud ──
 
+
 async def test_msg_cloud_register(setup_mocks):
     """cloud register 子命令"""
     setup_mocks["cloud_service"].register.return_value = {"success": True, "token": "t1"}
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "cloud", "subcommand": "register", "username": "u", "password": "p"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps(
+                {"type": "cloud", "subcommand": "register", "username": "u", "password": "p"}
+            ),
+        ]
+    )
     await websocket_chat(ws)
     setup_mocks["cloud_service"].register.assert_called_once_with("u", "p", "")
     result_msgs = [m for m in ws.sent if m.get("type") == "cloud_result"]
@@ -1063,9 +1224,11 @@ async def test_msg_cloud_register(setup_mocks):
 
 async def test_msg_cloud_unknown_subcmd(setup_mocks):
     """未知 cloud 子命令"""
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "cloud", "subcommand": "unknown"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "cloud", "subcommand": "unknown"}),
+        ]
+    )
     await websocket_chat(ws)
     errors = [m for m in ws.sent if m.get("type") == "error"]
     assert len(errors) == 1
@@ -1075,9 +1238,11 @@ async def test_msg_cloud_unknown_subcmd(setup_mocks):
 async def test_msg_cloud_login(setup_mocks):
     """cloud login 子命令"""
     setup_mocks["cloud_service"].login.return_value = {"success": True, "token": "t"}
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "cloud", "subcommand": "login", "username": "u", "password": "p"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "cloud", "subcommand": "login", "username": "u", "password": "p"}),
+        ]
+    )
     await websocket_chat(ws)
     setup_mocks["cloud_service"].login.assert_called_once_with("u", "p")
 
@@ -1085,9 +1250,11 @@ async def test_msg_cloud_login(setup_mocks):
 async def test_msg_cloud_user_info(setup_mocks):
     """cloud user_info 子命令"""
     setup_mocks["cloud_service"].get_user_info.return_value = {"username": "u"}
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "cloud", "subcommand": "user_info", "token": "t"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "cloud", "subcommand": "user_info", "token": "t"}),
+        ]
+    )
     await websocket_chat(ws)
     setup_mocks["cloud_service"].get_user_info.assert_called_once_with("t")
 
@@ -1095,9 +1262,11 @@ async def test_msg_cloud_user_info(setup_mocks):
 async def test_msg_cloud_check_quota(setup_mocks):
     """cloud check_quota 子命令"""
     setup_mocks["cloud_service"].check_quota.return_value = {"quota": 100}
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "cloud", "subcommand": "check_quota", "token": "t"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "cloud", "subcommand": "check_quota", "token": "t"}),
+        ]
+    )
     await websocket_chat(ws)
     setup_mocks["cloud_service"].check_quota.assert_called_once_with("t")
 
@@ -1105,9 +1274,11 @@ async def test_msg_cloud_check_quota(setup_mocks):
 async def test_msg_cloud_usage_history(setup_mocks):
     """cloud usage_history 子命令"""
     setup_mocks["cloud_service"].get_usage_history.return_value = {"days": 7}
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "cloud", "subcommand": "usage_history", "token": "t", "days": 7}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "cloud", "subcommand": "usage_history", "token": "t", "days": 7}),
+        ]
+    )
     await websocket_chat(ws)
     setup_mocks["cloud_service"].get_usage_history.assert_called_once_with("t", 7)
 
@@ -1115,12 +1286,20 @@ async def test_msg_cloud_usage_history(setup_mocks):
 async def test_msg_cloud_track_usage(setup_mocks):
     """cloud track_usage 子命令"""
     setup_mocks["cloud_service"].track_usage.return_value = {"ok": True}
-    ws = FakeWebSocket(messages=[
-        json.dumps({
-            "type": "cloud", "subcommand": "track_usage",
-            "token": "t", "model": "gpt", "tokens_in": 10, "tokens_out": 20,
-        }),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps(
+                {
+                    "type": "cloud",
+                    "subcommand": "track_usage",
+                    "token": "t",
+                    "model": "gpt",
+                    "tokens_in": 10,
+                    "tokens_out": 20,
+                }
+            ),
+        ]
+    )
     await websocket_chat(ws)
     setup_mocks["cloud_service"].track_usage.assert_called_once_with("t", "gpt", 10, 20)
 
@@ -1128,9 +1307,11 @@ async def test_msg_cloud_track_usage(setup_mocks):
 async def test_msg_cloud_plans(setup_mocks):
     """cloud plans 子命令"""
     setup_mocks["cloud_service"].get_plan_upgrade_info.return_value = [{"plan": "pro"}]
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "cloud", "subcommand": "plans"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "cloud", "subcommand": "plans"}),
+        ]
+    )
     await websocket_chat(ws)
     setup_mocks["cloud_service"].get_plan_upgrade_info.assert_called_once()
 
@@ -1138,9 +1319,11 @@ async def test_msg_cloud_plans(setup_mocks):
 async def test_msg_cloud_upgrade(setup_mocks):
     """cloud upgrade 子命令"""
     setup_mocks["cloud_service"].upgrade_plan.return_value = {"success": True}
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "cloud", "subcommand": "upgrade", "token": "t", "plan": "pro"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "cloud", "subcommand": "upgrade", "token": "t", "plan": "pro"}),
+        ]
+    )
     await websocket_chat(ws)
     setup_mocks["cloud_service"].upgrade_plan.assert_called_once_with("t", "pro")
 
@@ -1148,9 +1331,18 @@ async def test_msg_cloud_upgrade(setup_mocks):
 async def test_msg_cloud_add_key(setup_mocks):
     """cloud add_key 子命令"""
     setup_mocks["cloud_service"].add_api_key.return_value = {"ok": True}
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "cloud", "subcommand": "add_key", "provider": "openai", "api_key": "sk-xxx"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps(
+                {
+                    "type": "cloud",
+                    "subcommand": "add_key",
+                    "provider": "openai",
+                    "api_key": "sk-xxx",
+                }
+            ),
+        ]
+    )
     await websocket_chat(ws)
     setup_mocks["cloud_service"].add_api_key.assert_called_once_with("openai", "sk-xxx")
 
@@ -1158,9 +1350,11 @@ async def test_msg_cloud_add_key(setup_mocks):
 async def test_msg_cloud_list_keys(setup_mocks):
     """cloud list_keys 子命令"""
     setup_mocks["cloud_service"].list_api_keys.return_value = [{"provider": "openai"}]
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "cloud", "subcommand": "list_keys"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "cloud", "subcommand": "list_keys"}),
+        ]
+    )
     await websocket_chat(ws)
     setup_mocks["cloud_service"].list_api_keys.assert_called_once()
 
@@ -1169,16 +1363,20 @@ async def test_msg_regular_chat_with_shared_session(setup_mocks, monkeypatch):
     """普通聊天 + 共享会话: 完成后调用 share_mgr.broadcast"""
     # 先加入共享会话
     setup_mocks["share"].get_shared_sessions.return_value = 1
+
     async def fake_stream(*args, **kwargs):
         yield {"type": "done", "content": "final answer"}
+
     monkeypatch.setattr(
         "pycoder.server.ws_handler.chat_stream_fn",
         fake_stream,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "session_share_join", "share_session_id": "shared-1"}),
-        json.dumps({"type": "message", "message": "hi"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "session_share_join", "share_session_id": "shared-1"}),
+            json.dumps({"type": "message", "message": "hi"}),
+        ]
+    )
     await websocket_chat(ws)
     # broadcast 应被调用 (排除 client_id)
     setup_mocks["share"].broadcast.assert_awaited()
@@ -1188,6 +1386,7 @@ async def test_msg_regular_chat_with_shared_session(setup_mocks, monkeypatch):
 
 
 # ── 默认消息路径 (普通聊天) ──
+
 
 async def test_msg_empty_message_skipped(setup_mocks):
     """空消息被跳过"""
@@ -1215,9 +1414,11 @@ async def test_msg_regular_chat(setup_mocks, monkeypatch):
         "pycoder.server.ws_handler.chat_stream_fn",
         fake_stream,
     )
-    ws = FakeWebSocket(messages=[
-        json.dumps({"type": "message", "message": "hi", "model": "gpt-4"}),
-    ])
+    ws = FakeWebSocket(
+        messages=[
+            json.dumps({"type": "message", "message": "hi", "model": "gpt-4"}),
+        ]
+    )
     await websocket_chat(ws)
     chunk_msgs = [m for m in ws.sent if m.get("type") == "chunk"]
     done_msgs = [m for m in ws.sent if m.get("type") == "done"]
@@ -1230,6 +1431,7 @@ async def test_msg_regular_chat(setup_mocks, monkeypatch):
 
 
 # ── WebSocketDisconnect 处理 ──
+
 
 async def test_websocket_disconnect_handled(setup_mocks):
     """WebSocketDisconnect 异常被妥善处理, 不抛出"""
@@ -1244,9 +1446,11 @@ async def test_websocket_general_exception_handled(setup_mocks, monkeypatch):
 
     异常发生在主循环内 (ws.receive_text 抛 RuntimeError, 非 WebSocketDisconnect)
     """
+
     class ErrorWebSocket(FakeWebSocket):
         async def receive_text(self):
             raise RuntimeError("boom")
+
     # 接受连接后立即抛 RuntimeError
     ws = ErrorWebSocket(messages=[])
     await websocket_chat(ws)

@@ -18,13 +18,12 @@ from typing import Any
 import pytest
 
 from pycoder.brain.dag_scheduler import (
-    DAGScheduler,
-    DAGNode,
     DAGExecutor,
-    NodeStatus,
+    DAGNode,
+    DAGScheduler,
     ExecutorConfig,
+    NodeStatus,
 )
-
 
 # ──────────────────────────────────────────────
 # 辅助函数
@@ -217,9 +216,7 @@ class TestDAGExecution:
             exec_order.append("C")
             return "c_result"
 
-        executor = _make_executor(
-            {"A": handler_a, "B": handler_b, "C": handler_c}
-        )
+        executor = _make_executor({"A": handler_a, "B": handler_b, "C": handler_c})
         results = await dag.execute_dag(executor)
 
         assert exec_order == ["A", "B", "C"]
@@ -371,9 +368,7 @@ class TestDAGExecution:
         async def handler_c(node: DAGNode) -> str:
             return "should_not_run"
 
-        executor = _make_executor(
-            {"A": handler_a, "B": handler_b, "C": handler_c}
-        )
+        executor = _make_executor({"A": handler_a, "B": handler_b, "C": handler_c})
         _ = await dag.execute_dag(executor)
 
         # A 应成功
@@ -426,9 +421,7 @@ class TestStatusAndVisualize:
         async def handler(node: DAGNode) -> str:
             return f"{node.id}_result"
 
-        executor = _make_executor(
-            {"A": handler, "B": handler, "C": handler}
-        )
+        executor = _make_executor({"A": handler, "B": handler, "C": handler})
         await dag.execute_dag(executor)
 
         progress = dag.get_progress()
@@ -547,6 +540,7 @@ class TestDAGExecutorHandlers:
     def test_execute_parallel_empty(self) -> None:
         """并行执行空节点列表"""
         executor = DAGExecutor()
+
         # 同步调用 execute_parallel 需要事件循环
         async def _run():
             return await executor.execute_parallel([])

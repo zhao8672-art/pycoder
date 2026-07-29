@@ -6,6 +6,7 @@
 3. 无可变默认值（``list[str] = []`` 等反模式）
 4. Pydantic 请求模型字段定义正确
 """
+
 from __future__ import annotations
 
 import ast
@@ -14,10 +15,7 @@ from pathlib import Path
 
 import pytest
 
-GIT_ROUTER_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "pycoder" / "server" / "routers" / "git.py"
-)
+GIT_ROUTER_PATH = Path(__file__).resolve().parents[2] / "pycoder" / "server" / "routers" / "git.py"
 
 
 def _load_source() -> str:
@@ -110,9 +108,7 @@ class TestEndpointSignatures:
             # 检测函数签名中的 req: dict
             if "req: dict" in line and "def " in line:
                 violations.append(f"L{i}: {line.strip()}")
-        assert not violations, (
-            "H7: 以下端点仍使用 req: dict:\n" + "\n".join(violations)
-        )
+        assert not violations, "H7: 以下端点仍使用 req: dict:\n" + "\n".join(violations)
 
     def test_no_req_dict_get_pattern(self):
         """源码中不应出现 ``(req or {}).get(`` 或 ``req.get(`` 模式"""
@@ -121,10 +117,7 @@ class TestEndpointSignatures:
         # req.get( 仅在 req 是 dict 时有效，Pydantic 模型应用 req.field
         # 但 StashRequest 等可能有 .get 方法吗？不会，BaseModel 无 get
         # 排除注释中的说明
-        code_lines = [
-            line for line in source.splitlines()
-            if not line.strip().startswith("#")
-        ]
+        code_lines = [line for line in source.splitlines() if not line.strip().startswith("#")]
         code = "\n".join(code_lines)
         assert "req.get(" not in code, "H7: 仍有 req.get() 用法（应改为 req.field）"
 
@@ -152,9 +145,7 @@ class TestRunGitWrapper:
         source = inspect.getsource(
             __import__("pycoder.server.routers.git", fromlist=["_run_git"])._run_git
         )
-        assert "asyncio.to_thread" in source, (
-            "_run_git 应使用 asyncio.to_thread 包装同步 git 操作"
-        )
+        assert "asyncio.to_thread" in source, "_run_git 应使用 asyncio.to_thread 包装同步 git 操作"
 
     @pytest.mark.asyncio
     async def test_run_git_delegates_to_thread(self):
@@ -183,33 +174,33 @@ class TestNetworkOpsAsync:
     def test_push_uses_run_git(self):
         source = _load_source()
         # git_push 端点内应调用 _run_git(repo.git.push, ...)
-        assert "await _run_git(repo.git.push" in source, (
-            "git_push 应使用 _run_git 包装 repo.git.push"
-        )
+        assert (
+            "await _run_git(repo.git.push" in source
+        ), "git_push 应使用 _run_git 包装 repo.git.push"
 
     def test_pull_uses_run_git(self):
         source = _load_source()
-        assert "await _run_git(repo.git.pull" in source, (
-            "git_pull 应使用 _run_git 包装 repo.git.pull"
-        )
+        assert (
+            "await _run_git(repo.git.pull" in source
+        ), "git_pull 应使用 _run_git 包装 repo.git.pull"
 
     def test_fetch_uses_run_git(self):
         source = _load_source()
-        assert "await _run_git(repo.remotes[" in source, (
-            "fetch_remote 应使用 _run_git 包装 remotes[].fetch"
-        )
+        assert (
+            "await _run_git(repo.remotes[" in source
+        ), "fetch_remote 应使用 _run_git 包装 remotes[].fetch"
 
     def test_merge_uses_run_git(self):
         source = _load_source()
-        assert "await _run_git(repo.git.merge" in source, (
-            "merge_branch 应使用 _run_git 包装 repo.git.merge"
-        )
+        assert (
+            "await _run_git(repo.git.merge" in source
+        ), "merge_branch 应使用 _run_git 包装 repo.git.merge"
 
     def test_stash_uses_run_git(self):
         source = _load_source()
-        assert "await _run_git(repo.git.stash" in source, (
-            "git_stash 应使用 _run_git 包装 repo.git.stash"
-        )
+        assert (
+            "await _run_git(repo.git.stash" in source
+        ), "git_stash 应使用 _run_git 包装 repo.git.stash"
 
 
 # ══════════════════════════════════════════════════════════

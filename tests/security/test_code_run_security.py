@@ -7,15 +7,15 @@
 - 访问主进程变量
 - 通过死循环耗尽资源
 """
+
 from __future__ import annotations
-
-import pytest
-from fastapi.testclient import TestClient
-
 
 # 模块级禁用 API 认证（在 P0-4 实施前，'disabled' 字符串会被当作有效 API Key，
 # 因此直接覆盖模块变量 _API_KEY = ""，让中间件 dispatch 跳过认证逻辑）
 import sys  # noqa: E402
+
+from fastapi.testclient import TestClient
+
 import pycoder.server.app  # noqa: E402,F401  触发导入
 
 _app_module = sys.modules["pycoder.server.app"]
@@ -199,6 +199,6 @@ class TestCodeExecutorRemoved:
     def test_code_executor_module_removed(self):
         """code_executor.py 已被删除，导入应失败"""
         import importlib
+
         with __import__("pytest").raises(ImportError):
             importlib.import_module("pycoder.python.code_executor")
-

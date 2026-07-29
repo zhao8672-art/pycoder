@@ -1,9 +1,11 @@
 """workspace 模块测试"""
+
 from __future__ import annotations
 
 import pytest
-from pycoder.workspace.workspace_registry import WorkspaceRegistry, WorkspaceEntry, ShareLevel
+
 from pycoder.workspace.share_sandbox import ShareSandbox
+from pycoder.workspace.workspace_registry import ShareLevel, WorkspaceEntry, WorkspaceRegistry
 
 
 class TestWorkspaceRegistry:
@@ -30,11 +32,15 @@ class TestWorkspaceRegistry:
         assert len(registry.list_all()) == 2
 
     def test_list_accessible(self, registry):
-        registry.register(WorkspaceEntry(
-            id="ws1", path="/tmp/a", name="A",
-            share_level=ShareLevel.READ,
-            allowed_workspaces=["ws2"],
-        ))
+        registry.register(
+            WorkspaceEntry(
+                id="ws1",
+                path="/tmp/a",
+                name="A",
+                share_level=ShareLevel.READ,
+                allowed_workspaces=["ws2"],
+            )
+        )
         registry.register(WorkspaceEntry(id="ws2", path="/tmp/b", name="B"))
         accessible = registry.list_accessible("ws2")
         assert len(accessible) == 1
@@ -42,9 +48,7 @@ class TestWorkspaceRegistry:
 
     def test_set_share_policy(self, registry):
         registry.register(WorkspaceEntry(id="ws1", path="/tmp/a", name="A"))
-        registry.set_share_policy(
-            "ws1", ShareLevel.READ, ["ws2"], ["src/"]
-        )
+        registry.set_share_policy("ws1", ShareLevel.READ, ["ws2"], ["src/"])
         entry = registry.get("ws1")
         assert entry is not None
         assert entry.share_level == ShareLevel.READ
@@ -76,16 +80,24 @@ class TestShareSandbox:
         (ws_a / "src" / "main.py").write_text("print('hello from A')")
         (ws_b / "README.md").write_text("# Project B")
 
-        reg.register(WorkspaceEntry(
-            id="ws_a", path=str(ws_a), name="项目A",
-            share_level=ShareLevel.READ,
-            allowed_workspaces=["ws_b"],
-        ))
-        reg.register(WorkspaceEntry(
-            id="ws_b", path=str(ws_b), name="项目B",
-            share_level=ShareLevel.READ_WRITE,
-            allowed_workspaces=["ws_a"],
-        ))
+        reg.register(
+            WorkspaceEntry(
+                id="ws_a",
+                path=str(ws_a),
+                name="项目A",
+                share_level=ShareLevel.READ,
+                allowed_workspaces=["ws_b"],
+            )
+        )
+        reg.register(
+            WorkspaceEntry(
+                id="ws_b",
+                path=str(ws_b),
+                name="项目B",
+                share_level=ShareLevel.READ_WRITE,
+                allowed_workspaces=["ws_a"],
+            )
+        )
         return ShareSandbox(reg)
 
     def test_read_file_with_permission(self, sandbox):
@@ -93,9 +105,13 @@ class TestShareSandbox:
         assert "hello from A" in content
 
     def test_read_file_no_permission(self, sandbox, tmp_path):
-        sandbox._registry.register(WorkspaceEntry(
-            id="ws_c", path=str(tmp_path / "ws_c"), name="C",
-        ))
+        sandbox._registry.register(
+            WorkspaceEntry(
+                id="ws_c",
+                path=str(tmp_path / "ws_c"),
+                name="C",
+            )
+        )
         with pytest.raises(PermissionError):
             sandbox.read_file("ws_c", "ws_a", "src/main.py")
 
@@ -131,12 +147,16 @@ class TestShareSandbox:
         (ws_a / "secret").mkdir()
         (ws_a / "secret" / "key.txt").write_text("secret")
 
-        reg.register(WorkspaceEntry(
-            id="ws_a", path=str(ws_a), name="A",
-            share_level=ShareLevel.READ,
-            allowed_workspaces=["ws_b"],
-            shared_paths=["src/"],
-        ))
+        reg.register(
+            WorkspaceEntry(
+                id="ws_a",
+                path=str(ws_a),
+                name="A",
+                share_level=ShareLevel.READ,
+                allowed_workspaces=["ws_b"],
+                shared_paths=["src/"],
+            )
+        )
         reg.register(WorkspaceEntry(id="ws_b", path=str(tmp_path / "ws_b"), name="B"))
         sandbox = ShareSandbox(reg)
 

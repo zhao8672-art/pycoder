@@ -12,7 +12,7 @@ import logging
 import sys
 from typing import Any
 
-_logger = logging.getLogger('pycoder.gateway.adapters.cli')
+_logger = logging.getLogger("pycoder.gateway.adapters.cli")
 
 from pycoder.gateway import GatewayMessage, PlatformAdapter
 
@@ -68,8 +68,7 @@ class CLIAdapter(PlatformAdapter):
                 print("PyCoder CLI 网关已启动")
                 print("输入消息与 AI 对话，输入 /help 查看帮助，Ctrl+C 退出")
 
-        logger.info("CLI 适配器已启动 (prompt='%s', multiline=%s)",
-                    self._prompt, self._multiline)
+        logger.info("CLI 适配器已启动 (prompt='%s', multiline=%s)", self._prompt, self._multiline)
 
         # 启动异步输入循环
         self._input_task = asyncio.create_task(self._input_loop())
@@ -237,7 +236,7 @@ class CLIAdapter(PlatformAdapter):
             try:
                 self._console.print(f"[dim]{message}[/]")
                 return
-            except Exception as e:
+            except Exception:
                 _logger.warning("silently_swallowed: {err}", exc_info=False)
                 pass
         print(message)

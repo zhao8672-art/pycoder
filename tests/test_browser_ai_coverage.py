@@ -18,17 +18,17 @@
     - 直接调用 _call_ai 验证事件分支
     - TestClient 调用端点验证 HTTP 行为
 """
+
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pycoder.server.routers import browser_ai as browser_mod
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -189,6 +189,7 @@ class TestGetKey:
 class TestAnalyze:
     def test_analyze_with_errors_and_scripts(self, app_client, mock_get_key, monkeypatch):
         """带 errors + scripts + question → 包含错误行和脚本行"""
+
         async def fake_call_ai(sys_prompt, user_msg, model="deepseek-chat"):
             # 验证 user_msg 包含错误和脚本信息
             assert "JS 错误" in user_msg
@@ -198,29 +199,33 @@ class TestAnalyze:
 
         monkeypatch.setattr(browser_mod, "_call_ai", fake_call_ai)
 
-        resp = app_client.post("/api/browser/analyze", json={
-            "context": {
-                "url": "http://example.com",
-                "title": "测试页面",
-                "body_text": "页面内容",
-                "scripts": ["https://cdn.example.com/a.js"],
-                "errors": [
-                    {"type": "TypeError", "message": "x is undefined", "line": 10},
-                ],
-                "forms": 2,
-                "images": 5,
-                "links": 3,
-                "body_size": 2048,
+        resp = app_client.post(
+            "/api/browser/analyze",
+            json={
+                "context": {
+                    "url": "http://example.com",
+                    "title": "测试页面",
+                    "body_text": "页面内容",
+                    "scripts": ["https://cdn.example.com/a.js"],
+                    "errors": [
+                        {"type": "TypeError", "message": "x is undefined", "line": 10},
+                    ],
+                    "forms": 2,
+                    "images": 5,
+                    "links": 3,
+                    "body_size": 2048,
+                },
+                "question": "这个页面有什么问题？",
+                "model": "deepseek-chat",
             },
-            "question": "这个页面有什么问题？",
-            "model": "deepseek-chat",
-        })
+        )
         assert resp.status_code == 200
         assert resp.json()["success"] is True
         assert resp.json()["analysis"] == "AI 分析结果"
 
     def test_analyze_without_errors_scripts_question(self, app_client, mock_get_key, monkeypatch):
         """无 errors / 无 scripts / 无 question → 不含错误行和脚本行"""
+
         async def fake_call_ai(sys_prompt, user_msg, model="deepseek-chat"):
             assert "JS 错误" not in user_msg
             assert "外部脚本" not in user_msg
@@ -229,20 +234,24 @@ class TestAnalyze:
 
         monkeypatch.setattr(browser_mod, "_call_ai", fake_call_ai)
 
-        resp = app_client.post("/api/browser/analyze", json={
-            "context": {
-                "url": "http://example.com",
-                "title": "",
-                "body_text": "text",
-                "scripts": [],
-                "errors": [],
+        resp = app_client.post(
+            "/api/browser/analyze",
+            json={
+                "context": {
+                    "url": "http://example.com",
+                    "title": "",
+                    "body_text": "text",
+                    "scripts": [],
+                    "errors": [],
+                },
             },
-        })
+        )
         assert resp.status_code == 200
         assert resp.json()["analysis"] == "OK"
 
     def test_analyze_default_context(self, app_client, mock_get_key, monkeypatch):
         """不传 context → 使用默认 BrowserContext"""
+
         async def fake_call_ai(sys_prompt, user_msg, model="deepseek-chat"):
             return "default result"
 
@@ -254,6 +263,7 @@ class TestAnalyze:
 
     def test_analyze_exception(self, app_client, mock_get_key, monkeypatch):
         """_call_ai 抛异常 → 500 错误"""
+
         async def fake_call_ai(sys_prompt, user_msg, model="deepseek-chat"):
             raise RuntimeError("AI service down")
 
@@ -273,16 +283,20 @@ class TestDiagnose:
     def test_no_errors(self, app_client, mock_get_key, monkeypatch):
         """无错误 → 返回正常消息，不调用 AI"""
         called = []
+
         async def fake_call_ai(sys_prompt, user_msg, model="deepseek-chat"):
             called.append(True)
             return "should not be called"
 
         monkeypatch.setattr(browser_mod, "_call_ai", fake_call_ai)
 
-        resp = app_client.post("/api/browser/diagnose", json={
-            "errors": [],
-            "url": "http://example.com",
-        })
+        resp = app_client.post(
+            "/api/browser/diagnose",
+            json={
+                "errors": [],
+                "url": "http://example.com",
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["success"] is True
         assert "未检测到 JS 错误" in resp.json()["diagnosis"]
@@ -290,6 +304,7 @@ class TestDiagnose:
 
     def test_with_errors(self, app_client, mock_get_key, monkeypatch):
         """有错误 → 调用 AI 诊断"""
+
         async def fake_call_ai(sys_prompt, user_msg, model="deepseek-chat"):
             assert "TypeError" in user_msg
             assert "ReferenceError" in user_msg
@@ -297,26 +312,33 @@ class TestDiagnose:
 
         monkeypatch.setattr(browser_mod, "_call_ai", fake_call_ai)
 
-        resp = app_client.post("/api/browser/diagnose", json={
-            "errors": [
-                {"type": "TypeError", "message": "x is undefined", "line": 10},
-                {"type": "ReferenceError", "message": "y is not defined", "line": 20},
-            ],
-            "url": "http://example.com",
-        })
+        resp = app_client.post(
+            "/api/browser/diagnose",
+            json={
+                "errors": [
+                    {"type": "TypeError", "message": "x is undefined", "line": 10},
+                    {"type": "ReferenceError", "message": "y is not defined", "line": 20},
+                ],
+                "url": "http://example.com",
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["diagnosis"] == "诊断结果：修复代码..."
 
     def test_diagnose_exception(self, app_client, mock_get_key, monkeypatch):
         """_call_ai 抛异常 → 500"""
+
         async def fake_call_ai(sys_prompt, user_msg, model="deepseek-chat"):
             raise RuntimeError("AI crash")
 
         monkeypatch.setattr(browser_mod, "_call_ai", fake_call_ai)
 
-        resp = app_client.post("/api/browser/diagnose", json={
-            "errors": [{"type": "Error", "message": "boom", "line": 1}],
-        })
+        resp = app_client.post(
+            "/api/browser/diagnose",
+            json={
+                "errors": [{"type": "Error", "message": "boom", "line": 1}],
+            },
+        )
         assert resp.status_code == 500
         assert "诊断失败" in resp.json()["detail"]
 
@@ -329,10 +351,13 @@ class TestDiagnose:
 class TestBrowserAction:
     def test_navigate(self, app_client):
         """navigate → 返回导航 IPC"""
-        resp = app_client.post("/api/browser/action", json={
-            "action": "navigate",
-            "url": "https://docs.python.org/3/",
-        })
+        resp = app_client.post(
+            "/api/browser/action",
+            json={
+                "action": "navigate",
+                "url": "https://docs.python.org/3/",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -342,10 +367,13 @@ class TestBrowserAction:
 
     def test_exec_js(self, app_client):
         """exec-js → 返回执行 JS IPC"""
-        resp = app_client.post("/api/browser/action", json={
-            "action": "exec-js",
-            "code": "document.title = 'hello'",
-        })
+        resp = app_client.post(
+            "/api/browser/action",
+            json={
+                "action": "exec-js",
+                "code": "document.title = 'hello'",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["action"] == "exec-js"
@@ -354,9 +382,12 @@ class TestBrowserAction:
 
     def test_reload(self, app_client):
         """reload → 返回刷新 IPC"""
-        resp = app_client.post("/api/browser/action", json={
-            "action": "reload",
-        })
+        resp = app_client.post(
+            "/api/browser/action",
+            json={
+                "action": "reload",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["action"] == "reload"
@@ -364,9 +395,12 @@ class TestBrowserAction:
 
     def test_screenshot(self, app_client):
         """screenshot → 返回截图 IPC"""
-        resp = app_client.post("/api/browser/action", json={
-            "action": "screenshot",
-        })
+        resp = app_client.post(
+            "/api/browser/action",
+            json={
+                "action": "screenshot",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["action"] == "screenshot"
@@ -374,9 +408,12 @@ class TestBrowserAction:
 
     def test_unknown_action(self, app_client):
         """未知 action → 400 错误"""
-        resp = app_client.post("/api/browser/action", json={
-            "action": "unknown-cmd",
-        })
+        resp = app_client.post(
+            "/api/browser/action",
+            json={
+                "action": "unknown-cmd",
+            },
+        )
         assert resp.status_code == 400
         assert "未知操作" in resp.json()["detail"]
 

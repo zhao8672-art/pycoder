@@ -161,20 +161,24 @@ class TestTaskState:
         """从 SQLite Row 构造"""
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
-        conn.execute(
-            """CREATE TABLE task_states (
+        conn.execute("""CREATE TABLE task_states (
                 task_id TEXT, description TEXT, status TEXT, grade TEXT,
                 created_at REAL, updated_at REAL, completed_at REAL,
                 steps_completed INTEGER, current_step TEXT,
                 checkpoint_data TEXT, result TEXT, error TEXT
-            )"""
-        )
+            )""")
         conn.execute(
             "INSERT INTO task_states VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                "task-row", "行测试", "pending", "MEDIUM",
-                1000.0, 2000.0, None,
-                3, "步骤二",
+                "task-row",
+                "行测试",
+                "pending",
+                "MEDIUM",
+                1000.0,
+                2000.0,
+                None,
+                3,
+                "步骤二",
                 json.dumps({"ck": "v"}),
                 json.dumps({"r": "ok"}),
                 "",
@@ -232,9 +236,7 @@ class TestTaskPersistenceInit:
         await p._ensure_initialized()
 
         conn = sqlite3.connect(str(temp_db))
-        indexes = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='index'"
-        ).fetchall()
+        indexes = conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
         conn.close()
         assert len(indexes) >= 4  # 4 个索引
 
@@ -329,15 +331,9 @@ class TestListTasks:
 
     async def test_list_tasks_by_status(self, persistence: TaskPersistence) -> None:
         """按状态过滤任务"""
-        await persistence.save_task(
-            _make_task_state("task-s1", status="pending")
-        )
-        await persistence.save_task(
-            _make_task_state("task-s2", status="running")
-        )
-        await persistence.save_task(
-            _make_task_state("task-s3", status="completed")
-        )
+        await persistence.save_task(_make_task_state("task-s1", status="pending"))
+        await persistence.save_task(_make_task_state("task-s2", status="running"))
+        await persistence.save_task(_make_task_state("task-s3", status="completed"))
 
         pending = await persistence.list_tasks(status_filter="pending")
         assert len(pending) == 1
@@ -359,19 +355,11 @@ class TestListTasks:
 
     async def test_list_tasks_by_status_and_grade(self, persistence: TaskPersistence) -> None:
         """按状态和级别同时过滤"""
-        await persistence.save_task(
-            _make_task_state("task-sg1", status="pending", grade="LIGHT")
-        )
-        await persistence.save_task(
-            _make_task_state("task-sg2", status="running", grade="LIGHT")
-        )
-        await persistence.save_task(
-            _make_task_state("task-sg3", status="pending", grade="HEAVY")
-        )
+        await persistence.save_task(_make_task_state("task-sg1", status="pending", grade="LIGHT"))
+        await persistence.save_task(_make_task_state("task-sg2", status="running", grade="LIGHT"))
+        await persistence.save_task(_make_task_state("task-sg3", status="pending", grade="HEAVY"))
 
-        result = await persistence.list_tasks(
-            status_filter="pending", grade_filter="LIGHT"
-        )
+        result = await persistence.list_tasks(status_filter="pending", grade_filter="LIGHT")
         assert len(result) == 1
         assert result[0].task_id == "task-sg1"
 
@@ -435,9 +423,7 @@ class TestCheckpoint:
 
     async def test_create_checkpoint(self, persistence: TaskPersistence) -> None:
         """创建断点"""
-        await persistence.save_task(
-            _make_task_state("task-ck-1", status="running")
-        )
+        await persistence.save_task(_make_task_state("task-ck-1", status="running"))
 
         checkpoint_data = {"step": 3, "context": {"var": "value"}}
         task = await persistence.create_checkpoint(
@@ -527,8 +513,7 @@ class TestAutoRestore:
         conn = sqlite3.connect(str(persistence._db_path))
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
-            "SELECT * FROM task_states WHERE status = 'paused' "
-            "ORDER BY updated_at DESC LIMIT 50"
+            "SELECT * FROM task_states WHERE status = 'paused' " "ORDER BY updated_at DESC LIMIT 50"
         ).fetchall()
         conn.close()
 
@@ -537,15 +522,11 @@ class TestAutoRestore:
 
     async def test_auto_restore_no_paused_tasks(self, persistence: TaskPersistence) -> None:
         """没有暂停任务时返回空列表"""
-        await persistence.save_task(
-            _make_task_state("task-active", status="running")
-        )
+        await persistence.save_task(_make_task_state("task-active", status="running"))
 
         conn = sqlite3.connect(str(persistence._db_path))
         conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            "SELECT * FROM task_states WHERE status = 'paused'"
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM task_states WHERE status = 'paused'").fetchall()
         conn.close()
 
         assert len(rows) == 0
@@ -564,15 +545,9 @@ class TestCleanupExpired:
         old_time = time.time() - 60 * 86400  # 60 天前
 
         # 保存任务后手动将 updated_at 改为旧时间（save_task 会覆盖 updated_at）
-        await persistence.save_task(
-            _make_task_state("task-old-1", status="failed")
-        )
-        await persistence.save_task(
-            _make_task_state("task-old-2", status="failed")
-        )
-        await persistence.save_task(
-            _make_task_state("task-recent", status="failed")
-        )
+        await persistence.save_task(_make_task_state("task-old-1", status="failed"))
+        await persistence.save_task(_make_task_state("task-old-2", status="failed"))
+        await persistence.save_task(_make_task_state("task-recent", status="failed"))
 
         # 直接修改数据库中的时间戳
         conn = sqlite3.connect(str(persistence._db_path))
@@ -604,9 +579,7 @@ class TestCleanupExpired:
 
     async def test_cleanup_no_expired_tasks(self, persistence: TaskPersistence) -> None:
         """没有过期任务时清理返回 0"""
-        await persistence.save_task(
-            _make_task_state("task-new", status="failed")
-        )
+        await persistence.save_task(_make_task_state("task-new", status="failed"))
 
         deleted = await persistence.cleanup_expired(max_age_days=30)
         assert deleted == 0
@@ -622,15 +595,9 @@ class TestGetRunningTasks:
 
     async def test_get_running_tasks(self, persistence: TaskPersistence) -> None:
         """获取运行中任务"""
-        await persistence.save_task(
-            _make_task_state("task-r1", status="running")
-        )
-        await persistence.save_task(
-            _make_task_state("task-r2", status="running")
-        )
-        await persistence.save_task(
-            _make_task_state("task-p1", status="pending")
-        )
+        await persistence.save_task(_make_task_state("task-r1", status="running"))
+        await persistence.save_task(_make_task_state("task-r2", status="running"))
+        await persistence.save_task(_make_task_state("task-p1", status="pending"))
 
         running = await persistence.get_running_tasks()
         assert len(running) == 2
@@ -640,9 +607,7 @@ class TestGetRunningTasks:
 
     async def test_get_running_tasks_empty(self, persistence: TaskPersistence) -> None:
         """没有运行中任务时返回空列表"""
-        await persistence.save_task(
-            _make_task_state("task-done", status="completed")
-        )
+        await persistence.save_task(_make_task_state("task-done", status="completed"))
 
         running = await persistence.get_running_tasks()
         assert running == []
@@ -666,16 +631,10 @@ class TestStats:
 
     async def test_get_stats_with_tasks(self, persistence: TaskPersistence) -> None:
         """有任务时的统计"""
+        await persistence.save_task(_make_task_state("task-st1", status="pending", grade="LIGHT"))
+        await persistence.save_task(_make_task_state("task-st2", status="running", grade="MEDIUM"))
         await persistence.save_task(
-            _make_task_state("task-st1", status="pending", grade="LIGHT")
-        )
-        await persistence.save_task(
-            _make_task_state("task-st2", status="running", grade="MEDIUM")
-        )
-        await persistence.save_task(
-            _make_task_state(
-                "task-st3", status="completed", grade="HEAVY", steps_completed=10
-            )
+            _make_task_state("task-st3", status="completed", grade="HEAVY", steps_completed=10)
         )
 
         stats = persistence.get_stats()
@@ -690,9 +649,7 @@ class TestStats:
 
     async def test_get_stats_async(self, persistence: TaskPersistence) -> None:
         """异步统计信息"""
-        await persistence.save_task(
-            _make_task_state("task-async-stats")
-        )
+        await persistence.save_task(_make_task_state("task-async-stats"))
 
         stats = await persistence.get_stats_async()
         assert stats["total"] == 1
@@ -719,7 +676,9 @@ class TestErrorHandling:
         result = await persistence.load_task("does-not-exist")
         assert result is None
 
-    async def test_delete_nonexistent_task_returns_false(self, persistence: TaskPersistence) -> None:
+    async def test_delete_nonexistent_task_returns_false(
+        self, persistence: TaskPersistence
+    ) -> None:
         """删除不存在的任务返回 False"""
         result = await persistence.delete_task("does-not-exist")
         assert result is False
@@ -771,6 +730,7 @@ class TestConcurrency:
 
     async def test_concurrent_saves(self, persistence: TaskPersistence) -> None:
         """并发保存任务"""
+
         async def save_task(i: int) -> TaskState:
             task = _make_task_state(f"task-conc-{i}")
             return await persistence.save_task(task)
@@ -799,7 +759,10 @@ class TestConcurrency:
                 await persistence.save_task(task)
 
         results = await asyncio.gather(
-            load_task(), load_task(), update_task(), load_task(),
+            load_task(),
+            load_task(),
+            update_task(),
+            load_task(),
         )
         # 所有加载操作应成功
         for r in results:

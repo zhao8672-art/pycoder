@@ -48,8 +48,8 @@ def make_github_request(
     Returns:
         JSON 响应（dict 或 list），失败返回 None
     """
-    import urllib.request
     import urllib.error
+    import urllib.request
 
     token = _get_github_token()
     headers = {"Accept": "application/vnd.github.v3+json"}
@@ -58,6 +58,7 @@ def make_github_request(
 
     if params:
         from urllib.parse import urlencode
+
         url = f"{url}?{urlencode(params)}"
 
     max_retries = 3
@@ -68,7 +69,7 @@ def make_github_request(
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             if e.code == 403 and "rate limit" in str(e).lower():
-                wait = 2 ** attempt
+                wait = 2**attempt
                 log.warning(f"GitHub API 速率限制，{wait}s 后重试")
                 time.sleep(wait)
                 continue
@@ -77,6 +78,6 @@ def make_github_request(
         except Exception as e:
             log.error(f"GitHub API 请求失败: {e}")
             if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)
+                time.sleep(2**attempt)
             return None
     return None

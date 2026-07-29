@@ -32,7 +32,6 @@ import os
 import re
 import subprocess as _subprocess
 import sys
-import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -41,7 +40,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 # BUG-005 修复：导入命令/路径注入过滤
-from pycoder.core.security import sanitize_path, sanitize_shell_command
 
 logger = logging.getLogger(__name__)
 

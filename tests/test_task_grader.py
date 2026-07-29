@@ -8,7 +8,6 @@ from pycoder.core.services.task_grader import (
     GRADE_CONFIG,
     SCORE_THRESHOLDS,
     GradeLevel,
-    TaskGrade,
     TaskGrader,
 )
 
@@ -60,7 +59,12 @@ class TestTaskGrader:
         result = grader.assess(
             "migrate the entire distributed microservice architecture "
             "to Kubernetes with enterprise deployment pipeline",
-            context={"files": 15, "dependencies": 8, "domain": "architecture", "scope": "architecture"},
+            context={
+                "files": 15,
+                "dependencies": 8,
+                "domain": "architecture",
+                "scope": "architecture",
+            },
         )
         assert result.level == GradeLevel.HEAVY
         assert 30 <= result.max_iterations <= 120
@@ -95,7 +99,12 @@ class TestTaskGrader:
         """架构类任务 + 上下文 → HEAVY"""
         result = grader.assess(
             "重构整个微服务架构，设计新的分布式系统架构",
-            context={"files": 20, "dependencies": 10, "domain": "architecture", "scope": "architecture"},
+            context={
+                "files": 20,
+                "dependencies": 10,
+                "domain": "architecture",
+                "scope": "architecture",
+            },
         )
         assert result.level == GradeLevel.HEAVY
 
@@ -215,16 +224,12 @@ class TestTaskGrader:
 
     def test_score_dep_complexity(self, grader: TaskGrader) -> None:
         """依赖复杂度评分"""
-        score = grader._score_dep_complexity(
-            "集成 Redis 和 Kafka 消息队列", {"dependencies": 4}
-        )
+        score = grader._score_dep_complexity("集成 Redis 和 Kafka 消息队列", {"dependencies": 4})
         assert score >= 30
 
     def test_score_domain_expertise(self, grader: TaskGrader) -> None:
         """领域专业性评分"""
-        score = grader._score_domain_expertise(
-            "使用 PyTorch 训练深度学习模型", {}
-        )
+        score = grader._score_domain_expertise("使用 PyTorch 训练深度学习模型", {})
         assert score >= 50  # machine_learning 领域
 
     def test_score_change_scope(self, grader: TaskGrader) -> None:
@@ -234,9 +239,7 @@ class TestTaskGrader:
 
     def test_score_constraints(self, grader: TaskGrader) -> None:
         """约束条件评分"""
-        score = grader._score_constraints(
-            "高性能 低延迟 高并发 安全 加密", {}
-        )
+        score = grader._score_constraints("高性能 低延迟 高并发 安全 加密", {})
         assert score >= 50
 
     # ── GradeLevel 枚举测试 ──

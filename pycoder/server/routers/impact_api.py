@@ -10,6 +10,7 @@
 - GET  /api/impact/export/dot  - 导出 Graphviz DOT
 - GET  /api/impact/export/json - 导出 JSON
 """
+
 from __future__ import annotations
 
 import logging
@@ -151,9 +152,7 @@ async def list_symbols(file: str = "") -> dict:
 async def find_callers(req: SymbolQueryRequest) -> CallerResponse:
     """查询调用指定符号的所有引用点"""
     analyzer = get_analyzer()
-    refs = analyzer.find_callers(
-        name=req.name, file=req.file, qualname=req.qualname
-    )
+    refs = analyzer.find_callers(name=req.name, file=req.file, qualname=req.qualname)
     return CallerResponse(
         target=req.qualname or req.name,
         file=req.file,
@@ -166,9 +165,7 @@ async def find_callers(req: SymbolQueryRequest) -> CallerResponse:
 async def find_callees(req: SymbolQueryRequest) -> CallerResponse:
     """查询指定符号内部调用的下游符号"""
     analyzer = get_analyzer()
-    refs = analyzer.find_callees(
-        name=req.name, file=req.file, qualname=req.qualname
-    )
+    refs = analyzer.find_callees(name=req.name, file=req.file, qualname=req.qualname)
     return CallerResponse(
         target=req.qualname or req.name,
         file=req.file,

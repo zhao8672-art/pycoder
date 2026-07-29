@@ -16,13 +16,13 @@
 
 目标覆盖率：42.6% → 85%+
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
 import subprocess
-import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException
@@ -39,9 +39,7 @@ from pycoder.server.routers.code_exec import (
     CodeExecResponse,
     ExecutionResult,
     PipInstallRequest,
-    PipInstallResponse,
     SandboxConfig,
-    SandboxConfigResponse,
     _run_in_subprocess,
     _sandbox_config,
     execute_code,
@@ -52,7 +50,6 @@ from pycoder.server.routers.code_exec import (
     scan_banned_imports,
     update_sandbox_config,
 )
-
 
 # ══════════════════════════════════════════════════════════
 # SandboxConfig 测试
@@ -89,8 +86,10 @@ class TestSandboxConfig:
     def test_custom_values(self):
         """自定义值"""
         cfg = SandboxConfig(
-            default_timeout=60, max_timeout=1200,
-            allow_network=True, allow_multithreading=True,
+            default_timeout=60,
+            max_timeout=1200,
+            allow_network=True,
+            allow_multithreading=True,
         )
         assert cfg.default_timeout == 60
         assert cfg.max_timeout == 1200
@@ -163,7 +162,7 @@ class TestPreScanCode:
     def test_scan_patterns_defined(self):
         """SCAN_PATTERNS 已定义且非空"""
         assert len(SCAN_PATTERNS) > 0
-        for pattern, label in SCAN_PATTERNS:
+        for _pattern, label in SCAN_PATTERNS:
             assert isinstance(label, str)
             assert label
 
@@ -247,7 +246,9 @@ class TestExecutionResult:
     def test_custom_values(self):
         """自定义值"""
         r = ExecutionResult(
-            success=True, stdout="hello", stderr="",
+            success=True,
+            stdout="hello",
+            stderr="",
             execution_time=0.5,
         )
         assert r.success is True
@@ -311,9 +312,7 @@ class TestRunInSubprocess:
 
     def test_stdout_captured(self):
         """stdout 被捕获"""
-        result = _run_in_subprocess(
-            "print('line1')\nprint('line2')", timeout=10
-        )
+        result = _run_in_subprocess("print('line1')\nprint('line2')", timeout=10)
         assert result.success is True
         assert "line1" in result.stdout
         assert "line2" in result.stdout
@@ -333,6 +332,7 @@ class TestRunInSubprocess:
 
     def test_subprocess_exception_handled(self, monkeypatch):
         """子进程异常被捕获"""
+
         def raise_exception(*args, **kwargs):
             raise OSError("subprocess failed")
 
@@ -343,6 +343,7 @@ class TestRunInSubprocess:
 
     def test_timeout_expired_handled(self, monkeypatch):
         """TimeoutExpired 异常被捕获"""
+
         def raise_timeout(*args, **kwargs):
             raise subprocess.TimeoutExpired(cmd=["python"], timeout=5)
 
@@ -403,11 +404,21 @@ class TestRunInSubprocess:
     def test_stderr_captured(self, monkeypatch):
         """stderr 被捕获"""
         mock_proc = MagicMock()
-        mock_proc.stdout = b"__SANDBOX_RESULT__" + json.dumps({
-            "success": True, "stdout": "", "stderr": "stderr msg",
-            "error_type": "", "error_message": "", "traceback": "",
-            "execution_time": 0.1,
-        }).encode() + b"__SANDBOX_END__"
+        mock_proc.stdout = (
+            b"__SANDBOX_RESULT__"
+            + json.dumps(
+                {
+                    "success": True,
+                    "stdout": "",
+                    "stderr": "stderr msg",
+                    "error_type": "",
+                    "error_message": "",
+                    "traceback": "",
+                    "execution_time": 0.1,
+                }
+            ).encode()
+            + b"__SANDBOX_END__"
+        )
         mock_proc.stderr = b""
         mock_proc.returncode = 0
 
@@ -484,10 +495,12 @@ class TestUpdateSandboxConfig:
     @pytest.mark.asyncio
     async def test_update_multiple_fields(self):
         """同时更新多个字段"""
-        result = await update_sandbox_config({
-            "default_timeout": 45,
-            "max_output_length": 5000,
-        })
+        result = await update_sandbox_config(
+            {
+                "default_timeout": 45,
+                "max_output_length": 5000,
+            }
+        )
         assert result.config["default_timeout"] == 45
         assert result.config["max_output_length"] == 5000
         assert "2 个" in result.message or "2" in result.message
@@ -570,12 +583,11 @@ class TestExecuteCode:
         # 用 mock 避免真实执行
         mock_result = ExecutionResult(success=True, stdout="ok", execution_time=0.1)
         monkeypatch.setattr(
-            code_exec_mod, "_run_in_subprocess",
+            code_exec_mod,
+            "_run_in_subprocess",
             lambda code, timeout: mock_result,
         )
-        req = CodeExecRequest(
-            code="print('x')", timeout=300, long_running=True
-        )
+        req = CodeExecRequest(code="print('x')", timeout=300, long_running=True)
         result = await execute_code(req)
         assert result.success is True
 
@@ -634,7 +646,8 @@ class TestInstallPackages:
         mock_proc.returncode = 0
         mock_proc.communicate = AsyncMock(return_value=(b"", b""))
         monkeypatch.setattr(
-            asyncio, "create_subprocess_exec",
+            asyncio,
+            "create_subprocess_exec",
             AsyncMock(return_value=mock_proc),
         )
         result = await install_packages(req)
@@ -649,7 +662,8 @@ class TestInstallPackages:
         mock_proc.returncode = 0
         mock_proc.communicate = AsyncMock(return_value=(b"Successfully installed", b""))
         monkeypatch.setattr(
-            asyncio, "create_subprocess_exec",
+            asyncio,
+            "create_subprocess_exec",
             AsyncMock(return_value=mock_proc),
         )
         result = await install_packages(req)
@@ -667,7 +681,8 @@ class TestInstallPackages:
             return_value=(b"", b"ERROR: Could not find package"),
         )
         monkeypatch.setattr(
-            asyncio, "create_subprocess_exec",
+            asyncio,
+            "create_subprocess_exec",
             AsyncMock(return_value=mock_proc),
         )
         result = await install_packages(req)
@@ -681,12 +696,13 @@ class TestInstallPackages:
         req = PipInstallRequest(packages=["slow_pkg"])
         mock_proc = AsyncMock()
         mock_proc.returncode = 0
-        mock_proc.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+        mock_proc.communicate = AsyncMock(side_effect=TimeoutError())
         # kill 是同步方法，用 MagicMock 避免协程未 await warning
         mock_proc.kill = MagicMock()
         mock_proc.wait = AsyncMock()
         monkeypatch.setattr(
-            asyncio, "create_subprocess_exec",
+            asyncio,
+            "create_subprocess_exec",
             AsyncMock(return_value=mock_proc),
         )
         result = await install_packages(req)
@@ -724,7 +740,8 @@ class TestInstallPackages:
         mock_proc.returncode = 0
         mock_proc.communicate = AsyncMock(return_value=(b"", b""))
         monkeypatch.setattr(
-            asyncio, "create_subprocess_exec",
+            asyncio,
+            "create_subprocess_exec",
             AsyncMock(return_value=mock_proc),
         )
         result = await install_packages(req)
@@ -796,7 +813,10 @@ class TestCodeExecRequest:
     def test_custom_values(self):
         """自定义值"""
         req = CodeExecRequest(
-            code="print('x')", timeout=60, long_running=True, memory_mb=1024,
+            code="print('x')",
+            timeout=60,
+            long_running=True,
+            memory_mb=1024,
         )
         assert req.timeout == 60
         assert req.long_running is True
@@ -809,7 +829,9 @@ class TestCodeExecResponse:
     def test_construction(self):
         """构造"""
         resp = CodeExecResponse(
-            success=True, stdout="hello", execution_time=0.5,
+            success=True,
+            stdout="hello",
+            execution_time=0.5,
         )
         assert resp.success is True
         assert resp.stdout == "hello"

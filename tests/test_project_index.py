@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from pycoder.io.project_index import (
     FileSummary,
@@ -64,8 +65,7 @@ class TestProjectIndex:
         (tmp_path / "utils").mkdir()
         (tmp_path / "utils" / "__init__.py").write_text("", encoding="utf-8")
         (tmp_path / "utils" / "helper.py").write_text(
-            "def helper_func():\n"
-            "    return 42\n",
+            "def helper_func():\n" "    return 42\n",
             encoding="utf-8",
         )
         # 创建配置文件
@@ -85,7 +85,9 @@ class TestProjectIndex:
     def test_scan_project(self, indexer: ProjectIndex, sample_project: Path) -> None:
         """测试扫描项目"""
         count = indexer.scan_project(sample_project)
-        assert count >= 5  # app.py, utils/__init__.py, utils/helper.py, pyproject.toml, requirements.txt
+        assert (
+            count >= 5
+        )  # app.py, utils/__init__.py, utils/helper.py, pyproject.toml, requirements.txt
         # __pycache__ 应被忽略
         assert all("__pycache__" not in p for p in indexer._index)
 

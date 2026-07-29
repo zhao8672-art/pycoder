@@ -13,9 +13,8 @@
   - 通过 monkeypatch 在 httpx.AsyncClient 创建时注入 transport
   - 测试各 retry 分支: 成功一次/失败重试/全部失败抛异常
 """
-from __future__ import annotations
 
-from unittest.mock import MagicMock
+from __future__ import annotations
 
 import httpx
 import pytest
@@ -27,8 +26,8 @@ from pycoder.net.client import (
     create_httpx_client,
 )
 
-
 # ── 辅助: 用 MockTransport 替换 httpx.AsyncClient ─────────
+
 
 def _patch_async_client_with_transport(monkeypatch, transport):
     """让 httpx.AsyncClient 自动使用给定的 transport"""
@@ -49,6 +48,7 @@ def _make_transport(handler):
 # ══════════════════════════════════════════════════════════
 # HTTPClient: 构造 / 上下文管理
 # ══════════════════════════════════════════════════════════
+
 
 class TestHTTPClientInit:
     def test_defaults(self):
@@ -123,6 +123,7 @@ class TestHTTPClientInit:
 # HTTPClient: request
 # ══════════════════════════════════════════════════════════
 
+
 class TestRequest:
     async def test_success_no_raise(self, monkeypatch):
         """成功响应 + 不 raise_for_status → 直接返回"""
@@ -145,8 +146,10 @@ class TestRequest:
 
     async def test_raise_for_status_4xx_raises(self, monkeypatch):
         """4xx 响应 + raise_for_status=True → 抛 HTTPStatusError"""
+
         def handler(req: httpx.Request) -> httpx.Response:
             return httpx.Response(404, text="not found")
+
         transport = _make_transport(handler)
         _patch_async_client_with_transport(monkeypatch, transport)
 
@@ -163,18 +166,22 @@ class TestRequest:
     async def test_retry_succeeds_after_failure(self, monkeypatch):
         """第一次失败 + 第二次成功 → 返回成功响应"""
         call_count = [0]
+
         def handler(req: httpx.Request) -> httpx.Response:
             call_count[0] += 1
             if call_count[0] == 1:
                 raise httpx.ConnectError("conn failed")
             return httpx.Response(200, text="ok")
+
         transport = _make_transport(handler)
         _patch_async_client_with_transport(monkeypatch, transport)
 
         # mock anyio.sleep 避免真实等待
         import anyio
+
         async def fake_sleep(seconds):
             return
+
         monkeypatch.setattr(anyio, "sleep", fake_sleep)
 
         async with HTTPClient(max_retries=2) as c:
@@ -184,14 +191,18 @@ class TestRequest:
 
     async def test_retry_exhausted_raises(self, monkeypatch):
         """所有重试都失败 → 抛最后一个异常"""
+
         def handler(req: httpx.Request) -> httpx.Response:
             raise httpx.ConnectError("conn failed")
+
         transport = _make_transport(handler)
         _patch_async_client_with_transport(monkeypatch, transport)
 
         import anyio
+
         async def fake_sleep(seconds):
             return
+
         monkeypatch.setattr(anyio, "sleep", fake_sleep)
 
         async with HTTPClient(max_retries=2) as c:
@@ -201,17 +212,21 @@ class TestRequest:
     async def test_transport_error_retried(self, monkeypatch):
         """TransportError 也触发重试"""
         call_count = [0]
+
         def handler(req: httpx.Request) -> httpx.Response:
             call_count[0] += 1
             if call_count[0] == 1:
                 raise httpx.TransportError("network err")
             return httpx.Response(200)
+
         transport = _make_transport(handler)
         _patch_async_client_with_transport(monkeypatch, transport)
 
         import anyio
+
         async def fake_sleep(seconds):
             return
+
         monkeypatch.setattr(anyio, "sleep", fake_sleep)
 
         async with HTTPClient(max_retries=1) as c:
@@ -221,9 +236,11 @@ class TestRequest:
     async def test_zero_retries(self, monkeypatch):
         """max_retries=0 → 只调用一次，失败立即抛"""
         call_count = [0]
+
         def handler(req: httpx.Request) -> httpx.Response:
             call_count[0] += 1
             raise httpx.ConnectError("conn failed")
+
         transport = _make_transport(handler)
         _patch_async_client_with_transport(monkeypatch, transport)
 
@@ -235,17 +252,20 @@ class TestRequest:
     async def test_kwargs_passed_to_request(self, monkeypatch):
         """额外的 kwargs 应传给 httpx"""
         captured = {}
+
         def handler(req: httpx.Request) -> httpx.Response:
             captured["url"] = str(req.url)
             captured["method"] = req.method
             captured["headers"] = dict(req.headers)
             return httpx.Response(200)
+
         transport = _make_transport(handler)
         _patch_async_client_with_transport(monkeypatch, transport)
 
         async with HTTPClient() as c:
             await c.request(
-                "POST", "http://test/x",
+                "POST",
+                "http://test/x",
                 json={"key": "val"},
                 headers={"X-Test": "1"},
             )
@@ -270,12 +290,15 @@ class TestRequest:
 # HTTPClient: get / post / delete
 # ══════════════════════════════════════════════════════════
 
+
 class TestVerbMethods:
     async def test_get(self, monkeypatch):
         captured = {}
+
         def handler(req: httpx.Request) -> httpx.Response:
             captured["method"] = req.method
             return httpx.Response(200, json={"data": "ok"})
+
         transport = _make_transport(handler)
         _patch_async_client_with_transport(monkeypatch, transport)
 
@@ -286,9 +309,11 @@ class TestVerbMethods:
 
     async def test_post(self, monkeypatch):
         captured = {}
+
         def handler(req: httpx.Request) -> httpx.Response:
             captured["method"] = req.method
             return httpx.Response(201)
+
         transport = _make_transport(handler)
         _patch_async_client_with_transport(monkeypatch, transport)
 
@@ -299,9 +324,11 @@ class TestVerbMethods:
 
     async def test_delete(self, monkeypatch):
         captured = {}
+
         def handler(req: httpx.Request) -> httpx.Response:
             captured["method"] = req.method
             return httpx.Response(204)
+
         transport = _make_transport(handler)
         _patch_async_client_with_transport(monkeypatch, transport)
 
@@ -314,6 +341,7 @@ class TestVerbMethods:
 # ══════════════════════════════════════════════════════════
 # HTTPClient: stream / get_json
 # ══════════════════════════════════════════════════════════
+
 
 class TestStreamAndGetJson:
     async def test_stream_returns_response(self, monkeypatch):
@@ -334,9 +362,7 @@ class TestStreamAndGetJson:
             c.stream("GET", "http://test/x")
 
     async def test_get_json_success(self, monkeypatch):
-        transport = _make_transport(
-            lambda req: httpx.Response(200, json={"key": "value"})
-        )
+        transport = _make_transport(lambda req: httpx.Response(200, json={"key": "value"}))
         _patch_async_client_with_transport(monkeypatch, transport)
 
         async with HTTPClient() as c:
@@ -356,6 +382,7 @@ class TestStreamAndGetJson:
 # ══════════════════════════════════════════════════════════
 # 工厂函数
 # ══════════════════════════════════════════════════════════
+
 
 class TestFactoryFunctions:
     def test_create_httpx_client_defaults(self):
@@ -398,6 +425,7 @@ class TestFactoryFunctions:
 # ══════════════════════════════════════════════════════════
 # 异常别名
 # ══════════════════════════════════════════════════════════
+
 
 class TestExceptionAliases:
     def test_exception_aliases(self):

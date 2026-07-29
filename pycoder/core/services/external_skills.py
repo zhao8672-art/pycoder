@@ -12,8 +12,6 @@ from collections.abc import Callable
 from typing import Any
 
 from pycoder.core.services.log import log
-from pycoder.core.services.net import make_github_request
-
 
 # ── 技能采集器注册 ──────────────────────────────
 

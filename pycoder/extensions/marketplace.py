@@ -348,9 +348,7 @@ async def _fetch_pypi_popular(client) -> tuple[list[dict], float]:
                         "name": pkg,
                         "description": (info.get("summary", "") or "")[:200],
                         "author": info.get("author", info.get("maintainer", "unknown")),
-                        "stars": (
-                            (info.get("downloads", {}) or {}).get("releases", 0) or 0
-                        )
+                        "stars": ((info.get("downloads", {}) or {}).get("releases", 0) or 0)
                         // 1000,
                         "url": info.get("package_url", f"https://pypi.org/project/{pkg}/"),
                         "category": "pypi",
@@ -470,7 +468,8 @@ async def _fetch_awesome_python_tools(client) -> tuple[list[dict], float]:
     all_exts: list[dict] = []
     for query in queries:
         result = await _github_request_with_retry(
-            client, "https://api.github.com/search/repositories", query)
+            client, "https://api.github.com/search/repositories", query
+        )
         for r in (result or {}).get("items", []):
             ext = _gh_repo_to_extension(r)
             if ext["id"] not in seen_ids:
@@ -553,7 +552,9 @@ async def search_extensions(
         use_cache = True
         log.info(
             "marketplace_cache_hit total=%d external=%d stale=%s",
-            len(all_extensions), len(external_exts), _is_cache_stale(cache),
+            len(all_extensions),
+            len(external_exts),
+            _is_cache_stale(cache),
         )
     else:
         # 无缓存 — 先尝试实时拉取（最多等 15s），失败则返回种子

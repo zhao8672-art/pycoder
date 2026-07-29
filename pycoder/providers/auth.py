@@ -169,7 +169,9 @@ class ModelManager:
                 os.environ[env_key] = key
                 logger.info(
                     "bootstrap_key provider=%s prefix=%s...%s",
-                    provider, key[:12], key[-4:],
+                    provider,
+                    key[:12],
+                    key[-4:],
                 )
 
         # 加载失效 Key 列表
@@ -247,8 +249,9 @@ class ModelManager:
         验证 API Key 是否有效。
         向模型 API 发送一个极小的请求来检查。
         """
-        import httpx
         import socket
+
+        import httpx
 
         defs = PROVIDER_DEFS.get(provider)
         if not defs:
@@ -258,24 +261,30 @@ class ModelManager:
             api_base = ALL_MODELS[defs["recommended_model"]].api_base
             # 1. 先做 DNS 解析检查，域名不可达时立即失败（避免长超时）
             from urllib.parse import urlparse
+
             parsed = urlparse(api_base)
             host = parsed.hostname
             port = parsed.port or (443 if parsed.scheme == "https" else 80)
             try:
                 socket.create_connection((host, port), timeout=3.0).close()
-            except (OSError, socket.gaierror, socket.timeout) as e:
+            except (TimeoutError, OSError, socket.gaierror) as e:
                 logger.warning(
                     "api_key_validate_dns_failed provider=%s host=%s error=%s",
-                    provider, host, e,
+                    provider,
+                    host,
+                    e,
                 )
                 return False
 
             # 2. DNS 可达，再发实际请求（用 5s 短超时）
-            async with httpx.AsyncClient(timeout=5.0, headers={"User-Agent": "PyCoder/1.0"}) as client:
+            async with httpx.AsyncClient(
+                timeout=5.0, headers={"User-Agent": "PyCoder/1.0"}
+            ) as client:
                 resp = await client.post(
                     (
                         f"{api_base}/chat/completions"
-                        if provider in ("deepseek", "qwen", "openai", "openrouter", "agnes", "nvidia", "glm")
+                        if provider
+                        in ("deepseek", "qwen", "openai", "openrouter", "agnes", "nvidia", "glm")
                         else f"{api_base}/chat/completions"
                     ),
                     headers={
@@ -365,8 +374,9 @@ class ModelManager:
         if key:
             ModelManager._blocked_keys.add(key)
             self._validated[provider] = False
-            logger.warning("key_marked_invalid provider=%s prefix=%s...%s",
-                provider, key[:12], key[-4:])
+            logger.warning(
+                "key_marked_invalid provider=%s prefix=%s...%s", provider, key[:12], key[-4:]
+            )
             config = _load_config()
             if "blocked_keys" not in config:
                 config["blocked_keys"] = []
@@ -429,7 +439,9 @@ class ModelManager:
     def load_model_preference(self) -> str:
         """读取用户保存的模型偏好"""
         config = _load_config()
-        return config.get("selected_model", "") or config.get("provider", {}).get("default_model", "")
+        return config.get("selected_model", "") or config.get("provider", {}).get(
+            "default_model", ""
+        )
 
     def save_custom_api_base(self, model_id: str, api_base: str) -> dict:
         """保存自定义 API Base URL（允许用户覆写任意模型的 API 端点）"""
@@ -481,9 +493,7 @@ class ModelManager:
                 key = self._detected[provider]
                 if key in ModelManager._blocked_keys:
                     continue
-                available.append(
-                    (defs["priority"], provider, defs["recommended_model"])
-                )
+                available.append((defs["priority"], provider, defs["recommended_model"]))
 
         if not available:
             return (DEFAULT_FREE_MODEL, "deepseek")

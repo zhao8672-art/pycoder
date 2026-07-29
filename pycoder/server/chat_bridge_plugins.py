@@ -146,10 +146,7 @@ async def rumination_mid_execute(
     except (ImportError, RuntimeError, ValueError, TypeError):
         return RuminationResult(
             deviation_score=0.0,
-            correction_msg=(
-                "🔍 反思: 操作结果是否符合预期？"
-                "如有偏差请纠正，如已完成请停止。"
-            ),
+            correction_msg=("🔍 反思: 操作结果是否符合预期？" "如有偏差请纠正，如已完成请停止。"),
             should_continue=True,
         )
 
@@ -217,7 +214,8 @@ def format_hallucination_warning(score: float, recommendations: list[str]) -> st
     """格式化幻觉抑制警告"""
     recs = recommendations[:3] if recommendations else []
     return "\n\n⚠️ **可信度评级**: {}/100 | {}\n".format(
-        int(score), ", ".join(recs),
+        int(score),
+        ", ".join(recs),
     )
 
 
@@ -235,10 +233,11 @@ def maybe_annotate_tool_result(
     if len(result_str) <= 100:
         return result_str
     try:
+        import asyncio
+
         from pycoder.server.services.hallucination_guard import (
             get_hallucination_guard,
         )
-        import asyncio
 
         guard = get_hallucination_guard()
         loop = asyncio.get_event_loop()
@@ -289,7 +288,7 @@ async def live_learner_observe(
         learner = get_live_learner()
         await learner.observe(
             task=task[:200],
-            result=dict(success=success, rounds=rounds, mode=mode),
+            result={"success": success, "rounds": rounds, "mode": mode},
         )
         return True
     except (ImportError, RuntimeError, ValueError, TypeError):
@@ -374,9 +373,7 @@ async def self_heal_after_write(
         else:
             err = str(exec_result.output)[:300]
             logger.warning("syntax_error path=%s err=%s", file_path, err[:100])
-            await yield_event(
-                f"❌ {file_path} 语法错误:\n{err}\n🔧 请立即修复并重新写入\n"
-            )
+            await yield_event(f"❌ {file_path} 语法错误:\n{err}\n🔧 请立即修复并重新写入\n")
             record_project_error(f"语法错误 {file_path}: {err[:80]}")
             record_project_fix_attempt(file_path)
     except (ImportError, RuntimeError, ValueError, TypeError):
@@ -413,14 +410,14 @@ async def self_heal_after_write(
 
                     fixer = AutoFixer(max_retries=1)
                     fix_result = await fixer.validate_and_fix(
-                        file_path, auto_fix=False,
+                        file_path,
+                        auto_fix=False,
                     )
                     if fix_result.status == "verified":
                         await yield_event("🔧 AutoFixer 验证通过\n")
                     else:
                         await yield_event(
-                            f"⚠️ AutoFixer: {fix_result.status}"
-                            f" ({fix_result.error_type})\n"
+                            f"⚠️ AutoFixer: {fix_result.status}" f" ({fix_result.error_type})\n"
                         )
                 except (ImportError, RuntimeError, ValueError, TypeError) as e:
                     logger.debug("autofixer_skip error=%s", e)
@@ -458,8 +455,7 @@ async def analyze_after_write(
                     lines.append(f"  L{issue.line}: {issue.message}")
             if lines:
                 await yield_event(
-                    f"🔍 分析 {file_path}: {len(issues)} 问题\n"
-                    + "\n".join(lines[:3]) + "\n"
+                    f"🔍 分析 {file_path}: {len(issues)} 问题\n" + "\n".join(lines[:3]) + "\n"
                 )
     except (ImportError, RuntimeError, ValueError, TypeError, AttributeError):
         pass

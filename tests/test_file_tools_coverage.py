@@ -10,6 +10,7 @@
 
 测试策略：通过 mock register_fn 捕获 handler，使用 tmp_path 隔离工作区。
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -18,10 +19,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pycoder.server.mcp.file_tools as file_tools_mod
 import pycoder.server.routers.files as files_mod
 from pycoder.server.mcp.file_tools import register_all
-
 
 # ══════════════════════════════════════════════════════════
 # Fixtures
@@ -85,18 +84,14 @@ class TestRegisterAll:
 
 class TestWriteFile:
     async def test_write_success(self, captured_handlers, isolated_workspace):
-        result = await captured_handlers["write_file"](
-            {"path": "new.txt", "content": "hello"}
-        )
+        result = await captured_handlers["write_file"]({"path": "new.txt", "content": "hello"})
         assert result["success"] is True
         assert result["path"] == "new.txt"
         assert result["size"] == 5
         assert (isolated_workspace / "new.txt").read_text(encoding="utf-8") == "hello"
 
     async def test_write_creates_parent_dirs(self, captured_handlers, isolated_workspace):
-        result = await captured_handlers["write_file"](
-            {"path": "a/b/c/file.txt", "content": "x"}
-        )
+        result = await captured_handlers["write_file"]({"path": "a/b/c/file.txt", "content": "x"})
         assert result["success"] is True
         assert (isolated_workspace / "a/b/c/file.txt").exists()
 
@@ -118,9 +113,7 @@ class TestWriteFile:
         assert "路径穿越" in result["error"]
 
     async def test_write_unicode_content(self, captured_handlers, isolated_workspace):
-        result = await captured_handlers["write_file"](
-            {"path": "cn.txt", "content": "你好世界"}
-        )
+        result = await captured_handlers["write_file"]({"path": "cn.txt", "content": "你好世界"})
         assert result["success"] is True
         # UTF-8 编码：每个汉字 3 字节，4 字 = 12 字节
         assert result["size"] == 12
@@ -128,16 +121,12 @@ class TestWriteFile:
     async def test_write_to_existing_directory_raises(self, captured_handlers, isolated_workspace):
         """写入已存在的目录路径应触发异常分支"""
         (isolated_workspace / "mydir").mkdir()
-        result = await captured_handlers["write_file"](
-            {"path": "mydir", "content": "x"}
-        )
+        result = await captured_handlers["write_file"]({"path": "mydir", "content": "x"})
         assert result["success"] is False
         assert "error" in result
 
     async def test_write_message_format(self, captured_handlers, isolated_workspace):
-        result = await captured_handlers["write_file"](
-            {"path": "f.txt", "content": "abc"}
-        )
+        result = await captured_handlers["write_file"]({"path": "f.txt", "content": "abc"})
         assert "已写入" in result["message"]
         assert "f.txt" in result["message"]
 
@@ -320,16 +309,12 @@ class TestRunTerminal:
             raise subprocess.TimeoutExpired(cmd="x", timeout=1)
 
         monkeypatch.setattr(subprocess, "run", raise_timeout)
-        result = await captured_handlers["run_terminal"](
-            {"command": "sleep 100", "timeout": 1}
-        )
+        result = await captured_handlers["run_terminal"]({"command": "sleep 100", "timeout": 1})
         assert result["success"] is False
         assert "超时" in result["error"]
         assert result["exit_code"] == -1
 
-    async def test_run_with_explicit_cwd(
-        self, captured_handlers, isolated_workspace, monkeypatch
-    ):
+    async def test_run_with_explicit_cwd(self, captured_handlers, isolated_workspace, monkeypatch):
         captured_kwargs: dict = {}
         mock_proc = MagicMock(returncode=0, stdout="", stderr="")
 
@@ -338,9 +323,7 @@ class TestRunTerminal:
             return mock_proc
 
         monkeypatch.setattr(subprocess, "run", fake_run)
-        result = await captured_handlers["run_terminal"](
-            {"command": "ls", "cwd": "/tmp"}
-        )
+        result = await captured_handlers["run_terminal"]({"command": "ls", "cwd": "/tmp"})
         assert result["success"] is True
         assert captured_kwargs["cwd"] == "/tmp"
         assert result["cwd"] == "/tmp"
@@ -373,9 +356,7 @@ class TestRunTerminal:
         assert len(result["stdout"]) == 8000
         assert len(result["stderr"]) == 4000
 
-    async def test_run_general_exception(
-        self, captured_handlers, isolated_workspace, monkeypatch
-    ):
+    async def test_run_general_exception(self, captured_handlers, isolated_workspace, monkeypatch):
         def raise_exc(*a, **k):
             raise OSError("disk full")
 

@@ -7,11 +7,9 @@
   - 完整 run() 流程测试用 monkeypatch 替换所有外部依赖
   - subprocess / shutil 用 monkeypatch mock
 """
+
 from __future__ import annotations
 
-import asyncio
-import json
-import os
 import shutil
 import subprocess
 import time
@@ -24,9 +22,9 @@ import pytest
 from pycoder.server.services import autonomous_pipeline as ap
 from pycoder.server.services.autonomous_pipeline import (
     ALLOWED_COMMANDS,
-    AutonomousPipeline,
     MAX_AGENT_ITERATIONS,
     MAX_FIX_ROUNDS,
+    AutonomousPipeline,
     PipelineRun,
     PipelineStatus,
     StepResult,
@@ -37,16 +35,15 @@ from pycoder.server.services.autonomous_pipeline import (
     _is_completion_signal,
     _parse_code_blocks,
     _parse_files_from_response,
-    _parse_tool_calls,
     _record_pipeline_learning,
     _write_extracted_files,
     get_pipeline,
 )
 
-
 # ══════════════════════════════════════════════════════════
 # 辅助：mock registry.resolve
 # ══════════════════════════════════════════════════════════
+
 
 def _mock_registry_resolve(monkeypatch):
     """Mock registry.resolve 返回模拟 LLM 对象"""
@@ -64,8 +61,10 @@ def _mock_registry_resolve(monkeypatch):
 # 辅助：FakeChatBridge
 # ══════════════════════════════════════════════════════════
 
+
 class FakeChatEvent:
     """模拟 ChatEvent"""
+
     def __init__(self, event_type, content=""):
         self.event_type = event_type
         self.content = content
@@ -88,10 +87,16 @@ class FakeChatBridge:
         self._events_per_call = events_per_call or []
         self._call_index = 0
         self.config = SimpleNamespace(
-            system_prompt="", max_tokens=16384, enable_cache=True,
-            model="test-model", api_key="test-key", temperature=0.7,
-            api_base="http://test", max_history_messages=0,
-            enable_thinking=False, reasoning_effort="medium",
+            system_prompt="",
+            max_tokens=16384,
+            enable_cache=True,
+            model="test-model",
+            api_key="test-key",
+            temperature=0.7,
+            api_base="http://test",
+            max_history_messages=0,
+            enable_thinking=False,
+            reasoning_effort="medium",
         )
         self._messages = []
         self.added_messages = []
@@ -110,13 +115,17 @@ class FakeChatBridge:
 
     async def chat_stream(self, message):
         if self._events_per_call:
-            events = (self._events_per_call[self._call_index]
-                      if self._call_index < len(self._events_per_call)
-                      else [{"type": "done", "content": "完成"}])
+            events = (
+                self._events_per_call[self._call_index]
+                if self._call_index < len(self._events_per_call)
+                else [{"type": "done", "content": "完成"}]
+            )
         else:
-            content = (self._responses[self._call_index]
-                       if self._call_index < len(self._responses)
-                       else "完成")
+            content = (
+                self._responses[self._call_index]
+                if self._call_index < len(self._responses)
+                else "完成"
+            )
             events = [{"type": "done", "content": content}]
         self._call_index += 1
 
@@ -140,6 +149,7 @@ class FakeChatBridge:
 # 1. 纯函数测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestParseFilesFromResponse:
     """_parse_files_from_response: FILE:...```END 格式"""
 
@@ -151,10 +161,7 @@ class TestParseFilesFromResponse:
         assert 'print("hello")' in files[0]["content"]
 
     def test_multiple_files(self):
-        text = (
-            '```FILE:a.py\nx = 1\n```END\n'
-            '```FILE:b.py\ny = 2\n```END'
-        )
+        text = "```FILE:a.py\nx = 1\n```END\n" "```FILE:b.py\ny = 2\n```END"
         files = _parse_files_from_response(text)
         assert len(files) == 2
         assert files[0]["path"] == "a.py"
@@ -169,46 +176,43 @@ class TestParseCodeBlocks:
     """_parse_code_blocks: 多种格式"""
 
     def test_format1_lang_path(self):
-        text = '```python:src/app.py\nx = 1\n```'
+        text = "```python:src/app.py\nx = 1\n```"
         files = _parse_code_blocks(text)
         assert len(files) == 1
         assert files[0]["path"] == "src/app.py"
         assert "x = 1" in files[0]["content"]
 
     def test_format2_file_header(self):
-        text = '# 文件: app.py\n```python\nx = 1\n```'
+        text = "# 文件: app.py\n```python\nx = 1\n```"
         files = _parse_code_blocks(text)
         assert len(files) == 1
         assert files[0]["path"] == "app.py"
 
     def test_format2_file_header_english(self):
-        text = '# file: app.py\n```python\nx = 1\n```'
+        text = "# file: app.py\n```python\nx = 1\n```"
         files = _parse_code_blocks(text)
         assert len(files) == 1
 
     def test_format3_write_tag(self):
-        text = '[WRITE app.py]\n```python\nx = 1\n```'
+        text = "[WRITE app.py]\n```python\nx = 1\n```"
         files = _parse_code_blocks(text)
         assert len(files) == 1
         assert files[0]["path"] == "app.py"
 
     def test_format4_create_header(self):
-        text = '## 创建文件: app.py\n```python\nx = 1\n```'
+        text = "## 创建文件: app.py\n```python\nx = 1\n```"
         files = _parse_code_blocks(text)
         assert len(files) == 1
         assert files[0]["path"] == "app.py"
 
     def test_format4_generate_header(self):
-        text = '### 生成: mod.py\n```python\nx = 1\n```'
+        text = "### 生成: mod.py\n```python\nx = 1\n```"
         files = _parse_code_blocks(text)
         assert len(files) == 1
 
     def test_deduplication(self):
         """同一文件路径出现多次只保留第一次"""
-        text = (
-            '```python:app.py\nx = 1\n```\n'
-            '# 文件: app.py\n```python\ny = 2\n```'
-        )
+        text = "```python:app.py\nx = 1\n```\n" "# 文件: app.py\n```python\ny = 2\n```"
         files = _parse_code_blocks(text)
         # 第一次格式1匹配，第二次格式2因为路径相同被跳过
         assert len(files) == 1
@@ -222,10 +226,7 @@ class TestExtractAllFiles:
     """_extract_all_files: 组合解析"""
 
     def test_combines_both_parsers(self):
-        text = (
-            '```FILE:a.py\nx = 1\n```END\n'
-            '```python:b.py\ny = 2\n```'
-        )
+        text = "```FILE:a.py\nx = 1\n```END\n" "```python:b.py\ny = 2\n```"
         files = _extract_all_files(text)
         assert len(files) == 2
         paths = {f["path"] for f in files}
@@ -234,10 +235,7 @@ class TestExtractAllFiles:
 
     def test_deduplication(self):
         """同一路径在两种格式中都出现时去重"""
-        text = (
-            '```FILE:app.py\nx = 1\n```END\n'
-            '```python:app.py\ny = 2\n```'
-        )
+        text = "```FILE:app.py\nx = 1\n```END\n" "```python:app.py\ny = 2\n```"
         files = _extract_all_files(text)
         assert len(files) == 1
 
@@ -371,6 +369,7 @@ class TestRecordPipelineLearning:
 # 2. 数据模型测试（补充）
 # ══════════════════════════════════════════════════════════
 
+
 class TestDataModels:
     def test_step_result_duration_zero(self):
         s = StepResult(name="x")
@@ -426,6 +425,7 @@ class TestDataModels:
 # 3. _agent_loop 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestAgentLoop:
     async def test_immediate_completion(self, tmp_path):
         """LLM 立即回复 '完成'"""
@@ -439,10 +439,12 @@ class TestAgentLoop:
 
     async def test_completion_with_code_blocks(self, tmp_path):
         """LLM 输出代码块后回复 '完成'"""
-        bridge = FakeChatBridge(responses=[
-            '```python:app.py\nprint("hello")\n```',
-            "完成",
-        ])
+        bridge = FakeChatBridge(
+            responses=[
+                '```python:app.py\nprint("hello")\n```',
+                "完成",
+            ]
+        )
         text, files = await _agent_loop(bridge, "task", "sys", tmp_path)
         assert "app.py" in files
         assert (tmp_path / "app.py").exists()
@@ -450,10 +452,12 @@ class TestAgentLoop:
 
     async def test_completion_with_file_blocks(self, tmp_path):
         """LLM 输出 FILE:...```END 块"""
-        bridge = FakeChatBridge(responses=[
-            '```FILE:mod.py\nx = 42\n```END',
-            "完成",
-        ])
+        bridge = FakeChatBridge(
+            responses=[
+                "```FILE:mod.py\nx = 42\n```END",
+                "完成",
+            ]
+        )
         text, files = await _agent_loop(bridge, "task", "sys", tmp_path)
         assert "mod.py" in files
         assert (tmp_path / "mod.py").exists()
@@ -467,46 +471,74 @@ class TestAgentLoop:
 
     async def test_token_then_done(self, tmp_path):
         """LLM 输出 token 流然后 done"""
-        bridge = FakeChatBridge(events_per_call=[[
-            {"type": "token", "content": "完"},
-            {"type": "token", "content": "成"},
-            {"type": "done", "content": "完成"},
-        ]])
+        bridge = FakeChatBridge(
+            events_per_call=[
+                [
+                    {"type": "token", "content": "完"},
+                    {"type": "token", "content": "成"},
+                    {"type": "done", "content": "完成"},
+                ]
+            ]
+        )
         text, files = await _agent_loop(bridge, "task", "sys", tmp_path)
         assert text == "完成"
 
     async def test_tool_calls(self, tmp_path, monkeypatch):
         """LLM 输出 JSON 工具调用"""
+
         # Mock _execute_agent_tool
         async def fake_exec(tool_name, params, workspace):
             return f"tool result: {tool_name}"
+
         monkeypatch.setattr(ap, "_execute_agent_tool", fake_exec)
         # Mock _parse_tool_calls
-        monkeypatch.setattr(ap, "_parse_tool_calls", lambda text: [
-            {"name": "list_files", "params": {"path": "."}},
-        ] if "list_files" in text else [])
+        monkeypatch.setattr(
+            ap,
+            "_parse_tool_calls",
+            lambda text: (
+                [
+                    {"name": "list_files", "params": {"path": "."}},
+                ]
+                if "list_files" in text
+                else []
+            ),
+        )
 
-        bridge = FakeChatBridge(responses=[
-            '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}',
-            "完成",
-        ])
+        bridge = FakeChatBridge(
+            responses=[
+                '{"tool_calls": [{"name": "list_files", "params": {"path": "."}}]}',
+                "完成",
+            ]
+        )
         text, files = await _agent_loop(bridge, "task", "sys", tmp_path)
         # 应执行工具后继续
         assert any("list_files" in m["content"] for m in bridge.added_messages)
 
     async def test_write_file_tool_appends_to_files(self, tmp_path, monkeypatch):
         """write_file 工具调用会记录到 files 列表"""
+
         async def fake_exec(tool_name, params, workspace):
             return "written"
-        monkeypatch.setattr(ap, "_execute_agent_tool", fake_exec)
-        monkeypatch.setattr(ap, "_parse_tool_calls", lambda text: [
-            {"name": "write_file", "params": {"path": "new.py", "content": "x"}},
-        ] if "write_file" in text else [])
 
-        bridge = FakeChatBridge(responses=[
-            '{"tool_calls": [{"name": "write_file", "params": {"path": "new.py", "content": "x"}}]}',
-            "完成",
-        ])
+        monkeypatch.setattr(ap, "_execute_agent_tool", fake_exec)
+        monkeypatch.setattr(
+            ap,
+            "_parse_tool_calls",
+            lambda text: (
+                [
+                    {"name": "write_file", "params": {"path": "new.py", "content": "x"}},
+                ]
+                if "write_file" in text
+                else []
+            ),
+        )
+
+        bridge = FakeChatBridge(
+            responses=[
+                '{"tool_calls": [{"name": "write_file", "params": {"path": "new.py", "content": "x"}}]}',
+                "完成",
+            ]
+        )
         _, files = await _agent_loop(bridge, "task", "sys", tmp_path)
         assert "new.py" in files
 
@@ -515,25 +547,33 @@ class TestAgentLoop:
         # 每次返回非完成文本，无工具调用，无代码块
         bridge = FakeChatBridge(responses=["继续"] * 30)
         text, files = await _agent_loop(
-            bridge, "task", "sys", tmp_path, max_iterations=3,
+            bridge,
+            "task",
+            "sys",
+            tmp_path,
+            max_iterations=3,
         )
         # 3 次后退出
         assert bridge._call_index == 3
 
     async def test_no_tool_no_file_continues(self, tmp_path):
         """LLM 既无工具调用也无代码块 → 继续循环"""
-        bridge = FakeChatBridge(responses=[
-            "just thinking about the task",
-            "完成",
-        ])
+        bridge = FakeChatBridge(
+            responses=[
+                "just thinking about the task",
+                "完成",
+            ]
+        )
         text, files = await _agent_loop(bridge, "task", "sys", tmp_path)
         assert text == "完成"
 
     async def test_final_files_extraction(self, tmp_path):
         """最后一次响应中的代码块也会被提取"""
-        bridge = FakeChatBridge(responses=[
-            '```python:final.py\nx = 1\n```',
-        ])
+        bridge = FakeChatBridge(
+            responses=[
+                "```python:final.py\nx = 1\n```",
+            ]
+        )
         # 第一次响应就匹配完成信号？不，它不匹配
         # 但 _is_completion_signal 对 "```python:final.py\nx = 1\n```" 返回 False
         # 所以会进入 tool_calls / files 分支，写入文件后继续
@@ -546,6 +586,7 @@ class TestAgentLoop:
 # ══════════════════════════════════════════════════════════
 # 4. _step_decompose 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestStepDecompose:
     async def test_no_api_key_uses_fallback(self, tmp_path, monkeypatch):
@@ -570,11 +611,19 @@ class TestStepDecompose:
         from pycoder.server.services.agent_definitions import AgentTask
 
         fake_tasks = [
-            AgentTask(id="t1", title="task1", description="d1",
-                      assigned_role="developer", depends_on=[], deliverables=["a.py"]),
+            AgentTask(
+                id="t1",
+                title="task1",
+                description="d1",
+                assigned_role="developer",
+                depends_on=[],
+                deliverables=["a.py"],
+            ),
         ]
+
         async def fake_decompose(req, bridge):
             return fake_tasks
+
         monkeypatch.setattr(td_mod, "decompose_task", fake_decompose)
         # Mock registry.resolve 返回模拟 LLM 对象
         mock_llm = MagicMock()
@@ -595,12 +644,12 @@ class TestStepDecompose:
 
         async def boom(req, bridge):
             raise RuntimeError("LLM error")
+
         monkeypatch.setattr(td_mod, "decompose_task", boom)
         mock_llm = MagicMock()
         mock_llm.configure = MagicMock()
         mock_llm.close = AsyncMock()
         monkeypatch.setattr(ap.registry, "resolve", lambda *args, **kwargs: mock_llm)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="test-key")
         run = PipelineRun(request="做一个博客系统", work_dir=str(tmp_path))
@@ -612,11 +661,14 @@ class TestStepDecompose:
     async def test_import_error(self, tmp_path, monkeypatch):
         """task_decomposer 模块导入失败"""
         import builtins
+
         orig_import = builtins.__import__
+
         def fake_import(name, *args, **kwargs):
             if "task_decomposer" in name:
                 raise ImportError("no module")
             return orig_import(name, *args, **kwargs)
+
         monkeypatch.setattr(builtins, "__import__", fake_import)
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="")
@@ -629,6 +681,7 @@ class TestStepDecompose:
 # ══════════════════════════════════════════════════════════
 # 5. _step_execute 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestStepExecute:
     @pytest.fixture(autouse=True)
@@ -647,20 +700,31 @@ class TestStepExecute:
 
     async def test_execute_with_agent_loop(self, tmp_path, monkeypatch):
         """正常执行 — mock _agent_loop 返回文件"""
+
         async def fake_agent_loop(bridge, task, sys_prompt, workspace, max_iterations=12):
             return "完成", ["app.py", "test_app.py"]
+
         monkeypatch.setattr(ap, "_agent_loop", fake_agent_loop)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
         run = PipelineRun(request="做一个 API 服务", work_dir=str(tmp_path))
-        run.steps.append(StepResult(name="decompose", output={
-            "tasks": [
-                {"id": "t1", "title": "实现 API", "description": "d",
-                 "assigned_role": "developer", "depends_on": [],
-                 "deliverables": ["app.py"]},
-            ],
-        }))
+        run.steps.append(
+            StepResult(
+                name="decompose",
+                output={
+                    "tasks": [
+                        {
+                            "id": "t1",
+                            "title": "实现 API",
+                            "description": "d",
+                            "assigned_role": "developer",
+                            "depends_on": [],
+                            "deliverables": ["app.py"],
+                        },
+                    ],
+                },
+            )
+        )
 
         step = await pipeline._step_execute(run)
         assert step.status == StepStatus.OK
@@ -670,24 +734,40 @@ class TestStepExecute:
     async def test_execute_multiple_tasks_with_deps(self, tmp_path, monkeypatch):
         """多任务依赖顺序执行"""
         executed_order = []
+
         async def fake_agent_loop(bridge, task, sys_prompt, workspace, max_iterations=12):
             executed_order.append(task)
             return "完成", [f"file_{task[:10]}.py"]
+
         monkeypatch.setattr(ap, "_agent_loop", fake_agent_loop)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
-        run.steps.append(StepResult(name="decompose", output={
-            "tasks": [
-                {"id": "t1", "title": "架构", "description": "d",
-                 "assigned_role": "architect", "depends_on": [],
-                 "deliverables": ["arch.md"]},
-                {"id": "t2", "title": "开发", "description": "d",
-                 "assigned_role": "developer", "depends_on": ["t1"],
-                 "deliverables": ["app.py"]},
-            ],
-        }))
+        run.steps.append(
+            StepResult(
+                name="decompose",
+                output={
+                    "tasks": [
+                        {
+                            "id": "t1",
+                            "title": "架构",
+                            "description": "d",
+                            "assigned_role": "architect",
+                            "depends_on": [],
+                            "deliverables": ["arch.md"],
+                        },
+                        {
+                            "id": "t2",
+                            "title": "开发",
+                            "description": "d",
+                            "assigned_role": "developer",
+                            "depends_on": ["t1"],
+                            "deliverables": ["app.py"],
+                        },
+                    ],
+                },
+            )
+        )
 
         step = await pipeline._step_execute(run)
         assert step.status == StepStatus.OK
@@ -695,23 +775,39 @@ class TestStepExecute:
 
     async def test_execute_circular_deps(self, tmp_path, monkeypatch):
         """循环依赖 — 回退执行剩余任务"""
+
         async def fake_agent_loop(bridge, task, sys_prompt, workspace, max_iterations=12):
             return "完成", []
+
         monkeypatch.setattr(ap, "_agent_loop", fake_agent_loop)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
-        run.steps.append(StepResult(name="decompose", output={
-            "tasks": [
-                {"id": "a", "title": "A", "description": "d",
-                 "assigned_role": "developer", "depends_on": ["b"],
-                 "deliverables": []},
-                {"id": "b", "title": "B", "description": "d",
-                 "assigned_role": "developer", "depends_on": ["a"],
-                 "deliverables": []},
-            ],
-        }))
+        run.steps.append(
+            StepResult(
+                name="decompose",
+                output={
+                    "tasks": [
+                        {
+                            "id": "a",
+                            "title": "A",
+                            "description": "d",
+                            "assigned_role": "developer",
+                            "depends_on": ["b"],
+                            "deliverables": [],
+                        },
+                        {
+                            "id": "b",
+                            "title": "B",
+                            "description": "d",
+                            "assigned_role": "developer",
+                            "depends_on": ["a"],
+                            "deliverables": [],
+                        },
+                    ],
+                },
+            )
+        )
 
         step = await pipeline._step_execute(run)
         assert step.status == StepStatus.OK
@@ -720,21 +816,32 @@ class TestStepExecute:
 
     async def test_cancel_flag(self, tmp_path, monkeypatch):
         """取消标志中断执行"""
+
         async def fake_agent_loop(bridge, task, sys_prompt, workspace, max_iterations=12):
             return "完成", []
+
         monkeypatch.setattr(ap, "_agent_loop", fake_agent_loop)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
         run._cancel_flag = True
-        run.steps.append(StepResult(name="decompose", output={
-            "tasks": [
-                {"id": "t1", "title": "T", "description": "d",
-                 "assigned_role": "developer", "depends_on": [],
-                 "deliverables": []},
-            ],
-        }))
+        run.steps.append(
+            StepResult(
+                name="decompose",
+                output={
+                    "tasks": [
+                        {
+                            "id": "t1",
+                            "title": "T",
+                            "description": "d",
+                            "assigned_role": "developer",
+                            "depends_on": [],
+                            "deliverables": [],
+                        },
+                    ],
+                },
+            )
+        )
 
         step = await pipeline._step_execute(run)
         assert step.status == StepStatus.OK
@@ -745,6 +852,7 @@ class TestStepExecute:
 # ══════════════════════════════════════════════════════════
 # 6. _step_review 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestStepReview:
     async def test_no_files_skipped(self, tmp_path):
@@ -785,9 +893,14 @@ class TestStepReview:
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
-        run.steps.append(StepResult(name="execute", output={
-            "files_created": ["good.py", "bad.py"],
-        }))
+        run.steps.append(
+            StepResult(
+                name="execute",
+                output={
+                    "files_created": ["good.py", "bad.py"],
+                },
+            )
+        )
 
         step = await pipeline._step_review(run)
         assert step.status == StepStatus.OK
@@ -799,15 +912,21 @@ class TestStepReview:
         from pycoder.server.services import quality_guard as qg_mod
 
         fake_guard = MagicMock()
-        fake_guard.check = AsyncMock(return_value=SimpleNamespace(
-            score=90, is_pass=lambda min_score=70: True))
+        fake_guard.check = AsyncMock(
+            return_value=SimpleNamespace(score=90, is_pass=lambda min_score=70: True)
+        )
         monkeypatch.setattr(qg_mod, "QualityGuard", MagicMock(return_value=fake_guard))
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
-        run.steps.append(StepResult(name="execute", output={
-            "files_created": ["readme.md", "config.json"],
-        }))
+        run.steps.append(
+            StepResult(
+                name="execute",
+                output={
+                    "files_created": ["readme.md", "config.json"],
+                },
+            )
+        )
 
         step = await pipeline._step_review(run)
         assert step.status == StepStatus.OK
@@ -816,7 +935,10 @@ class TestStepReview:
 
     async def test_review_exception(self, tmp_path, monkeypatch):
         from pycoder.server.services import quality_guard as qg_mod
-        monkeypatch.setattr(qg_mod, "QualityGuard", MagicMock(side_effect=RuntimeError("init fail")))
+
+        monkeypatch.setattr(
+            qg_mod, "QualityGuard", MagicMock(side_effect=RuntimeError("init fail"))
+        )
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
@@ -831,6 +953,7 @@ class TestStepReview:
 # 7. _step_testgen 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestStepTestgen:
     async def test_no_py_files_skipped(self, tmp_path):
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="")
@@ -844,7 +967,11 @@ class TestStepTestgen:
         from pycoder.server.services import test_generator as tg_mod
 
         fake_result = SimpleNamespace(
-            success=True, test_count=5, passed=5, failed=0, coverage_percent=90,
+            success=True,
+            test_count=5,
+            passed=5,
+            failed=0,
+            coverage_percent=90,
         )
         fake_gen = MagicMock()
         fake_gen.generate.return_value = fake_result
@@ -852,9 +979,14 @@ class TestStepTestgen:
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
-        run.steps.append(StepResult(name="review", output={
-            "files_created": ["app.py"],
-        }))
+        run.steps.append(
+            StepResult(
+                name="review",
+                output={
+                    "files_created": ["app.py"],
+                },
+            )
+        )
 
         step = await pipeline._step_testgen(run)
         assert step.status == StepStatus.OK
@@ -865,7 +997,11 @@ class TestStepTestgen:
         from pycoder.server.services import test_generator as tg_mod
 
         fake_result = SimpleNamespace(
-            success=False, test_count=3, passed=1, failed=2, coverage_percent=40,
+            success=False,
+            test_count=3,
+            passed=1,
+            failed=2,
+            coverage_percent=40,
         )
         fake_gen = MagicMock()
         fake_gen.generate.return_value = fake_result
@@ -873,9 +1009,14 @@ class TestStepTestgen:
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
-        run.steps.append(StepResult(name="review", output={
-            "files_created": ["app.py"],
-        }))
+        run.steps.append(
+            StepResult(
+                name="review",
+                output={
+                    "files_created": ["app.py"],
+                },
+            )
+        )
 
         step = await pipeline._step_testgen(run)
         assert step.status == StepStatus.OK
@@ -883,7 +1024,10 @@ class TestStepTestgen:
 
     async def test_testgen_exception(self, tmp_path, monkeypatch):
         from pycoder.server.services import test_generator as tg_mod
-        monkeypatch.setattr(tg_mod, "TestGenerator", MagicMock(side_effect=RuntimeError("init fail")))
+
+        monkeypatch.setattr(
+            tg_mod, "TestGenerator", MagicMock(side_effect=RuntimeError("init fail"))
+        )
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
@@ -897,6 +1041,7 @@ class TestStepTestgen:
 # ══════════════════════════════════════════════════════════
 # 8. _step_fixloop 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestStepFixloop:
     @pytest.fixture(autouse=True)
@@ -915,10 +1060,11 @@ class TestStepFixloop:
         """修复需要修复的文件"""
         # 创建需要修复的文件
         (tmp_path / "bad.py").write_text("x = 1", encoding="utf-8")
+
         async def fake_agent_loop(bridge, task, sys_prompt, workspace, max_iterations=8):
             return "完成", ["bad.py"]
+
         monkeypatch.setattr(ap, "_agent_loop", fake_agent_loop)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
@@ -930,10 +1076,11 @@ class TestStepFixloop:
 
     async def test_fixloop_file_not_exists(self, tmp_path, monkeypatch):
         """文件不存在 → 跳过该文件"""
+
         async def fake_agent_loop(bridge, task, sys_prompt, workspace, max_iterations=8):
             return "完成", []
+
         monkeypatch.setattr(ap, "_agent_loop", fake_agent_loop)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
@@ -946,14 +1093,17 @@ class TestStepFixloop:
     async def test_fixloop_with_extra_context(self, tmp_path, monkeypatch):
         """有额外上下文但无 files_need_fix → 从 execute 步骤获取文件"""
         (tmp_path / "app.py").write_text("x = 1", encoding="utf-8")
+
         async def fake_agent_loop(bridge, task, sys_prompt, workspace, max_iterations=8):
             return "完成", ["app.py"]
+
         monkeypatch.setattr(ap, "_agent_loop", fake_agent_loop)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
-        run.steps.append(StepResult(name="execute", output={"files_created": ["app.py", "readme.md"]}))
+        run.steps.append(
+            StepResult(name="execute", output={"files_created": ["app.py", "readme.md"]})
+        )
         run.steps.append(StepResult(name="accept", output={}))
 
         step = await pipeline._step_fixloop(run, extra_context="验收失败: 缺少测试")
@@ -963,13 +1113,15 @@ class TestStepFixloop:
     async def test_fixloop_cancel_flag(self, tmp_path, monkeypatch):
         async def fake_agent_loop(bridge, task, sys_prompt, workspace, max_iterations=8):
             return "完成", []
+
         monkeypatch.setattr(ap, "_agent_loop", fake_agent_loop)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
         run._cancel_flag = True
-        run.steps.append(StepResult(name="review", output={"files_need_fix": ["a.py", "b.py", "c.py"]}))
+        run.steps.append(
+            StepResult(name="review", output={"files_need_fix": ["a.py", "b.py", "c.py"]})
+        )
 
         step = await pipeline._step_fixloop(run)
         assert step.status == StepStatus.OK
@@ -977,16 +1129,20 @@ class TestStepFixloop:
 
     async def test_fixloop_read_error(self, tmp_path, monkeypatch):
         """读取文件失败 → 跳过"""
+
         async def fake_agent_loop(bridge, task, sys_prompt, workspace, max_iterations=8):
             return "完成", []
+
         monkeypatch.setattr(ap, "_agent_loop", fake_agent_loop)
-        
+
         # 让 read_text 抛异常
         original_read = Path.read_text
+
         def boom_read(self, *args, **kwargs):
             if self.name == "bad.py":
                 raise PermissionError("denied")
             return original_read(self, *args, **kwargs)
+
         monkeypatch.setattr(Path, "read_text", boom_read)
         (tmp_path / "bad.py").write_text("x", encoding="utf-8")
 
@@ -1002,6 +1158,7 @@ class TestStepFixloop:
 # ══════════════════════════════════════════════════════════
 # 9. _step_accept 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestStepAccept:
     @pytest.fixture(autouse=True)
@@ -1059,7 +1216,6 @@ class TestStepAccept:
         # Mock ChatBridge 返回 JSON 验收结果
         bridge = FakeChatBridge(responses=['{"passed": true, "issues": [], "score": 95}'])
         monkeypatch.setattr(ap.registry, "resolve", lambda *args, **kwargs: bridge)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
@@ -1072,9 +1228,10 @@ class TestStepAccept:
     async def test_accept_llm_says_failed(self, tmp_path, monkeypatch):
         """LLM 验收不通过"""
         (tmp_path / "app.py").write_text("x = 1\n", encoding="utf-8")
-        bridge = FakeChatBridge(responses=['{"passed": false, "issues": ["缺少测试"], "score": 50}'])
+        bridge = FakeChatBridge(
+            responses=['{"passed": false, "issues": ["缺少测试"], "score": 50}']
+        )
         monkeypatch.setattr(ap.registry, "resolve", lambda *args, **kwargs: bridge)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
@@ -1090,7 +1247,6 @@ class TestStepAccept:
         (tmp_path / "app.py").write_text("x = 1\n", encoding="utf-8")
         bridge = FakeChatBridge(responses=["这不是 JSON"])
         monkeypatch.setattr(ap.registry, "resolve", lambda *args, **kwargs: bridge)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
@@ -1104,11 +1260,12 @@ class TestStepAccept:
     async def test_accept_llm_markdown_json(self, tmp_path, monkeypatch):
         """LLM 返回 markdown 包裹的 JSON"""
         (tmp_path / "app.py").write_text("x = 1\n", encoding="utf-8")
-        bridge = FakeChatBridge(responses=[
-            '```json\n{"passed": false, "issues": ["md issue"], "score": 40}\n```',
-        ])
+        bridge = FakeChatBridge(
+            responses=[
+                '```json\n{"passed": false, "issues": ["md issue"], "score": 40}\n```',
+            ]
+        )
         monkeypatch.setattr(ap.registry, "resolve", lambda *args, **kwargs: bridge)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
         run = PipelineRun(request="test", work_dir=str(tmp_path))
@@ -1123,6 +1280,7 @@ class TestStepAccept:
 # ══════════════════════════════════════════════════════════
 # 10. _step_deliver 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestStepDeliver:
     async def test_deliver_success(self, tmp_path, monkeypatch):
@@ -1172,8 +1330,11 @@ class TestStepDeliver:
         """打包 subprocess 异常 → 不影响交付"""
         (tmp_path / "app.py").write_text("x = 1", encoding="utf-8")
         monkeypatch.setattr(shutil, "which", lambda cmd: "/usr/bin/zip")
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(
-            subprocess.SubprocessError("zip fail")))
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **k: (_ for _ in ()).throw(subprocess.SubprocessError("zip fail")),
+        )
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="")
         run = PipelineRun(request="test", project_name="proj", work_dir=str(tmp_path))
@@ -1187,10 +1348,12 @@ class TestStepDeliver:
         """有 API key 且无 README → 生成 README"""
         (tmp_path / "app.py").write_text("x = 1", encoding="utf-8")
         monkeypatch.setattr(shutil, "which", lambda cmd: None)
+
         # Mock _generate_readme — 注意：monkeypatch 到类上的方法会变成 unbound
         # 调用时 self 会作为第一个参数传入，因此需要接受 self
         async def fake_readme(self_, run, files):
             (tmp_path / "README.md").write_text("# Generated README", encoding="utf-8")
+
         monkeypatch.setattr(AutonomousPipeline, "_generate_readme", fake_readme)
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
@@ -1206,6 +1369,7 @@ class TestStepDeliver:
 # 11. _generate_readme / _build_delivery_md / _build_report 测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestGenerateReadme:
     @pytest.fixture(autouse=True)
     def _mock_registry(self, monkeypatch):
@@ -1214,7 +1378,6 @@ class TestGenerateReadme:
     async def test_generate_readme(self, tmp_path, monkeypatch):
         bridge = FakeChatBridge(responses=["# README content\n\n## Usage"])
         monkeypatch.setattr(ap.registry, "resolve", lambda *args, **kwargs: bridge)
-        
 
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="key")
         run = PipelineRun(request="test project", project_name="proj", work_dir=str(tmp_path))
@@ -1233,14 +1396,28 @@ class TestBuildDeliveryMd:
         run = PipelineRun(request="test request", project_name="proj", work_dir=str(tmp_path))
         run.steps = [
             StepResult(name="decompose", status=StepStatus.OK, started_at=1.0, completed_at=2.0),
-            StepResult(name="execute", status=StepStatus.OK, started_at=2.0, completed_at=3.0,
-                       output={"files_created": ["app.py"]}),
-            StepResult(name="review", status=StepStatus.OK, output={
-                "report": {"average_score": 85}, "files_need_fix": [],
-            }),
-            StepResult(name="testgen", status=StepStatus.OK, output={
-                "result": {"total_passed": 5, "total_tests": 5},
-            }),
+            StepResult(
+                name="execute",
+                status=StepStatus.OK,
+                started_at=2.0,
+                completed_at=3.0,
+                output={"files_created": ["app.py"]},
+            ),
+            StepResult(
+                name="review",
+                status=StepStatus.OK,
+                output={
+                    "report": {"average_score": 85},
+                    "files_need_fix": [],
+                },
+            ),
+            StepResult(
+                name="testgen",
+                status=StepStatus.OK,
+                output={
+                    "result": {"total_passed": 5, "total_tests": 5},
+                },
+            ),
             StepResult(name="accept", status=StepStatus.OK),
         ]
 
@@ -1254,8 +1431,13 @@ class TestBuildDeliveryMd:
         pipeline = AutonomousPipeline(workspace_root=tmp_path, api_key="")
         run = PipelineRun(request="test", project_name="proj")
         run.steps = [
-            StepResult(name="decompose", status=StepStatus.FAILED, error="some error",
-                       started_at=1.0, completed_at=1.5),
+            StepResult(
+                name="decompose",
+                status=StepStatus.FAILED,
+                error="some error",
+                started_at=1.0,
+                completed_at=1.5,
+            ),
         ]
         md = pipeline._build_delivery_md(run, [])
         assert "decompose" in md
@@ -1303,6 +1485,7 @@ class TestBuildReport:
 # ══════════════════════════════════════════════════════════
 # 12. 管理方法测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestManagementMethods:
     def test_list_runs(self, tmp_path):
@@ -1369,6 +1552,7 @@ class TestManagementMethods:
 # 13. 完整 run() 流程测试
 # ══════════════════════════════════════════════════════════
 
+
 class TestFullRun:
     """完整流水线 run() 流程"""
 
@@ -1386,20 +1570,25 @@ class TestFullRun:
             # 写一个文件到工作区以便后续步骤能找到
             (workspace / "app.py").write_text("x = 1\n", encoding="utf-8")
             return "完成", ["app.py"]
+
         monkeypatch.setattr(ap, "_agent_loop", fake_agent_loop)
 
         # 3. Mock QualityGuard
         from pycoder.server.services import quality_guard as qg_mod
+
         fake_guard = MagicMock()
-        fake_guard.check = AsyncMock(return_value=SimpleNamespace(
-            score=85, is_pass=lambda min_score=70: True))
+        fake_guard.check = AsyncMock(
+            return_value=SimpleNamespace(score=85, is_pass=lambda min_score=70: True)
+        )
         monkeypatch.setattr(qg_mod, "QualityGuard", MagicMock(return_value=fake_guard))
 
         # 4. Mock TestGenerator
         from pycoder.server.services import test_generator as tg_mod
+
         fake_gen = MagicMock()
         fake_gen.generate.return_value = SimpleNamespace(
-            success=True, test_count=3, passed=3, failed=0, coverage_percent=90)
+            success=True, test_count=3, passed=3, failed=0, coverage_percent=90
+        )
         monkeypatch.setattr(tg_mod, "TestGenerator", MagicMock(return_value=fake_gen))
 
         # 5. Mock shutil.which — 无打包工具
@@ -1440,11 +1629,14 @@ class TestFullRun:
     async def test_pipeline_decompose_failure(self, monkeypatch):
         """Step 1 失败 → 流水线终止"""
         import builtins
+
         orig_import = builtins.__import__
+
         def fake_import(name, *args, **kwargs):
             if "task_decomposer" in name:
                 raise ImportError("no module")
             return orig_import(name, *args, **kwargs)
+
         monkeypatch.setattr(builtins, "__import__", fake_import)
 
         pipeline = AutonomousPipeline(workspace_root=self.tmp_path, api_key="")
@@ -1462,25 +1654,43 @@ class TestFullRun:
         # Mock _step_accept 第一次失败，第二次通过
         call_count = {"accept": 0}
         original_accept = AutonomousPipeline._step_accept
+
         async def fake_accept(self, run):
             call_count["accept"] += 1
             if call_count["accept"] == 1:
-                step = StepResult(name="accept", status=StepStatus.FAILED,
-                                  started_at=time.time(), completed_at=time.time())
-                step.output = {"report": {"passed": False}, "reason": "验收不通过",
-                               "suggestions": "需要修复"}
+                step = StepResult(
+                    name="accept",
+                    status=StepStatus.FAILED,
+                    started_at=time.time(),
+                    completed_at=time.time(),
+                )
+                step.output = {
+                    "report": {"passed": False},
+                    "reason": "验收不通过",
+                    "suggestions": "需要修复",
+                }
                 return step
-            step = StepResult(name="accept", status=StepStatus.OK,
-                              started_at=time.time(), completed_at=time.time())
+            step = StepResult(
+                name="accept",
+                status=StepStatus.OK,
+                started_at=time.time(),
+                completed_at=time.time(),
+            )
             step.output = {"report": {"passed": True}, "reason": "验收通过", "suggestions": ""}
             return step
+
         monkeypatch.setattr(AutonomousPipeline, "_step_accept", fake_accept)
 
         # Mock _step_fixloop 避免真实修复
         async def fake_fixloop(self, run, extra_context=""):
-            return StepResult(name="fix", status=StepStatus.OK,
-                              started_at=time.time(), completed_at=time.time(),
-                              output={"rounds": 1, "files_fixed": 1})
+            return StepResult(
+                name="fix",
+                status=StepStatus.OK,
+                started_at=time.time(),
+                completed_at=time.time(),
+                output={"rounds": 1, "files_fixed": 1},
+            )
+
         monkeypatch.setattr(AutonomousPipeline, "_step_fixloop", fake_fixloop)
 
         pipeline = AutonomousPipeline(workspace_root=self.tmp_path, api_key="")
@@ -1496,8 +1706,10 @@ class TestFullRun:
 
     async def test_pipeline_exception_handling(self, monkeypatch):
         """流水线异常 → error 事件"""
+
         async def boom_decompose(self, run):
             raise RuntimeError("unexpected crash")
+
         monkeypatch.setattr(AutonomousPipeline, "_step_decompose", boom_decompose)
 
         pipeline = AutonomousPipeline(workspace_root=self.tmp_path, api_key="")
@@ -1513,6 +1725,7 @@ class TestFullRun:
 # ══════════════════════════════════════════════════════════
 # 14. get_pipeline 单例测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestGetPipeline:
     def test_singleton(self, monkeypatch):
@@ -1530,6 +1743,7 @@ class TestGetPipeline:
 # ══════════════════════════════════════════════════════════
 # 15. 常量与配置测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestConstants:
     def test_max_iterations(self):
@@ -1549,6 +1763,7 @@ class TestConstants:
 # ══════════════════════════════════════════════════════════
 # 16. AutonomousPipeline.__init__ 测试
 # ══════════════════════════════════════════════════════════
+
 
 class TestPipelineInit:
     def test_with_workspace_root(self, tmp_path):
@@ -1573,6 +1788,7 @@ class TestPipelineInit:
     def test_default_workspace(self, monkeypatch, tmp_path):
         """无 workspace_root → 使用 _get_workspace()"""
         from pycoder.server.routers import files as files_mod
+
         monkeypatch.setattr(files_mod, "get_workspace_root", lambda: tmp_path)
         p = AutonomousPipeline()
         assert p.workspace == tmp_path.resolve()

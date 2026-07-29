@@ -10,10 +10,10 @@
 
 from __future__ import annotations
 
-from pycoder.ai.generation.single_pass import SinglePassGenerator
 from pycoder.ai.generation.iterative import IterativeGenerator
-from pycoder.ai.generation.test_driven import TestDrivenGenerator
 from pycoder.ai.generation.multi_strategy import MultiStrategyGenerator, get_generator
+from pycoder.ai.generation.single_pass import SinglePassGenerator
+from pycoder.ai.generation.test_driven import TestDrivenGenerator
 
 __all__ = [
     "SinglePassGenerator",

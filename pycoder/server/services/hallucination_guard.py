@@ -310,37 +310,172 @@ class SourceTracer:
 
     # 常见噪音词（过滤）
     _NOISE_WORDS: set[str] = {
-        "pip", "npm", "python", "node", "git", "docker", "linux", "windows",
-        "mac", "ios", "android", "java", "rust", "go", "ruby", "php",
-        "the", "a", "an", "is", "are", "was", "were", "will", "can",
-        "for", "with", "from", "this", "that", "these", "those",
-        "use", "using", "used", "has", "have", "had", "been", "being",
-        "not", "but", "and", "or", "if", "else", "when", "then",
-        "all", "any", "some", "each", "every", "both", "few", "many",
-        "more", "most", "other", "such", "only", "own", "same", "so",
-        "than", "too", "very", "just", "now", "also", "even", "still",
-        "here", "there", "where", "which", "what", "who", "how", "why",
-        "one", "two", "first", "last", "new", "old", "good", "great",
-        "high", "low", "big", "big", "small", "long", "large", "next",
-        "create", "update", "delete", "select", "insert", "remove",
-        "using", "called", "named", "example", "sample", "test",
-        "file", "line", "code", "data", "type", "name", "value",
-        "user", "system", "error", "result", "method", "class",
-        "def", "function", "module", "package", "import", "export",
+        "pip",
+        "npm",
+        "python",
+        "node",
+        "git",
+        "docker",
+        "linux",
+        "windows",
+        "mac",
+        "ios",
+        "android",
+        "java",
+        "rust",
+        "go",
+        "ruby",
+        "php",
+        "the",
+        "a",
+        "an",
+        "is",
+        "are",
+        "was",
+        "were",
+        "will",
+        "can",
+        "for",
+        "with",
+        "from",
+        "this",
+        "that",
+        "these",
+        "those",
+        "use",
+        "using",
+        "used",
+        "has",
+        "have",
+        "had",
+        "been",
+        "being",
+        "not",
+        "but",
+        "and",
+        "or",
+        "if",
+        "else",
+        "when",
+        "then",
+        "all",
+        "any",
+        "some",
+        "each",
+        "every",
+        "both",
+        "few",
+        "many",
+        "more",
+        "most",
+        "other",
+        "such",
+        "only",
+        "own",
+        "same",
+        "so",
+        "than",
+        "too",
+        "very",
+        "just",
+        "now",
+        "also",
+        "even",
+        "still",
+        "here",
+        "there",
+        "where",
+        "which",
+        "what",
+        "who",
+        "how",
+        "why",
+        "one",
+        "two",
+        "first",
+        "last",
+        "new",
+        "old",
+        "good",
+        "great",
+        "high",
+        "low",
+        "big",
+        "small",
+        "long",
+        "large",
+        "next",
+        "create",
+        "update",
+        "delete",
+        "select",
+        "insert",
+        "remove",
+        "called",
+        "named",
+        "example",
+        "sample",
+        "test",
+        "file",
+        "line",
+        "code",
+        "data",
+        "type",
+        "name",
+        "value",
+        "user",
+        "system",
+        "error",
+        "result",
+        "method",
+        "class",
+        "def",
+        "function",
+        "module",
+        "package",
+        "import",
+        "export",
     }
 
     # 有效的代码文件扩展名（用于过滤假文件声明）
     _VALID_CODE_EXTENSIONS: set[str] = {
-        ".py", ".js", ".ts", ".tsx", ".jsx", ".json", ".yaml", ".yml",
-        ".toml", ".cfg", ".ini", ".md", ".txt", ".css", ".html", ".env",
-        ".sh", ".bat", ".ps1", ".sql", ".xml", ".csv", ".lock",
+        ".py",
+        ".js",
+        ".ts",
+        ".tsx",
+        ".jsx",
+        ".json",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".cfg",
+        ".ini",
+        ".md",
+        ".txt",
+        ".css",
+        ".html",
+        ".env",
+        ".sh",
+        ".bat",
+        ".ps1",
+        ".sql",
+        ".xml",
+        ".csv",
+        ".lock",
     }
 
     # 常见非代码文件（对话中常出现但不应作为声明）
     _NON_CLAIM_FILES: set[str] = {
-        "readme.md", "license.md", "changelog.md", "contributing.md",
-        "package.json", "package-lock.json", "requirements.txt",
-        ".gitignore", ".dockerignore", ".editorconfig",
+        "readme.md",
+        "license.md",
+        "changelog.md",
+        "contributing.md",
+        "package.json",
+        "package-lock.json",
+        "requirements.txt",
+        ".gitignore",
+        ".dockerignore",
+        ".editorconfig",
     }
 
     def trace(self, response: str) -> TraceResult:
@@ -509,8 +644,19 @@ class SourceTracer:
             # 而不是普通的数字（如行号、ID 等）
             ctx = self._get_context(response, m.start(), m.end())
             # 检查是否有断言性关键词
-            assertion_keywords = {"约", "大约", "约", "至少", "最多", "超过", "不少于",
-                                  "about", "approximately", "at least", "at most", "around"}
+            assertion_keywords = {
+                "约",
+                "大约",
+                "至少",
+                "最多",
+                "超过",
+                "不少于",
+                "about",
+                "approximately",
+                "at least",
+                "at most",
+                "around",
+            }
             has_assertion = any(kw in ctx.lower() for kw in assertion_keywords)
             if not has_assertion and len(full_text) < 8:
                 continue  # 太短的纯数字不是统计声明
@@ -649,12 +795,14 @@ class FactChecker:
         for i, result in enumerate(verified_claims):
             if isinstance(result, BaseException):
                 uncertain += 1
-                details.append({
-                    "claim": claims[i].text,
-                    "claim_type": claims[i].claim_type,
-                    "status": "error",
-                    "reason": f"验证异常: {result}",
-                })
+                details.append(
+                    {
+                        "claim": claims[i].text,
+                        "claim_type": claims[i].claim_type,
+                        "status": "error",
+                        "reason": f"验证异常: {result}",
+                    }
+                )
                 continue
 
             claim = result
@@ -665,17 +813,19 @@ class FactChecker:
             else:
                 uncertain += 1
 
-            details.append({
-                "claim": claim.text,
-                "claim_type": claim.claim_type,
-                "status": (
-                    "passed" if claim.verified is True
-                    else "failed" if claim.verified is False
-                    else "uncertain"
-                ),
-                "confidence": claim.confidence,
-                "source": claim.source[:100] if claim.source else "",
-            })
+            details.append(
+                {
+                    "claim": claim.text,
+                    "claim_type": claim.claim_type,
+                    "status": (
+                        "passed"
+                        if claim.verified is True
+                        else "failed" if claim.verified is False else "uncertain"
+                    ),
+                    "confidence": claim.confidence,
+                    "source": claim.source[:100] if claim.source else "",
+                }
+            )
 
         return VerifyResult(
             passed=passed,
@@ -1248,7 +1398,8 @@ class ConsistencyValidator:
         if snake_violations:
             # 过滤掉常见驼峰命名
             filtered = [
-                v for v in snake_violations
+                v
+                for v in snake_violations
                 if v not in {"True", "False", "None", "isNot", "isNotNone"}
             ]
             if len(filtered) > 3:
@@ -1338,14 +1489,10 @@ class HallucinationGuard:
         )
 
         # ── 第三步: 一致性校验 ──
-        consistency_issues = self._validator.validate(
-            response, trace_result.claims, ctx
-        )
+        consistency_issues = self._validator.validate(response, trace_result.claims, ctx)
 
         # ── 综合评分 ──
-        overall_score = self._calculate_score(
-            trace_result, verify_result, consistency_issues
-        )
+        overall_score = self._calculate_score(trace_result, verify_result, consistency_issues)
 
         # ── 生成建议 ──
         recommendations = self._generate_recommendations(
@@ -1420,12 +1567,14 @@ class HallucinationGuard:
             re.IGNORECASE,
         )
         for m in _NONEXISTENT_MODULE_RE.finditer(text):
-            issues.append({
-                "type": "nonexistent_module",
-                "text": m.group(0),
-                "message": f"引用了不存在的模块: {m.group(0)}",
-                "severity": "high",
-            })
+            issues.append(
+                {
+                    "type": "nonexistent_module",
+                    "text": m.group(0),
+                    "message": f"引用了不存在的模块: {m.group(0)}",
+                    "severity": "high",
+                }
+            )
             score -= 20.0
 
         # ── 检测不存在的 API 调用 ──
@@ -1434,12 +1583,14 @@ class HallucinationGuard:
             re.IGNORECASE,
         )
         for m in _NONEXISTENT_API_RE.finditer(text):
-            issues.append({
-                "type": "nonexistent_api",
-                "text": m.group(0),
-                "message": f"调用了不存在的 API: {m.group(0)}",
-                "severity": "high",
-            })
+            issues.append(
+                {
+                    "type": "nonexistent_api",
+                    "text": m.group(0),
+                    "message": f"调用了不存在的 API: {m.group(0)}",
+                    "severity": "high",
+                }
+            )
             score -= 20.0
 
         # ── 检测不安全代码模式 ──
@@ -1448,12 +1599,14 @@ class HallucinationGuard:
             re.IGNORECASE,
         )
         for m in _UNSAFE_CODE_RE.finditer(text):
-            issues.append({
-                "type": "unsafe_code",
-                "text": m.group(0),
-                "message": f"检测到不安全的代码模式: {m.group(0)}",
-                "severity": "medium",
-            })
+            issues.append(
+                {
+                    "type": "unsafe_code",
+                    "text": m.group(0),
+                    "message": f"检测到不安全的代码模式: {m.group(0)}",
+                    "severity": "medium",
+                }
+            )
             score -= 15.0
 
         # ── 检测硬编码凭据 ──
@@ -1462,12 +1615,14 @@ class HallucinationGuard:
             re.IGNORECASE,
         )
         for m in _HARDCODED_SECRET_RE.finditer(text):
-            issues.append({
-                "type": "hardcoded_secret",
-                "text": m.group(0),
-                "message": f"检测到硬编码凭据: {m.group(0)}",
-                "severity": "high",
-            })
+            issues.append(
+                {
+                    "type": "hardcoded_secret",
+                    "text": m.group(0),
+                    "message": f"检测到硬编码凭据: {m.group(0)}",
+                    "severity": "high",
+                }
+            )
             score -= 25.0
 
         score = max(0.0, min(100.0, score))
@@ -1568,12 +1723,10 @@ class HallucinationGuard:
 
         # ── 4. 高风险未验证加权扣分（仅对已验证失败的高风险项加重） ──
         high_risk_failed = sum(
-            1 for c in trace.claims
-            if c.claim_type in HIGH_RISK_CATEGORIES and c.verified is False
+            1 for c in trace.claims if c.claim_type in HIGH_RISK_CATEGORIES and c.verified is False
         )
         high_risk_uncertain = sum(
-            1 for c in trace.claims
-            if c.claim_type in HIGH_RISK_CATEGORIES and c.verified is None
+            1 for c in trace.claims if c.claim_type in HIGH_RISK_CATEGORIES and c.verified is None
         )
         # 高风险失败项加重 50% 惩罚
         score -= high_risk_failed * 4.0
@@ -1614,57 +1767,42 @@ class HallucinationGuard:
 
         # ── 失败项详情 ──
         if verify.failed > 0:
-            recommendations.append(
-                f"发现 {verify.failed} 条验证失败的声明，建议修正或删除"
-            )
+            recommendations.append(f"发现 {verify.failed} 条验证失败的声明，建议修正或删除")
             # 列出失败的声明类型
             failed_types = Counter(
                 d["claim_type"] for d in verify.details if d.get("status") == "failed"
             )
             if failed_types:
-                type_summary = "、".join(
-                    f"{t}({c}条)" for t, c in failed_types.most_common(3)
-                )
+                type_summary = "、".join(f"{t}({c}条)" for t, c in failed_types.most_common(3))
                 recommendations.append(f"失败声明类型: {type_summary}")
 
         # ── 不确定项 ──
         if verify.uncertain > 5:
-            recommendations.append(
-                f"有 {verify.uncertain} 条声明无法自动验证，建议人工确认"
-            )
+            recommendations.append(f"有 {verify.uncertain} 条声明无法自动验证，建议人工确认")
 
         # ── 一致性 ──
         if consistency_issues:
-            recommendations.append(
-                f"发现 {len(consistency_issues)} 个一致性问题"
-            )
+            recommendations.append(f"发现 {len(consistency_issues)} 个一致性问题")
             # 展示前 2 个具体问题
             for issue in consistency_issues[:2]:
                 recommendations.append(f"  → {issue}")
 
         # ── 类别特定建议 ──
         category_counts = Counter(c.claim_type for c in trace.claims)
-        failed_api = sum(
-            1 for c in trace.claims
-            if c.claim_type == "api" and c.verified is False
-        )
+        failed_api = sum(1 for c in trace.claims if c.claim_type == "api" and c.verified is False)
         if failed_api > 0:
             recommendations.append(
                 f"{failed_api} 个 API 路由声明验证失败，请检查路由是否已在 FastAPI 中注册"
             )
 
-        failed_file = sum(
-            1 for c in trace.claims
-            if c.claim_type == "file" and c.verified is False
-        )
+        failed_file = sum(1 for c in trace.claims if c.claim_type == "file" and c.verified is False)
         if failed_file > 0:
             recommendations.append(
                 f"{failed_file} 个文件路径声明验证失败，请确认文件是否存在于工作区"
             )
 
         failed_dep = sum(
-            1 for c in trace.claims
-            if c.claim_type == "dependency" and c.verified is False
+            1 for c in trace.claims if c.claim_type == "dependency" and c.verified is False
         )
         if failed_dep > 0:
             recommendations.append(
@@ -1685,9 +1823,7 @@ class HallucinationGuard:
 
         # 滚动平均
         n = self._stats["total_validations"]
-        self._stats["average_score"] = (
-            (self._stats["average_score"] * (n - 1) + score) / n
-        )
+        self._stats["average_score"] = (self._stats["average_score"] * (n - 1) + score) / n
 
         self._stats["last_validation_time"] = time.time()
 

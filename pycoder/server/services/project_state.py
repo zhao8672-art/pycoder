@@ -15,13 +15,13 @@ ProjectState — 项目状态追踪器
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
 from dataclasses import dataclass, field
 
 
 @dataclass
 class ProjectPhase:
     """项目阶段"""
+
     name: str = ""
     files: list[str] = field(default_factory=list)
     status: str = "pending"  # pending | in_progress | done
@@ -74,18 +74,13 @@ class ProjectState:
         lines = ["📊 **项目进度**"]
 
         # 阶段
-        lines.append(f"├─ 阶段: {self.current_phase} "
-                     f"({self.phase_progress:.0f}%)")
+        lines.append(f"├─ 阶段: {self.current_phase} " f"({self.phase_progress:.0f}%)")
 
         # 文件清单
         if self.created_files:
-            lines.append(
-                f"├─ 已创建: {', '.join(self.created_files[-5:])}"
-            )
+            lines.append(f"├─ 已创建: {', '.join(self.created_files[-5:])}")
         if self.modified_files:
-            lines.append(
-                f"├─ 已修改: {', '.join(self.modified_files[-5:])}"
-            )
+            lines.append(f"├─ 已修改: {', '.join(self.modified_files[-5:])}")
 
         # 待办
         if self.todo_items:
@@ -105,10 +100,7 @@ class ProjectState:
 
         # 修复重试
         if self._fix_attempts:
-            lines.append(
-                f"└─ 修复尝试: "
-                f"{sum(self._fix_attempts.values())} 次"
-            )
+            lines.append(f"└─ 修复尝试: " f"{sum(self._fix_attempts.values())} 次")
         else:
             lines[-1] = lines[-1].replace("├", "└")
 
@@ -121,12 +113,8 @@ class ProjectState:
             "progress": self.phase_progress,
             "files_created": len(self.created_files),
             "files_modified": len(self.modified_files),
-            "todos_done": sum(
-                1 for t in self.todo_items if t["status"] == "done"
-            ),
-            "todos_pending": sum(
-                1 for t in self.todo_items if t["status"] == "pending"
-            ),
+            "todos_done": sum(1 for t in self.todo_items if t["status"] == "done"),
+            "todos_pending": sum(1 for t in self.todo_items if t["status"] == "pending"),
             "errors": len(self._errors),
             "fix_attempts": sum(self._fix_attempts.values()),
             "elapsed_s": time.time() - self._start_time,

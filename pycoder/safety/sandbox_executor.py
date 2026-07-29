@@ -21,7 +21,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-_logger = logging.getLogger('pycoder.safety.sandbox_executor')
+_logger = logging.getLogger("pycoder.safety.sandbox_executor")
 
 from typing import Any
 
@@ -379,8 +379,7 @@ class DockerSandboxExecutor:
 
             exit_code = exec_result.exit_code
             output = (
-                exec_result.output.decode("utf-8", errors="replace")
-                if exec_result.output else ""
+                exec_result.output.decode("utf-8", errors="replace") if exec_result.output else ""
             )
 
             duration_ms = (time.monotonic() - start_time) * 1000
@@ -408,7 +407,7 @@ class DockerSandboxExecutor:
                         cmd=["sh", "-c", "kill -9 1"],
                     ),
                 )
-            except Exception as e:
+            except Exception:
                 _logger.warning("silently_swallowed: {err}", exc_info=False)
                 pass  # 容器可能已停止
 
@@ -486,8 +485,7 @@ class DockerSandboxExecutor:
 
             exit_code = exec_result.exit_code
             output = (
-                exec_result.output.decode("utf-8", errors="replace")
-                if exec_result.output else ""
+                exec_result.output.decode("utf-8", errors="replace") if exec_result.output else ""
             )
 
             duration_ms = (time.monotonic() - start_time) * 1000
@@ -583,8 +581,7 @@ class DockerSandboxExecutor:
 
             exit_code = exec_result.exit_code
             output = (
-                exec_result.output.decode("utf-8", errors="replace")
-                if exec_result.output else ""
+                exec_result.output.decode("utf-8", errors="replace") if exec_result.output else ""
             )
 
             duration_ms = (time.monotonic() - start_time) * 1000
@@ -639,9 +636,9 @@ class DockerSandboxExecutor:
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, self._container.stop)
                 logger.info(
-                "Docker 沙箱容器已清理: %s",
-                self._container_id[:12] if self._container_id else "?",
-            )
+                    "Docker 沙箱容器已清理: %s",
+                    self._container_id[:12] if self._container_id else "?",
+                )
             except Exception as e:
                 logger.warning("清理容器时出错: %s", e)
             finally:
@@ -1010,8 +1007,7 @@ def register_sandbox_capabilities(registry: Any) -> None:
             id="sandbox.execute",
             name="沙箱代码执行",
             description=(
-                "在隔离的 Docker 容器中安全执行代码，"
-                "支持 Python/JavaScript/TypeScript/Bash"
+                "在隔离的 Docker 容器中安全执行代码，" "支持 Python/JavaScript/TypeScript/Bash"
             ),
             category=CapabilityCategory.SYSTEM,
             permission=TrustLevel.SYSTEM_ACCESS,

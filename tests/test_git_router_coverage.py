@@ -29,20 +29,20 @@
     - 用 TestClient 调用端点；Pydantic 模型用 JSON body 发送
     - _run_git 内部用 asyncio.to_thread — mock 的同步方法可直接被 to_thread 调用
 """
+
 from __future__ import annotations
 
 import sys
 import types
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from pycoder.server.routers import git as git_mod
-
 
 # ══════════════════════════════════════════════════════════
 # Fake git 模块 — 模拟 GitPython
@@ -154,9 +154,7 @@ class FakeRepo:
     def __init__(self, path="."):
         self.working_tree_dir = path
         self.active_branch = FakeBranch("main", is_active=True)
-        self.branches = _NamedContainer(
-            [FakeBranch("main", is_active=True), FakeBranch("dev")]
-        )
+        self.branches = _NamedContainer([FakeBranch("main", is_active=True), FakeBranch("dev")])
         self.index = FakeIndex()
         self.remotes = _NamedContainer([FakeRemote()])
         self.untracked_files = ["new.py"]
@@ -303,8 +301,10 @@ class TestStatusLog:
 
     def test_status_generic_exception(self, client, monkeypatch):
         """Repo() 抛一般异常 → 返回 is_git_repo=False"""
+
         def boom(path):
             raise RuntimeError("not a repo")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.get("/api/git/status")
         assert resp.status_code == 200
@@ -329,6 +329,7 @@ class TestStatusLog:
     def test_log_generic_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.get("/api/git/log")
         assert resp.status_code == 200
@@ -381,6 +382,7 @@ class TestCommit:
     def test_commit_generic_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("commit fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/commit", json={"message": "x"})
         assert resp.status_code == 200
@@ -400,6 +402,7 @@ class TestCommit:
     def test_generate_message_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/commit/generate-message")
         assert resp.status_code == 200
@@ -481,6 +484,7 @@ class TestBranchOps:
     def test_list_branches_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.get("/api/git/branches")
         assert resp.status_code == 200
@@ -498,6 +502,7 @@ class TestBranchOps:
     def test_create_branch_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/branch/create", json={"name": "x"})
         assert resp.status_code == 200
@@ -511,23 +516,24 @@ class TestBranchOps:
     def test_switch_branch_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/branch/switch", json={"name": "x"})
         assert resp.status_code == 200
         assert resp.json()["success"] is False
 
     def test_merge_branch_success(self, client):
-        resp = client.post(
-            "/api/git/branch/merge", json={"source_branch": "dev"}
-        )
+        resp = client.post("/api/git/branch/merge", json={"source_branch": "dev"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
 
     def test_merge_branch_conflict(self, client, monkeypatch):
         """merge 抛含 CONFLICT 的异常 → has_conflicts=True"""
+
         def merge_side_effect(*a, **kw):
             raise RuntimeError("CONFLICT in merge")
+
         # patch 已存在的实例方法 — 通过覆盖 FakeGitCmd.merge
         original_init = FakeRepo.__init__
 
@@ -536,9 +542,7 @@ class TestBranchOps:
             self.git.merge = merge_side_effect
 
         monkeypatch.setattr(FakeRepo, "__init__", patched_init)
-        resp = client.post(
-            "/api/git/branch/merge", json={"source_branch": "dev"}
-        )
+        resp = client.post("/api/git/branch/merge", json={"source_branch": "dev"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
@@ -547,10 +551,9 @@ class TestBranchOps:
     def test_merge_branch_generic_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
-        resp = client.post(
-            "/api/git/branch/merge", json={"source_branch": "dev"}
-        )
+        resp = client.post("/api/git/branch/merge", json={"source_branch": "dev"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
@@ -570,15 +573,14 @@ class TestRemoteOps:
         assert data["success"] is True
 
     def test_push_with_branch(self, client):
-        resp = client.post(
-            "/api/git/push", json={"remote": "origin", "branch": "main"}
-        )
+        resp = client.post("/api/git/push", json={"remote": "origin", "branch": "main"})
         assert resp.status_code == 200
         assert resp.json()["success"] is True
 
     def test_push_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/push", json={})
         assert resp.status_code == 200
@@ -592,6 +594,7 @@ class TestRemoteOps:
     def test_pull_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/pull", json={})
         assert resp.status_code == 200
@@ -607,6 +610,7 @@ class TestRemoteOps:
     def test_fetch_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/fetch", json={})
         assert resp.status_code == 200
@@ -651,6 +655,7 @@ class TestStashOps:
     def test_stash_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/stash", json={"action": "push"})
         assert resp.status_code == 200
@@ -666,6 +671,7 @@ class TestStashOps:
     def test_stash_detail_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/stash/detail", json={"index": 0})
         assert resp.status_code == 200
@@ -679,6 +685,7 @@ class TestStashOps:
     def test_stash_apply_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/stash/apply", json={"index": 0})
         assert resp.status_code == 200
@@ -709,6 +716,7 @@ class TestDiffBlame:
     def test_diff_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.get("/api/git/diff")
         assert resp.status_code == 200
@@ -731,6 +739,7 @@ class TestDiffBlame:
     def test_blame_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.get("/api/git/blame", params={"file": "a.py"})
         assert resp.status_code == 200
@@ -755,6 +764,7 @@ class TestStageUnstage:
     def test_stage_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/stage", json={"files": ["a.py"]})
         assert resp.status_code == 200
@@ -773,6 +783,7 @@ class TestStageUnstage:
     def test_unstage_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/unstage", json={"files": ["a.py"]})
         assert resp.status_code == 200
@@ -788,6 +799,7 @@ class TestStageUnstage:
     def test_discard_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/discard", json={"files": ["a.py"]})
         assert resp.status_code == 200
@@ -801,9 +813,7 @@ class TestStageUnstage:
 
 class TestBranchDeleteHistoryCompare:
     def test_delete_branch_success(self, client):
-        resp = client.post(
-            "/api/git/branch/delete", json={"name": "dev", "force": False}
-        )
+        resp = client.post("/api/git/branch/delete", json={"name": "dev", "force": False})
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -818,9 +828,7 @@ class TestBranchDeleteHistoryCompare:
 
     def test_delete_active_branch(self, client):
         """删除当前活跃分支应失败"""
-        resp = client.post(
-            "/api/git/branch/delete", json={"name": "main", "force": False}
-        )
+        resp = client.post("/api/git/branch/delete", json={"name": "main", "force": False})
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is False
@@ -829,10 +837,9 @@ class TestBranchDeleteHistoryCompare:
     def test_delete_branch_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
-        resp = client.post(
-            "/api/git/branch/delete", json={"name": "dev"}
-        )
+        resp = client.post("/api/git/branch/delete", json={"name": "dev"})
         assert resp.status_code == 200
         assert resp.json()["success"] is False
 
@@ -846,6 +853,7 @@ class TestBranchDeleteHistoryCompare:
     def test_file_history_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.get("/api/git/file-history", params={"file": "a.py"})
         assert resp.status_code == 200
@@ -854,9 +862,7 @@ class TestBranchDeleteHistoryCompare:
         assert "error" in data
 
     def test_compare_commits(self, client):
-        resp = client.get(
-            "/api/git/compare", params={"base": "main", "head": "dev"}
-        )
+        resp = client.get("/api/git/compare", params={"base": "main", "head": "dev"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["base"] == "main"
@@ -866,10 +872,9 @@ class TestBranchDeleteHistoryCompare:
     def test_compare_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
-        resp = client.get(
-            "/api/git/compare", params={"base": "a", "head": "b"}
-        )
+        resp = client.get("/api/git/compare", params={"base": "a", "head": "b"})
         assert resp.status_code == 200
         assert "error" in resp.json()
 
@@ -890,6 +895,7 @@ class TestTags:
     def test_list_tags_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.get("/api/git/tags")
         assert resp.status_code == 200
@@ -907,15 +913,14 @@ class TestTags:
         assert data["tag"] == "v2.0"
 
     def test_create_tag_no_message(self, client):
-        resp = client.post(
-            "/api/git/tag/create", json={"name": "v3.0"}
-        )
+        resp = client.post("/api/git/tag/create", json={"name": "v3.0"})
         assert resp.status_code == 200
         assert resp.json()["success"] is True
 
     def test_create_tag_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/tag/create", json={"name": "v"})
         assert resp.status_code == 200
@@ -929,6 +934,7 @@ class TestTags:
     def test_delete_tag_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/tag/delete", json={"name": "v"})
         assert resp.status_code == 200
@@ -942,31 +948,26 @@ class TestTags:
 
 class TestResetRevertEtc:
     def test_reset_soft(self, client):
-        resp = client.post(
-            "/api/git/reset", json={"mode": "soft", "commit": "HEAD~1"}
-        )
+        resp = client.post("/api/git/reset", json={"mode": "soft", "commit": "HEAD~1"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
         assert data["mode"] == "soft"
 
     def test_reset_mixed(self, client):
-        resp = client.post(
-            "/api/git/reset", json={"mode": "mixed", "commit": "HEAD~1"}
-        )
+        resp = client.post("/api/git/reset", json={"mode": "mixed", "commit": "HEAD~1"})
         assert resp.status_code == 200
         assert resp.json()["success"] is True
 
     def test_reset_hard(self, client):
-        resp = client.post(
-            "/api/git/reset", json={"mode": "hard", "commit": "HEAD~1"}
-        )
+        resp = client.post("/api/git/reset", json={"mode": "hard", "commit": "HEAD~1"})
         assert resp.status_code == 200
         assert resp.json()["success"] is True
 
     def test_reset_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/reset", json={"mode": "hard"})
         assert resp.status_code == 200
@@ -980,6 +981,7 @@ class TestResetRevertEtc:
     def test_revert_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/revert", json={"commit": "abc"})
         assert resp.status_code == 200
@@ -1010,6 +1012,7 @@ class TestResetRevertEtc:
     def test_cherry_pick_generic_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/cherry-pick", json={"commit": "abc"})
         assert resp.status_code == 200
@@ -1025,6 +1028,7 @@ class TestResetRevertEtc:
     def test_rebase_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post("/api/git/rebase", json={"branch": "main"})
         assert resp.status_code == 200
@@ -1047,6 +1051,7 @@ class TestRemotes:
     def test_list_remotes_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.get("/api/git/remotes")
         assert resp.status_code == 200
@@ -1064,27 +1069,23 @@ class TestRemotes:
     def test_add_remote_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
-        resp = client.post(
-            "/api/git/remote/add", json={"name": "u", "url": "x"}
-        )
+        resp = client.post("/api/git/remote/add", json={"name": "u", "url": "x"})
         assert resp.status_code == 200
         assert resp.json()["success"] is False
 
     def test_remove_remote(self, client):
-        resp = client.post(
-            "/api/git/remote/remove", json={"name": "origin"}
-        )
+        resp = client.post("/api/git/remote/remove", json={"name": "origin"})
         assert resp.status_code == 200
         assert resp.json()["success"] is True
 
     def test_remove_remote_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
-        resp = client.post(
-            "/api/git/remote/remove", json={"name": "origin"}
-        )
+        resp = client.post("/api/git/remote/remove", json={"name": "origin"})
         assert resp.status_code == 200
         assert resp.json()["success"] is False
 
@@ -1132,9 +1133,7 @@ class TestConflicts:
 
         def patched_init(self, path="."):
             original_init(self, path)
-            self.index.unmerged_blobs = MagicMock(
-                side_effect=RuntimeError("no merge")
-            )
+            self.index.unmerged_blobs = MagicMock(side_effect=RuntimeError("no merge"))
 
         monkeypatch.setattr(FakeRepo, "__init__", patched_init)
         resp = client.get("/api/git/conflicts")
@@ -1149,12 +1148,8 @@ class TestConflicts:
 
         def patched_init(self, path="."):
             original_init(self, path)
-            self.index.unmerged_blobs = MagicMock(
-                side_effect=RuntimeError("no merge")
-            )
-            self.git.status = MagicMock(
-                side_effect=OSError("io error")
-            )
+            self.index.unmerged_blobs = MagicMock(side_effect=RuntimeError("no merge"))
+            self.git.status = MagicMock(side_effect=OSError("io error"))
 
         monkeypatch.setattr(FakeRepo, "__init__", patched_init)
         resp = client.get("/api/git/conflicts")
@@ -1175,6 +1170,7 @@ class TestConflicts:
     def test_resolve_conflict_exception(self, client, monkeypatch):
         def boom(path):
             raise RuntimeError("fail")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.post(
             "/api/git/resolve-conflict",
@@ -1191,9 +1187,7 @@ class TestConflicts:
 
 class TestIgnoreInit:
     def test_ignore_new_pattern(self, client, workspace):
-        resp = client.post(
-            "/api/git/ignore", json={"pattern": "*.log"}
-        )
+        resp = client.post("/api/git/ignore", json={"pattern": "*.log"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
@@ -1232,8 +1226,10 @@ class TestIgnoreInit:
 
     def test_ignore_exception(self, client, workspace, monkeypatch):
         """写文件失败时返回 success=False"""
+
         def boom(_self, *a, **kw):
             raise OSError("io")
+
         monkeypatch.setattr(Path, "write_text", boom)
         resp = client.post("/api/git/ignore", json={"pattern": "*.log"})
         assert resp.status_code == 200
@@ -1267,6 +1263,7 @@ class TestIgnoreInit:
     def test_init_exception(self, client, workspace, monkeypatch):
         def init_boom(path):
             raise RuntimeError("init fail")
+
         # patch Repo.init — 通过 fake_git 模块
         fake_git = sys.modules["git"]
         monkeypatch.setattr(fake_git.Repo, "init", init_boom)
@@ -1275,7 +1272,7 @@ class TestIgnoreInit:
         assert resp.json()["success"] is False
 
     def test_init_import_error(self, no_git_client):
-        """git_init 缺少 except ImportError 处理器（与其他端点不一致）— 
+        """git_init 缺少 except ImportError 处理器（与其他端点不一致）—
         ImportError 被 except Exception 捕获，返回 200 + success=False"""
         resp = no_git_client.post("/api/git/init", json={})
         assert resp.status_code == 200
@@ -1298,6 +1295,7 @@ class TestIgnoreInit:
     def test_init_check_oserror(self, client, monkeypatch):
         def boom(_self, path):
             raise OSError("not a repo")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.get("/api/git/init")
         assert resp.status_code == 200
@@ -1306,6 +1304,7 @@ class TestIgnoreInit:
     def test_init_check_value_error(self, client, monkeypatch):
         def boom(_self, path):
             raise ValueError("bad repo")
+
         monkeypatch.setattr(FakeRepo, "__init__", boom)
         resp = client.get("/api/git/init")
         assert resp.status_code == 200
