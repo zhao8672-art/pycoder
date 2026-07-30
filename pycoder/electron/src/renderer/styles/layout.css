@@ -7738,6 +7738,38 @@
   .editor-area {
     min-width: 0;
   }
+
+  /* Settings 面板移动端适配（P4-C2） */
+  .settings-panel {
+    padding: 12px !important;
+  }
+  .settings-section {
+    margin-bottom: 16px !important;
+  }
+  .settings-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .settings-row label {
+    font-size: 13px;
+  }
+  .settings-row input,
+  .settings-row select,
+  .settings-row button {
+    width: 100% !important;
+    font-size: 14px;
+    min-height: 36px;
+  }
+  .settings-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .settings-tab {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
 }
 
 /* ═══════════════════════════════════════════════

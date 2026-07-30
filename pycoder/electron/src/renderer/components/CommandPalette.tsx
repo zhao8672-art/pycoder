@@ -133,15 +133,43 @@ export const CommandPalette: React.FC = () => {
 
     timer = setTimeout(async () => {
       const fileResults = await searchFiles(query);
-      const filteredCommands = baseCommands.filter((cmd) =>
-        cmd.label.toLowerCase().includes(query.toLowerCase())
-      );
-      setItems([...filteredCommands, ...fileResults]);
+      const lowerQuery = query.toLowerCase();
+
+      // Fuzzy match scoring: higher score = better match
+      const scoreCommand = (cmd: CommandItem): number => {
+        const label = cmd.label.toLowerCase();
+        if (label === lowerQuery) return 100;
+        if (label.startsWith(lowerQuery)) return 80;
+        // 连续字符匹配（如 "gsk" -> "Skills 市场"）
+        let qi = 0;
+        let consecutive = 0;
+        let bestRun = 0;
+        for (let i = 0; i < label.length && qi < lowerQuery.length; i++) {
+          if (label[i] === lowerQuery[qi]) {
+            consecutive += 1;
+            bestRun = Math.max(bestRun, consecutive);
+            qi += 1;
+          } else {
+            consecutive = 0;
+          }
+        }
+        if (qi === lowerQuery.length) return 40 + bestRun * 5;
+        if (label.includes(lowerQuery)) return 20;
+        return 0;
+      };
+
+      const scored = baseCommands
+        .map((cmd) => ({ cmd, score: scoreCommand(cmd) }))
+        .filter((s) => s.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map((s) => s.cmd);
+
+      setItems([...scored, ...fileResults]);
       setSelectedIndex(0);
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, searchFiles]);
 
   if (!commandPaletteOpen) return null;
 
