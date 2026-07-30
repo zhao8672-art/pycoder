@@ -55,8 +55,8 @@ classifiers = [
     "Natural Language :: Chinese (Simplified)",
 ]
 requires-python = ">=3.12"
-version = "0.5.0"
-dynamic = ["dependencies", "optional-dependencies"]
+version = "1.0.0"
+dynamic = ["optional-dependencies"]
 # [project.optional-dependencies] 由 setuptools 动态加载 (见下方 [tool.setuptools.dynamic.optional-dependencies])
 # 非缺失: 这是 Python 标准做法，避免手动维护两份依赖列表
 
@@ -100,9 +100,6 @@ pycoder-server = "pycoder.server.app:run"
 [project.entry-points."pycoder.launchers"]
 desktop = "pycoder.__main__:main"
 server = "pycoder.server.app:run"
-
-[tool.setuptools.dynamic]
-dependencies = { file = "requirements.txt" }
 
 [tool.setuptools.dynamic.optional-dependencies]
 dev = { file = "requirements/requirements-dev.txt" }
