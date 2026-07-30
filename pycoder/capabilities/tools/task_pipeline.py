@@ -112,7 +112,7 @@ class TaskPipeline:
     MAX_STEPS = 20  # 最大步骤数
     MAX_TIMEOUT = 600  # 单步骤最大超时 (秒)
 
-    # 危险命令模式 (禁止执行)
+    # 跨平台危险命令模式 (禁止执行)
     _DANGEROUS_PATTERNS = [
         "rm -rf /",
         "rm -rf ~",
@@ -122,6 +122,39 @@ class TaskPipeline:
         "shutdown",
         "mkfs",
     ]
+
+    # Windows 专用危险命令模式
+    DANGEROUS_COMMANDS_WIN: set[str] = {
+        "del /f /s /q",      # 递归强制静默删除
+        "rd /s /q",          # 递归删除目录
+        "rmdir /s /q",       # 递归删除目录 (rmdir 别名)
+        "format",            # 磁盘格式化
+        "diskpart",          # 磁盘分区工具
+        "reg delete",        # 注册表删除
+        "bcdedit",           # 启动配置数据编辑
+        "net user",          # 用户管理 (需提升权限)
+        "cipher /w",         # 安全擦除空闲空间
+        "vssadmin delete shadows",  # 删除卷影副本
+        "wbadmin delete",    # 删除备份
+    }
+
+    def _is_dangerous(self, command: str) -> bool:
+        """检查命令是否危险
+
+        依次检查:
+        1. 跨平台危险模式
+        2. Windows 专用危险命令 (仅在 win32 平台生效)
+        """
+        cmd_lower = command.lower().strip()
+        for pattern in self._DANGEROUS_PATTERNS:
+            if pattern.lower() in cmd_lower:
+                return True
+        # Windows 专用危险命令检测
+        if sys.platform == "win32":
+            for win_pattern in self.DANGEROUS_COMMANDS_WIN:
+                if win_pattern.lower() in cmd_lower:
+                    return True
+        return False
 
     async def execute(
         self,
@@ -314,11 +347,3 @@ class TaskPipeline:
             logger.info("pipeline_rollback_executed index=%d", index)
         except Exception as e:
             logger.warning("pipeline_rollback_failed index=%d error=%s", index, e)
-
-    def _is_dangerous(self, command: str) -> bool:
-        """检查命令是否危险"""
-        cmd_lower = command.lower().strip()
-        for pattern in self._DANGEROUS_PATTERNS:
-            if pattern.lower() in cmd_lower:
-                return True
-        return False

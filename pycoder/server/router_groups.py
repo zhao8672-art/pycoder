@@ -12,10 +12,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
+
+logger = logging.getLogger(__name__)
 
 
 # ── 1. 健康检查（无前缀） ─────────────────────────────────────────
@@ -264,9 +267,41 @@ def register_router_groups(app: FastAPI) -> None:
 
     Side Effects:
         - 修改 app._routes
+        - 自动将路由组工具注册到 MCP ToolRegistry
     """
-    for _name, _register in REGISTRY:
+    for name, _register in REGISTRY:
         _register(app)
+        # 自动将本组路由纳入 MCP 工具注册中心
+        _auto_register_group_tools(name)
+
+
+def _auto_register_group_tools(group_name: str) -> None:
+    """将路由组下的所有路由自动注册到 MCP 工具注册中心
+
+    通过反射导入 _register_<group_name> 函数, 提取其内部使用的 router 对象
+    并注册到全局 ToolRegistry。
+
+    Args:
+        group_name: 路由器组名称
+    """
+    try:
+        from pycoder.bus.tool_registry import register_router_group_tools
+
+        register_fn = globals().get(f"_register_{group_name}")
+        if register_fn is None:
+            return
+        # 通过 inspect 提取函数中引用的 router 对象
+        import inspect
+
+        closure = inspect.getclosurevars(register_fn)
+        routers: list = []
+        for _name, value in {**closure.globals, **closure.nonlocals}.items():
+            if hasattr(value, "routes"):
+                routers.append(value)
+        if routers:
+            register_router_group_tools(group_name, routers)
+    except Exception as e:
+        logger.debug("auto_register_group_tools_failed group=%s error=%s", group_name, e)
 
 
 # 可单测的子注册函数（暴露给 tests 使用）

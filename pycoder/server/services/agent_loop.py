@@ -28,6 +28,7 @@ from pycoder.brain.intelligent_router import (
     RoutingDecision,
     get_intelligent_router,
 )
+from pycoder.capabilities.self_evo.engine import SelfEvolutionEngine
 from pycoder.core.services.agent_parser import WRITE_TOOLS as WRITE_SAFE_TOOLS
 from pycoder.core.services.agent_parser import parse_response, validate_tool_call
 from pycoder.server.services.agent_strategies import AgentStrategy
@@ -55,6 +56,7 @@ class UnifiedAgentLoop:
         context_enhancer: ContextEnhancer | None = None,
         enable_intelligent_routing: bool = False,
         diagnostic_fixer: DiagnosticAutoFixer | None = None,
+        self_evolution_engine: SelfEvolutionEngine | None = None,
     ):
         self.strategy = strategy
         self.workspace = workspace
@@ -71,15 +73,27 @@ class UnifiedAgentLoop:
         # V2.1: 诊断自动修复器 (Phase 2.2)
         self._diagnostic_fixer = diagnostic_fixer or get_diagnostic_fixer()
 
+        # V2.2: 自进化引擎 (Self-Evolution feedback hook)
+        self._self_evo = self_evolution_engine
+
     async def chat_stream(
         self,
         message: str,
         bridge,  # LLMProvider (BridgeLLMProvider) — 提供 stream()/add_message()/configure()
         context: str = "",
         session_id: str = "",
+        *,
+        auto_apply_fixes: bool = False,
     ) -> AsyncIterator[dict]:
         """
         统一执行流（V2: 集成智能路由决策）
+
+        Args:
+            message: 用户消息
+            bridge: LLM 桥接
+            context: 上下文
+            session_id: 会话 ID
+            auto_apply_fixes: 是否在代码生成后自动应用安全 LSP 修复 (Phase 2.2)
 
         Yields:
             {"type": "status", "status": "analyzing"|"executing"|"thinking",
@@ -391,6 +405,26 @@ class UnifiedAgentLoop:
                 except Exception as e:
                     logger.debug("diagnostic_track_failed: %s", e)
 
+            # 4.6. 自动应用安全修复 (Phase 2.2)
+            # 仅在 auto_apply_fixes=True 时执行, 且需要已有注册的修复处理器
+            if auto_apply_fixes and written_files:
+                try:
+                    applied = self._diagnostic_fixer.auto_apply_safe_fixes(
+                        file_paths=written_files,
+                    )
+                    if applied:
+                        logger.info(
+                            "auto_apply_safe_fixes applied=%d",
+                            len(applied),
+                        )
+                        yield {
+                            "type": "auto_fix_applied",
+                            "count": len(applied),
+                            "fixes": applied,
+                        }
+                except Exception as e:
+                    logger.debug("auto_apply_safe_fixes_failed: %s", e)
+
             # 5. 处理工具调用
             if not parsed.tool_calls:
                 # 没有工具调用也没有代码块，检查是否应继续
@@ -575,6 +609,71 @@ class UnifiedAgentLoop:
     # ═══════════════════════════════════════════════════
     # V2: 反馈学习辅助方法
     # ═══════════════════════════════════════════════════
+
+    async def chat_stream_with_evolution(
+        self,
+        message: str,
+        bridge,
+        context: str = "",
+        session_id: str = "",
+        **kwargs: Any,
+    ) -> AsyncIterator[dict]:
+        """包装 chat_stream 并自动记录到 Self-Evolution 引擎
+
+        每次 Agent 执行完成后 (无论成功或失败), 自动调用
+        `self_evolution_engine.record_agent_execution()` 记录执行信号。
+
+        Args:
+            message: 用户消息
+            bridge: LLM 桥接
+            context: 上下文
+            session_id: 会话 ID
+            **kwargs: 透传给 chat_stream
+
+        Yields:
+            chat_stream 的事件流
+        """
+        start_time = time.monotonic()
+        tools_used: list[str] = []
+        success = False
+        error_msg: str | None = None
+
+        try:
+            async for event in self.chat_stream(
+                message,
+                bridge,
+                context=context,
+                session_id=session_id,
+                **kwargs,
+            ):
+                # 记录工具使用
+                if event.get("type") == "tool_result":
+                    tool_name = event.get("tool_name")
+                    if tool_name and tool_name not in tools_used:
+                        tools_used.append(tool_name)
+                # 记录最终状态
+                if event.get("type") == "agent_result":
+                    status = event.get("status", "")
+                    success = status in ("done", "completed")
+                yield event
+        except Exception as e:
+            error_msg = str(e)
+            logger.warning("chat_stream_with_evolution error: %s", e)
+            raise
+        finally:
+            # 记录到 Self-Evolution 引擎
+            if self._self_evo is not None:
+                try:
+                    duration_ms = (time.monotonic() - start_time) * 1000
+                    self._self_evo.record_agent_execution(
+                        session_id=session_id or "unknown",
+                        success=success,
+                        duration_ms=duration_ms,
+                        tools_used=tools_used,
+                        error=error_msg,
+                    )
+                except Exception as e:
+                    logger.debug("self_evo_record_failed: %s", e)
 
     def _record_feedback(
         self,

@@ -17,6 +17,12 @@ from pycoder.bus.monitor import BusMonitor, CallTrace
 from pycoder.bus.protocol import GRPCAdapter, InternalAdapter, MCPAdapter, ProtocolAdapter
 from pycoder.bus.registry import CapabilityDefinition, CapabilityRegistry
 from pycoder.bus.router import IntelligentRouter, RouteDecision
+from pycoder.bus.tool_registry import (
+    ToolEntry,
+    ToolRegistry,
+    get_tool_registry,
+    register_router_group_tools,
+)
 from pycoder.bus.transformer import InputTransformer, OutputTransformer
 
 __all__ = [
@@ -32,4 +38,8 @@ __all__ = [
     "CallTrace",
     "InputTransformer",
     "OutputTransformer",
+    "ToolEntry",
+    "ToolRegistry",
+    "get_tool_registry",
+    "register_router_group_tools",
 ]

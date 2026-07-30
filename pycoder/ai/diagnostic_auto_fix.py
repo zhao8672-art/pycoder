@@ -22,7 +22,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pycoder.lsp.context_integration import LSPContextIntegrator
@@ -101,6 +101,7 @@ class DiagnosticAutoFixer:
         self._fix_history: list[FixRound] = []
         self._session_start: float = 0
         self._session_id: str = ""
+        self._fix_handlers: dict[str, Any] = {}  # V2.2: 注册的修复处理器
 
     @property
     def _lsp_integrator(self) -> LSPContextIntegrator | None:
@@ -295,6 +296,141 @@ class DiagnosticAutoFixer:
             "files_affected": report.files_affected,
             "total_duration_ms": report.total_duration_ms,
         }
+
+    # ═══════════════════════════════════════════════════
+    # V2.2: 安全修复自动应用 (Phase 2.2 增强)
+    # ═══════════════════════════════════════════════════
+
+    # 可安全自动应用的诊断码集合 (来自 pyright / pylsp 等)
+    SAFE_AUTO_APPLY_CODES: set[str] = {
+        "reportMissingImports",   # 缺失导入
+        "reportUndefinedVariable",  # 未定义变量 (部分场景可安全补全)
+        "reportUnusedImport",     # 未使用导入
+        "reportMissingModuleSource",  # 缺失模块源 (需安装)
+        "reportUndefinedImport",  # 未定义导入
+        "reportGeneralTypeIssues",  # 通用类型问题 (小修复)
+    }
+
+    def register_fix_handler(
+        self,
+        code: str,
+        handler: Any,
+    ) -> None:
+        """注册诊断码对应的修复处理器
+
+        Args:
+            code: 诊断码 (如 "reportMissingImports")
+            handler: 接收 (file_path, diagnostic) -> str(新内容) 的可调用对象
+        """
+        self._fix_handlers[code] = handler
+
+    def auto_apply_safe_fixes(
+        self,
+        file_paths: list[str] | None = None,
+        *,
+        max_per_file: int = 3,
+    ) -> list[dict]:
+        """自动应用安全修复
+
+        遍历追踪文件 (或指定文件) 的 LSP 诊断, 对 `auto_apply_safe` 标记为 True
+        的诊断调用已注册的修复处理器, 返回成功应用的修复列表。
+
+        Args:
+            file_paths: 指定文件列表 (None 则使用所有追踪文件)
+            max_per_file: 每个文件最多自动修复的诊断数 (避免误改)
+
+        Returns:
+            成功应用的修复列表, 每项包含:
+            {
+                "file": str,
+                "line": int,
+                "code": str,
+                "message": str,
+                "fix_content": str | None,  # 新内容 (如果成功)
+            }
+        """
+        if not self._fix_handlers:
+            logger.debug("auto_apply_safe_fixes: no handlers registered")
+            return []
+
+        diagnostics = self.collect_diagnostics_for_files(file_paths)
+        if not diagnostics:
+            return []
+
+        applied: list[dict] = []
+        workspace = self._workspace
+
+        for file_path, diags in diagnostics.items():
+            if not diags:
+                continue
+            file_applied = 0
+            for diag in diags:
+                if file_applied >= max_per_file:
+                    break
+                # 判定是否可安全应用
+                code = getattr(diag, "code", "") or ""
+                message = getattr(diag, "message", "") or ""
+                severity = getattr(diag, "severity", "information")
+                if not self._is_safe_to_auto_apply(code, message, severity):
+                    continue
+                handler = self._fix_handlers.get(code)
+                if handler is None:
+                    continue
+                try:
+                    new_content = handler(file_path, diag)
+                    if new_content is None:
+                        continue
+                    # 写回文件 (workspace 边界检查)
+                    target = (workspace / file_path).resolve()
+                    if not target.is_relative_to(workspace):
+                        logger.warning(
+                            "auto_apply_safe_skip path=%s (outside workspace)",
+                            file_path,
+                        )
+                        continue
+                    if not target.exists():
+                        logger.debug(
+                            "auto_apply_safe_skip path=%s (file not found)",
+                            file_path,
+                        )
+                        continue
+                    target.write_text(new_content, encoding="utf-8")
+                    file_applied += 1
+                    applied.append({
+                        "file": file_path,
+                        "line": getattr(diag, "line", 0),
+                        "code": code,
+                        "message": message,
+                        "fix_content": new_content[:500] if new_content else None,
+                    })
+                    logger.info(
+                        "auto_apply_safe_fixes applied file=%s code=%s",
+                        file_path,
+                        code,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "auto_apply_safe_fixes_failed file=%s code=%s error=%s",
+                        file_path,
+                        code,
+                        e,
+                    )
+        return applied
+
+    def _is_safe_to_auto_apply(
+        self,
+        code: str,
+        message: str,
+        severity: str,
+    ) -> bool:
+        """判定诊断是否可安全自动修复"""
+        if code in self.SAFE_AUTO_APPLY_CODES:
+            return True
+        # 基于消息文本的启发式判断
+        msg_lower = (message or "").lower()
+        if "missing import" in msg_lower or "undefined import" in msg_lower:
+            return True
+        return False
 
 
 # 全局单例

@@ -416,6 +416,59 @@ class SelfEvolutionEngine:
             self._records = self._records[-1000:]
         self._save_history()
 
+    def record_agent_execution(
+        self,
+        session_id: str,
+        success: bool,
+        duration_ms: float,
+        tools_used: list[str] | None = None,
+        error: str | None = None,
+    ) -> EvolutionRecord:
+        """记录 Agent 执行信号到进化历史
+
+        用于 Self-Evolution 反馈闭环: 每次 Agent 执行完成 (成功或失败)
+        都调用此方法, 让自进化引擎从执行模式中学习。
+
+        Args:
+            session_id: 会话 ID
+            success: 是否成功
+            duration_ms: 执行时长 (毫秒)
+            tools_used: 使用的工具列表
+            error: 错误信息 (失败时)
+
+        Returns:
+            EvolutionRecord 记录对象
+        """
+        tools_str = ",".join(tools_used) if tools_used else ""
+        lessons = ""
+        if not success and error:
+            # 失败时记录经验教训
+            lessons = f"agent_execution_failed session={session_id} error={error[:200]}"
+        elif success and tools_used:
+            lessons = f"agent_execution_succeeded tools={tools_str}"
+
+        record = EvolutionRecord(
+            timestamp=time.time(),
+            action="agent_execution",
+            issue_type="agent_feedback",
+            file=session_id,
+            success=success,
+            fix_description=(
+                f"tools={tools_str} duration_ms={duration_ms:.1f}"
+            ),
+            test_result="passed" if success else "failed",
+            lessons=lessons,
+        )
+        self.record_evolution(record)
+        logger.debug(
+            "record_agent_execution session=%s success=%s duration=%.1fms tools=%d",
+            session_id,
+            success,
+            duration_ms,
+            len(tools_used) if tools_used else 0,
+        )
+        return record
+
     def get_evolution_history(self, limit: int = 50) -> list[dict[str, Any]]:
         """获取进化历史"""
         return [

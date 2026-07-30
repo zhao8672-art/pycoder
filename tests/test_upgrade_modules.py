@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,8 @@ from pycoder.ai.dialog.decision_snapshot import (
     DecisionSnapshot,
     DecisionSnapshotManager,
 )
+from pycoder.ai.diagnostic_auto_fix import DiagnosticAutoFixer
+from pycoder.capabilities.self_evo.engine import SelfEvolutionEngine
 
 
 class TestDecisionSnapshot:
@@ -735,3 +738,369 @@ content = open(user_filename).read()
         assert "安全提示" in text
         assert "sql_injection" in text
         assert "CWE-89" in text
+
+
+# ── Task 1: Windows 危险命令检测扩展测试 ────────────────────────────
+
+
+class TestDangerousCommandsWin:
+    """Windows 危险命令检测测试 (Task 1)"""
+
+    @pytest.fixture
+    def pipeline(self) -> TaskPipeline:
+        return TaskPipeline()
+
+    def test_dangerous_commands_win_set_exists(self, pipeline: TaskPipeline) -> None:
+        """DANGEROUS_COMMANDS_WIN 集合存在且包含所有要求的命令"""
+        assert hasattr(pipeline, "DANGEROUS_COMMANDS_WIN")
+        assert isinstance(pipeline.DANGEROUS_COMMANDS_WIN, set)
+        # 验证所有要求的命令都包含
+        required_commands = {
+            "del /f /s /q",
+            "format",
+            "diskpart",
+            "rd /s /q",
+            "rmdir /s /q",
+            "reg delete",
+            "bcdedit",
+            "net user",
+            "cipher /w",
+            "vssadmin delete shadows",
+            "wbadmin delete",
+        }
+        assert required_commands.issubset(pipeline.DANGEROUS_COMMANDS_WIN)
+
+    def test_is_dangerous_del_recursive(self, pipeline: TaskPipeline) -> None:
+        """检测 del /f /s /q 递归删除"""
+        assert pipeline._is_dangerous("del /f /s /q C:\\Users") is True
+
+    def test_is_dangerous_format(self, pipeline: TaskPipeline) -> None:
+        """检测 format 命令"""
+        assert pipeline._is_dangerous("format D:") is True
+
+    def test_is_dangerous_diskpart(self, pipeline: TaskPipeline) -> None:
+        """检测 diskpart 命令"""
+        assert pipeline._is_dangerous("diskpart /s script.txt") is True
+
+    def test_is_dangerous_rd_recursive(self, pipeline: TaskPipeline) -> None:
+        """检测 rd /s /q 递归删除目录"""
+        assert pipeline._is_dangerous("rd /s /q C:\\temp") is True
+
+    def test_is_dangerous_rmdir_recursive(self, pipeline: TaskPipeline) -> None:
+        """检测 rmdir /s /q 递归删除目录"""
+        assert pipeline._is_dangerous("rmdir /s /q C:\\temp") is True
+
+    def test_is_dangerous_reg_delete(self, pipeline: TaskPipeline) -> None:
+        """检测 reg delete 注册表删除"""
+        assert pipeline._is_dangerous("reg delete HKLM\\Software\\Test /f") is True
+
+    def test_is_dangerous_bcdedit(self, pipeline: TaskPipeline) -> None:
+        """检测 bcdedit 启动配置编辑"""
+        assert pipeline._is_dangerous("bcdedit /set {default} bootstatuspolicy ignoreallfailures") is True
+
+    def test_is_dangerous_net_user(self, pipeline: TaskPipeline) -> None:
+        """检测 net user 用户管理"""
+        assert pipeline._is_dangerous("net user hacker P@ssw0rd /add") is True
+
+    def test_is_dangerous_cipher_w(self, pipeline: TaskPipeline) -> None:
+        """检测 cipher /w 安全擦除"""
+        assert pipeline._is_dangerous("cipher /w:C:\\secret_folder") is True
+
+    def test_is_dangerous_vssadmin_delete(self, pipeline: TaskPipeline) -> None:
+        """检测 vssadmin delete shadows"""
+        assert pipeline._is_dangerous("vssadmin delete shadows /all /quiet") is True
+
+    def test_is_dangerous_wbadmin_delete(self, pipeline: TaskPipeline) -> None:
+        """检测 wbadmin delete backup"""
+        assert pipeline._is_dangerous("wbadmin delete catalog -quiet") is True
+
+    def test_safe_command_passes(self, pipeline: TaskPipeline) -> None:
+        """普通命令不应被识别为危险"""
+        assert pipeline._is_dangerous("echo hello") is False
+        assert pipeline._is_dangerous("python --version") is False
+        assert pipeline._is_dangerous("dir") is False
+
+    @pytest.mark.asyncio
+    async def test_execute_blocks_win_dangerous_command(self, pipeline: TaskPipeline) -> None:
+        """execute() 应在 Windows 平台拒绝危险命令"""
+        if sys.platform != "win32":
+            pytest.skip("仅在 Windows 平台执行")
+        steps = [PipelineStep(command="format D: /FS:NTFS", description="格式化")]
+        result = await pipeline.execute(steps)
+        assert result.success is False
+        assert "危险" in result.error_message or "拒绝" in result.error_message
+
+
+# ── Task 2: LSP 诊断自动应用循环测试 ─────────────────────────────
+
+
+class TestDiagnosticAutoFixerAutoApply:
+    """LSP 诊断自动应用循环测试 (Task 2)"""
+
+    @pytest.fixture
+    def fixer(self) -> DiagnosticAutoFixer:
+        return DiagnosticAutoFixer(workspace=Path.cwd())
+
+    def test_safe_auto_apply_codes_exists(self, fixer: DiagnosticAutoFixer) -> None:
+        """SAFE_AUTO_APPLY_CODES 集合应存在并包含关键诊断码"""
+        assert hasattr(fixer, "SAFE_AUTO_APPLY_CODES")
+        assert isinstance(fixer.SAFE_AUTO_APPLY_CODES, set)
+        assert "reportMissingImports" in fixer.SAFE_AUTO_APPLY_CODES
+        assert "reportUndefinedImport" in fixer.SAFE_AUTO_APPLY_CODES
+
+    def test_register_fix_handler(self, fixer: DiagnosticAutoFixer) -> None:
+        """可注册修复处理器"""
+        handler = lambda f, d: "new content"
+        fixer.register_fix_handler("reportMissingImports", handler)
+        assert "reportMissingImports" in fixer._fix_handlers
+
+    def test_auto_apply_safe_fixes_no_handlers(self, fixer: DiagnosticAutoFixer) -> None:
+        """无注册处理器时返回空列表"""
+        result = fixer.auto_apply_safe_fixes(file_paths=[])
+        assert result == []
+
+    def test_is_safe_to_auto_apply_known_code(self, fixer: DiagnosticAutoFixer) -> None:
+        """已知安全码应判定为可应用"""
+        assert fixer._is_safe_to_auto_apply("reportMissingImports", "msg", "error") is True
+        assert fixer._is_safe_to_auto_apply("reportUndefinedImport", "msg", "error") is True
+
+    def test_is_safe_to_auto_apply_unknown_code(self, fixer: DiagnosticAutoFixer) -> None:
+        """未知且消息中无关键词的码应判定为不安全"""
+        assert fixer._is_safe_to_auto_apply("reportSomethingElse", "no match", "error") is False
+
+    def test_is_safe_to_auto_apply_keyword_in_message(self, fixer: DiagnosticAutoFixer) -> None:
+        """消息中含 'missing import' 关键词的诊断应可应用"""
+        assert fixer._is_safe_to_auto_apply("", "Missing import: os", "error") is True
+
+    def test_auto_apply_safe_fixes_with_file(self, fixer: DiagnosticAutoFixer, tmp_path: Path) -> None:
+        """auto_apply_safe_fixes 应在有处理器且有匹配诊断时执行"""
+        # 准备文件
+        test_file = tmp_path / "test.py"
+        test_file.write_text("x = 1\n", encoding="utf-8")
+        fixer._workspace = tmp_path
+
+        class MockDiag:
+            line = 0
+            character = 0
+            end_line = 0
+            end_character = 0
+            severity = "error"
+            code = "reportMissingImports"
+            source = "pyright"
+            message = "Missing import: os"
+            file_path = "test.py"
+
+        # 模拟: 在 fixer 内覆盖 collect_diagnostics_for_files
+        original_collect = fixer.collect_diagnostics_for_files
+
+        def mock_collect(file_paths=None):
+            return {"test.py": [MockDiag()]}
+
+        fixer.collect_diagnostics_for_files = mock_collect  # type: ignore[assignment]
+        fixer.track_files(["test.py"])
+
+        # 注册处理器
+        def handler(file_path, diag):
+            return "import os\nx = 1\n"
+
+        fixer.register_fix_handler("reportMissingImports", handler)
+        applied = fixer.auto_apply_safe_fixes()
+        assert len(applied) == 1
+        assert applied[0]["file"] == "test.py"
+        assert applied[0]["code"] == "reportMissingImports"
+        # 文件被更新
+        assert "import os" in test_file.read_text(encoding="utf-8")
+
+        # 恢复
+        fixer.collect_diagnostics_for_files = original_collect  # type: ignore[assignment]
+
+    def test_auto_apply_safe_fixes_skips_missing_file(
+        self, fixer: DiagnosticAutoFixer, tmp_path: Path
+    ) -> None:
+        """auto_apply_safe_fixes 应跳过不存在的文件"""
+        fixer._workspace = tmp_path
+
+        class MockDiag:
+            line = 0
+            character = 0
+            end_line = 0
+            end_character = 0
+            severity = "error"
+            code = "reportMissingImports"
+            source = "pyright"
+            message = "Missing import: os"
+            file_path = "missing.py"
+
+        def mock_collect(file_paths=None):
+            return {"missing.py": [MockDiag()]}
+
+        fixer.collect_diagnostics_for_files = mock_collect  # type: ignore[assignment]
+        fixer.track_files(["missing.py"])
+
+        fixer.register_fix_handler("reportMissingImports", lambda f, d: "import os\n")
+        applied = fixer.auto_apply_safe_fixes()
+        assert applied == []
+
+    def test_auto_apply_safe_fixes_max_per_file_limit(
+        self, fixer: DiagnosticAutoFixer, tmp_path: Path
+    ) -> None:
+        """auto_apply_safe_fixes 应遵守 max_per_file 上限"""
+        test_file = tmp_path / "test.py"
+        test_file.write_text("x = 1\n", encoding="utf-8")
+        fixer._workspace = tmp_path
+
+        class MockDiag:
+            line = 0
+            character = 0
+            end_line = 0
+            end_character = 0
+            severity = "error"
+            code = "reportMissingImports"
+            source = "pyright"
+            message = "Missing import"
+            file_path = "test.py"
+
+        # 5 个诊断
+        diags = [MockDiag() for _ in range(5)]
+
+        def mock_collect(file_paths=None):
+            return {"test.py": diags}
+
+        fixer.collect_diagnostics_for_files = mock_collect  # type: ignore[assignment]
+        fixer.track_files(["test.py"])
+        call_count = [0]
+
+        def handler(file_path, diag):
+            call_count[0] += 1
+            return f"import os  # fix {call_count[0]}\n"
+
+        fixer.register_fix_handler("reportMissingImports", handler)
+        applied = fixer.auto_apply_safe_fixes(max_per_file=2)
+        # 最多应用 2 个
+        assert len(applied) == 2
+
+    def test_auto_apply_safe_fixes_unsafe_code_not_applied(
+        self, fixer: DiagnosticAutoFixer, tmp_path: Path
+    ) -> None:
+        """auto_apply_safe_fixes 不应应用未列入安全码的诊断"""
+        test_file = tmp_path / "test.py"
+        test_file.write_text("x = 1\n", encoding="utf-8")
+        fixer._workspace = tmp_path
+
+        class MockDiag:
+            line = 0
+            character = 0
+            end_line = 0
+            end_character = 0
+            severity = "error"
+            code = "reportSomethingDangerous"
+            source = "pyright"
+            message = "Some dangerous issue"
+            file_path = "test.py"
+
+        def mock_collect(file_paths=None):
+            return {"test.py": [MockDiag()]}
+
+        fixer.collect_diagnostics_for_files = mock_collect  # type: ignore[assignment]
+        fixer.track_files(["test.py"])
+
+        def handler(file_path, diag):
+            return "DIFFERENT"
+
+        fixer.register_fix_handler("reportSomethingDangerous", handler)
+        applied = fixer.auto_apply_safe_fixes()
+        # 不在白名单 → 跳过
+        assert applied == []
+        # 文件未修改
+        assert test_file.read_text(encoding="utf-8") == "x = 1\n"
+
+
+# ── Task 3: Self-Evolution 反馈钩子测试 ──────────────────────────
+
+
+class TestSelfEvolutionRecordAgentExecution:
+    """Self-Evolution record_agent_execution 钩子测试 (Task 3)"""
+
+    @pytest.fixture
+    def engine(self, tmp_path: Path) -> SelfEvolutionEngine:
+        """使用临时目录避免污染用户主目录"""
+        eng = SelfEvolutionEngine(project_root=tmp_path)
+        eng._persist_path = tmp_path / "test_evolution_history.json"
+        return eng
+
+    def test_record_agent_execution_success(self, engine: SelfEvolutionEngine) -> None:
+        """成功执行应被正确记录"""
+        record = engine.record_agent_execution(
+            session_id="sess-1",
+            success=True,
+            duration_ms=150.0,
+            tools_used=["list_files", "read_file"],
+        )
+        assert record.action == "agent_execution"
+        assert record.issue_type == "agent_feedback"
+        assert record.success is True
+        assert record.test_result == "passed"
+        # 工具列表应出现在 fix_description 中
+        assert "list_files" in record.fix_description
+        # 持久化路径
+        assert engine._persist_path.exists()
+
+    def test_record_agent_execution_failure(self, engine: SelfEvolutionEngine) -> None:
+        """失败执行应被正确记录, 含错误信息"""
+        record = engine.record_agent_execution(
+            session_id="sess-2",
+            success=False,
+            duration_ms=300.0,
+            tools_used=["shell"],
+            error="command failed",
+        )
+        assert record.success is False
+        assert record.test_result == "failed"
+        # 失败时 lessons 应记录错误信息
+        assert "agent_execution_failed" in record.lessons
+        assert "command failed" in record.lessons
+
+    def test_record_agent_execution_no_tools(self, engine: SelfEvolutionEngine) -> None:
+        """无工具时也应正常记录"""
+        record = engine.record_agent_execution(
+            session_id="sess-3",
+            success=True,
+            duration_ms=10.0,
+        )
+        assert record.action == "agent_execution"
+        assert "duration_ms" in record.fix_description
+
+    def test_record_agent_execution_persists_to_disk(
+        self, engine: SelfEvolutionEngine
+    ) -> None:
+        """记录应持久化到磁盘"""
+        engine.record_agent_execution(
+            session_id="sess-persist",
+            success=True,
+            duration_ms=100.0,
+            tools_used=["grep"],
+        )
+        # 强制刷新
+        engine._save_history()
+        # 重新创建引擎读取
+        new_engine = SelfEvolutionEngine(project_root=engine._project_root)
+        new_engine._persist_path = engine._persist_path
+        new_engine._load_history()
+        # 至少 1 条记录
+        assert len(new_engine._records) >= 1
+        last = new_engine._records[-1]
+        assert last.action == "agent_execution"
+
+    def test_record_agent_execution_appends_to_history(
+        self, engine: SelfEvolutionEngine
+    ) -> None:
+        """多次记录应累积到历史中"""
+        before = len(engine._records)
+        for i in range(3):
+            engine.record_agent_execution(
+                session_id=f"sess-{i}",
+                success=True,
+                duration_ms=50.0 * i,
+                tools_used=["tool_a"],
+            )
+        assert len(engine._records) == before + 3
