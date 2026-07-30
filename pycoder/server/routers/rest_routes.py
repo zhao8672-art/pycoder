@@ -53,11 +53,18 @@ async def get_messages(
     return {"messages": [m.to_dict() for m in msgs], "total": len(msgs)}
 
 
-@router.delete("/api/sessions/{session_id}")
-async def delete_session(session_id: str):
+# ⚠️ 注意：以下三个删除路由的注册顺序很关键！
+# delete_all_sessions 和 batch_delete_sessions 必须在 delete_session 之前，
+# 否则 DELETE /api/sessions/all 会被 delete_session(session_id="all") 截获。
+# FastAPI 按注册顺序匹配路由，静态路径优先注册才能正确匹配。
+
+
+@router.delete("/api/sessions/all")
+async def delete_all_sessions():
+    """清空所有会话"""
     store = get_session_store()
-    store.delete_session(session_id)
-    return {"success": True, "session_id": session_id}
+    count = store.delete_all_sessions()
+    return {"success": True, "deleted": count}
 
 
 @router.post("/api/sessions/batch-delete")
@@ -68,12 +75,11 @@ async def batch_delete_sessions(req: BatchDeleteRequest):
     return {"success": True, "deleted": deleted}
 
 
-@router.delete("/api/sessions/all")
-async def delete_all_sessions():
-    """清空所有会话"""
+@router.delete("/api/sessions/{session_id}")
+async def delete_session(session_id: str):
     store = get_session_store()
-    count = store.delete_all_sessions()
-    return {"success": True, "deleted": count}
+    store.delete_session(session_id)
+    return {"success": True, "session_id": session_id}
 
 
 @router.get("/api/project/deps/check")
