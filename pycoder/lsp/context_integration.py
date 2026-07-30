@@ -274,6 +274,63 @@ class LSPContextIntegrator:
     # 与 ContextOrchestrator 集成的便捷方法
     # ══════════════════════════════════════════════════════
 
+    def get_incremental_diagnostics(
+        self,
+        file_path: str,
+        changed_lines: list[tuple[int, int]],
+        all_diagnostics: list | None = None,
+        buffer: int = 2,
+    ) -> list[Diagnostic]:
+        """增量诊断过滤 — 仅返回变化行附近的诊断
+
+        用于文档编辑时只重发相关诊断, 减少传输量与 AI 提示词膨胀。
+
+        Args:
+            file_path: 文件路径 (用于过滤)
+            changed_lines: 变化的行范围列表, 每项为 (start_line, end_line), 闭区间
+            all_diagnostics: 全量诊断列表 (None 时从 LSPClient 拉取)
+            buffer: 命中缓冲区 (行), 默认 2 行
+
+        Returns:
+            落在变化范围 ± buffer 内的诊断列表 (按行号排序)
+
+        Examples:
+            >>> integrator.get_incremental_diagnostics("main.py", [(10, 20)])
+            # 返回 main.py 中 8~22 行内的所有诊断
+        """
+        if not changed_lines:
+            return []
+
+        if all_diagnostics is None:
+            if not self.enabled or self._client is None:
+                return []
+            try:
+                all_diagnostics = self._client.get_diagnostics(file_path)
+            except Exception as e:
+                logger.debug("lsp_incremental_collect_failed: %s=%s", file_path, e)
+                return []
+
+        if not all_diagnostics:
+            return []
+
+        # 构建变化范围的并集区间 (按 buffer 扩展)
+        expanded: list[tuple[int, int]] = [
+            (max(0, start - buffer), end + buffer) for start, end in changed_lines
+        ]
+
+        result: list[Diagnostic] = []
+        for diag in all_diagnostics:
+            # 不同文件的诊断忽略 (path 比较)
+            if getattr(diag, "file_path", None) and diag.file_path != file_path:
+                continue
+            line = getattr(diag, "line", 0)
+            for start, end in expanded:
+                if start <= line <= end:
+                    result.append(diag)
+                    break
+        result.sort(key=lambda d: (_SEVERITY_PRIORITY.get(d.severity, 99), d.line))
+        return result
+
     def get_anchor_section(self, file_paths: list[str] | None = None) -> str:
         """获取锚点片段 (供 ContextOrchestrator 注入 anchor)
 

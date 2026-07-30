@@ -99,10 +99,12 @@ class PromptCache:
         if entry:
             if entry.expires_at > time.time():
                 entry.hit_count += 1
+                _stats_singleton.record_hit(len(entry.cached_output.encode("utf-8")))
                 logger.debug("KV Cache 内存命中: key=%.16s", prefix_hash)
                 return entry.cached_output
             else:
                 self._local.pop(key, None)
+                _stats_singleton.record_eviction()
 
         # 2. 检查 SQLite
         try:
@@ -133,6 +135,7 @@ class PromptCache:
                     created_at=time.time(),
                     expires_at=time.time() + DEFAULT_TTL,
                 )
+                _stats_singleton.record_hit(len(output.encode("utf-8")))
 
                 logger.debug("KV Cache SQLite 命中: key=%.16s, hits=%d", prefix_hash, hit_count + 1)
                 return output
@@ -140,6 +143,8 @@ class PromptCache:
         except Exception as exc:
             logger.debug("KV Cache 查询失败: %s", exc)
 
+        # 未命中任何缓存
+        _stats_singleton.record_miss()
         return None
 
     def set(
@@ -180,6 +185,7 @@ class PromptCache:
             created_at=now,
             expires_at=now + ttl,
         )
+        _stats_singleton.record_put(len(cached_output.encode("utf-8")))
 
         # 限制内存缓存大小
         if len(self._local) > MAX_ENTRIES:
@@ -289,6 +295,97 @@ class PromptCache:
         evict_count = len(sorted_entries) // 2
         for key, _ in sorted_entries[:evict_count]:
             self._local.pop(key, None)
+            # 通知统计收集器
+            _stats_singleton.record_eviction()
+
+
+# ══════════════════════════════════════════════════════════
+# 缓存命中统计
+# ══════════════════════════════════════════════════════════
+
+
+class CacheStatsCollector:
+    """缓存命中统计收集器
+
+    记录 PromptCache 的命中/未命中/淘汰事件, 计算命中率与总大小。
+    设计为线程/异步安全的单例 (通过 get_cache_stats 获取)。
+
+    字段:
+        hits: 命中次数
+        misses: 未命中次数
+        evictions: 淘汰次数
+        total_size_bytes: 缓存占用字节数 (近似值)
+    """
+
+    def __init__(self) -> None:
+        self._hits: int = 0
+        self._misses: int = 0
+        self._evictions: int = 0
+        self._total_size_bytes: int = 0
+
+    def record_hit(self, size_bytes: int = 0) -> None:
+        """记录一次命中
+
+        Args:
+            size_bytes: 命中条目的字节数 (用于 total_size_bytes 估算)
+        """
+        self._hits += 1
+        if size_bytes > 0:
+            self._total_size_bytes += size_bytes
+
+    def record_miss(self) -> None:
+        """记录一次未命中"""
+        self._misses += 1
+
+    def record_eviction(self, size_bytes: int = 0) -> None:
+        """记录一次淘汰
+
+        Args:
+            size_bytes: 被淘汰条目的字节数
+        """
+        self._evictions += 1
+        if size_bytes > 0 and self._total_size_bytes >= size_bytes:
+            self._total_size_bytes -= size_bytes
+
+    def record_put(self, size_bytes: int = 0) -> None:
+        """记录一次写入 (用于 total_size_bytes 累计)
+
+        Args:
+            size_bytes: 写入条目的字节数
+        """
+        if size_bytes > 0:
+            self._total_size_bytes += size_bytes
+
+    def get_stats(self) -> dict:
+        """获取统计快照
+
+        Returns:
+            {
+                "hits": int,
+                "misses": int,
+                "evictions": int,
+                "total_lookups": int,
+                "hit_rate": float,        # 0.0 ~ 1.0
+                "total_size_bytes": int,
+            }
+        """
+        total_lookups = self._hits + self._misses
+        hit_rate = (self._hits / total_lookups) if total_lookups > 0 else 0.0
+        return {
+            "hits": self._hits,
+            "misses": self._misses,
+            "evictions": self._evictions,
+            "total_lookups": total_lookups,
+            "hit_rate": round(hit_rate, 4),
+            "total_size_bytes": self._total_size_bytes,
+        }
+
+    def reset(self) -> None:
+        """重置所有统计"""
+        self._hits = 0
+        self._misses = 0
+        self._evictions = 0
+        self._total_size_bytes = 0
 
 
 # ══════════════════════════════════════════════════════════
@@ -296,6 +393,7 @@ class PromptCache:
 # ══════════════════════════════════════════════════════════
 
 _cache: PromptCache | None = None
+_stats_singleton: CacheStatsCollector = CacheStatsCollector()
 
 
 def get_cache() -> PromptCache:
@@ -304,3 +402,14 @@ def get_cache() -> PromptCache:
     if _cache is None:
         _cache = PromptCache()
     return _cache
+
+
+def get_cache_stats() -> CacheStatsCollector:
+    """获取缓存统计单例
+
+    用法:
+        stats = get_cache_stats()
+        stats.record_hit()
+        snapshot = stats.get_stats()
+    """
+    return _stats_singleton
