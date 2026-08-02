@@ -207,6 +207,16 @@ targets = ["pycoder"]
 # ────────────────────────────────────────────────────────────────────
 # Pytest 配置 (v8+)
 # ────────────────────────────────────────────────────────────────────
+# CI 分片策略 (解决完整测试套件 300s 超时问题):
+#   1. 本地开发: 默认配置 (-n auto 并行 + --timeout=60 单测超时)
+#   2. CI 快速门禁: pytest -m "not slow" (跳过慢测试, <120s)
+#   3. CI 完整分片: 按 marker 拆分为多个并行 job
+#      - shard-1: pytest -m "not slow and not integration" tests/core/
+#      - shard-2: pytest -m "not slow and not integration" tests/server/
+#      - shard-3: pytest -m "slow" (允许长超时)
+#      - shard-4: pytest -m "integration" (需要外部服务)
+#   4. 跨 job 并行: pytest-xdist -n auto 已在单机内并行;
+#      跨机分片用 pytest-split 或 marker 切分。
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
@@ -220,10 +230,12 @@ addopts = [
     "--showlocals",         # 失败时打印局部变量
     "--tb=short",           # 简短的 traceback
     "--durations=10",       # 显示最慢的 10 个测试
+    "--durations-min=0.5",  # 仅显示耗时 >= 0.5s 的测试 (减少噪音)
+    "--timeout=60",         # 单测超时 60s (pytest-timeout, 防止单测挂死拖垮整个套件)
     "-n", "auto",           # pytest-xdist 并行执行（按 CPU 核数自动分配）
 ]
 markers = [
-    "slow: 慢测试 (长时间运行, 默认跳过)",
+    "slow: 慢测试 (长时间运行, CI 默认跳过: pytest -m 'not slow')",
     "integration: 集成测试 (需要外部服务)",
     "network: 需要网络连接的测试",
     "windows: 仅在 Windows 平台运行",

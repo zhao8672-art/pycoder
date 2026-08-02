@@ -27,6 +27,9 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+# 注: call_builtin_tool 是 V2 引擎的规范调度入口（含白名单校验/工具名归一化），
+# 并非弃用 API。仅 mcp_tools 中的旧式 _builtin_tools / MCPToolDef 手工注册机制已弃用。
+# 详见 pycoder/server/mcp_tools.py 模块 docstring。
 from pycoder.server.mcp_tools import call_builtin_tool
 
 router = APIRouter(prefix="/api/pipeline")

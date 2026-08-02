@@ -395,9 +395,9 @@ class ShellTranslator:
 
         if target == "windows":
             # → Windows: && 配对展开（含 Linux→Windows 及 Windows→Windows 规范化）
+            # FIX: 使用引号感知分割，避免误切引号内的 && （如 echo "a && b" && ls）
             if "&&" in command:
-                # 用 ; 分割然后逐段包 if
-                parts = command.split("&&")
+                parts = self._split_top_level(command, "&&")
                 expanded = []
                 for i, part in enumerate(parts):
                     part = part.strip()
@@ -422,7 +422,8 @@ class ShellTranslator:
 
     def _expand_or(self, command: str, mappings_applied: list[str]) -> str:
         """展开 || 为 if-else 配对。"""
-        parts = command.split("||")
+        # FIX: 使用引号感知分割，避免误切引号内的 ||
+        parts = self._split_top_level(command, "||")
         expanded = []
         for i, part in enumerate(parts):
             part = part.strip()
@@ -432,6 +433,51 @@ class ShellTranslator:
                 expanded.append(f"; if ($LASTEXITCODE -ne 0) {{ {part} }}")
         mappings_applied.append("||")
         return " ".join(expanded)
+
+    def _split_top_level(self, command: str, delimiter: str) -> list[str]:
+        """按 delimiter 分割字符串，但忽略引号内的分隔符.
+
+        FIX: 之前 `command.split("&&")` 会误切引号内的 &&，
+        例如 `echo "a && b" && ls` 被切成 3 段而非 2 段。
+        现在跟踪引号状态（单/双引号），只在引号外分割。
+
+        Args:
+            command: 待分割的命令字符串
+            delimiter: 分隔符（如 "&&" 或 "||"）
+
+        Returns:
+            分割后的段列表
+        """
+        parts: list[str] = []
+        buf: list[str] = []
+        i = 0
+        n = len(command)
+        dlen = len(delimiter)
+        in_single = False
+        in_double = False
+        while i < n:
+            ch = command[i]
+            # 引号状态切换（仅在另一类引号未开启时）
+            if ch == "'" and not in_double:
+                in_single = not in_single
+                buf.append(ch)
+                i += 1
+                continue
+            if ch == '"' and not in_single:
+                in_double = not in_double
+                buf.append(ch)
+                i += 1
+                continue
+            # 检查分隔符（仅引号外）
+            if not in_single and not in_double and command.startswith(delimiter, i):
+                parts.append("".join(buf))
+                buf = []
+                i += dlen
+                continue
+            buf.append(ch)
+            i += 1
+        parts.append("".join(buf))
+        return parts
 
     def _collapse_windows_ifs(self, command: str, target: str, mappings_applied: list[str]) -> str:
         """把 Windows 风格的 ; if (...) { ... } 反向还原为 && 或 ||。"""
