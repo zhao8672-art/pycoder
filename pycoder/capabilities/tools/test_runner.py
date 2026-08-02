@@ -35,6 +35,9 @@ class FailureDetail:
 class TestRunResult:
     """测试运行结果"""
 
+    # 告知 pytest 不要将此类作为测试用例收集（类名以 Test 开头会触发收集）
+    __test__ = False
+
     success: bool = False
     total: int = 0
     passed: int = 0
@@ -73,6 +76,9 @@ class TestRunResult:
 
 class TestRunner:
     """测试运行器 — 异步执行 pytest 并解析结果"""
+
+    # 告知 pytest 不要将此类作为测试用例收集
+    __test__ = False
 
     # pytest 摘要行正则: 匹配 "===== N passed, M failed in X.XXs ====="
     # 支持任意顺序的 passed/failed/errors/skipped/warnings

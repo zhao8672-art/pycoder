@@ -220,6 +220,7 @@ addopts = [
     "--showlocals",         # 失败时打印局部变量
     "--tb=short",           # 简短的 traceback
     "--durations=10",       # 显示最慢的 10 个测试
+    "-n", "auto",           # pytest-xdist 并行执行（按 CPU 核数自动分配）
 ]
 markers = [
     "slow: 慢测试 (长时间运行, 默认跳过)",

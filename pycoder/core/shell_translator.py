@@ -315,7 +315,25 @@ class ShellTranslator:
         source_platform = detect_platform() if source == "auto" else source
         target_platform = detect_platform() if target == "auto" else target
 
-        if source_platform == target_platform:
+        # 同平台短路：仅当非 Windows 时直接返回。
+        # Windows 上即使 source==target==windows，AI 输出的 `&&`/`||` 在
+        # PowerShell 5.x 中不受支持，仍需翻译为 `if ($LASTEXITCODE)` 语法。
+        if source_platform == target_platform and source_platform != "windows":
+            return TranslationResult(
+                original=command,
+                translated=command,
+                source_platform=source_platform,
+                target_platform=target_platform,
+                changed=False,
+                mappings_applied=[],
+            )
+
+        # Windows → Windows：仅当命令含 &&/|| 时才需要规范化，否则保持不变
+        if (
+            source_platform == target_platform == "windows"
+            and "&&" not in command
+            and "||" not in command
+        ):
             return TranslationResult(
                 original=command,
                 translated=command,
@@ -376,7 +394,7 @@ class ShellTranslator:
             return self._translate_simple_operators(command, target)
 
         if target == "windows":
-            # Linux → Windows: && 配对展开
+            # → Windows: && 配对展开（含 Linux→Windows 及 Windows→Windows 规范化）
             if "&&" in command:
                 # 用 ; 分割然后逐段包 if
                 parts = command.split("&&")

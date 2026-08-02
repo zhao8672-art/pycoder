@@ -128,6 +128,9 @@ async def _handle_execute_python(params: dict, context: dict) -> dict:
         "success": result.success,
         "stdout": result.stdout,
         "stderr": result.stderr,
+        # 兼容调用方期望的 output/error 字段（与 _handle_execute_code 保持一致）
+        "output": result.stdout,
+        "error": result.stderr,
         "execution_time": result.execution_time,
     }
 

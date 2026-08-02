@@ -1,8 +1,10 @@
 """
-MCP Tool 注册表 — 向后兼容 Shim
+MCP Tool 注册表 — V2 引擎工具调度器
 
-⚠️ 此模块已弃用。所有功能已迁移到 pycoder/capabilities/tools/
-保留此文件仅为向后兼容，通过 V2 引擎委托实现所有功能。
+call_builtin_tool / list_builtin_tools / MCPCallResult 为 V2 引擎的
+规范调度入口（含白名单校验、工具名归一化、模糊匹配），仍被广泛使用，
+并非弃用。旧式 _builtin_tools / MCPToolDef 手工注册机制已弃用，
+功能由 pycoder/capabilities/tools/ 自动注册。
 """
 
 from __future__ import annotations
@@ -15,16 +17,10 @@ from typing import Any
 _logger = logging.getLogger("pycoder.server.mcp_tools")
 from pycoder.core.services.log import log  # noqa: E402
 
-warnings.warn(
-    "mcp_tools 已弃用，所有工具注册已迁移到 capabilities/tools/",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 
 @dataclass
 class MCPToolDef:
-    """单个 MCP Tool 定义"""
+    """单个 MCP Tool 定义（已弃用，保留仅为向后兼容）"""
 
     name: str
     description: str
