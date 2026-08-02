@@ -92,7 +92,7 @@ PROVIDER_DEFS = {
         "register_url": "https://platform.agnes-ai.com",
         "free_trial": "永久免费，无限调用",
         "price_summary": "输入 $0/M, 输出 $0/M",
-        "recommended_model": "agnes-2.0-flash",
+        "recommended_model": "agnes-2.5-flash",
         "priority": 99,  # 最低优先级（Key 经常失效）
     },
 }
@@ -154,13 +154,20 @@ class ModelManager:
 
         这是启动时唯一需要调用的方法。之后无论进程如何重启，
         os.environ 中都会有正确的 Key。
+
+        注意：通过 get_saved_key 读取，自动解密 Fernet 加密的 key
+        （与 pycoder.python.model_config 保持一致）。
         """
         config = _load_config()
         api_keys = config.get("provider", {}).get("api_keys", {})
         self._detected = {}
 
-        for provider, key in api_keys.items():
-            if key and provider in PROVIDER_DEFS:
+        for provider, raw_key in api_keys.items():
+            if raw_key and provider in PROVIDER_DEFS:
+                # 解密 key（兼容 Fernet 加密格式）
+                key = self.get_saved_key(provider)
+                if not key:
+                    continue
                 if key in ModelManager._blocked_keys:
                     continue
                 self._detected[provider] = key

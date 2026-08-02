@@ -543,8 +543,31 @@ MODEL_REGISTRY: dict[str, ProviderInfo] = {
         free_trial="免费模型，注册即用",
         price_summary="免费",
         models=[
-            # 注意：Agnes-2.5-Flash 和 agnes-1.5-flash 已被官方下线（503 model_not_found）
-            # 仅保留 agnes-2.0-flash（已验证 2026-08-02 可用）
+            # 注意：模型 ID 必须小写（API 大小写敏感，大写会返回 503 model_not_found）
+            # API 地址：https://api.agnes-ai.cn/v1（已验证 2026-08-02）
+            ModelInfo(
+                id="agnes-2.5-flash",
+                name="Agnes 2.5 Flash",
+                provider="agnes",
+                context_window=524288,
+                max_tokens=65536,
+                input_price=0.0,
+                output_price=0.0,
+                capabilities=["chat", "code", "vision", "function_call", "thinking"],
+                recommended=True,
+                description="免费多模态模型, 512K上下文, SWE-bench 75.6%, 最新2.5版本",
+            ),
+            ModelInfo(
+                id="agnes-2.5-pro-alpha",
+                name="Agnes 2.5 Pro Alpha",
+                provider="agnes",
+                context_window=1048576,
+                max_tokens=65536,
+                input_price=0.45,
+                output_price=0.90,
+                capabilities=["chat", "code", "vision", "function_call", "thinking"],
+                description="付费旗舰模型, 1M上下文, Terminal-Bench 77.3%, SWE-bench 82.7%",
+            ),
             ModelInfo(
                 id="agnes-2.0-flash",
                 name="Agnes 2.0 Flash",
@@ -554,8 +577,7 @@ MODEL_REGISTRY: dict[str, ProviderInfo] = {
                 input_price=0.0,
                 output_price=0.0,
                 capabilities=["chat", "code", "vision", "function_call"],
-                recommended=True,
-                description="免费多模态模型, 512K上下文, Claw-Eval Top10, 工具调用/编码/视觉",
+                description="免费多模态模型, 512K上下文, 上一代版本",
             ),
         ],
     ),
