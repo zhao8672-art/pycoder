@@ -298,11 +298,42 @@ def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
             # FIX: 禁用危险环境变量
             creationflags=0x08000000 if sys.platform == "win32" else 0,  # CREATE_NO_WINDOW
         )
-    except _subprocess.TimeoutExpired:
+    except _subprocess.TimeoutExpired as e:
+        # FIX: 之前直接返回空 stdout，丢弃了子进程在超时前已产生的输出。
+        # subprocess.run 在 timeout 时会 kill 子进程，但 e.stdout / e.stderr
+        # 保存了 kill 前已捕获的输出（capture_output=True 时）。
+        # Windows 上 TerminateProcess 是强制终止，子进程的 finally 块可能
+        # 没机会执行，所以 __SANDBOX_RESULT__ 标记可能缺失——但已产生的
+        # print() 输出仍保留在 e.stdout 中，必须提取出来返回给用户。
+        partial_stdout = ""
+        partial_stderr = ""
+        if e.stdout:
+            partial_stdout = e.stdout.decode("utf-8", errors="replace") if isinstance(e.stdout, bytes) else e.stdout
+        if e.stderr:
+            partial_stderr = e.stderr.decode("utf-8", errors="replace") if isinstance(e.stderr, bytes) else e.stderr
+        # 尝试从部分输出中提取 SANDBOX_RESULT 标记
+        idx_s = partial_stdout.find("__SANDBOX_RESULT__")
+        idx_e = partial_stdout.find("__SANDBOX_END__")
+        if idx_s >= 0 and idx_e > idx_s:
+            json_str = partial_stdout[idx_s + 17 : idx_e].strip()
+            try:
+                data = json.loads(json_str)
+                return ExecutionResult(
+                    success=False,
+                    stdout=data.get("stdout", ""),
+                    stderr=data.get("stderr", ""),
+                    error_type="TimeoutError",
+                    error_message=f"Execution exceeded {timeout} seconds",
+                    traceback=data.get("traceback", ""),
+                    execution_time=time.time() - start,
+                )
+            except json.JSONDecodeError:
+                pass
+        # 没有标记 — 至少返回已捕获的部分输出
         return ExecutionResult(
             success=False,
-            stdout="",
-            stderr="",
+            stdout=partial_stdout[:MAX_OUTPUT_LENGTH],
+            stderr=partial_stderr[:2000],
             error_type="TimeoutError",
             error_message=f"Execution exceeded {timeout} seconds",
             traceback="",

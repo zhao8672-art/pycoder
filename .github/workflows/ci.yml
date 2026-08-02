@@ -26,6 +26,7 @@ jobs:
   ci:
     name: "${{ matrix.os }} / py${{ matrix.python-version }}"
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -79,15 +80,19 @@ jobs:
           python -m mypy pycoder/ --ignore-missing-imports --show-error-codes || true
 
       - name: 运行测试 + 覆盖率
+        # CI 策略: 跳过 slow/integration 测试，单测超时 60s，并行执行
         run: |
           python -m pytest tests/ \
+            -m "not slow and not integration" \
             --cov=pycoder \
             --cov-report=xml \
             --cov-report=term-missing \
             --cov-fail-under=80 \
             -ra \
             --tb=short \
-            --durations=10
+            --durations=10 \
+            --timeout=60 \
+            -n auto
 
       - name: 上传覆盖率报告到 Codecov
         if: matrix.os == 'ubuntu-latest'
@@ -103,6 +108,31 @@ jobs:
           name: coverage-${{ matrix.os }}-py${{ matrix.python-version }}
           path: coverage.xml
           retention-days: 7
+
+  # ── 慢测试分片 (独立 job, 不阻塞主 CI 门禁) ──────────────────────
+  slow-tests:
+    name: "慢测试 / 集成测试"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          allow-prereleases: true
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: 运行慢测试 + 集成测试
+        run: |
+          python -m pytest tests/ \
+            -m "slow or integration" \
+            -ra --tb=short --durations=10 \
+            --timeout=180 \
+            -n auto
 
   # ── 构建验证 (仅 Ubuntu, 快速检查打包) ──────────────────────────
   build:

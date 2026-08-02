@@ -23,16 +23,35 @@ import json
 import time
 import uuid
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-# 注: call_builtin_tool 是 V2 引擎的规范调度入口（含白名单校验/工具名归一化），
-# 并非弃用 API。仅 mcp_tools 中的旧式 _builtin_tools / MCPToolDef 手工注册机制已弃用。
-# 详见 pycoder/server/mcp_tools.py 模块 docstring。
-from pycoder.server.mcp_tools import call_builtin_tool
-
 router = APIRouter(prefix="/api/pipeline")
+
+
+async def _call_tool(tool_name: str, args: dict) -> tuple[bool, Any, str]:
+    """直接调用 V2 引擎 registry，移除对 mcp_tools 间接层的依赖.
+
+    Returns:
+        (success, output, error)
+    """
+    from pycoder.bus.protocol import CapabilityCall
+    from pycoder.server.app import get_v2_engine
+
+    v2 = get_v2_engine()
+    if not v2:
+        return False, None, "V2 引擎未初始化"
+
+    try:
+        call_req = CapabilityCall(capability_id=tool_name, params=args, caller="pipeline")
+        result = await v2.registry.call(call_req, {"caller": "pipeline", "permission_level": 4})
+        if result and getattr(result, "success", False):
+            return True, getattr(result, "data", result), ""
+        return False, None, getattr(result, "error", f"工具 {tool_name} 执行失败")
+    except Exception as e:
+        return False, None, str(e)
 
 # 流水线存储路径
 _PIPELINE_DIR = Path.home() / ".pycoder" / "pipelines"
@@ -144,19 +163,19 @@ async def run_pipeline(req: dict):
                 else:
                     resolved_args[k] = v
 
-            result = await call_builtin_tool(step.tool, resolved_args)
+            success, output, error = await _call_tool(step.tool, resolved_args)
             step_result = {
                 "step": step_num,
                 "tool": step.tool,
                 "description": step.description,
-                "success": result.success,
-                "output": result.output if hasattr(result, "output") else str(result),
-                "error": result.error if hasattr(result, "error") else "",
+                "success": success,
+                "output": output,
+                "error": error,
                 "checkpoint_id": run_id,
             }
             results.append(step_result)
 
-            if not result.success:
+            if not success:
                 if step.skip_on_fail:
                     # 跳过失败步骤，继续执行
                     step_result["skipped"] = True
@@ -166,7 +185,7 @@ async def run_pipeline(req: dict):
 
             # 保存上下文供后续步骤引用
             ctx_key = f"step_{step_num}"
-            ctx[ctx_key] = result.output if hasattr(result, "output") else str(result)
+            ctx[ctx_key] = output
 
         except Exception as e:
             error_result = {

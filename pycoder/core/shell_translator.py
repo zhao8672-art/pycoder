@@ -40,17 +40,20 @@ def detect_platform() -> str:
 #   - PowerShell 5.x：  不支持 && / ||  (Windows 默认 shell)
 #   - Windows cmd：     不支持 && / ||
 # 翻译策略：源 Linux → 目标 Windows 时
-#   && →  " ; if ($LASTEXITCODE -eq 0) { "
-#   || →  " ; if ($LASTEXITCODE -ne 0) { "
+#   && →  " ; if ($?) { "        — $? 对 cmdlet/别名/外部 exe 都有效
+#   || →  " ; if (-not $?) { "
+#   FIX: 之前用 $LASTEXITCODE -eq 0，但 $LASTEXITCODE 只对外部 exe 有效，
+#        对 PowerShell 别名（如 dir=Get-ChildItem）不设置，导致条件永远为假。
+#        $? 是通用成功标志，对所有命令类型都有效。
 #   反向：源 Windows → 目标 Linux 时直接还原
 OPERATOR_MAP: dict[str, dict[str, str]] = {
     "&&": {
-        "windows": " ; if ($LASTEXITCODE -eq 0) { ",
+        "windows": " ; if ($?) { ",
         "linux": " && ",
         "mac": " && ",
     },
     "||": {
-        "windows": " ; if ($LASTEXITCODE -ne 0) { ",
+        "windows": " ; if (-not $?) { ",
         "linux": " || ",
         "mac": " || ",
     },
@@ -404,7 +407,7 @@ class ShellTranslator:
                     if i == 0:
                         expanded.append(part)
                     else:
-                        expanded.append(f"; if ($LASTEXITCODE -eq 0) {{ {part} }}")
+                        expanded.append(f"; if ($?) {{ {part} }}")
                 result = " ".join(expanded)
                 if "&&" in command:
                     mappings_applied.append("&&")
@@ -430,7 +433,7 @@ class ShellTranslator:
             if i == 0:
                 expanded.append(part)
             else:
-                expanded.append(f"; if ($LASTEXITCODE -ne 0) {{ {part} }}")
+                expanded.append(f"; if (-not $?) {{ {part} }}")
         mappings_applied.append("||")
         return " ".join(expanded)
 
@@ -481,7 +484,25 @@ class ShellTranslator:
 
     def _collapse_windows_ifs(self, command: str, target: str, mappings_applied: list[str]) -> str:
         """把 Windows 风格的 ; if (...) { ... } 反向还原为 && 或 ||。"""
-        # 模式: ; if ($LASTEXITCODE -eq 0) { CMD }
+        # 模式: ; if ($?) { CMD }  — 新格式（$? 语法）
+        result = re.sub(
+            r"\s*;\s*if\s*\(\$\?\)\s*\{\s*([^}]*)\s*\}",
+            r" && \1 ",
+            command,
+        )
+        if result != command:
+            mappings_applied.append("&&")
+            command = result
+        # 模式: ; if (-not $?) { CMD }  — 新格式
+        result = re.sub(
+            r"\s*;\s*if\s*\(-not\s*\$\?\)\s*\{\s*([^}]*)\s*\}",
+            r" || \1 ",
+            command,
+        )
+        if result != command:
+            mappings_applied.append("||")
+            command = result
+        # 兼容旧格式: ; if ($LASTEXITCODE -eq 0) { CMD }
         result = re.sub(
             r"\s*;\s*if\s*\(\$LASTEXITCODE\s*-eq\s*0\)\s*\{\s*([^}]*)\s*\}",
             r" && \1 ",
@@ -490,7 +511,7 @@ class ShellTranslator:
         if result != command:
             mappings_applied.append("&&")
             command = result
-        # 模式: ; if ($LASTEXITCODE -ne 0) { CMD }
+        # 兼容旧格式: ; if ($LASTEXITCODE -ne 0) { CMD }
         result = re.sub(
             r"\s*;\s*if\s*\(\$LASTEXITCODE\s*-ne\s*0\)\s*\{\s*([^}]*)\s*\}",
             r" || \1 ",
