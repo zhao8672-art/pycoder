@@ -18,7 +18,7 @@ PROVIDER_API_BASES: dict[str, str] = {
     "glm": "https://open.bigmodel.cn/api/paas/v4",
     "openai": "https://api.openai.com/v1",
     "nvidia": "https://integrate.api.nvidia.com/v1",
-    "agnes": "https://apihub.agnes-ai.com/v1",
+    "agnes": "https://api.agnes-ai.cn/v1",
 }
 
 

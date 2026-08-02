@@ -244,28 +244,13 @@ ALL_MODELS: dict[str, ModelInfo] = {
         tags=["coding", "reasoning", "premium", "agent"],
     ),
     # ── Agnes AI 系列 (Sapiens AI) ──
-    "Agnes-2.5-Flash": ModelInfo(
-        id="Agnes-2.5-Flash",
-        name="Agnes 2.5 Flash",
-        provider="agnes",
-        api_base="https://api.agnes-ai.cn/v1",
-        pricing_input=0.0,
-        pricing_output=0.0,
-        context_window=524288,  # 512K
-        max_output_tokens=65536,  # 64K 输出
-        supports_fim=True,
-        supports_tools=True,
-        supports_reasoning=True,
-        supports_vision=True,
-        supports_cache=True,
-        description="免费多模态模型, 512K上下文, 最新2.5版本, 编码/视觉/工具调用",
-        tags=["free", "recommended", "coding", "agent", "vision", "reasoning"],
-    ),
+    # 注意：Agnes-2.5-Flash 和 agnes-1.5-flash 已被官方下线（503 model_not_found）
+    # 仅保留 agnes-2.0-flash（已验证 2026-08-02 可用）
     "agnes-2.0-flash": ModelInfo(
         id="agnes-2.0-flash",
         name="Agnes 2.0 Flash",
         provider="agnes",
-        api_base="https://apihub.agnes-ai.com/v1",
+        api_base="https://api.agnes-ai.cn/v1",
         pricing_input=0.0,
         pricing_output=0.0,
         context_window=524288,  # 512K 稳定，曾支持 1M
@@ -277,22 +262,6 @@ ALL_MODELS: dict[str, ModelInfo] = {
         supports_cache=True,
         description="免费多模态模型, 512K上下文, Claw-Eval Top10, 工具调用/编码/视觉",
         tags=["free", "recommended", "coding", "agent", "vision", "reasoning"],
-    ),
-    "agnes-1.5-flash": ModelInfo(
-        id="agnes-1.5-flash",
-        name="Agnes 1.5 Flash",
-        provider="agnes",
-        api_base="https://apihub.agnes-ai.com/v1",
-        pricing_input=0.0,
-        pricing_output=0.0,
-        context_window=262144,  # 256K
-        max_output_tokens=65536,
-        supports_fim=True,
-        supports_tools=True,
-        supports_reasoning=True,
-        supports_vision=True,
-        description="免费多模态模型, 256K上下文, 上一代版本",
-        tags=["free", "coding", "agent", "vision"],
     ),
 }
 

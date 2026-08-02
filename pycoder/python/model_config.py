@@ -543,18 +543,8 @@ MODEL_REGISTRY: dict[str, ProviderInfo] = {
         free_trial="免费模型，注册即用",
         price_summary="免费",
         models=[
-            ModelInfo(
-                id="Agnes-2.5-Flash",
-                name="Agnes 2.5 Flash",
-                provider="agnes",
-                context_window=524288,
-                max_tokens=65536,
-                input_price=0.0,
-                output_price=0.0,
-                capabilities=["chat", "code", "vision", "function_call", "thinking"],
-                recommended=True,
-                description="免费多模态模型, 512K上下文, 最新2.5版本",
-            ),
+            # 注意：Agnes-2.5-Flash 和 agnes-1.5-flash 已被官方下线（503 model_not_found）
+            # 仅保留 agnes-2.0-flash（已验证 2026-08-02 可用）
             ModelInfo(
                 id="agnes-2.0-flash",
                 name="Agnes 2.0 Flash",
@@ -564,18 +554,8 @@ MODEL_REGISTRY: dict[str, ProviderInfo] = {
                 input_price=0.0,
                 output_price=0.0,
                 capabilities=["chat", "code", "vision", "function_call"],
-                description="免费多模态模型, 512K上下文, 上一代版本",
-            ),
-            ModelInfo(
-                id="agnes-1.5-flash",
-                name="Agnes 1.5 Flash",
-                provider="agnes",
-                context_window=262144,
-                max_tokens=65536,
-                input_price=0.0,
-                output_price=0.0,
-                capabilities=["chat", "code", "vision"],
-                description="免费多模态模型, 256K上下文",
+                recommended=True,
+                description="免费多模态模型, 512K上下文, Claw-Eval Top10, 工具调用/编码/视觉",
             ),
         ],
     ),

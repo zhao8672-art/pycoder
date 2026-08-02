@@ -398,9 +398,27 @@ class ModelManager:
             ModelManager._blocked_keys.add(key)
 
     def save_key(self, provider: str, api_key: str, set_default: bool = True) -> dict:
-        """保存 API Key 到 config.json，同时同步到环境变量"""
+        """保存 API Key 到 config.json（Fernet 加密），同时同步到环境变量
+
+        加密存储与 pycoder.python.model_config 保持一致，
+        避免新旧两套 UI 写入的格式冲突。
+        """
         if provider not in PROVIDER_DEFS:
             return {"success": False, "error": f"不支持的提供商: {provider}"}
+        # 优先委托给 model_config.set_api_key（统一加密层）
+        try:
+            from pycoder.python.model_config import set_api_key as _mc_set_api_key
+
+            result = _mc_set_api_key(provider, api_key, set_default=set_default)
+            if result.get("success"):
+                env_key = PROVIDER_DEFS[provider]["env_vars"][0]
+                os.environ[env_key] = api_key
+                self._detected[provider] = api_key
+                return {"success": True, "message": f"✅ {PROVIDER_DEFS[provider]['name']} Key 已保存（加密）"}
+        except (ImportError, RuntimeError) as e:
+            logger.warning("save_key_fallback_to_plaintext provider=%s err=%s", provider, e)
+
+        # 兜底：明文存储（仅在 model_config 不可用时）
         config = _load_config()
         if "provider" not in config:
             config["provider"] = {}
@@ -410,15 +428,44 @@ class ModelManager:
         if set_default:
             config["provider"]["default"] = provider
         _save_config(config)
-        # 同步到当前进程环境变量
         env_key = PROVIDER_DEFS[provider]["env_vars"][0]
         os.environ[env_key] = api_key
         self._detected[provider] = api_key
         return {"success": True, "message": f"✅ {PROVIDER_DEFS[provider]['name']} Key 已保存"}
 
     def get_saved_key(self, provider: str) -> str:
+        """读取并解密 API Key
+
+        兼容两种存储格式：
+        - Fernet 加密（gAAAAAB... 开头，由 model_config.set_api_key 写入）
+        - 明文（由旧版 auth.save_key 写入）
+        """
+        # 优先委托给 model_config.get_api_key（已处理加密 + 环境变量回退）
+        try:
+            from pycoder.python.model_config import get_api_key as _mc_get_api_key
+
+            key = _mc_get_api_key(provider)
+            if key:
+                return key
+        except (ImportError, RuntimeError) as e:
+            logger.warning("get_saved_key_fallback_to_local provider=%s err=%s", provider, e)
+
+        # 兜底：直接读 config.json 并尝试解密
         config = _load_config()
-        return config.get("provider", {}).get("api_keys", {}).get(provider, "")
+        raw = config.get("provider", {}).get("api_keys", {}).get(provider, "")
+        if not raw:
+            return ""
+        # Fernet token 特征：以 gAAAAAB 开头
+        if raw.startswith("gAAAAAB"):
+            try:
+                from pycoder.python.model_config import _decrypt_string
+
+                decrypted = _decrypt_string(raw)
+                if decrypted:
+                    return decrypted
+            except (ImportError, RuntimeError) as e:
+                logger.warning("get_saved_key_decrypt_failed provider=%s err=%s", provider, e)
+        return raw
 
     # ── 模型偏好持久化 ──
 
