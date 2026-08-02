@@ -835,7 +835,7 @@ async def _start_scheduler():
             name="Skills Market 自动刷新 (09:00)",
             trigger="cron",
             config={"cron": "0 9 * * *"},
-            action="mcp:skills_sync_v2",
+            action="mcp:tools.marketplace.skills_sync",
             action_args={},
         )
     )
@@ -845,7 +845,7 @@ async def _start_scheduler():
             name="Skills Market 自动刷新 (21:00)",
             trigger="cron",
             config={"cron": "0 21 * * *"},
-            action="mcp:skills_sync_v2",
+            action="mcp:tools.marketplace.skills_sync",
             action_args={},
         )
     )
@@ -857,7 +857,7 @@ async def _start_scheduler():
             name="Extensions 市场自动刷新 (03:00)",
             trigger="cron",
             config={"cron": "0 3 * * *"},
-            action="python:pycoder.server.mcp_tools._handle_refresh_extensions",
+            action="mcp:tools.marketplace.extensions_refresh",
             action_args={},
         )
     )
@@ -867,7 +867,7 @@ async def _start_scheduler():
             name="Extensions 市场自动刷新 (15:00)",
             trigger="cron",
             config={"cron": "0 15 * * *"},
-            action="python:pycoder.server.mcp_tools._handle_refresh_extensions",
+            action="mcp:tools.marketplace.extensions_refresh",
             action_args={},
         )
     )
@@ -956,7 +956,15 @@ async def _start_scheduler():
         )
     )
 
-    await scheduler.start()
+    try:
+        await scheduler.start()
+    except Exception as e:  # noqa: BLE001
+        # P4: 调度器失败不应阻塞主服务启动
+        import logging
+        logging.getLogger("pycoder.server.app").warning(
+            "scheduler_start_failed_continuing", error=str(e)
+        )
+        return
     import logging
 
     logging.getLogger("pycoder.server.app").info(

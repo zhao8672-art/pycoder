@@ -102,3 +102,13 @@ _*.log.tmp
 _*.py.tmp
 _*.log.swp
 
+
+pycoder/electron/resources/
+
+be*.log
+backend*.log
+backend.err.log
+dev.err
+dev.out
+be.err
+be.out

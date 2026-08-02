@@ -5,15 +5,98 @@
 - delta 提取（content / reasoning_content / tool_calls）
 - 请求负载构建
 - Provider 401 降级处理
+- DSML (DeepSeek Markup Language) 文本回退解析
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+# ════════════════════════════════════════════════════════════════════
+# DSML 解析：DeepSeek 模型有时会直接在 content 里输出 <｜｜DSML｜｜invoke …>
+# 而不是 OpenAI 标准的 tool_calls 字段。这里提供回退解析，把 content 中
+# 的 DSML 块抽出为标准 tool_calls，并把 DSML 标签从可见文本中清除。
+# ════════════════════════════════════════════════════════════════════
+
+_DSML_INVOKE_RE = re.compile(
+    r"<｜｜DSML｜｜invoke\s+name=\"([^\"]+)\">(.*?)</｜｜DSML｜｜invoke>",
+    re.DOTALL,
+)
+_DSML_PARAM_RE = re.compile(
+    r"<｜｜DSML｜｜parameter\s+name=\"([^\"]+)\"\s+string=\"(?:true|false)\">(.*?)</｜｜DSML｜｜parameter>",
+    re.DOTALL,
+)
+_DSML_OPEN_TAG_RE = re.compile(r"<｜｜DSML｜｜tool_calls>\s*", re.DOTALL)
+_DSML_CLOSE_TAG_RE = re.compile(r"\s*</｜｜DSML｜｜tool_calls>", re.DOTALL)
+
+
+def parse_dsml_tool_calls(
+    content: str,
+    *,
+    existing_tool_calls: list[dict] | None = None,
+) -> tuple[str, list[dict], bool]:
+    """从助手 content 中提取 DSML 工具调用块。
+
+    Args:
+        content: 助手生成的完整文本（可能包含 DSML 标记）
+        existing_tool_calls: 已累积的 tool_calls（若已通过 OpenAI 标准字段获得）
+
+    Returns:
+        (cleaned_content, tool_calls, found)
+        - cleaned_content: 移除 DSML 标签后的文本（保留普通正文）
+        - tool_calls: 合并后的 tool_calls 列表
+        - found: 是否至少解析出一个 DSML 块
+    """
+    tool_calls: list[dict] = list(existing_tool_calls) if existing_tool_calls else []
+    found = False
+
+    def _extract_params(inner_xml: str) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        for m in _DSML_PARAM_RE.finditer(inner_xml):
+            key = m.group(1)
+            value = m.group(2)
+            # 尝试解析为 JSON 数字/布尔/对象，否则按字符串
+            try:
+                parsed = json.loads(value)
+                params[key] = parsed
+            except (json.JSONDecodeError, ValueError):
+                params[key] = value
+        return params
+
+    def _replace(match: re.Match) -> str:
+        nonlocal found
+        tool_name = match.group(1)
+        inner = match.group(2)
+        args = _extract_params(inner)
+        # 使用纯 Python 哈希生成稳定的 tc_id（避免 hash() 随机种子问题）
+        payload = f"{tool_name}|{json.dumps(args, sort_keys=True, ensure_ascii=False)}"
+        h = 0
+        for ch in payload.encode("utf-8"):
+            h = (h * 131 + ch) & 0xFFFFFFFFFFFFFFFF
+        tc_id = f"dsml_{len(tool_calls)}_{h % 10**10}"
+        tool_calls.append(
+            {
+                "id": tc_id,
+                "function": {
+                    "name": tool_name,
+                    "arguments": json.dumps(args, ensure_ascii=False),
+                },
+            }
+        )
+        found = True
+        # 把 DSML 块替换为用户可读的提示，方便用户知道系统正在调用工具
+        return f"\n[调用工具: {tool_name}]\n"
+
+    cleaned = _DSML_INVOKE_RE.sub(_replace, content)
+    cleaned = _DSML_OPEN_TAG_RE.sub("", cleaned)
+    cleaned = _DSML_CLOSE_TAG_RE.sub("", cleaned)
+    return cleaned, tool_calls, found
 
 
 def parse_sse_line(line: str) -> dict | None:
@@ -187,4 +270,5 @@ __all__ = [
     "extract_stream_delta",
     "build_request_payload",
     "rebuild_payload_for_fallback",
+    "parse_dsml_tool_calls",
 ]

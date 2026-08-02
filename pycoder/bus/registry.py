@@ -75,21 +75,50 @@ class CapabilityRegistry:
 
     def register(
         self,
-        definition: CapabilityDefinition,
+        definition: CapabilityDefinition | None = None,
         handler: CapabilityHandler | StreamCapabilityHandler | None = None,
         *,
         stream_handler: StreamCapabilityHandler | None = None,
         async_handler: CapabilityHandler | None = None,
+        # 兼容旧风格 register(name=..., description=..., handler=...) 调用
+        name: str | None = None,
+        description: str | None = None,
+        input_schema: dict | None = None,
+        output_schema: dict | None = None,
+        tags: list[str] | None = None,
+        **kwargs,
     ) -> None:
         """
         注册一个能力到总线
 
         Args:
-            definition: 能力定义
+            definition: 能力定义（标准模式）
             handler: 同步处理器（默认）
             stream_handler: 流式处理器（用于 ExecutionMode.STREAM）
             async_handler: 异步处理器（用于 ExecutionMode.ASYNC）
+            name/description/input_schema/tags: 旧风格兼容参数
         """
+        # ── 兼容层：旧风格 register(name=..., description=..., handler=...) ──
+        if definition is None and name:
+            from pycoder.bus.protocol import CapabilityCategory, TrustLevel
+
+            # 移除 CapabilityDefinition 不支持的字段
+            kwargs.pop("output_schema", None)
+            category = kwargs.pop("category", CapabilityCategory.SYSTEM)
+            permission = kwargs.pop("permission", TrustLevel.READ_ONLY)
+            definition = CapabilityDefinition(
+                id=name,
+                name=name,
+                description=description or name,
+                category=category,
+                permission=permission,
+                schema=input_schema or {},
+                tags=tags or [],
+                **kwargs,
+            )
+        if definition is None:
+            raise ValueError("register() 需要 CapabilityDefinition 或 name= 参数")
+
         if definition.id in self._definitions:
             logger.warning("能力 '%s' 已注册，将被覆盖", definition.id)
 

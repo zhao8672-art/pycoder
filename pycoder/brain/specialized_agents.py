@@ -515,3 +515,71 @@ def get_agent_team() -> SpecializedAgentTeam:
     if _agent_team is None:
         _agent_team = SpecializedAgentTeam()
     return _agent_team
+
+
+def register_capabilities(registry=None) -> None:
+    """注册专业 Agent 团队能力到 V2 能力总线
+
+    Args:
+        registry: 可选的能力注册表（兼容 V2 引擎传入）
+    """
+    try:
+        from pycoder.bus.protocol import (
+            CapabilityCategory,
+            CapabilityDefinition,
+            ExecutionMode,
+            SideEffect,
+            TrustLevel,
+        )
+        from pycoder.bus.registry import CapabilityRegistry
+
+        reg = registry or CapabilityRegistry.get_instance()
+        team = get_agent_team()
+
+        reg.register(
+            CapabilityDefinition(
+                id="agent.team.select",
+                category=CapabilityCategory.SYSTEM,
+                description="根据任务描述选择最合适的专业 Agent",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NONE},
+                trust_level=TrustLevel.READ_ONLY,
+                handler=_handle_team_select,
+            )
+        )
+        reg.register(
+            CapabilityDefinition(
+                id="agent.team.list_profiles",
+                category=CapabilityCategory.SYSTEM,
+                description="列出所有专业 Agent 角色配置",
+                execution_mode=ExecutionMode.SYNC,
+                side_effects={SideEffect.NONE},
+                trust_level=TrustLevel.READ_ONLY,
+                handler=_handle_team_list,
+            )
+        )
+        logger.debug("specialized_agent_capabilities_registered")
+    except Exception as e:
+        logger.warning("specialized_agent_register_failed: %s", e)
+
+
+async def _handle_team_select(args: dict[str, Any]) -> dict[str, Any]:
+    """处理 agent.team.select"""
+    team = get_agent_team()
+    description = args.get("description", "")
+    max_agents = args.get("max_agents", 10)
+    selected = team.select_agents(description, max_agents=max_agents)
+    return {
+        "success": True,
+        "agents": [p.to_dict() for p in selected],
+    }
+
+
+async def _handle_team_list(args: dict[str, Any]) -> dict[str, Any]:
+    """处理 agent.team.list_profiles"""
+    team = get_agent_team()
+    profiles = team.get_all_profiles()
+    return {
+        "success": True,
+        "profiles": [p.to_dict() for p in profiles],
+    }

@@ -396,8 +396,12 @@ async def terminal_ws(websocket: WebSocket):
         if _is_windows():
             if pty:
                 try:
-                    pty.close()
-                except (OSError, RuntimeError) as e:
+                    # pywinpty 不同版本 API 不同，兼容处理
+                    if hasattr(pty, "close"):
+                        pty.close()
+                    elif hasattr(pty, "terminate"):
+                        pty.terminate()
+                except (OSError, RuntimeError, AttributeError) as e:
                     logger.debug("terminal_pty_close_failed error=%s", e)
             elif process:
                 try:

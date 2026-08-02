@@ -71,6 +71,7 @@ from .chat_bridge_router import (  # noqa: F401
 from .chat_bridge_stream import (  # noqa: F401
     build_request_payload,
     extract_stream_delta,
+    parse_dsml_tool_calls,
     parse_sse_line,
     rebuild_payload_for_fallback,
 )
@@ -393,6 +394,17 @@ class ChatBridge:
         "修复",
         "查找",
         "搜索",
+        "自查",
+        "检查",
+        "诊断",
+        "评估",
+        "排查",
+        "查看",
+        "列出",
+        "总结",
+        "报告",
+        "调研",
+        "探索",
         "create",
         "write",
         "modify",
@@ -418,6 +430,8 @@ class ChatBridge:
         "代码",
         "文件",
         "项目",
+        "系统",
+        "system",
         "project",
     ]
 
@@ -748,6 +762,7 @@ class ChatBridge:
             )
 
             round_content = ""
+            round_reasoning_content = ""
             usage: dict = {}
             tool_calls: list[dict] = []
 
@@ -831,6 +846,7 @@ class ChatBridge:
                                 )
                             )
                             if reasoning_delta:
+                                round_reasoning_content += reasoning_delta
                                 yield ChatEvent(event_type="reasoning", content=reasoning_delta)
                                 if content_delta:
                                     round_content += content_delta
@@ -869,6 +885,26 @@ class ChatBridge:
                 yield ChatEvent(event_type="error", content=f"请求异常: {str(e)[:300]}")
                 return
 
+            # ── P2-15: DSML 回退解析（在累计 all_content 之前）──
+            # DeepSeek 模型有时会直接把 <｜｜DSML｜｜invoke>…</｜｜DSML｜｜invoke>
+            # 写到 content 字段，而不是 OpenAI 标准的 tool_calls 字段。
+            # 此处对已完成累积的 round_content 做一次回退解析：
+            # - 把 DSML 块抽取为标准 tool_calls
+            # - 把 DSML 标签从 round_content 中剥离（保留正文 + 用户可读的 [调用工具: x] 提示）
+            if not tool_calls and round_content and "DSML" in round_content:
+                cleaned_round, dsml_calls, dsml_found = parse_dsml_tool_calls(
+                    round_content,
+                    existing_tool_calls=None,
+                )
+                if dsml_found:
+                    tool_calls = dsml_calls
+                    round_content = cleaned_round
+                    logger.info(
+                        "dsml_fallback_parsed count=%d first=%s",
+                        len(tool_calls),
+                        tool_calls[0]["function"]["name"] if tool_calls else "",
+                    )
+
             all_content += round_content
             if usage:
                 total_usage = usage
@@ -881,23 +917,26 @@ class ChatBridge:
                 break
 
             # ── 执行工具调用并反馈给 AI ──
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": round_content,
-                    "tool_calls": [
-                        {
-                            "id": tc["id"],
-                            "type": "function",
-                            "function": {
-                                "name": tc["function"]["name"],
-                                "arguments": tc["function"]["arguments"],
-                            },
-                        }
-                        for tc in tool_calls
-                    ],
-                }
-            )
+            assistant_msg: dict[str, Any] = {
+                "role": "assistant",
+                "content": round_content,
+                "tool_calls": [
+                    {
+                        "id": tc["id"],
+                        "type": "function",
+                        "function": {
+                            "name": tc["function"]["name"],
+                            "arguments": tc["function"]["arguments"],
+                        },
+                    }
+                    for tc in tool_calls
+                ],
+            }
+            # P2-16: DeepSeek 思考模式必须在后续轮次中传回 reasoning_content
+            # 否则 API 返回 400: reasoning_content in the thinking mode must be passed back
+            if round_reasoning_content:
+                assistant_msg["reasoning_content"] = round_reasoning_content
+            messages.append(assistant_msg)
 
             for tc in tool_calls:
                 tool_name = tc["function"]["name"]

@@ -8,10 +8,11 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def register_capabilities() -> None:
+def register_capabilities(registry=None) -> None:
     """注册所有深度记忆能力到 V2 能力总线
 
-    将原 247 行的巨型函数拆分为多个小函数，每个负责一类记忆能力。
+    Args:
+        registry: 可选的能力注册表（兼容 V2 引擎传入；内部使用单例）
     """
     _register_working_memory()
     _register_iteration_memory()

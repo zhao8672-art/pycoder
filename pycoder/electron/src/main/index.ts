@@ -13,6 +13,20 @@ process.on('unhandledRejection', (reason) => {
   console.error('[FATAL] unhandledRejection:', reason);
 });
 
+// P4: 极早期启动日志（在 app.whenReady 之前）
+try {
+  const fs0 = require('fs');
+  const os0 = require('os');
+  const logDir0 = process.env.APPDATA
+    ? require('path').join(process.env.APPDATA, 'pycoder-electron')
+    : require('path').join(os0.tmpdir(), 'pycoder-electron');
+  fs0.mkdirSync(logDir0, { recursive: true });
+  const early = `[${new Date().toISOString()}] early pid=${process.pid} exec=${process.execPath} argv=${process.argv.join(' ')}\n`;
+  fs0.appendFileSync(require('path').join(logDir0, 'early.log'), early);
+} catch (e) {
+  // ignore
+}
+
 // Step6: 设置自定义 app name → 自动改变 userData/cache 路径，避免缓存权限问题
 app.name = 'pycoder-electron';
 
@@ -73,6 +87,33 @@ function createWindow(): void {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  // 渲染进程崩溃监控 — 记录崩溃原因，防止"自动关闭"无法排查
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    const fs = require('fs');
+    const logDir = path.join(app.getPath('appData'), 'pycoder-electron');
+    const msg = `[${new Date().toISOString()}] render-process-gone: reason=${details.reason} exitCode=${details.exitCode}\n`;
+    try {
+      fs.appendFileSync(path.join(logDir, 'crash.log'), msg);
+    } catch { /* ignore */ }
+    console.error('[CRASH]', msg);
+    // 崩溃后重新创建窗口
+    setTimeout(() => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    }, 1000);
+  });
+
+  mainWindow.webContents.on('unresponsive', () => {
+    const fs = require('fs');
+    const logDir = path.join(app.getPath('appData'), 'pycoder-electron');
+    const msg = `[${new Date().toISOString()}] renderer unresponsive\n`;
+    try {
+      fs.appendFileSync(path.join(logDir, 'crash.log'), msg);
+    } catch { /* ignore */ }
+    console.error('[UNRESPONSIVE]', msg);
+  });
 }
 
 // 生产模式下通过 session 设置 CSP（兼容 file:// 协议加载模块脚本）
@@ -104,14 +145,25 @@ function setupCSP(): void {
 }
 
 app.whenReady().then(async () => {
-  // Step6: 设置自定义 Electron 缓存路径，避免权限不足导致的 GPU 缓存创建失败
+  // P2-5: 启动前清理可能锁定的 Electron 缓存目录
   const fs = require('fs');
   const customDataDir = path.join(app.getPath('appData'), 'pycoder-electron');
   fs.mkdirSync(customDataDir, { recursive: true });
   app.setPath('userData', customDataDir);
   app.setPath('cache', path.join(customDataDir, 'Cache'));
 
-  // P2-5: 启动前清理可能锁定的 Electron 缓存目录
+  // P4: 启动诊断日志 — 帮助排查打包版问题
+  try {
+    const diag = [
+      `execPath=${process.execPath}`,
+      `resourcesPath=${process.resourcesPath}`,
+      `appPath=${app.getAppPath()}`,
+      `isPackaged=${app.isPackaged}`,
+      `port=${process.env.PYCODER_BACKEND_PORT || 8423}`,
+    ].join('\n');
+    const logPath = path.join(customDataDir, 'startup.log');
+    fs.writeFileSync(logPath, `[${new Date().toISOString()}] ${diag}\n`, { flag: 'a' });
+  } catch { /* ignore */ }
   const userDataPath = app.getPath('userData');
   const cacheDirs = ['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'VideoDecodeStats'];
   for (const dir of cacheDirs) {

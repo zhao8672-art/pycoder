@@ -73,9 +73,9 @@ class GitHubTrendingSource:
                 "category": "mcp-tools",
                 "tags": ["mcp", "agent", "tools"],
             },
-            # Agent 框架
+            # Agent 框架（GitHub Search API 不支持 topic 之间的 OR，改为单一 topic）
             {
-                "q": "language:python stars:>300 topic:agent OR topic:llm-agent",
+                "q": "language:python stars:>300 topic:ai-agent",
                 "category": "agent-frameworks",
                 "tags": ["agent", "framework", "automation"],
             },
