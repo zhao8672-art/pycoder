@@ -21,6 +21,47 @@ export class PythonBackendManager extends EventEmitter {
     super();
   }
 
+  /**
+   * 检测打包的后端可执行文件是否存在
+   * 优先使用 PyInstaller 打包的独立后端（无需系统 Python）
+   */
+  private _resolveBackendCommand(): { command: string; args: string[]; cwd: string } {
+    const { app } = require('electron');
+    const exeDir = path.dirname(process.execPath);
+    const appPath = app.getAppPath();
+    // 候选目录（按优先级）— 向上多层覆盖 dev 模式
+    const searchDirs: string[] = [
+      path.join(exeDir, 'backend'),
+      path.join(process.resourcesPath || '', 'backend'),
+      path.join(appPath, 'backend'),
+      path.join(appPath, '..', 'backend'),
+      path.join(appPath, '..', '..', 'backend'),
+      path.join(appPath, '..', '..', '..', 'backend'),
+      path.join(appPath, '..', '..', '..', '..', 'backend'),
+      path.join(appPath, '..', '..', '..', '..', '..', 'backend'),
+    ];
+
+    const { existsSync } = require('fs');
+    for (const dir of searchDirs) {
+      const exePath = path.join(dir, 'pycoder-backend.exe');
+      if (existsSync(exePath)) {
+        console.log(`[PyCoder Backend] Using bundled backend: ${exePath}`);
+        return {
+          command: exePath,
+          args: ['--server-port', String(this.port)],
+          cwd: path.dirname(exePath),
+        };
+      }
+    }
+    // 兜底：使用系统 Python
+    console.log(`[PyCoder Backend] Bundled backend not found, using system Python: ${this.pythonPath}`);
+    return {
+      command: this.pythonPath,
+      args: ['-m', 'pycoder', '--server', '--server-port', String(this.port)],
+      cwd: app.getAppPath(),
+    };
+  }
+
   get serverUrl(): string {
     return `http://127.0.0.1:${this.port}`;
   }
@@ -128,11 +169,12 @@ export class PythonBackendManager extends EventEmitter {
   ): void {
     this._lastStderr = '';  // 重置错误缓冲
 
+    const backend = this._resolveBackendCommand();
     this.process = spawn(
-      this.pythonPath,
-      ['-m', 'pycoder', '--server', '--server-port', String(this.port)],
+      backend.command,
+      backend.args,
       {
-        cwd: projectRoot,
+        cwd: backend.cwd,
         stdio: 'pipe',
         windowsHide: true,
         env: { ...process.env, PYTHONUTF8: '1' },

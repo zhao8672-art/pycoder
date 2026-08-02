@@ -63,16 +63,20 @@ class Scheduler:
                 log.warning("scheduler_load_failed", path=str(self._storage), error=str(e))
 
     def save(self):
-        """持久化到磁盘"""
-        self._storage.parent.mkdir(parents=True, exist_ok=True)
-        self._storage.write_text(
-            json.dumps(
-                {"tasks": [t.__dict__ for t in self._tasks.values()]},
-                indent=2,
-                ensure_ascii=False,
-            ),
-            encoding="utf-8",
-        )
+        """持久化到磁盘（容错：写入失败仅记录警告，不影响主流程）"""
+        try:
+            self._storage.parent.mkdir(parents=True, exist_ok=True)
+            self._storage.write_text(
+                json.dumps(
+                    {"tasks": [t.__dict__ for t in self._tasks.values()]},
+                    indent=2,
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+        except (PermissionError, OSError) as e:
+            # P4: 打包环境（PyInstaller）下临时目录权限受限，仅警告
+            log.warning("scheduler_save_failed", path=str(self._storage), error=str(e))
 
     def add_task(self, task: ScheduledTask) -> dict:
         self._tasks[task.id] = task

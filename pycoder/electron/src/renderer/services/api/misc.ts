@@ -32,6 +32,30 @@ export const configApi = {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider, api_key: apiKey, model }),
     }),
+  /** 一键配置：自动验证 + 保存 + 设默认模型 */
+  quickSetup: (provider: string, apiKey: string) =>
+    apiRequest<{
+      success: boolean;
+      error?: string;
+      register_url?: string;
+      tried?: string[];
+      supported?: string[];
+      provider?: string;
+      provider_name?: string;
+      model_id?: string;
+      model_name?: string;
+      message?: string;
+      saved?: boolean;
+    }>('/api/config/quick-setup', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, api_key: apiKey }),
+    }),
+  /** 验证 API Key（不保存） */
+  validateKey: (provider: string, apiKey: string) =>
+    apiRequest<{ success: boolean; provider: string }>('/api/config/validate-key', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, api_key: apiKey }),
+    }),
 };
 
 export const contextApi = {

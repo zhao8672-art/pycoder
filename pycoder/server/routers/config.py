@@ -247,6 +247,120 @@ async def validate_api_key(req: dict):
     return {"success": valid, "provider": provider}
 
 
+@router.post("/api/config/quick-setup")
+async def quick_setup(req: dict):
+    """一键配置：自动验证 API Key → 保存 → 设置推荐模型为默认
+
+    请求体:
+        - provider: 提供商 ID（如 "deepseek"），传 "auto" 或留空则自动探测
+        - api_key:  API Key
+
+    返回:
+        - success: 是否成功
+        - provider / provider_name / model_id: 成功时的配置信息
+        - error / register_url: 失败时的错误和注册地址
+        - tried: 自动探测时尝试过的 provider 列表
+    """
+    import logging
+
+    from pycoder.providers.auth import PROVIDER_DEFS, get_model_manager
+    from pycoder.providers.setup_wizard import set_api_key
+
+    _log = logging.getLogger(__name__)
+
+    provider = (req.get("provider") or "").strip().lower() or "auto"
+    api_key = (req.get("api_key") or req.get("key") or "").strip()
+
+    if not api_key:
+        return {"success": False, "error": "API Key 不能为空"}
+
+    mgr = get_model_manager()
+    tried: list[str] = []
+
+    # ── 自动探测：按 key 前缀优先级猜测候选 provider ──
+    if provider in ("", "auto"):
+        if api_key.startswith("sk-"):
+            # sk- 前缀最可能是 DeepSeek / OpenAI / OpenRouter
+            candidates = ["deepseek", "openai", "openrouter", "glm", "agnes"]
+        else:
+            # 其他前缀：按 PROVIDER_DEFS priority 排序
+            candidates = sorted(
+                PROVIDER_DEFS.keys(),
+                key=lambda p: PROVIDER_DEFS[p].get("priority", 99),
+            )
+
+        validated_provider: str | None = None
+        for p in candidates:
+            tried.append(p)
+            try:
+                if await mgr.validate_key(p, api_key):
+                    validated_provider = p
+                    break
+            except (RuntimeError, OSError) as e:
+                _log.warning("quick_setup_validate_error provider=%s err=%s", p, e)
+                continue
+
+        if not validated_provider:
+            return {
+                "success": False,
+                "error": "无法验证此 API Key。请确认 Key 是否正确，或手动选择提供商。",
+                "tried": tried,
+            }
+        provider = validated_provider
+
+    # ── 指定 provider：直接验证 ──
+    elif provider not in PROVIDER_DEFS:
+        return {
+            "success": False,
+            "error": f"不支持的提供商: {provider}",
+            "supported": list(PROVIDER_DEFS.keys()),
+        }
+    else:
+        try:
+            is_valid = await mgr.validate_key(provider, api_key)
+        except (RuntimeError, OSError) as e:
+            _log.warning("quick_setup_validate_error provider=%s err=%s", provider, e)
+            is_valid = False
+
+        if not is_valid:
+            defs = PROVIDER_DEFS.get(provider, {})
+            return {
+                "success": False,
+                "error": (
+                    f"API Key 验证失败。请确认 Key 来自 {defs.get('name', provider)}，"
+                    "且未过期或被限制。"
+                ),
+                "register_url": defs.get("register_url", ""),
+                "provider": provider,
+            }
+
+    # ── 验证通过：保存 Key + 设推荐模型为默认 ──
+    defs = PROVIDER_DEFS[provider]
+    save_result = set_api_key(provider, api_key, set_default=True)
+    recommended_model = defs["recommended_model"]
+    mgr.save_model_preference(recommended_model)
+
+    _log.info(
+        "quick_setup_success provider=%s model=%s key_prefix=%s...%s",
+        provider,
+        recommended_model,
+        api_key[:12],
+        api_key[-4:],
+    )
+
+    return {
+        "success": True,
+        "provider": provider,
+        "provider_name": defs["name"],
+        "model_id": recommended_model,
+        "model_name": mgr.get_model_info(recommended_model).name
+        if mgr.get_model_info(recommended_model)
+        else recommended_model,
+        "message": f"✅ 配置成功！已自动切换到 {recommended_model}",
+        "saved": save_result.get("success", False),
+    }
+
+
 @router.get("/api/config/guide")
 async def config_guide(provider: str = ""):
     """获取配置引导信息"""

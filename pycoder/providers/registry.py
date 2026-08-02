@@ -244,6 +244,23 @@ ALL_MODELS: dict[str, ModelInfo] = {
         tags=["coding", "reasoning", "premium", "agent"],
     ),
     # ── Agnes AI 系列 (Sapiens AI) ──
+    "Agnes-2.5-Flash": ModelInfo(
+        id="Agnes-2.5-Flash",
+        name="Agnes 2.5 Flash",
+        provider="agnes",
+        api_base="https://api.agnes-ai.cn/v1",
+        pricing_input=0.0,
+        pricing_output=0.0,
+        context_window=524288,  # 512K
+        max_output_tokens=65536,  # 64K 输出
+        supports_fim=True,
+        supports_tools=True,
+        supports_reasoning=True,
+        supports_vision=True,
+        supports_cache=True,
+        description="免费多模态模型, 512K上下文, 最新2.5版本, 编码/视觉/工具调用",
+        tags=["free", "recommended", "coding", "agent", "vision", "reasoning"],
+    ),
     "agnes-2.0-flash": ModelInfo(
         id="agnes-2.0-flash",
         name="Agnes 2.0 Flash",
@@ -385,6 +402,13 @@ class NVIDIAProvider(BaseProvider):
         super().__init__("nvidia", "NVIDIA NIM", "https://integrate.api.nvidia.com/v1")
 
 
+class AgnesProvider(BaseProvider):
+    """Agnes AI (Sapiens AI) — OpenAI 兼容接口"""
+
+    def __init__(self):
+        super().__init__("agnes", "Agnes AI", "https://api.agnes-ai.cn/v1")
+
+
 # ══════════════════════════════════════════════════════════
 # 全局查询函数
 # ══════════════════════════════════════════════════════════
@@ -438,6 +462,8 @@ def get_provider_for_model(model_id: str) -> BaseProvider | None:
         return OpenRouterProvider()
     elif model.provider == "nvidia":
         return NVIDIAProvider()
+    elif model.provider == "agnes":
+        return AgnesProvider()
     return None
 
 
