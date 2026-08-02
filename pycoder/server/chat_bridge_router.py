@@ -23,30 +23,54 @@ PROVIDER_API_BASES: dict[str, str] = {
 
 
 def _detect_provider(model: str) -> str:
-    """检测模型所属的提供商 — 支持更多模型前缀"""
+    """检测模型所属的提供商 — 支持更多模型前缀
+
+    防错机制（优先级从高到低）：
+    1. 从 ALL_MODELS 注册表反查（最权威，避免前缀匹配陷阱）
+    2. 大小写不敏感的前缀匹配（修复 "Agnes-2.5-Flash" 大写 A 不匹配的问题）
+    3. 包含斜杠的模型 ID（如 google/gemini-2.0-flash）→ openrouter
+    4. 兜底 → deepseek
+    """
     if not model:
         return "deepseek"
-    if model.startswith("deepseek"):
+
+    # ── 优先级 1：从 ALL_MODELS 注册表反查真实 provider ──
+    try:
+        from pycoder.providers.registry import ALL_MODELS
+
+        info = ALL_MODELS.get(model)
+        if info and info.provider:
+            return info.provider
+    except ImportError:
+        pass
+
+    # ── 优先级 2：大小写不敏感的前缀匹配 ──
+    m_lower = model.lower()
+    if m_lower.startswith("deepseek"):
         return "deepseek"
-    if model.startswith("qwen"):
+    if m_lower.startswith("qwen"):
         return "qwen"
-    if model.startswith("glm"):
+    if m_lower.startswith("glm"):
         return "glm"
-    if model.startswith("gpt") or model.startswith("o"):
+    # 注意：避免误匹配，gpt / o1 / o3 等以 "gpt" 或 "o" 开头但需更严格判断
+    if m_lower.startswith("gpt") or m_lower.startswith("o1") or m_lower.startswith("o3"):
         return "openai"
-    if model.startswith("claude"):
+    if m_lower.startswith("claude"):
         return "anthropic"
-    if model.startswith("gemini"):
+    if m_lower.startswith("gemini"):
         return "google"
-    if model.startswith("z-") or model.startswith("nvidia-"):
+    if m_lower.startswith("z-") or m_lower.startswith("nvidia-"):
         return "nvidia"
-    if model.startswith("agnes"):
+    if m_lower.startswith("agnes"):
         return "agnes"
-    if model.startswith("openrouter"):
+    if m_lower.startswith("openrouter"):
         return "openrouter"
-    # 包含斜杠的模型 ID（如 google/gemini-2.0-flash）→ openrouter
+
+    # ── 优先级 3：包含斜杠的模型 ID → openrouter ──
     if "/" in model:
         return "openrouter"
+
+    # ── 兜底 ──
     return "deepseek"
 
 

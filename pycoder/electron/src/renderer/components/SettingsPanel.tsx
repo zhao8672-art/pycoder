@@ -116,7 +116,13 @@ export const SettingsPanel: React.FC = () => {
     }
     setQuickStatus({ kind: 'validating' });
     try {
-      const res = await BackendAPI.config.quickSetup(selectedProvider, quickKey.trim());
+      // 传入当前选中的模型 ID，后端会从 ALL_MODELS 反查真实 provider，
+      // 避免按 key 前缀猜测导致 provider 错配（如 Agnes 被误判为 deepseek）
+      const res = await BackendAPI.config.quickSetup(
+        selectedProvider,
+        quickKey.trim(),
+        currentModel || undefined,
+      );
       if (res?.success) {
         setQuickStatus({
           kind: 'success',
@@ -141,7 +147,7 @@ export const SettingsPanel: React.FC = () => {
         message: `网络错误：${e?.message || '请检查后端服务是否运行'}`,
       });
     }
-  }, [quickKey, selectedProvider]);
+  }, [quickKey, selectedProvider, currentModel]);
 
   // 选择模型并持久化
   const handleModelSelect = useCallback(async (modelId: string) => {
@@ -163,18 +169,14 @@ export const SettingsPanel: React.FC = () => {
 
   const handleSaveKey = async () => {
     if (!apiKey.trim()) return;
-    let provider = 'deepseek';
-    if (currentModel.startsWith('qwen')) provider = 'qwen';
-    else if (currentModel.startsWith('glm')) provider = 'glm';
-    else if (currentModel.startsWith('gpt') || currentModel.startsWith('o')) provider = 'openai';
-    else if (currentModel.startsWith('claude')) provider = 'anthropic';
-    else if (currentModel.startsWith('agnes')) provider = 'agnes';
-    else if (currentModel.startsWith('deepseek')) provider = 'deepseek';
-    else if (apiKey.startsWith('sk-') && apiKey.length > 10) provider = 'openai';
+    // 防错：从 models 数组反查当前模型的真实 provider（来自后端 ALL_MODELS），
+    // 不再靠字符串前缀猜测，避免 "Agnes-2.5-Flash" 大写 A 被误判为 deepseek
+    const modelInfo = models.find((m: ModelInfo) => m.id === currentModel);
+    const provider = modelInfo?.provider || 'deepseek';
 
     const res = await BackendAPI.config.setup(provider, apiKey, currentModel);
     if (res?.success) {
-      setSaveMsg('✅ Key 保存成功');
+      setSaveMsg(`✅ Key 保存成功（提供商: ${provider}）`);
       setKeyStatus({ ...keyStatus, [provider]: true });
       loadModels();
     } else {

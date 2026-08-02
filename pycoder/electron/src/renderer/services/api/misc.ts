@@ -32,8 +32,11 @@ export const configApi = {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider, api_key: apiKey, model }),
     }),
-  /** 一键配置：自动验证 + 保存 + 设默认模型 */
-  quickSetup: (provider: string, apiKey: string) =>
+  /** 一键配置：自动验证 + 保存 + 设默认模型
+   *  model 参数：用户当前选中的模型 ID，后端会从 ALL_MODELS 反查真实 provider，
+   *  防止 key 前缀猜测导致 provider 错配（如 Agnes 被误判为 deepseek）
+   */
+  quickSetup: (provider: string, apiKey: string, model?: string) =>
     apiRequest<{
       success: boolean;
       error?: string;
@@ -48,7 +51,7 @@ export const configApi = {
       saved?: boolean;
     }>('/api/config/quick-setup', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider, api_key: apiKey }),
+      body: JSON.stringify({ provider, api_key: apiKey, model: model || undefined }),
     }),
   /** 验证 API Key（不保存） */
   validateKey: (provider: string, apiKey: string) =>

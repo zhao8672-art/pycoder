@@ -249,11 +249,14 @@ async def validate_api_key(req: dict):
 
 @router.post("/api/config/quick-setup")
 async def quick_setup(req: dict):
-    """一键配置：自动验证 API Key → 保存 → 设置推荐模型为默认
+    """一键配置：自动验证 API Key → 保存 → 设置默认模型
 
     请求体:
         - provider: 提供商 ID（如 "deepseek"），传 "auto" 或留空则自动探测
         - api_key:  API Key
+        - model_id: 可选，用户当前选中的模型 ID。若指定，将从此模型的
+                    注册信息（ALL_MODELS）反查 provider，作为优先候选，
+                    避免 key 前缀猜测导致的 provider 错配（如 Agnes 被误判）。
 
     返回:
         - success: 是否成功
@@ -263,13 +266,14 @@ async def quick_setup(req: dict):
     """
     import logging
 
-    from pycoder.providers.auth import PROVIDER_DEFS, get_model_manager
+    from pycoder.providers.auth import ALL_MODELS, PROVIDER_DEFS, get_model_manager
     from pycoder.providers.setup_wizard import set_api_key
 
     _log = logging.getLogger(__name__)
 
     provider = (req.get("provider") or "").strip().lower() or "auto"
     api_key = (req.get("api_key") or req.get("key") or "").strip()
+    model_id = (req.get("model") or req.get("model_id") or "").strip()
 
     if not api_key:
         return {"success": False, "error": "API Key 不能为空"}
@@ -277,17 +281,55 @@ async def quick_setup(req: dict):
     mgr = get_model_manager()
     tried: list[str] = []
 
-    # ── 自动探测：按 key 前缀优先级猜测候选 provider ──
-    if provider in ("", "auto"):
-        if api_key.startswith("sk-"):
-            # sk- 前缀最可能是 DeepSeek / OpenAI / OpenRouter
-            candidates = ["deepseek", "openai", "openrouter", "glm", "agnes"]
-        else:
-            # 其他前缀：按 PROVIDER_DEFS priority 排序
-            candidates = sorted(
-                PROVIDER_DEFS.keys(),
-                key=lambda p: PROVIDER_DEFS[p].get("priority", 99),
+    # ── 防错机制 1：若指定了 model_id，从 ALL_MODELS 反查真实 provider ──
+    # 避免字符串前缀匹配的陷阱（如 "Agnes-2.5-Flash" 大写 A 不匹配 'agnes'）
+    model_provider: str | None = None
+    if model_id:
+        info = ALL_MODELS.get(model_id)
+        if info and info.provider in PROVIDER_DEFS:
+            model_provider = info.provider
+            _log.info(
+                "quick_setup_model_inferred_provider model=%s -> provider=%s",
+                model_id,
+                model_provider,
             )
+        else:
+            _log.warning(
+                "quick_setup_model_not_found model=%s (will fall back to provider detection)",
+                model_id,
+            )
+
+    # ── 防错机制 2：若用户传了 provider 但与 model_id 反查结果冲突，以 model 为准 ──
+    if (
+        model_provider
+        and provider not in ("", "auto")
+        and provider != model_provider
+    ):
+        _log.warning(
+            "quick_setup_provider_conflict user=%s model_says=%s -> using model's provider",
+            provider,
+            model_provider,
+        )
+        provider = model_provider
+
+    # ── 自动探测：构建候选 provider 优先级列表 ──
+    if provider in ("", "auto"):
+        # 候选顺序：model 反查 > key 前缀启发 > 全部按 priority
+        candidates: list[str] = []
+        if model_provider:
+            candidates.append(model_provider)
+        if api_key.startswith("sk-"):
+            # sk- 前缀常见于 DeepSeek / OpenAI / OpenRouter
+            for p in ("deepseek", "openai", "openrouter"):
+                if p not in candidates:
+                    candidates.append(p)
+        # 补齐：剩余 provider 按 priority 排序
+        for p in sorted(
+            PROVIDER_DEFS.keys(),
+            key=lambda x: PROVIDER_DEFS[x].get("priority", 99),
+        ):
+            if p not in candidates:
+                candidates.append(p)
 
         validated_provider: str | None = None
         for p in candidates:
@@ -334,16 +376,25 @@ async def quick_setup(req: dict):
                 "provider": provider,
             }
 
-    # ── 验证通过：保存 Key + 设推荐模型为默认 ──
+    # ── 验证通过：保存 Key + 设默认模型 ──
+    # 默认模型优先级：用户当前选中的 model_id（且 provider 一致）> provider 推荐模型
     defs = PROVIDER_DEFS[provider]
     save_result = set_api_key(provider, api_key, set_default=True)
-    recommended_model = defs["recommended_model"]
-    mgr.save_model_preference(recommended_model)
+    target_model = (
+        model_id
+        if (
+            model_id
+            and ALL_MODELS.get(model_id)
+            and ALL_MODELS[model_id].provider == provider
+        )
+        else defs["recommended_model"]
+    )
+    mgr.save_model_preference(target_model)
 
     _log.info(
         "quick_setup_success provider=%s model=%s key_prefix=%s...%s",
         provider,
-        recommended_model,
+        target_model,
         api_key[:12],
         api_key[-4:],
     )
@@ -352,11 +403,11 @@ async def quick_setup(req: dict):
         "success": True,
         "provider": provider,
         "provider_name": defs["name"],
-        "model_id": recommended_model,
-        "model_name": mgr.get_model_info(recommended_model).name
-        if mgr.get_model_info(recommended_model)
-        else recommended_model,
-        "message": f"✅ 配置成功！已自动切换到 {recommended_model}",
+        "model_id": target_model,
+        "model_name": mgr.get_model_info(target_model).name
+        if mgr.get_model_info(target_model)
+        else target_model,
+        "message": f"✅ 配置成功！已自动切换到 {target_model}",
         "saved": save_result.get("success", False),
     }
 
