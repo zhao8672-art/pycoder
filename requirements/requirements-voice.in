@@ -1,0 +1,5 @@
+# F3 语音输入 (可选依赖) — 后端 STT 兜底引擎
+# 未安装时 POST /api/voice/transcribe 返回 501, 前端自动降级为浏览器 Web Speech
+# 安装: pip install -e ".[voice]"  或  pip install faster-whisper
+# 首次使用会自动从 HuggingFace 下载模型 (默认 base, 可用 PYCODER_WHISPER_MODEL 覆盖)
+faster-whisper>=1.1.0

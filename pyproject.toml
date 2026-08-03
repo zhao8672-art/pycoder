@@ -87,6 +87,8 @@ dependencies = [
     "structlog",
     "python-multipart",
     "pyyaml",
+    # 数据库可视化 (F6): 统一连接层 / 元数据反射
+    "sqlalchemy~=2.0",
 ]
 
 [project.urls]
@@ -106,6 +108,8 @@ dev = { file = "requirements/requirements-dev.txt" }
 help = { file = "requirements/requirements-help.txt" }
 browser = { file = "requirements/requirements-browser.txt" }
 playwright = { file = "requirements/requirements-playwright.txt" }
+# F3 语音输入 (可选): 后端 STT 兜底引擎, 未安装时 /api/voice/transcribe 返回 501
+voice = { file = "requirements/requirements-voice.txt" }
 
 [tool.setuptools]
 include-package-data = true

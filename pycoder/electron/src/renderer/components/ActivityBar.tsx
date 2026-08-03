@@ -33,6 +33,7 @@ const GROUP_AI_TOOLS: ActivityItem[] = [
 
 const GROUP_UTILITIES: ActivityItem[] = [
   { id: 'browser', icon: 'browser', label: '浏览', tooltip: 'builtinBrowser', action: 'toggle-browser' },
+  { id: 'database', icon: 'database', label: '数据库', tooltip: 'databaseExplorer', action: 'sidebar', sidebarView: 'database' },
   { id: 'terminal', icon: 'run', label: '运行', tooltip: 'terminalRunner', action: 'toggle-bottom' },
   { id: 'command', icon: 'command', label: '命令', tooltip: 'commandPalette', action: 'command-palette' },
 ];

@@ -1,0 +1,4 @@
+# F3 语音输入 (可选依赖) — 由 requirements/requirements-voice.in 维护
+# 完整锁定可用: uv pip compile requirements/requirements-voice.in -o requirements/requirements-voice.txt
+# faster-whisper 会带入 ctranslate2 / tokenizers / onnxruntime 等传递依赖
+faster-whisper>=1.1.0

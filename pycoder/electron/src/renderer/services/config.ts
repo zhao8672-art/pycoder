@@ -13,9 +13,17 @@ async function getBackendBase(): Promise<string> {
     try {
         _cachedBase = await window.electronAPI.getBackendUrl();
     } catch {
-        _cachedBase = `http://127.0.0.1:${DEFAULT_PORT}`;
+        _cachedBase = '';
     }
-    return _cachedBase!;
+    if (!_cachedBase) {
+        // F4 移动端/纯浏览器远程访问回退：?api_base= URL 参数 > localStorage > 本机默认
+        const fromQuery = new URLSearchParams(window.location.search).get('api_base');
+        _cachedBase =
+            fromQuery ||
+            localStorage.getItem('pycoder_api_base') ||
+            `http://127.0.0.1:${DEFAULT_PORT}`;
+    }
+    return _cachedBase;
 }
 
 /** 获取后端 HTTP API 基础 URL（如 http://127.0.0.1:8423） */
@@ -52,5 +60,22 @@ export async function getApiKey(): Promise<string> {
     } catch {
         _cachedApiKey = '';
     }
-    return _cachedApiKey;
+    if (!_cachedApiKey && !window.electronAPI) {
+        // F4 移动端/纯浏览器远程访问回退（无 electronAPI 时）：
+        // ?api_key= URL 参数 > localStorage（远程访问须走 HTTPS，见 mobile_api.py 安全说明）
+        const fromQuery = new URLSearchParams(window.location.search).get('api_key');
+        if (fromQuery) {
+            try {
+                // 持久化，避免后续每次请求都要携带 URL 参数
+                localStorage.setItem('pycoder_api_key', fromQuery);
+            } catch {
+                // 隐私模式等 localStorage 不可用场景：仅内存缓存
+            }
+            _cachedApiKey = fromQuery;
+        } else {
+            _cachedApiKey = localStorage.getItem('pycoder_api_key') || '';
+        }
+        _apiKeyFetchTime = now;
+    }
+    return _cachedApiKey ?? '';
 }

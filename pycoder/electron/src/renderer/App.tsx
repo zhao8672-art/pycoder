@@ -13,9 +13,11 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { MenuBar } from './components/MenuBar';
 import WelcomeScreen from './components/WelcomeScreen';
 import { BrowserPanel } from './components/BrowserPanel';
+import { MobileLayout } from './components/MobileLayout';
 import { Resizer } from './components/common/Resizer';
 import { WSConnectionRegistry } from './services/wsConnectionRegistry';
 import { BackendAPI } from './services/backend';
+import { useIsMobile } from './services/detectMobile';
 import { getLanguageFromPath } from './utils/language';
 import { useUIStore } from './stores/uiStore';
 import { useChatStore } from './stores/chatStore';
@@ -323,10 +325,14 @@ const AppInner: React.FC = () => {
   );
 };
 
-const App: React.FC = () => (
-  <ErrorBoundary>
-    <AppInner />
-  </ErrorBoundary>
-);
+const App: React.FC = () => {
+  // F4 移动端支持：移动 UA / 窄屏触摸环境渲染 MobileLayout，否则桌面三栏布局
+  const mobile = useIsMobile();
+  return (
+    <ErrorBoundary>
+      {mobile ? <MobileLayout /> : <AppInner />}
+    </ErrorBoundary>
+  );
+};
 
 export default App;

@@ -144,6 +144,24 @@ function setupCSP(): void {
   });
 }
 
+// F3: 语音输入 — 权限请求白名单 (麦克风等)
+// 未设置处理器时 Electron 默认放行所有权限, 这里显式收敛,
+// 确保 getUserMedia / SpeechRecognition 的 media 权限被允许
+const ALLOWED_PERMISSIONS = new Set([
+  'media', // 麦克风/摄像头 (F3 语音输入)
+  'clipboard-read',
+  'clipboard-sanitized-write',
+  'notifications',
+  'fullscreen',
+  'pointerLock',
+]);
+
+function setupPermissions(): void {
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(ALLOWED_PERMISSIONS.has(permission));
+  });
+}
+
 app.whenReady().then(async () => {
   // P2-5: 启动前清理可能锁定的 Electron 缓存目录
   const fs = require('fs');
@@ -183,6 +201,9 @@ app.whenReady().then(async () => {
 
   // 生产模式 CSP（仅作用于主窗口，不干扰 webview）
   setupCSP();
+
+  // F3: 麦克风等权限白名单 (语音输入)
+  setupPermissions();
 
   backendManager = new PythonBackendManager(SERVER_PORT);
   // 异步启动后端，不阻塞窗口创建

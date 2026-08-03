@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BackendAPI } from '../services/backend';
 import type { WSConnectionManager, WSMessage } from '../services/websocket';
+import { getCollabClient } from '../services/collabClient';
+import type { CollabMember } from '../services/collabClient';
 
 interface Workspace {
     id: string; name: string; created_by: string; created_at: number;
@@ -49,6 +51,96 @@ export const TeamPanel: React.FC<Props> = ({ wsClient }) => {
     const [reviewDesc, setReviewDesc] = useState('');
     const [reviewFile, setReviewFile] = useState('');
     const [reviewCode, setReviewCode] = useState('');
+
+    // ── 实时协同房间（Monaco 协同编辑，默认关闭） ──
+    const collabClient = useRef(getCollabClient()).current;
+    const [rtRoomId, setRtRoomId] = useState('');
+    const [rtUsername, setRtUsername] = useState('local');
+    const [rtJoined, setRtJoined] = useState(collabClient.active);
+    const [rtMembers, setRtMembers] = useState<CollabMember[]>([]);
+    const [rtStatus, setRtStatus] = useState('');
+    const [rtBusy, setRtBusy] = useState(false);
+
+    // 订阅协同事件：成员变更 / 加入成功 / 错误
+    useEffect(() => {
+        const unMembers = collabClient.on('members', (m: CollabMember[]) => setRtMembers(m || []));
+        const unJoined = collabClient.on('joined', () => setRtJoined(true));
+        const unError = collabClient.on('error', (err: string) => {
+            setRtStatus(`❌ ${err}`);
+            setTimeout(() => setRtStatus(''), 4000);
+        });
+        return () => { unMembers(); unJoined(); unError(); };
+    }, [collabClient]);
+
+    // 创建/加入协同房间（房间不存在时服务端自动创建）
+    const handleRtJoin = useCallback(async () => {
+        if (!rtRoomId.trim() || !rtUsername.trim()) return;
+        setRtBusy(true);
+        setRtStatus('⏳ 加入中...');
+        try {
+            const ok = await collabClient.joinRoom(rtRoomId.trim(), rtUsername.trim());
+            if (ok) {
+                setRtJoined(true);
+                setRtStatus(`✅ 已加入房间 ${rtRoomId.trim()}，打开编辑器即可协同`);
+            } else {
+                setRtStatus('❌ 加入失败（房间已满或连接超时）');
+            }
+        } finally {
+            setRtBusy(false);
+            setTimeout(() => setRtStatus(''), 5000);
+        }
+    }, [collabClient, rtRoomId, rtUsername]);
+
+    const handleRtLeave = useCallback(() => {
+        collabClient.leave();
+        setRtJoined(false);
+        setRtMembers([]);
+        setRtStatus('已离开协同房间');
+        setTimeout(() => setRtStatus(''), 3000);
+    }, [collabClient]);
+
+    // 实时协同房间区块（插入协作视图顶部）
+    const renderRealtimeCollab = () => (
+        <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>⚡ 实时协同编辑</div>
+            {!rtJoined ? (
+                <div className="team-form">
+                    <input className="team-input" placeholder="房间号（不存在则自动创建）"
+                        value={rtRoomId} onChange={e => setRtRoomId(e.target.value)} />
+                    <input className="team-input" placeholder="你的用户名"
+                        value={rtUsername} onChange={e => setRtUsername(e.target.value)} />
+                    <div className="team-form-actions">
+                        <button className="team-btn team-btn-primary" onClick={handleRtJoin}
+                            disabled={rtBusy || !rtRoomId.trim() || !rtUsername.trim()}>
+                            {rtBusy ? '⏳ 加入中...' : '🚪 创建/加入房间'}
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                        房间 <strong>{collabClient.roomId}</strong> · rev {collabClient.revision} · {rtMembers.filter(m => m.online).length} 人在线
+                    </div>
+                    <div className="team-member-list" style={{ marginBottom: 6 }}>
+                        {rtMembers.map(m => (
+                            <div key={m.client_id} className="team-member">
+                                <span className="team-member-name">
+                                    <span style={{
+                                        display: 'inline-block', width: 8, height: 8, borderRadius: 4,
+                                        background: m.color, marginRight: 4, opacity: m.online ? 1 : 0.3,
+                                    }} />
+                                    {m.username}{m.online ? '' : '（离线）'}
+                                </span>
+                                <span className="team-member-role">{m.role}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <button className="team-btn" onClick={handleRtLeave}>🚪 离开房间</button>
+                </div>
+            )}
+            {rtStatus && <div className="team-status">{rtStatus}</div>}
+        </div>
+    );
 
     // Auto scroll log
     useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [agentLog]);
@@ -308,6 +400,7 @@ export const TeamPanel: React.FC<Props> = ({ wsClient }) => {
                 </div>
                 <div className="team-panel">
                     <div className="team-panel-header"><h3>👥 团队工作区</h3></div>
+                    {renderRealtimeCollab()}
                     <div className="team-panel-actions">
                         <button className="team-btn team-btn-primary" onClick={() => setShowCreate(true)}>➕ 新建</button>
                         <button className="team-btn" onClick={() => setShowJoin(true)}>🔗 加入</button>
@@ -387,6 +480,7 @@ export const TeamPanel: React.FC<Props> = ({ wsClient }) => {
                         <button className="team-btn-team" onClick={() => send('delete', { workspace_id: activeWs.id })} disabled={working}>🗑</button>
                     </div>
                 </div>
+                {renderRealtimeCollab()}
                 <div className="team-tabs">
                     {(['members', 'reviews', 'activity'] as const).map(t => (
                         <button key={t} className={`team-tab ${collabTab === t ? 'active' : ''}`} onClick={() => setCollabTab(t)}>

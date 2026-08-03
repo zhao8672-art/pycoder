@@ -4,6 +4,7 @@ import * as monaco from 'monaco-editor';
 import { useAppStore } from '../stores/appStore';
 import { getLSPClient, LSPDiagnostic } from '../services/lsp-client';
 import { registerInlineCompletion } from '../services/inlineCompletion';
+import { getCollabClient } from '../services/collabClient';
 
 // 强制使用本地 Monaco，不走 CDN
 loader.config({ monaco });
@@ -68,6 +69,10 @@ export const MonacoEditor: React.FC<Props> = ({ filePath, content, language, wsC
 
   const handleMount: OnMount = useCallback((editor) => {
     editorRef.current = editor;
+
+    // 协作会话活跃时（如先加入房间后打开编辑器）立即绑定
+    const collab = getCollabClient();
+    if (collab.active) collab.attachEditor(editor);
 
     // Phase 1: Register Inline AI Completion Provider
     try { registerInlineCompletion(monaco); } catch { }
@@ -330,6 +335,23 @@ export const MonacoEditor: React.FC<Props> = ({ filePath, content, language, wsC
       }
     });
   }, [filePath, language]);
+
+  // ── 协作编辑绑定（默认关闭，加入房间后启用） ──
+  useEffect(() => {
+    const collab = getCollabClient();
+    const attach = () => {
+      if (editorRef.current) collab.attachEditor(editorRef.current);
+    };
+    // 编辑器就绪前已加入房间（如重连恢复）→ 立即绑定
+    if (collab.active) attach();
+    // 加入房间事件 → 绑定并对齐文档
+    const unsub = collab.on('joined', attach);
+    return () => {
+      unsub();
+      // 组件卸载时解除绑定（不退出房间，协同会话继续）
+      collab.detachEditor();
+    };
+  }, []);
 
   // ── WebSocket 监听 inline_edit 响应 ──
   useEffect(() => {

@@ -1,0 +1,253 @@
+/* ═══════════════════════════════════════════════
+   移动端布局（F4 移动端支持）
+   - 底部 tab 导航 + 单视图切换（聊天/终端/文件）
+   - 触摸友好：可点目标 ≥ 44px
+   - 安全区适配：env(safe-area-inset-*)
+   - 移动端不渲染 Monaco，代码以只读 <pre> 浏览
+   ═══════════════════════════════════════════════ */
+
+.mobile-layout {
+    position: relative; /* 作为只读代码查看器的定位锚点 */
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh; /* 移动浏览器动态视口高度，规避地址栏遮挡 */
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+    /* 触摸优化：禁用双击缩放延迟与文本选择干扰 */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ── 顶部栏 ─────────────────────────────────── */
+.mobile-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    /* iOS 刘海屏顶部安全区 */
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.mobile-header-title {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.mobile-header-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--error, #f7768e);
+}
+
+.mobile-header-status.online {
+    background: var(--success, #9ece6a);
+}
+
+.mobile-header-summary {
+    font-size: 12px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    text-align: right;
+}
+
+/* ── 内容区（单视图填充） ────────────────────── */
+.mobile-content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.mobile-view {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* 复用桌面面板：移动端全宽填充，覆盖 layout.css 的窄屏绝对定位规则 */
+.mobile-view .ai-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    position: static !important;
+    border-left: none;
+    box-shadow: none;
+    animation: none;
+}
+
+.mobile-view .terminal-panel {
+    flex: 1;
+    min-height: 0;
+}
+
+/* ── 底部 tab 导航 ──────────────────────────── */
+.mobile-tabbar {
+    display: flex;
+    flex-shrink: 0;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    /* iOS 底部 Home 指示条安全区 */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mobile-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 52px; /* 触摸友好（≥44px 指南） */
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 11px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.mobile-tab.active {
+    color: var(--accent, #7aa2f7);
+}
+
+.mobile-tab:active {
+    background: var(--bg-hover);
+}
+
+/* ── 文件浏览视图（只读） ────────────────────── */
+.mobile-files-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.mobile-files-path {
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+}
+
+.mobile-files-list {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mobile-file-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 44px; /* 触摸友好 */
+    padding: 8px 14px;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+    user-select: none;
+}
+
+.mobile-file-item:active {
+    background: var(--bg-hover);
+}
+
+.mobile-file-item-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mobile-file-item-size {
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.mobile-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 36px;
+    min-width: 36px;
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.mobile-btn:active {
+    background: var(--bg-hover);
+}
+
+.mobile-files-state {
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+/* ── 只读代码查看器（替代 Monaco） ────────────── */
+.mobile-file-viewer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+    z-index: 10;
+}
+
+.mobile-file-viewer pre {
+    flex: 1;
+    margin: 0;
+    padding: 12px;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    font-family: 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre;
+    user-select: text; /* 只读但允许复制 */
+}
+
+/* ── 后端连接占位 ───────────────────────────── */
+.mobile-loading {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text-muted);
+    font-size: 14px;
+    padding: 24px;
+    text-align: center;
+}

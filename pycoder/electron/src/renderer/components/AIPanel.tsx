@@ -12,6 +12,7 @@ import { AgentThinkingBlock } from './AgentThinkingBlock';
 import { AgentToolChain } from './AgentToolChain';
 import { AgentDiffCard } from './AgentDiffCard';
 import { AgentProgressBar } from './AgentProgressBar';
+import { VoiceInputButton } from './VoiceInputButton';
 
 interface Props {
   wsClient: WSConnectionManager | null;
@@ -62,6 +63,8 @@ export const AIPanel: React.FC<Props> = ({ wsClient }) => {
   const [mentionActiveIdx, setMentionActiveIdx] = useState(0);
   const mentionInputRef = useRef<HTMLTextAreaElement>(null);
   const cursorPosRef = useRef(0);
+  // F3 语音输入: 会话开始时输入框的基线内容, 识别文本追加在其后
+  const voiceBaseRef = useRef('');
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -975,6 +978,17 @@ export const AIPanel: React.FC<Props> = ({ wsClient }) => {
           )}
         </div>
         <div className="ai-panel-input-actions">
+          <VoiceInputButton
+            disabled={isStreaming}
+            onSessionStart={() => {
+              // 以 textarea 实时值为准 (state 可能因闭包滞后)
+              voiceBaseRef.current = mentionInputRef.current?.value ?? input;
+            }}
+            onTranscript={(text) => {
+              const base = voiceBaseRef.current;
+              setInput(base + (base && text ? ' ' : '') + text);
+            }}
+          />
           <button className="btn-generate" onClick={() => { setInput('/generate '); }} title="一键生成项目">
             🚀
           </button>

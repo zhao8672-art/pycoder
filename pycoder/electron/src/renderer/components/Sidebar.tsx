@@ -16,6 +16,7 @@ const ExtensionsPanel = lazy(() => import('./ExtensionsPanel'));
 const SettingsPanel = lazy(() => import('./SettingsPanel'));
 const TeamPanel = lazy(() => import('./TeamPanel'));
 const CloudPanel = lazy(() => import('./CloudPanel'));
+const DatabasePanel = lazy(() => import('./DatabasePanel'));
 
 // 懒加载骨架屏
 const PanelSkeleton = () => (
@@ -49,6 +50,7 @@ export const Sidebar: React.FC = () => {
     snippets: { label: '代码片段', icon: '📋' },
     team: { label: '团队协作', icon: '👥' },
     cloud: { label: 'PyCoder Cloud', icon: '☁️' },
+    database: { label: '数据库', icon: '🗄️' },
     settings: { label: '设置', icon: '⚙' },
   };
 
@@ -82,6 +84,8 @@ export const Sidebar: React.FC = () => {
         return wsClient ? <Suspense fallback={<PanelSkeleton />}><TeamPanel wsClient={wsClient} /></Suspense> : <div className="sidebar-placeholder">WebSocket 未连接</div>;
       case 'cloud':
         return wsClient ? <Suspense fallback={<PanelSkeleton />}><CloudPanel wsClient={wsClient} /></Suspense> : <div className="sidebar-placeholder">WebSocket 未连接</div>;
+      case 'database':
+        return <Suspense fallback={<PanelSkeleton />}><DatabasePanel /></Suspense>;
       case 'settings':
         return <Suspense fallback={<PanelSkeleton />}><SettingsPanel /></Suspense>;
       default:

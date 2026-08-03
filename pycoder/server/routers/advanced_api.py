@@ -22,6 +22,17 @@ debug_router = APIRouter(prefix="/api/debug")
 
 @collab_ws_router.websocket("/ws/collab")
 async def ws_collab(ws: WebSocket):
+    """协作编辑 WebSocket 入口
+
+    消息协议（客户端 → 服务端）：
+    - ``join``:    {type, room_id, client_id?, username?, role?}
+                   响应携带当前文档 + revision + 成员列表（断线恢复）
+    - ``edit``:    {type, operation, base_revision, request_id?}
+                   响应 ack（含变换后操作与 revision）或 nack（含原因）
+    - ``sync``:    {type, room_id}
+                   主动拉取当前文档 + revision（重连对齐）
+    - ``cursor``:  {type, position}  广播光标（附带用户名/颜色）
+    """
     from pycoder.server.app import verify_ws_auth
 
     if not await verify_ws_auth(ws):
@@ -43,7 +54,15 @@ async def ws_collab(ws: WebSocket):
                 async def send(x):
                     await ws.send_text(x)
 
-                result = engine.join(room_id, client_id, send)
+                result = engine.join(
+                    room_id,
+                    client_id,
+                    send,
+                    username=msg.get("username", ""),
+                    role=msg.get("role", "editor"),
+                    color=msg.get("color", ""),
+                )
+                result["type"] = "join_result"
                 await ws.send_json(result)
 
             elif mtype == "edit":
@@ -51,8 +70,32 @@ async def ws_collab(ws: WebSocket):
                     room_id,
                     client_id,
                     msg["operation"],
+                    base_revision=msg.get("base_revision"),
                 )
+                # 操作确认：ack / nack（携带变换后 revision 供客户端对齐）
+                result["type"] = "ack" if result.get("success") else "nack"
+                if "request_id" in msg:
+                    result["request_id"] = msg["request_id"]
                 await ws.send_json(result)
+
+            elif mtype == "sync":
+                # 断线重连后主动同步：返回当前文档 + 最新 revision + 成员
+                room = engine._rooms.get(room_id)
+                if room:
+                    await ws.send_json(
+                        {
+                            "type": "sync_result",
+                            "success": True,
+                            "room_id": room_id,
+                            "document": engine._documents.get(room_id, ""),
+                            "revision": room["version"],
+                            "members": engine._build_member_list(room_id),
+                        }
+                    )
+                else:
+                    await ws.send_json(
+                        {"type": "sync_result", "success": False, "error": "房间不存在"}
+                    )
 
             elif mtype == "cursor":
                 engine.update_cursor(room_id, client_id, msg.get("position", {}))

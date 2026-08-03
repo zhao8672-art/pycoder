@@ -31,6 +31,7 @@ def _register_health(app: FastAPI) -> None:
 # ── 2. 工具类（Filesystem / Shell / Git / Search） ─────────────────
 def _register_tools(app: FastAPI) -> None:
     from pycoder.server.routers.code_exec import router as code_exec_router
+    from pycoder.server.routers.db_api import router as db_api_router  # F6 数据库可视化
     from pycoder.server.routers.diff import router as diff_router
     from pycoder.server.routers.diff_list import router as diff_list_router
     from pycoder.server.routers.files import router as files_router
@@ -47,6 +48,7 @@ def _register_tools(app: FastAPI) -> None:
     app.include_router(search_router)
     app.include_router(code_exec_router, prefix="/api/code")
     app.include_router(visualize_router)
+    app.include_router(db_api_router)  # F6 数据库可视化 /api/db
 
 
 # ── 3. 核心服务（Config / Chat / REST / Context / Extensions / Auth） ──
@@ -90,6 +92,7 @@ def _register_business(app: FastAPI) -> None:
     from pycoder.server.routers.pipeline import router as pipeline_router
     from pycoder.server.routers.recommendation_api import router as recommendation_router
     from pycoder.server.routers.refactor_api import router as refactor_router
+    from pycoder.server.routers.review_api import router as review_router  # F5 代码审查
     from pycoder.server.routers.scaffold_api import router as scaffold_router
     from pycoder.server.routers.skills_api_v2 import router as skills_api_v2_router
     from pycoder.server.routers.skills_lifecycle_api import router as skills_lifecycle_router
@@ -107,6 +110,7 @@ def _register_business(app: FastAPI) -> None:
     app.include_router(pipeline_router)
     app.include_router(scaffold_router)
     app.include_router(refactor_router)
+    app.include_router(review_router)  # F5 代码审查
     app.include_router(openapi_router)
     app.include_router(chart_router)
     app.include_router(runtime_router)
@@ -216,6 +220,7 @@ def _register_phase23(app: FastAPI) -> None:
     from pycoder.server.routers.search_api import router as search_router  # Web 搜索 API
     from pycoder.server.routers.skills_marketplace_api import router as skills_marketplace_router
     from pycoder.server.routers.task_api import router as task_api_router
+    from pycoder.server.routers.voice_api import router as voice_router  # F3 语音输入 STT
     from pycoder.server.routers.web_routes import router as web_router
 
     app.include_router(dag_router)
@@ -226,6 +231,7 @@ def _register_phase23(app: FastAPI) -> None:
     app.include_router(learning_router)
     app.include_router(web_router)
     app.include_router(media_router)
+    app.include_router(voice_router)  # F3
     app.include_router(multimodal_router)  # P2-2
     app.include_router(patch_router)  # P2-1
     app.include_router(installer_router)  # P2-3
@@ -238,9 +244,25 @@ def _register_phase23(app: FastAPI) -> None:
 def _register_websocket(app: FastAPI) -> None:
     from pycoder.server.routers.advanced_api import collab_ws_router
     from pycoder.server.routers.autonomous_api import ws_router as autonomous_ws_router
+    from pycoder.server.routers.preview_api import ws_router as preview_ws_router
 
     app.include_router(collab_ws_router)
     app.include_router(autonomous_ws_router)
+    app.include_router(preview_ws_router)  # F7 实时预览 reload 推送
+
+
+# ── 12. F7 实时预览（Live Preview） ──────────────────────────────
+def _register_preview(app: FastAPI) -> None:
+    from pycoder.server.routers.preview_api import router as preview_router
+
+    app.include_router(preview_router)
+
+
+# ── 13. F4 移动端支持（Mobile API） ──────────────────────────────
+def _register_mobile(app: FastAPI) -> None:
+    from pycoder.server.routers.mobile_api import router as mobile_router
+
+    app.include_router(mobile_router)  # F4 /api/mobile
 
 
 # ── 组装入口（app.py 仅需调用此函数） ─────────────────────────────
@@ -256,6 +278,8 @@ REGISTRY = [
     ("phase1", _register_phase1),
     ("phase23", _register_phase23),
     ("websocket", _register_websocket),
+    ("preview", _register_preview),
+    ("mobile", _register_mobile),
 ]
 
 
@@ -319,4 +343,6 @@ __all__ = [
     "_register_phase1",
     "_register_phase23",
     "_register_websocket",
+    "_register_preview",
+    "_register_mobile",
 ]
