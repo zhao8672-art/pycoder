@@ -250,6 +250,7 @@ filterwarnings = [
     "ignore::DeprecationWarning:botocore.*",  # AWS SDK 警告噪音
     "ignore::DeprecationWarning:google.*",    # Google SDK 警告噪音
     "ignore::PendingDeprecationWarning",
+    "ignore:urllib3 .* doesn't match a supported version",     # urllib3/chardet 版本噪音
 ]
 asyncio_mode = "auto"
 log_cli = false
