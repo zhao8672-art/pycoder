@@ -337,6 +337,12 @@ export class PythonBackendManager extends EventEmitter {
       const healthy = await this.checkHealth();
       if (!healthy && this.status === 'running' && !this.isRestarting) {
         console.warn('[PyCoder Backend] Health check failed');
+        // SKIP_EMBEDDED_BACKEND 模式下后端由外部独立进程管理，
+        // 绝不杀外部进程/不接管重启（否则瞬时健康检查超时会误杀外部后端，
+        // 导致前端无后端可用）。仅记录告警，继续观测，等待外部后端恢复。
+        if (process.env.SKIP_EMBEDDED_BACKEND === '1') {
+          return;
+        }
         this.status = 'crashed';
         this.emit('status-change', 'crashed');
         if (this.restartCount < this.maxRestarts) {
@@ -344,6 +350,11 @@ export class PythonBackendManager extends EventEmitter {
           this.isRestarting = true;
           this.startProcess();
         }
+      } else if (healthy && this.status !== 'running') {
+        // 后端恢复
+        this.status = 'running';
+        this.restartCount = 0;
+        this.emit('status-change', 'running');
       }
     }, 30000);
   }
