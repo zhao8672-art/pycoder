@@ -277,6 +277,7 @@ def _kill_process_tree(proc: "_subprocess.Popen | None") -> None:
     if proc is None or proc.poll() is not None:
         return
     pid = proc.pid
+    logger.debug("sandbox_kill_process_tree pid=%s platform=%s", pid, sys.platform)
     try:
         if sys.platform == "win32":
             # Windows: taskkill /F /T 杀死整个进程树
@@ -291,6 +292,7 @@ def _kill_process_tree(proc: "_subprocess.Popen | None") -> None:
                 os.killpg(os.getpgid(pid), signal.SIGKILL)
             except (ProcessLookupError, PermissionError):
                 proc.kill()
+        logger.debug("sandbox_kill_process_tree_done pid=%s", pid)
     except Exception as e:
         logger.warning("process_tree_kill_failed pid=%s error=%s", pid, e)
         try:
@@ -306,9 +308,17 @@ def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
     stdout 管道，超时后管道也能被释放、让 communicate 返回，避免线程永久阻塞
     导致 ThreadPoolExecutor 耗尽（服务器假死）。
     """
+    code_len = len(code)
+    first_line = code.split("\n", 1)[0][:80] if code else ""
+    logger.debug(
+        "sandbox_exec_start code_len=%d timeout=%s first_line=%r",
+        code_len, timeout, first_line,
+    )
+
     # Layer 1: 静态扫描
     violations = pre_scan_code(code)
     if violations:
+        logger.debug("sandbox_blocked layer=1(scan) violations=%d", len(violations))
         return ExecutionResult(
             success=False,
             stdout="",
@@ -321,6 +331,7 @@ def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
     # Layer 2: 禁止模块检查
     blocked = scan_banned_imports(code)
     if blocked:
+        logger.debug("sandbox_blocked layer=2(imports) blocked=%s", blocked)
         return ExecutionResult(
             success=False,
             stdout="",
@@ -334,6 +345,7 @@ def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
     # Layer 2.5: 危险函数调用检查
     dangers = DANGEROUS_CALLS.findall(code)
     if dangers:
+        logger.debug("sandbox_blocked layer=2.5(dangerous) matches=%d", len(dangers))
         return ExecutionResult(
             success=False,
             stdout="",
@@ -375,20 +387,41 @@ def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
             creationflags=creationflags,
             start_new_session=start_new_session,
         )
+        logger.debug("sandbox_popen_created pid=%s", proc.pid)
         try:
             stdout_bytes, stderr_bytes = proc.communicate(
                 input=code.encode("utf-8"), timeout=timeout
+            )
+            logger.debug(
+                "sandbox_communicate_done pid=%s stdout_bytes=%d stderr_bytes=%d returncode=%s",
+                proc.pid, len(stdout_bytes), len(stderr_bytes), proc.returncode,
             )
         except _subprocess.TimeoutExpired:
             # communicate 超时不会自动 kill 子进程，也不会返回已读数据；
             # 必须强杀整个进程树释放管道，再排空剩余输出，否则线程永久阻塞。
             timed_out = True
+            logger.warning(
+                "sandbox_timeout pid=%s timeout=%ss — killing process tree",
+                proc.pid, timeout,
+            )
             _kill_process_tree(proc)
             try:
                 stdout_bytes, stderr_bytes = proc.communicate(timeout=5)
-            except Exception:
+                logger.debug(
+                    "sandbox_post_kill_drain pid=%s stdout_bytes=%d stderr_bytes=%d",
+                    proc.pid, len(stdout_bytes), len(stderr_bytes),
+                )
+            except Exception as drain_err:
+                logger.warning(
+                    "sandbox_post_kill_drain_failed pid=%s error=%s",
+                    proc.pid, drain_err,
+                )
                 stdout_bytes, stderr_bytes = b"", b""
     except Exception as e:
+        logger.warning(
+            "sandbox_popen_failed error_type=%s error=%s",
+            type(e).__name__, e,
+        )
         if proc is not None:
             _kill_process_tree(proc)
         return ExecutionResult(
@@ -409,10 +442,18 @@ def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
         # 尝试从部分输出中提取 SANDBOX_RESULT 标记
         idx_s = stdout_text.find("__SANDBOX_RESULT__")
         idx_e = stdout_text.find("__SANDBOX_END__")
+        logger.debug(
+            "sandbox_timed_out_parsing pid=%s stdout_len=%d marker_start=%s marker_end=%s",
+            proc.pid if proc else None, len(stdout_text), idx_s, idx_e,
+        )
         if idx_s >= 0 and idx_e > idx_s:
             json_str = stdout_text[idx_s + 17 : idx_e].strip()
             try:
                 data = json.loads(json_str)
+                logger.debug(
+                    "sandbox_timed_out_marker_parsed stdout_len=%d stderr_len=%d",
+                    len(data.get("stdout", "")), len(data.get("stderr", "")),
+                )
                 return ExecutionResult(
                     success=False,
                     stdout=data.get("stdout", ""),
@@ -423,8 +464,15 @@ def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
                     execution_time=elapsed,
                 )
             except json.JSONDecodeError:
-                pass
+                logger.warning(
+                    "sandbox_timed_out_marker_parse_failed stdout_snippet=%r",
+                    stdout_text[:200],
+                )
         # 没有标记 — 至少返回已捕获的部分输出
+        logger.debug(
+            "sandbox_timed_out_no_marker returning_partial stdout_len=%d stderr_len=%d",
+            len(stdout_text), len(stderr_text),
+        )
         return ExecutionResult(
             success=False,
             stdout=stdout_text[:MAX_OUTPUT_LENGTH],
@@ -441,10 +489,22 @@ def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
     idx_start = stdout_text.find(marker_start)
     idx_end = stdout_text.find(marker_end)
 
+    logger.debug(
+        "sandbox_marker_search stdout_len=%d stderr_len=%d idx_start=%s idx_end=%s returncode=%s",
+        len(stdout_text), len(stderr_text), idx_start, idx_end,
+        proc.returncode if proc else None,
+    )
+
     if idx_start >= 0 and idx_end > idx_start:
         json_str = stdout_text[idx_start + len(marker_start) : idx_end].strip()
         try:
             data = json.loads(json_str)
+            logger.debug(
+                "sandbox_result_parsed success=%s stdout_len=%d stderr_len=%d error_type=%s exec_time=%.3f",
+                data.get("success"), len(data.get("stdout", "")),
+                len(data.get("stderr", "")), data.get("error_type", ""),
+                data.get("execution_time", 0.0),
+            )
             return ExecutionResult(
                 success=data.get("success", False),
                 stdout=data.get("stdout", ""),
@@ -455,18 +515,27 @@ def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
                 execution_time=data.get("execution_time", elapsed),
             )
         except json.JSONDecodeError as e:
-            logger.warning("sandbox_result_parse_failed error=%s", e)
+            logger.warning(
+                "sandbox_result_parse_failed error=%s json_snippet=%r",
+                e, json_str[:200],
+            )
 
     # fallback: 直接返回原始输出
     output = stdout_text[:MAX_OUTPUT_LENGTH]
-    if len(stdout_text) > MAX_OUTPUT_LENGTH:
+    truncated = len(stdout_text) > MAX_OUTPUT_LENGTH
+    if truncated:
         output += f"\n... (truncated, total {len(stdout_text)} chars)"
+    rc = proc.returncode if proc else -1
+    logger.warning(
+        "sandbox_fallback_no_marker returncode=%s stdout_len=%d stderr_len=%d truncated=%s",
+        rc, len(stdout_text), len(stderr_text), truncated,
+    )
     return ExecutionResult(
-        success=proc.returncode == 0,
+        success=rc == 0,
         stdout=output,
         stderr=stderr_text[:2000],
-        error_type="SubprocessError" if proc.returncode != 0 else "",
-        error_message=f"Exit code: {proc.returncode}" if proc.returncode != 0 else "",
+        error_type="SubprocessError" if rc != 0 else "",
+        error_message=f"Exit code: {rc}" if rc != 0 else "",
         traceback="",
         execution_time=elapsed,
     )
