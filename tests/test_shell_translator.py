@@ -238,6 +238,58 @@ class TestCrossPlatformChains:
         assert "if" not in r.translated
 
 
+class TestSpecialOperators:
+    """特殊 shell 符号 (heredoc/fd 重定向) 不应被误拆分."""
+
+    def test_heredoc_not_split(self):
+        """<< heredoc 不应被 < 拆成 < <."""
+        t = ShellTranslator()
+        r = t.translate("cat << EOF", source="linux", target="mac")
+        assert "<<" in r.translated
+        assert "< <" not in r.translated
+
+    def test_fd_redirect_out_not_split(self):
+        """2>&1 fd 重定向中的 > 不应被拆分."""
+        t = ShellTranslator()
+        r = t.translate("cmd 2>&1 | grep foo", source="linux", target="mac")
+        assert "2>&1" in r.translated
+        assert "> &" not in r.translated
+
+    def test_fd_redirect_err_not_split(self):
+        """1>&2 fd 重定向中的 > 不应被拆分."""
+        t = ShellTranslator()
+        r = t.translate("echo error 1>&2", source="linux", target="mac")
+        assert "1>&2" in r.translated
+
+    def test_fd_input_not_split(self):
+        """<&3 fd 输入中的 < 不应被拆分."""
+        t = ShellTranslator()
+        r = t.translate("cmd <&3", source="linux", target="mac")
+        assert "<&3" in r.translated
+        assert "< &" not in r.translated
+
+    def test_fd_output_not_split(self):
+        """fd 输出 >&2 中的 > 不应被拆分."""
+        t = ShellTranslator()
+        r = t.translate("cmd >&2", source="linux", target="mac")
+        assert ">&2" in r.translated
+        assert "> &" not in r.translated
+
+    def test_heredoc_in_complex_chain(self):
+        """复杂链中 heredoc 不被破坏."""
+        t = ShellTranslator()
+        r = t.translate("cat << EOF && grep foo", source="linux", target="windows")
+        assert "<<" in r.translated
+        assert "< <" not in r.translated
+
+    def test_fd_redirect_in_pipe(self):
+        """管道中的 fd 重定向不被破坏."""
+        t = ShellTranslator()
+        r = t.translate("cmd 2>&1 | grep err || echo fail", source="linux", target="windows")
+        assert "2>&1" in r.translated
+        assert "> &" not in r.translated
+
+
 class TestCustomMapping:
     def test_add_custom_mapping(self):
         from pycoder.core.shell_translator import add_custom_mapping

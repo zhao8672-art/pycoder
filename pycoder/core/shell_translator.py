@@ -61,6 +61,7 @@ OPERATOR_MAP: dict[str, dict[str, str]] = {
     ">": {"windows": " > ", "linux": " > ", "mac": " > "},
     ">>": {"windows": " >> ", "linux": " >> ", "mac": " >> "},
     "<": {"windows": " < ", "linux": " < ", "mac": " < "},
+    "<<": {"windows": " << ", "linux": " << ", "mac": " << "},
     ";": {"windows": " ; ", "linux": " ; ", "mac": " ; "},
 }
 
@@ -578,25 +579,32 @@ class ShellTranslator:
     def _translate_simple_operators(self, command: str, target: str) -> str:
         """翻译简单操作符（|, >, <, ;）— 两侧加空格以便 token 切分.
 
-        FIX: 单字符操作符 | 和 > 用 str.replace 会破坏双字符操作符
-        (|| 和 >>). 改用正则负向断言, 只替换不连续的单字符操作符.
-        例如 cmd1 || cmd2 中的 | 不应被当作管道符替换.
+        FIX: 单字符操作符 | > < 用 str.replace 会破坏双字符操作符
+        (|| >> <<) 和 fd 重定向 (>& <&). 改用正则负向断言:
+        - | : (?<!\\|)\\|(?!\\|)  不匹配 || 中的 |
+        - > : (?<!>)>(?!>|&)      不匹配 >> 或 >& 中的 >
+        - < : (?<!<)<(?!<|&)      不匹配 << 或 <& 中的 <
         """
         result = command
-        # 双字符操作符优先处理 (>> 在 > 之前, || 在 | 之前)
-        for op in (">>", "||", "&&"):
+        # 双字符操作符优先处理 (>> 在 > 之前, || 在 | 之前, << 在 < 之前)
+        for op in (">>", "||", "<<", "&&"):
             replacement = self._op_map.get(op, {}).get(target, op)
             if op in result and replacement != op:
                 result = result.replace(op, replacement)
-        # 单字符操作符 | 和 > 用正则, 避免匹配双字符操作符中的字符
-        # (?<!\|) 负向后顾: 前面不是 |   (?!\|) 负向前瞻: 后面不是 |
-        # 同理 > 用 (?<!>)>(?!>) 避免 >> 被拆
-        for op, pattern in (("|", r"(?<!\|)\|(?!\|)"), (">", r"(?<!>)>(?!>)")):
+        # 单字符操作符用正则, 避免匹配双字符操作符和 fd 重定向中的字符
+        # | : 不匹配 || 中的 |          → (?<!\|)\|(?!\|)
+        # > : 不匹配 >> 或 >& 中的 >    → (?<!>)>(?!>|&)
+        # < : 不匹配 << 或 <& 中的 <    → (?<!<)<(?!<|&)
+        for op, pattern in (
+            ("|", r"(?<!\|)\|(?!\|)"),
+            (">", r"(?<!>)>(?!>|&)"),
+            ("<", r"(?<!<)<(?!<|&)"),
+        ):
             replacement = self._op_map.get(op, {}).get(target, op)
             if op in result and replacement != op:
                 result = re.sub(pattern, replacement, result)
-        # < 和 ; 无双字符冲突, 直接 replace
-        for op in ("<", ";"):
+        # ; 无双字符冲突, 直接 replace
+        for op in (";",):
             replacement = self._op_map.get(op, {}).get(target, op)
             if op in result and replacement != op:
                 result = result.replace(op, replacement)
