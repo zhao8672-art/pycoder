@@ -1,1 +1,19 @@
 ﻿
+node.exe : [PyCoder Backend] Health check failed
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([PyCoder Backend] Health check failed:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[PyCoder Backend] Health check failed
+[PyCoder Backend] Health check failed
+[PyCoder Backend] Health check failed
+[PyCoder Backend] Health check failed
+[PyCoder Backend] Health check failed
+[PyCoder Backend] Health check failed
+[PyCoder Backend] Health check failed
+[PyCoder Backend] Health check failed
+[PyCoder Backend] Health check failed
+[PyCoder Backend] Health check failed
+[PyCoder Backend] Health check failed

@@ -109,6 +109,7 @@ class TestReActLoopTermination:
     """ReAct 循环终止条件"""
 
     @pytest.mark.asyncio
+    @pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning")
     async def test_finish_terminates_immediately(self):
         """FINISH 动作立即终止，返回 thought 作为答案"""
         llm = MockLLMProvider(

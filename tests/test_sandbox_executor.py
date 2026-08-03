@@ -1044,6 +1044,7 @@ class TestTimeoutHandling:
 
     @patch("pycoder.safety.sandbox_executor.docker")
     @patch("pycoder.safety.sandbox_executor._HAS_DOCKER", True)
+    @pytest.mark.filterwarnings("ignore:.*executor did not.*:RuntimeWarning")
     def test_timeout_result_fields(self, mock_docker: MagicMock) -> None:
         """超时结果包含正确字段"""
         import time as time_module
@@ -1073,7 +1074,14 @@ class TestTimeoutHandling:
                     timeout=0.001,
                 )
 
-            result = asyncio.run(_run())
+            try:
+                result = asyncio.run(_run())
+            finally:
+                # 清理 executor 内部线程, 避免 Python 3.14 RuntimeWarning
+                try:
+                    asyncio.run(executor.cleanup())
+                except Exception:
+                    pass
 
         assert result.success is False
         assert result.killed_by_timeout is True

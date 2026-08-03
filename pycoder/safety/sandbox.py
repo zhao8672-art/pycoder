@@ -33,6 +33,10 @@ class SandboxResult:
     error: str = ""
     duration_ms: float = 0.0
     memory_kb: int = 0
+    exit_code: int = 0
+    killed_by_memory: bool = False
+    killed_by_timeout: bool = False
+    memory_used_mb: float = 0.0
 
 
 class CodeSandbox:

@@ -1,5 +1,8 @@
 """
 端到端验证 — 关键功能集成测试
+
+此文件为脚本式 e2e 测试, 直接运行 `python tests/e2e_test.py` 执行.
+pytest 收集时不会执行脚本主体 (由 __main__ 守卫保护).
 """
 
 import json
@@ -47,54 +50,55 @@ def test(name, method, url, body=None, expect_200=True):
         return {"error": str(e)}
 
 
-print("=" * 55)
-print(" PyCoder 端到端集成验证")
-print("=" * 55)
+if __name__ == "__main__":
+    print("=" * 55)
+    print(" PyCoder 端到端集成验证")
+    print("=" * 55)
 
-# ── P0: 健康检查 ──
-print("\n--- P0: 基础服务 ---")
-test("Health check", "GET", "/api/health")
-test("Git status", "GET", "/api/git/status")
-test("Mobile status", "GET", "/api/mobile/status")
-test("Extensions search", "GET", "/api/extensions/search?limit=3")
+    # ── P0: 健康检查 ──
+    print("\n--- P0: 基础服务 ---")
+    test("Health check", "GET", "/api/health")
+    test("Git status", "GET", "/api/git/status")
+    test("Mobile status", "GET", "/api/mobile/status")
+    test("Extensions search", "GET", "/api/extensions/search?limit=3")
 
-# ── P0: Git 功能 ──
-print("\n--- P0: Git 功能 ---")
-test("Git init check", "GET", "/api/git/init")
-test("Git branches", "GET", "/api/git/branches")
-test("Git log", "GET", "/api/git/log?limit=3")
+    # ── P0: Git 功能 ──
+    print("\n--- P0: Git 功能 ---")
+    test("Git init check", "GET", "/api/git/init")
+    test("Git branches", "GET", "/api/git/branches")
+    test("Git log", "GET", "/api/git/log?limit=3")
 
-# ── P1: GitHub 集成 ──
-print("\n--- P1: GitHub 集成 ---")
-test("GitHub auth status", "GET", "/api/github/auth/status")
-d = test("GitHub public repo", "GET", "/api/github/repo/torvalds/linux")
-if d and isinstance(d, dict) and d.get("success"):
-    print("   → torvalds/linux 仓库可访问")
+    # ── P1: GitHub 集成 ──
+    print("\n--- P1: GitHub 集成 ---")
+    test("GitHub auth status", "GET", "/api/github/auth/status")
+    d = test("GitHub public repo", "GET", "/api/github/repo/torvalds/linux")
+    if d and isinstance(d, dict) and d.get("success"):
+        print("   → torvalds/linux 仓库可访问")
 
-# ── P1: 扩展市场 ──
-print("\n--- P1: 扩展市场 ---")
-d = test("Extensions search", "GET", "/api/extensions/search?limit=3")
-if d and isinstance(d, dict):
-    print(f"   → 扩展数: {d.get('total', 0)}")
-    healthy = d.get("sources", {}).get("healthy", [])
-    if healthy:
-        print(f"   → 数据源: {len(healthy)} 个健康")
+    # ── P1: 扩展市场 ──
+    print("\n--- P1: 扩展市场 ---")
+    d = test("Extensions search", "GET", "/api/extensions/search?limit=3")
+    if d and isinstance(d, dict):
+        print(f"   → 扩展数: {d.get('total', 0)}")
+        healthy = d.get("sources", {}).get("healthy", [])
+        if healthy:
+            print(f"   → 数据源: {len(healthy)} 个健康")
 
-# ── P2: AI Agent 团队 ──
-print("\n--- P2: AI Agent 团队 ---")
-test("Team runs", "GET", "/api/team/runs")
+    # ── P2: AI Agent 团队 ──
+    print("\n--- P2: AI Agent 团队 ---")
+    test("Team runs", "GET", "/api/team/runs")
 
-# ── P2: 代码执行 ──
-print("\n--- P2: 代码执行沙箱 ---")
-d = test("Code caps", "GET", "/api/code/capabilities")
+    # ── P2: 代码执行 ──
+    print("\n--- P2: 代码执行沙箱 ---")
+    d = test("Code caps", "GET", "/api/code/capabilities")
 
-# ── P2: 模型配置 ──
-print("\n--- P2: AI 模型 ---")
-d = test("Model config", "GET", "/api/model/config")
+    # ── P2: 模型配置 ──
+    print("\n--- P2: AI 模型 ---")
+    d = test("Model config", "GET", "/api/model/config")
 
-# ══════════════════════════════════════════════════════════
-print("\n" + "=" * 55)
-print(f" 总计: {PASS} 通过 / {FAIL} 失败 / {PASS+FAIL} 总用例")
-print("=" * 55)
+    # ══════════════════════════════════════════════════════════
+    print("\n" + "=" * 55)
+    print(f" 总计: {PASS} 通过 / {FAIL} 失败 / {PASS+FAIL} 总用例")
+    print("=" * 55)
 
-exit(0 if FAIL == 0 else 1)
+    exit(0 if FAIL == 0 else 1)

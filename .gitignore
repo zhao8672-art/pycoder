@@ -112,3 +112,10 @@ dev.err
 dev.out
 be.err
 be.out
+
+# === SQLite 数据库文件 ===
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+_commit_msg.txt

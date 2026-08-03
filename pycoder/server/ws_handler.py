@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import uuid
 
 from fastapi import WebSocket, WebSocketDisconnect
+
+logger = logging.getLogger(__name__)
 
 from pycoder import __version__
 from pycoder.core.services.log import log
@@ -69,7 +72,8 @@ async def _run_cancellable_stream(
                 data = await ws.receive_text()
             except (WebSocketDisconnect, RuntimeError):
                 return None
-            except Exception:
+            except Exception as e:
+                logger.debug("ws_receive_failed task=%s error=%s", task_key, e)
                 return None
             try:
                 msg = json.loads(data)
@@ -92,8 +96,8 @@ async def _run_cancellable_stream(
         # 被 stop_watcher 通过 task.cancel() 触发
         try:
             await ws.send_json({"type": "stopped", "message": "任务已停止"})
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("ws_send_stopped_failed error=%s", e)
     else:
         # 主任务正常完成，返回结果
         if result_holder:

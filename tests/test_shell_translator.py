@@ -289,6 +289,27 @@ class TestSpecialOperators:
         assert "2>&1" in r.translated
         assert "> &" not in r.translated
 
+    def test_pipe_stderr_not_split(self):
+        """|& (管道含 stderr) 不应被拆分."""
+        t = ShellTranslator()
+        r = t.translate("cmd1 |& cmd2", source="linux", target="mac")
+        assert "|&" in r.translated
+        assert "| &" not in r.translated
+
+    def test_force_overwrite_not_split(self):
+        """>| (强制覆盖重定向) 不应被拆分."""
+        t = ShellTranslator()
+        r = t.translate("cmd >| file", source="linux", target="mac")
+        assert ">|" in r.translated
+        assert "> |" not in r.translated
+
+    def test_read_write_redirect_not_split(self):
+        """<> (读写重定向) 不应被拆分."""
+        t = ShellTranslator()
+        r = t.translate("cmd <> file", source="linux", target="mac")
+        assert "<>" in r.translated
+        assert "< >" not in r.translated
+
 
 class TestCustomMapping:
     def test_add_custom_mapping(self):

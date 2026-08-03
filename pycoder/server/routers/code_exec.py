@@ -297,8 +297,8 @@ def _kill_process_tree(proc: "_subprocess.Popen | None") -> None:
         logger.warning("process_tree_kill_failed pid=%s error=%s", pid, e)
         try:
             proc.kill()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("proc_kill_fallback_failed pid=%s error=%s", getattr(proc, 'pid', '?'), e)
 
 
 def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
