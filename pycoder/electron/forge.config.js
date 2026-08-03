@@ -1,7 +1,4 @@
-﻿const { FusesPlugin } = require('@electron-forge/plugin-fuses');
-const { FuseV1Options, FuseVersion } = require('@electron/fuses');
-
-module.exports = {
+const module_exports = {
   packagerConfig: {
     name: 'PyCoder',
     executableName: 'pycoder',
@@ -13,6 +10,13 @@ module.exports = {
       CompanyName: 'PyCoder',
       FileDescription: 'PyCoder - Python AI Programming IDE',
       OriginalFilename: 'PyCoder.exe',
+    },
+    // Fuses（直接写 packagerConfig，等价于 FusesPlugin 但不卡 Finalizing）
+    // 关闭 RunAsNode；不启用 EmbeddedAsarIntegrityValidation（开发阶段避免卡顿）
+    fuses: {
+      runAsNode: false,
+      enableEmbeddedAsarIntegrityValidation: false,
+      onlyLoadAppFromAsar: true,
     },
     ignore: [
       /^\/src/,
@@ -28,18 +32,13 @@ module.exports = {
   },
   makers: [
     { name: '@electron-forge/maker-squirrel', config: { name: 'PyCoder' } },
-    { name: '@electron-forge/maker-zip', platforms: ['darwin', 'linux'] },
+    { name: '@electron-forge/maker-zip', platforms: ['win32', 'darwin', 'linux'] },
     { name: '@electron-forge/maker-dmg', config: {}, platforms: ['darwin'] },
     { name: '@electron-forge/maker-deb', config: {}, platforms: ['linux'] },
     { name: '@electron-forge/maker-rpm', config: {}, platforms: ['linux'] },
   ],
   plugins: [
     { name: '@electron-forge/plugin-auto-unpack-natives', config: {} },
-    new FusesPlugin({
-      version: FuseVersion.V1,
-      [FuseV1Options.RunAsNode]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
-    }),
   ],
 };
+module.exports = module_exports;
