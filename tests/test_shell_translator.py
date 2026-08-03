@@ -181,6 +181,63 @@ class TestOperatorChains:
         assert "||" in r.mappings_applied
 
 
+class TestCrossPlatformChains:
+    """跨平台命令链解析 — 覆盖 Linux/Mac/Windows 互相翻译."""
+
+    def test_linux_to_mac_or_preserved(self):
+        """Linux → Mac: || 不应被拆成 | | (str.replace 破坏双字符操作符)."""
+        t = ShellTranslator()
+        r = t.translate("cmd1 || cmd2", source="linux", target="mac")
+        assert "||" in r.translated
+        assert "| |" not in r.translated
+
+    def test_linux_to_mac_mixed_chain(self):
+        """Linux → Mac: 混合链保持原样."""
+        t = ShellTranslator()
+        r = t.translate("cmd1 && cmd2 || cmd3", source="linux", target="mac")
+        assert "&&" in r.translated
+        assert "||" in r.translated
+
+    def test_mac_to_linux_or_preserved(self):
+        """Mac → Linux: || 不应被拆成 | |."""
+        t = ShellTranslator()
+        r = t.translate("cmd1 || cmd2", source="mac", target="linux")
+        assert "||" in r.translated
+        assert "| |" not in r.translated
+
+    def test_pipe_not_broken_by_or(self):
+        """管道 | 和 || 共存时, 管道不应被破坏."""
+        t = ShellTranslator()
+        r = t.translate("cmd1 | grep foo || echo notfound", source="linux", target="mac")
+        assert "|" in r.translated
+        assert "||" in r.translated
+        assert "| |" not in r.translated
+
+    def test_redirect_append_preserved(self):
+        """>> 不应被拆成 > >."""
+        t = ShellTranslator()
+        r = t.translate("cmd1 >> out.log", source="linux", target="mac")
+        assert ">>" in r.translated
+        assert "> >" not in r.translated
+
+    def test_roundtrip_linux_windows_linux(self):
+        """Linux → Windows → Linux 往返一致性."""
+        t = ShellTranslator()
+        original = "cmd1 && cmd2 || cmd3"
+        r1 = t.translate(original, source="linux", target="windows")
+        r2 = t.translate(r1.translated, source="windows", target="linux")
+        assert " ".join(r2.translated.split()) == " ".join(original.split())
+
+    def test_windows_to_linux_reverses_if_chain(self):
+        """Windows if 链 → Linux 还原为 && / ||."""
+        t = ShellTranslator()
+        win_cmd = "cmd1 ; if ($?) { cmd2 } ; if (-not $?) { cmd3 }"
+        r = t.translate(win_cmd, source="windows", target="linux")
+        assert "&&" in r.translated
+        assert "||" in r.translated
+        assert "if" not in r.translated
+
+
 class TestCustomMapping:
     def test_add_custom_mapping(self):
         from pycoder.core.shell_translator import add_custom_mapping

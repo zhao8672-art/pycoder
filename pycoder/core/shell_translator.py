@@ -576,13 +576,29 @@ class ShellTranslator:
         return result
 
     def _translate_simple_operators(self, command: str, target: str) -> str:
-        """翻译简单操作符（|, >, <, ;）— 两侧加空格以便 token 切分."""
+        """翻译简单操作符（|, >, <, ;）— 两侧加空格以便 token 切分.
+
+        FIX: 单字符操作符 | 和 > 用 str.replace 会破坏双字符操作符
+        (|| 和 >>). 改用正则负向断言, 只替换不连续的单字符操作符.
+        例如 cmd1 || cmd2 中的 | 不应被当作管道符替换.
+        """
         result = command
-        # 长操作符优先（>> 必须在 > 之前处理）
-        for op in (">>", "&&", "||", "|", ">", "<", ";"):
+        # 双字符操作符优先处理 (>> 在 > 之前, || 在 | 之前)
+        for op in (">>", "||", "&&"):
             replacement = self._op_map.get(op, {}).get(target, op)
             if op in result and replacement != op:
-                # 在 op 两侧加空格（不替换已经在正确格式的部分）
+                result = result.replace(op, replacement)
+        # 单字符操作符 | 和 > 用正则, 避免匹配双字符操作符中的字符
+        # (?<!\|) 负向后顾: 前面不是 |   (?!\|) 负向前瞻: 后面不是 |
+        # 同理 > 用 (?<!>)>(?!>) 避免 >> 被拆
+        for op, pattern in (("|", r"(?<!\|)\|(?!\|)"), (">", r"(?<!>)>(?!>)")):
+            replacement = self._op_map.get(op, {}).get(target, op)
+            if op in result and replacement != op:
+                result = re.sub(pattern, replacement, result)
+        # < 和 ; 无双字符冲突, 直接 replace
+        for op in ("<", ";"):
+            replacement = self._op_map.get(op, {}).get(target, op)
+            if op in result and replacement != op:
                 result = result.replace(op, replacement)
         return result
 
