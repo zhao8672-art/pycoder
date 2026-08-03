@@ -1,0 +1,373 @@
+diff --git a/pycoder/core/shell_translator.py b/pycoder/core/shell_translator.py
+index 42eb99c..d42f93c 100644
+--- a/pycoder/core/shell_translator.py
++++ b/pycoder/core/shell_translator.py
+@@ -61,6 +61,7 @@ OPERATOR_MAP: dict[str, dict[str, str]] = {
+     ">": {"windows": " > ", "linux": " > ", "mac": " > "},
+     ">>": {"windows": " >> ", "linux": " >> ", "mac": " >> "},
+     "<": {"windows": " < ", "linux": " < ", "mac": " < "},
++    "<<": {"windows": " << ", "linux": " << ", "mac": " << "},
+     ";": {"windows": " ; ", "linux": " ; ", "mac": " ; "},
+ }
+ 
+@@ -397,46 +398,100 @@ class ShellTranslator:
+             return self._translate_simple_operators(command, target)
+ 
+         if target == "windows":
+-            # → Windows: && 配对展开（含 Linux→Windows 及 Windows→Windows 规范化）
+-            # FIX: 使用引号感知分割，避免误切引号内的 && （如 echo "a && b" && ls）
+-            if "&&" in command:
+-                parts = self._split_top_level(command, "&&")
+-                expanded = []
+-                for i, part in enumerate(parts):
+-                    part = part.strip()
+-                    if i == 0:
+-                        expanded.append(part)
+-                    else:
+-                        expanded.append(f"; if ($?) {{ {part} }}")
+-                result = " ".join(expanded)
+-                if "&&" in command:
+-                    mappings_applied.append("&&")
+-                # 处理 ||（在已经展开的 && 基础上再展开）
+-                if "||" in result:
+-                    result = self._expand_or(result, mappings_applied)
+-                return result
+-            elif "||" in command:
+-                return self._expand_or(command, mappings_applied)
++            # → Windows: && 和 || 必须在单次从左到右扫描中同时处理,
++            # 否则先展开 && 会把后续 || 包在 { } 内, 再展开 || 会产生错误嵌套,
++            # 导致语义改变 (如 cmd1 && cmd2 || cmd3 中 cmd3 永不执行).
++            # 扁平 if 链是正确的: $? 始终反映上一条命令结果, 与 bash 短路语义一致.
++            if "&&" in command or "||" in command:
++                return self._expand_chain(command, mappings_applied)
+         elif source == "windows":
+             # Windows → Linux: 反向展开 (从 ; if (...) { ... } 还原)
+             return self._collapse_windows_ifs(command, target, mappings_applied)
+ 
+         return self._translate_simple_operators(command, target)
+ 
+-    def _expand_or(self, command: str, mappings_applied: list[str]) -> str:
+-        """展开 || 为 if-else 配对。"""
+-        # FIX: 使用引号感知分割，避免误切引号内的 ||
+-        parts = self._split_top_level(command, "||")
+-        expanded = []
+-        for i, part in enumerate(parts):
+-            part = part.strip()
+-            if i == 0:
+-                expanded.append(part)
+-            else:
+-                expanded.append(f"; if (-not $?) {{ {part} }}")
+-        mappings_applied.append("||")
++    def _expand_chain(self, command: str, mappings_applied: list[str]) -> str:
++        """单次从左到右扫描, 将 && 和 || 混合链展开为扁平 PowerShell if 链.
++
++        bash 语义: && / || 同为左结合, 短路求值.
++        PowerShell 扁平 if 链: 每个 if ($?) / if (-not $?) 块独立,
++        $? 始终反映上一条已执行命令的结果, 与 bash 短路语义一致.
++
++        示例:
++            cmd1 && cmd2 || cmd3
++            → cmd1 ; if ($?) { cmd2 } ; if (-not $?) { cmd3 }
++
++            cmd1 || cmd2 && cmd3
++            → cmd1 ; if (-not $?) { cmd2 } ; if ($?) { cmd3 }
++        """
++        # 按顶层 && / || 分割, 记录每段前导操作符
++        segments = self._split_chain_operators(command)
++        if len(segments) <= 1:
++            # 无 && / || (可能都在引号内)
++            return command
++
++        expanded = [segments[0][1].strip()]
++        has_and = False
++        has_or = False
++        for op, segment in segments[1:]:
++            segment = segment.strip()
++            if op == "&&":
++                expanded.append(f"; if ($?) {{ {segment} }}")
++                has_and = True
++            else:  # "||"
++                expanded.append(f"; if (-not $?) {{ {segment} }}")
++                has_or = True
++        if has_and:
++            mappings_applied.append("&&")
++        if has_or:
++            mappings_applied.append("||")
+         return " ".join(expanded)
+ 
++    def _split_chain_operators(self, command: str) -> list[tuple[str, str]]:
++        """同时按顶层 && 和 || 分割命令, 返回 (前导操作符, 段) 列表.
++
++        首段前导操作符为空字符串. 引号内的 && / || 被忽略.
++
++        Returns:
++            [("", "cmd1"), ("&&", "cmd2"), ("||", "cmd3")]
++        """
++        result: list[tuple[str, str]] = []
++        buf: list[str] = []
++        pending_op = ""  # 当前段的前导操作符
++        i = 0
++        n = len(command)
++        in_single = False
++        in_double = False
++        while i < n:
++            ch = command[i]
++            if ch == "'" and not in_double:
++                in_single = not in_single
++                buf.append(ch)
++                i += 1
++                continue
++            if ch == '"' and not in_single:
++                in_double = not in_double
++                buf.append(ch)
++                i += 1
++                continue
++            if not in_single and not in_double:
++                if command.startswith("&&", i):
++                    result.append((pending_op, "".join(buf)))
++                    buf = []
++                    pending_op = "&&"
++                    i += 2
++                    continue
++                if command.startswith("||", i):
++                    result.append((pending_op, "".join(buf)))
++                    buf = []
++                    pending_op = "||"
++                    i += 2
++                    continue
++            buf.append(ch)
++            i += 1
++        result.append((pending_op, "".join(buf)))
++        return result
++
+     def _split_top_level(self, command: str, delimiter: str) -> list[str]:
+         """按 delimiter 分割字符串，但忽略引号内的分隔符.
+ 
+@@ -522,13 +577,36 @@ class ShellTranslator:
+         return result
+ 
+     def _translate_simple_operators(self, command: str, target: str) -> str:
+-        """翻译简单操作符（|, >, <, ;）— 两侧加空格以便 token 切分."""
++        """翻译简单操作符（|, >, <, ;）— 两侧加空格以便 token 切分.
++
++        FIX: 单字符操作符 | > < 用 str.replace 会破坏双字符操作符
++        (|| >> <<) 和 fd 重定向 (>& <&). 改用正则负向断言:
++        - | : (?<!\\|)\\|(?!\\|)  不匹配 || 中的 |
++        - > : (?<!>)>(?!>|&)      不匹配 >> 或 >& 中的 >
++        - < : (?<!<)<(?!<|&)      不匹配 << 或 <& 中的 <
++        """
+         result = command
+-        # 长操作符优先（>> 必须在 > 之前处理）
+-        for op in (">>", "&&", "||", "|", ">", "<", ";"):
++        # 双字符操作符优先处理 (>> 在 > 之前, || 在 | 之前, << 在 < 之前)
++        for op in (">>", "||", "<<", "&&"):
++            replacement = self._op_map.get(op, {}).get(target, op)
++            if op in result and replacement != op:
++                result = result.replace(op, replacement)
++        # 单字符操作符用正则, 避免匹配双字符操作符和 fd 重定向中的字符
++        # | : 不匹配 || 中的 |          → (?<!\|)\|(?!\|)
++        # > : 不匹配 >> 或 >& 中的 >    → (?<!>)>(?!>|&)
++        # < : 不匹配 << 或 <& 中的 <    → (?<!<)<(?!<|&)
++        for op, pattern in (
++            ("|", r"(?<!\|)\|(?!\|)"),
++            (">", r"(?<!>)>(?!>|&)"),
++            ("<", r"(?<!<)<(?!<|&)"),
++        ):
++            replacement = self._op_map.get(op, {}).get(target, op)
++            if op in result and replacement != op:
++                result = re.sub(pattern, replacement, result)
++        # ; 无双字符冲突, 直接 replace
++        for op in (";",):
+             replacement = self._op_map.get(op, {}).get(target, op)
+             if op in result and replacement != op:
+-                # 在 op 两侧加空格（不替换已经在正确格式的部分）
+                 result = result.replace(op, replacement)
+         return result
+ 
+diff --git a/tests/test_shell_translator.py b/tests/test_shell_translator.py
+index 2340644..0bdd6a1 100644
+--- a/tests/test_shell_translator.py
++++ b/tests/test_shell_translator.py
+@@ -114,6 +114,182 @@ class TestShellTranslatorArgs:
+         assert '"hello world"' in r.translated
+ 
+ 
++class TestOperatorChains:
++    """&& / || 命令链解析 — 混合链必须生成扁平 if 链, 不能嵌套."""
++
++    def test_simple_and(self):
++        t = ShellTranslator()
++        r = t.translate("cmd1 && cmd2", source="linux", target="windows")
++        assert r.translated == "cmd1 ; if ($?) { cmd2 }"
++
++    def test_multiple_and(self):
++        t = ShellTranslator()
++        r = t.translate("cmd1 && cmd2 && cmd3", source="linux", target="windows")
++        assert r.translated == "cmd1 ; if ($?) { cmd2 } ; if ($?) { cmd3 }"
++
++    def test_simple_or(self):
++        t = ShellTranslator()
++        r = t.translate("cmd1 || cmd2", source="linux", target="windows")
++        assert r.translated == "cmd1 ; if (-not $?) { cmd2 }"
++
++    def test_multiple_or(self):
++        t = ShellTranslator()
++        r = t.translate("cmd1 || cmd2 || cmd3", source="linux", target="windows")
++        assert r.translated == "cmd1 ; if (-not $?) { cmd2 } ; if (-not $?) { cmd3 }"
++
++    def test_mixed_and_or(self):
++        """cmd1 && cmd2 || cmd3 → 扁平 if 链, 不能嵌套."""
++        t = ShellTranslator()
++        r = t.translate("cmd1 && cmd2 || cmd3", source="linux", target="windows")
++        # 正确: cmd3 在顶层, cmd1 失败时仍可执行
++        assert r.translated == "cmd1 ; if ($?) { cmd2 } ; if (-not $?) { cmd3 }"
++        # 不能嵌套: cmd3 不应在第一个 if 块内
++        assert r.translated.count("{") == r.translated.count("}") == 2
++
++    def test_mixed_or_and(self):
++        """cmd1 || cmd2 && cmd3 → 扁平 if 链."""
++        t = ShellTranslator()
++        r = t.translate("cmd1 || cmd2 && cmd3", source="linux", target="windows")
++        assert r.translated == "cmd1 ; if (-not $?) { cmd2 } ; if ($?) { cmd3 }"
++
++    def test_triple_mixed(self):
++        """cmd1 && cmd2 || cmd3 && cmd4 → 四段扁平 if 链."""
++        t = ShellTranslator()
++        r = t.translate("cmd1 && cmd2 || cmd3 && cmd4", source="linux", target="windows")
++        expected = "cmd1 ; if ($?) { cmd2 } ; if (-not $?) { cmd3 } ; if ($?) { cmd4 }"
++        assert r.translated == expected
++
++    def test_and_inside_quotes(self):
++        """引号内的 && 不应被分割."""
++        t = ShellTranslator()
++        r = t.translate('echo "a && b" && ls', source="linux", target="windows")
++        assert '"a && b"' in r.translated
++        assert "if ($?)" in r.translated
++
++    def test_or_inside_quotes(self):
++        """引号内的 || 不应被分割."""
++        t = ShellTranslator()
++        r = t.translate('echo "a || b" || ls', source="linux", target="windows")
++        assert '"a || b"' in r.translated
++        assert "if (-not $?)" in r.translated
++
++    def test_mappings_applied_mixed(self):
++        """混合链的 mappings_applied 应同时记录 && 和 ||."""
++        t = ShellTranslator()
++        r = t.translate("cmd1 && cmd2 || cmd3", source="linux", target="windows")
++        assert "&&" in r.mappings_applied
++        assert "||" in r.mappings_applied
++
++
++class TestCrossPlatformChains:
++    """跨平台命令链解析 — 覆盖 Linux/Mac/Windows 互相翻译."""
++
++    def test_linux_to_mac_or_preserved(self):
++        """Linux → Mac: || 不应被拆成 | | (str.replace 破坏双字符操作符)."""
++        t = ShellTranslator()
++        r = t.translate("cmd1 || cmd2", source="linux", target="mac")
++        assert "||" in r.translated
++        assert "| |" not in r.translated
++
++    def test_linux_to_mac_mixed_chain(self):
++        """Linux → Mac: 混合链保持原样."""
++        t = ShellTranslator()
++        r = t.translate("cmd1 && cmd2 || cmd3", source="linux", target="mac")
++        assert "&&" in r.translated
++        assert "||" in r.translated
++
++    def test_mac_to_linux_or_preserved(self):
++        """Mac → Linux: || 不应被拆成 | |."""
++        t = ShellTranslator()
++        r = t.translate("cmd1 || cmd2", source="mac", target="linux")
++        assert "||" in r.translated
++        assert "| |" not in r.translated
++
++    def test_pipe_not_broken_by_or(self):
++        """管道 | 和 || 共存时, 管道不应被破坏."""
++        t = ShellTranslator()
++        r = t.translate("cmd1 | grep foo || echo notfound", source="linux", target="mac")
++        assert "|" in r.translated
++        assert "||" in r.translated
++        assert "| |" not in r.translated
++
++    def test_redirect_append_preserved(self):
++        """>> 不应被拆成 > >."""
++        t = ShellTranslator()
++        r = t.translate("cmd1 >> out.log", source="linux", target="mac")
++        assert ">>" in r.translated
++        assert "> >" not in r.translated
++
++    def test_roundtrip_linux_windows_linux(self):
++        """Linux → Windows → Linux 往返一致性."""
++        t = ShellTranslator()
++        original = "cmd1 && cmd2 || cmd3"
++        r1 = t.translate(original, source="linux", target="windows")
++        r2 = t.translate(r1.translated, source="windows", target="linux")
++        assert " ".join(r2.translated.split()) == " ".join(original.split())
++
++    def test_windows_to_linux_reverses_if_chain(self):
++        """Windows if 链 → Linux 还原为 && / ||."""
++        t = ShellTranslator()
++        win_cmd = "cmd1 ; if ($?) { cmd2 } ; if (-not $?) { cmd3 }"
++        r = t.translate(win_cmd, source="windows", target="linux")
++        assert "&&" in r.translated
++        assert "||" in r.translated
++        assert "if" not in r.translated
++
++
++class TestSpecialOperators:
++    """特殊 shell 符号 (heredoc/fd 重定向) 不应被误拆分."""
++
++    def test_heredoc_not_split(self):
++        """<< heredoc 不应被 < 拆成 < <."""
++        t = ShellTranslator()
++        r = t.translate("cat << EOF", source="linux", target="mac")
++        assert "<<" in r.translated
++        assert "< <" not in r.translated
++
++    def test_fd_redirect_out_not_split(self):
++        """2>&1 fd 重定向中的 > 不应被拆分."""
++        t = ShellTranslator()
++        r = t.translate("cmd 2>&1 | grep foo", source="linux", target="mac")
++        assert "2>&1" in r.translated
++        assert "> &" not in r.translated
++
++    def test_fd_redirect_err_not_split(self):
++        """1>&2 fd 重定向中的 > 不应被拆分."""
++        t = ShellTranslator()
++        r = t.translate("echo error 1>&2", source="linux", target="mac")
++        assert "1>&2" in r.translated
++
++    def test_fd_input_not_split(self):
++        """<&3 fd 输入中的 < 不应被拆分."""
++        t = ShellTranslator()
++        r = t.translate("cmd <&3", source="linux", target="mac")
++        assert "<&3" in r.translated
++        assert "< &" not in r.translated
++
++    def test_fd_output_not_split(self):
++        """fd 输出 >&2 中的 > 不应被拆分."""
++        t = ShellTranslator()
++        r = t.translate("cmd >&2", source="linux", target="mac")
++        assert ">&2" in r.translated
++        assert "> &" not in r.translated
++
++    def test_heredoc_in_complex_chain(self):
++        """复杂链中 heredoc 不被破坏."""
++        t = ShellTranslator()
++        r = t.translate("cat << EOF && grep foo", source="linux", target="windows")
++        assert "<<" in r.translated
++        assert "< <" not in r.translated
++
++    def test_fd_redirect_in_pipe(self):
++        """管道中的 fd 重定向不被破坏."""
++        t = ShellTranslator()
++        r = t.translate("cmd 2>&1 | grep err || echo fail", source="linux", target="windows")
++        assert "2>&1" in r.translated
++        assert "> &" not in r.translated
++
++
+ class TestCustomMapping:
+     def test_add_custom_mapping(self):
+         from pycoder.core.shell_translator import add_custom_mapping
