@@ -261,6 +261,28 @@ class TestExecutionResult:
 # ══════════════════════════════════════════════════════════
 
 
+def _make_mock_proc(
+    stdout: bytes = b"",
+    stderr: bytes = b"",
+    returncode: int = 0,
+    communicate_side_effect=None,
+) -> MagicMock:
+    """创建 mock 子进程对象 (模拟 subprocess.Popen 返回值)。
+
+    _run_in_subprocess 使用 Popen + communicate(timeout=) 模式,
+    所以 mock 需要: .communicate() 返回 (stdout_bytes, stderr_bytes),
+    .returncode 属性, .pid 属性 (_kill_process_tree 用).
+    """
+    proc = MagicMock()
+    proc.returncode = returncode
+    proc.pid = 12345
+    if communicate_side_effect is not None:
+        proc.communicate = MagicMock(side_effect=communicate_side_effect)
+    else:
+        proc.communicate = MagicMock(return_value=(stdout, stderr))
+    return proc
+
+
 class TestRunInSubprocess:
     """_run_in_subprocess 子进程沙箱执行"""
 
@@ -331,59 +353,60 @@ class TestRunInSubprocess:
         assert "2" in result.error_message  # 包含超时秒数
 
     def test_subprocess_exception_handled(self, monkeypatch):
-        """子进程异常被捕获"""
+        """子进程异常被捕获 (Popen 创建失败)"""
 
         def raise_exception(*args, **kwargs):
             raise OSError("subprocess failed")
 
-        monkeypatch.setattr(subprocess, "run", raise_exception)
+        # _run_in_subprocess 用 Popen (非 run), mock Popen 抛异常
+        monkeypatch.setattr(subprocess, "Popen", raise_exception)
         result = _run_in_subprocess("print('x')", timeout=10)
         assert result.success is False
         assert result.error_type == "OSError"
 
     def test_timeout_expired_handled(self, monkeypatch):
-        """TimeoutExpired 异常被捕获"""
+        """TimeoutExpired 异常被捕获 (communicate 超时)"""
 
-        def raise_timeout(*args, **kwargs):
-            raise subprocess.TimeoutExpired(cmd=["python"], timeout=5)
-
-        monkeypatch.setattr(subprocess, "run", raise_timeout)
+        # Popen 成功, 但 communicate 抛 TimeoutExpired;
+        # _run_in_subprocess 会 kill 后二次 communicate (返回空), 再走 timed_out 分支
+        mock_proc = _make_mock_proc(
+            communicate_side_effect=[
+                subprocess.TimeoutExpired(cmd=["python"], timeout=5),
+                (b"", b""),  # 二次 communicate 返回空
+            ]
+        )
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: mock_proc)
         result = _run_in_subprocess("print('x')", timeout=5)
         assert result.success is False
         assert result.error_type == "TimeoutError"
 
     def test_no_sandbox_marker_falls_back(self, monkeypatch):
         """无 SANDBOX_RESULT 标记时回退到原始输出"""
-        mock_proc = MagicMock()
-        mock_proc.stdout = b"raw output without markers"
-        mock_proc.stderr = b""
-        mock_proc.returncode = 0
-
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: mock_proc)
+        mock_proc = _make_mock_proc(
+            stdout=b"raw output without markers", returncode=0
+        )
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: mock_proc)
         result = _run_in_subprocess("print('x')", timeout=10)
         assert result.success is True
         assert "raw output" in result.stdout
 
     def test_invalid_json_in_marker_falls_back(self, monkeypatch):
         """SANDBOX_RESULT 标记内 JSON 无效时回退"""
-        mock_proc = MagicMock()
-        mock_proc.stdout = b"__SANDBOX_RESULT__not valid json__SANDBOX_END__"
-        mock_proc.stderr = b""
-        mock_proc.returncode = 0
-
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: mock_proc)
+        mock_proc = _make_mock_proc(
+            stdout=b"__SANDBOX_RESULT__not valid json__SANDBOX_END__",
+            returncode=0,
+        )
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: mock_proc)
         result = _run_in_subprocess("print('x')", timeout=10)
         # 无效 JSON 回退到原始输出
         assert isinstance(result.stdout, str)
 
     def test_nonzero_returncode_falls_back(self, monkeypatch):
         """非零返回码回退到 SubprocessError"""
-        mock_proc = MagicMock()
-        mock_proc.stdout = b"some output"
-        mock_proc.stderr = b"error output"
-        mock_proc.returncode = 1
-
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: mock_proc)
+        mock_proc = _make_mock_proc(
+            stdout=b"some output", stderr=b"error output", returncode=1
+        )
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: mock_proc)
         result = _run_in_subprocess("print('x')", timeout=10)
         assert result.success is False
         assert result.error_type == "SubprocessError"
@@ -391,38 +414,35 @@ class TestRunInSubprocess:
     def test_long_output_truncated(self, monkeypatch):
         """超长输出被截断"""
         long_output = "x" * (MAX_OUTPUT_LENGTH + 1000)
-        mock_proc = MagicMock()
-        mock_proc.stdout = long_output.encode("utf-8")
-        mock_proc.stderr = b""
-        mock_proc.returncode = 0
-
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: mock_proc)
+        mock_proc = _make_mock_proc(
+            stdout=long_output.encode("utf-8"), returncode=0
+        )
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: mock_proc)
         result = _run_in_subprocess("print('x')", timeout=10)
         assert len(result.stdout) <= MAX_OUTPUT_LENGTH + 100  # 截断 + 提示
         assert "truncated" in result.stdout
 
     def test_stderr_captured(self, monkeypatch):
         """stderr 被捕获"""
-        mock_proc = MagicMock()
-        mock_proc.stdout = (
-            b"__SANDBOX_RESULT__"
-            + json.dumps(
-                {
-                    "success": True,
-                    "stdout": "",
-                    "stderr": "stderr msg",
-                    "error_type": "",
-                    "error_message": "",
-                    "traceback": "",
-                    "execution_time": 0.1,
-                }
-            ).encode()
-            + b"__SANDBOX_END__"
+        mock_proc = _make_mock_proc(
+            stdout=(
+                b"__SANDBOX_RESULT__"
+                + json.dumps(
+                    {
+                        "success": True,
+                        "stdout": "",
+                        "stderr": "stderr msg",
+                        "error_type": "",
+                        "error_message": "",
+                        "traceback": "",
+                        "execution_time": 0.1,
+                    }
+                ).encode()
+                + b"__SANDBOX_END__"
+            ),
+            returncode=0,
         )
-        mock_proc.stderr = b""
-        mock_proc.returncode = 0
-
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: mock_proc)
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: mock_proc)
         result = _run_in_subprocess("print('x')", timeout=10)
         assert result.stderr == "stderr msg"
 
