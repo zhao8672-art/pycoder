@@ -19,6 +19,98 @@ from pycoder.server.session_share import get_session_share_manager
 from pycoder.server.session_store import get_session_store
 
 
+async def _run_cancellable_stream(
+    gen_or_coro,
+    ws: WebSocket,
+    runtime: dict,
+    task_key: str,
+):
+    """运行 async generator 或 coroutine，支持通过前端 stop 消息取消。
+
+    FIX(任务终止): 前端 AIPanel.tsx 已实现停止按钮发送 {type:"stop"}，
+    但原代码 `async for event in chat_stream_fn(...)` 阻塞在 generator 内部，
+    主循环无法接收 stop 消息导致按钮无效。
+
+    本函数:
+      1. 用 asyncio.create_task 包装 stream 消费循环
+      2. 并发启动 _stop_watcher 监听 stop 消息
+      3. 收到 stop 时 task.cancel()，CancelledError 在 async generator 中传播
+      4. agent_loop 已在迭代开头加入取消检查点，能及时退出
+
+    Args:
+        gen_or_coro: AsyncIterator（chat_stream_fn 返回）或 Awaitable（loop.execute 返回）
+        ws: WebSocket 连接
+        runtime: 维护任务句柄的 dict
+        task_key: runtime 的 key（"chat_task" / "fix_task"）
+
+    Returns:
+        对于 coroutine：返回其结果；对于 generator：返回 None
+    """
+    is_gen = hasattr(gen_or_coro, "__aiter__")
+    result_holder: list = []
+
+    async def _consume():
+        if is_gen:
+            async for event in gen_or_coro:
+                await ws.send_json(event)
+                await asyncio.sleep(0)  # 让出控制权，让 cancel 能及时传播
+        else:
+            # coroutine 模式：直接 await
+            r = await gen_or_coro
+            result_holder.append(r)
+            return r
+
+    runtime[task_key] = asyncio.create_task(_consume())
+
+    # 后台监听 stop 消息（仅在主任务运行期间占用 ws.receive_text）
+    async def _stop_watcher():
+        while not runtime[task_key].done():
+            try:
+                data = await ws.receive_text()
+            except (WebSocketDisconnect, RuntimeError):
+                return None
+            except Exception:
+                return None
+            try:
+                msg = json.loads(data)
+            except (ValueError, TypeError):
+                continue
+            if msg.get("type") == "stop":
+                # 关键：主动取消主任务，让 CancelledError 在 async generator 中传播
+                t = runtime.get(task_key)
+                if t is not None and not t.done():
+                    t.cancel()
+                return data
+            # 其他消息：在 AI 响应期间忽略（用户应等回复完再发新消息）
+        return None
+
+    watcher = asyncio.create_task(_stop_watcher())
+
+    try:
+        await runtime[task_key]
+    except asyncio.CancelledError:
+        # 被 stop_watcher 通过 task.cancel() 触发
+        try:
+            await ws.send_json({"type": "stopped", "message": "任务已停止"})
+        except Exception:
+            pass
+    else:
+        # 主任务正常完成，返回结果
+        if result_holder:
+            return result_holder[0]
+    finally:
+        # 清理 watcher
+        if not watcher.done():
+            watcher.cancel()
+            try:
+                await watcher
+            except (asyncio.CancelledError, Exception):
+                pass
+        runtime[task_key] = None
+
+    return None
+
+
 async def websocket_chat(ws: WebSocket):
     """Main WebSocket handler for real-time AI chat."""
     from pycoder.server.project_helpers import _get_diff_preview, _get_git_status, _get_project_tree
@@ -26,6 +118,27 @@ async def websocket_chat(ws: WebSocket):
     await ws.accept()
     share_mgr = get_session_share_manager()
     store = get_session_store()
+
+    # FIX(任务终止): 维护本连接当前正在执行的 chat/agent 任务句柄，
+    # 收到 type:"stop" 消息时调用 task.cancel() 即可让 async generator
+    # 抛出 CancelledError 并自然退出（agent_loop 已加取消检查点）。
+    # 同时支持 run_fix / execute_plan / dep_agent 等长任务。
+    runtime: dict[str, asyncio.Task | None] = {
+        "chat_task": None,  # 主对话流（chat_stream_fn / agent_stream）
+        "fix_task": None,  # run_fix 循环
+    }
+
+    async def _cancel_running_tasks() -> None:
+        """取消本连接所有正在运行的任务，已完成的任务忽略"""
+        for key in list(runtime.keys()):
+            t = runtime.get(key)
+            if t is not None and not t.done():
+                t.cancel()
+                try:
+                    await t
+                except (asyncio.CancelledError, Exception):
+                    pass
+            runtime[key] = None
 
     # FIX #1: 优先恢复上次会话，空会话复用不新建
     last_session = store.get_last_session()
@@ -59,6 +172,20 @@ async def websocket_chat(ws: WebSocket):
             data = await ws.receive_text()
             msg = json.loads(data)
             msg_type = msg.get("type", "message")
+
+            # ═══════════════════════════════════════════════
+            # FIX(任务终止): 处理前端的"停止"按钮 — 取消正在运行的 chat/agent/run_fix 任务
+            # 前端 AIPanel.tsx 已实现按钮发送 {type:"stop"}，
+            # 之前后端没有处理导致按钮无效。
+            # ═══════════════════════════════════════════════
+            if msg_type == "stop":
+                await _cancel_running_tasks()
+                await ws.send_json({
+                    "type": "stopped",
+                    "message": "任务已停止",
+                })
+                continue
+
             if msg_type == "create_session":
                 new_id = str(uuid.uuid4())
                 store.create_session(session_id=new_id)
@@ -125,9 +252,13 @@ async def websocket_chat(ws: WebSocket):
                     agent_chat_stream as agent_stream,
                 )
 
-                async for event in agent_stream(plan_content, model=model):
-                    await ws.send_json(event)
-                    await asyncio.sleep(0)
+                # FIX(任务终止): 用 _run_cancellable_stream 包装，支持 stop 消息取消
+                await _run_cancellable_stream(
+                    agent_stream(plan_content, model=model),
+                    ws,
+                    runtime,
+                    "chat_task",
+                )
                 continue
             elif msg_type in ("agent_chunk",):
                 # Agent 流式块处理
@@ -408,7 +539,16 @@ async def websocket_chat(ws: WebSocket):
                     model=current_model,
                 )
 
-                result = await loop.execute(task, target)
+                # FIX(任务终止): 用 _run_cancellable_stream 包装，支持 stop 消息取消
+                result = await _run_cancellable_stream(
+                    loop.execute(task, target),
+                    ws,
+                    runtime,
+                    "fix_task",
+                )
+                if result is None:
+                    # 任务被取消
+                    continue
                 await ws.send_json(
                     {
                         "type": "run_fix_done",
@@ -735,19 +875,39 @@ async def websocket_chat(ws: WebSocket):
             reasoning_effort = msg.get("reasoning_effort", "medium")
             enable_cache = msg.get("enable_cache", True)
             final_content = ""
-            async for event in chat_stream_fn(
-                session_id,
-                user_message,
-                current_model,
-                msg.get("system_prompt"),
-                hermes=hermes_mode,
-                reasoning_effort=reasoning_effort,
-                enable_cache=enable_cache,
-            ):
-                await ws.send_json(event)
-                if event.get("type") == "done" or event.get("type") == "agent_result":
-                    final_content = event.get("content") or event.get("summary", "")
-                await asyncio.sleep(0)
+
+            # FIX(任务终止): 用 _run_cancellable_stream 包装，
+            # 收到 stop 消息时取消正在执行的 chat/agent 流。
+            # 之前直接 `async for event in chat_stream_fn(...)` 阻塞在 generator 内部，
+            # 主循环无法接收 stop 消息，前端的停止按钮实际无效。
+            captured_events: list[dict] = []
+
+            async def _chat_gen_factory():
+                async for event in chat_stream_fn(
+                    session_id,
+                    user_message,
+                    current_model,
+                    msg.get("system_prompt"),
+                    hermes=hermes_mode,
+                    reasoning_effort=reasoning_effort,
+                    enable_cache=enable_cache,
+                ):
+                    if event.get("type") == "done" or event.get("type") == "agent_result":
+                        # 捕获最终内容供后续 shared session 广播使用
+                        final_evt_content = event.get("content") or event.get("summary", "")
+                        captured_events.append({"content": final_evt_content})
+                    yield event
+
+            await _run_cancellable_stream(
+                _chat_gen_factory(),
+                ws,
+                runtime,
+                "chat_task",
+            )
+
+            # 从捕获的事件中提取 final_content（用于 shared session 广播）
+            if captured_events:
+                final_content = captured_events[-1]["content"]
 
             # 消息持久化已由 _run_chat_stream 内部处理，此处不再重复保存
 

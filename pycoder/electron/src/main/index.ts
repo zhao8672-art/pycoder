@@ -30,12 +30,15 @@ try {
 // Step6: 设置自定义 app name → 自动改变 userData/cache 路径，避免缓存权限问题
 app.name = 'pycoder-electron';
 
-// P0-Fix: 启动前禁用 GPU 加速相关的命令行参数，避免 GPU 缓存创建失败导致进程退出
-// 这能解决 "Unable to move the cache: 拒绝访问" 错误
+// P0-Fix: GPU 加速开关策略
+// FIX(窗口响应慢): 旧代码同时禁用了 disable-gpu + disable-software-rasterizer
+// + disable-gpu-compositing + no-sandbox，导致所有渲染退化到纯 CPU 软件渲染，
+// 窗口操作（滚动/拖拽/重绘）明显卡顿。
+//
+// 现在只保留 disable-gpu（解决已知的 GPU 缓存锁 "Unable to move the cache: 拒绝访问"），
+// 允许 Chromium 使用 software rasterizer + GPU compositing 进行加速渲染。
+// no-sandbox 也移除（仅对打包的本地应用必要，且会降低渲染性能）。
 app.commandLine.appendSwitch('disable-gpu');
-app.commandLine.appendSwitch('disable-software-rasterizer');
-app.commandLine.appendSwitch('disable-gpu-compositing');
-app.commandLine.appendSwitch('no-sandbox');
 app.disableHardwareAcceleration();
 
 const SERVER_PORT = parseInt(process.env.PYCODER_BACKEND_PORT || '8423', 10);
@@ -183,7 +186,13 @@ app.whenReady().then(async () => {
     fs.writeFileSync(logPath, `[${new Date().toISOString()}] ${diag}\n`, { flag: 'a' });
   } catch { /* ignore */ }
   const userDataPath = app.getPath('userData');
-  const cacheDirs = ['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'VideoDecodeStats'];
+  // FIX(窗口响应慢): 旧代码每次启动都清理所有缓存目录（包括 Code Cache / Cache），
+  // 导致 V8 字节码缓存、Chromium 资源缓存全部失效，每次启动都要重新编译 JS、
+  // 重新解析资源，首屏加载明显变慢。
+  //
+  // 现在只清理 GPU 相关缓存（已知的"Unable to move the cache: 拒绝访问"锁问题源），
+  // 保留通用缓存以加速启动。
+  const cacheDirs = ['GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache'];
   for (const dir of cacheDirs) {
     const cachePath = path.join(userDataPath, dir);
     if (fs.existsSync(cachePath)) {

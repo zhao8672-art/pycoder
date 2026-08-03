@@ -59,9 +59,11 @@ class UnifiedAgentLoop:
         self_evolution_engine: SelfEvolutionEngine | None = None,
     ):
         self.strategy = strategy
-        self.workspace = workspace
+        self.workspace = WORKSPACE
         self._rumination_count = 0
-        self._last_iteration_had_tools = False  # 标记上一轮是否真正执行了工具
+        # FIX(自循环): 移除实例级 _last_iteration_had_tools，改为每次 chat_stream 内的局部变量。
+        # 旧实现是实例变量，会跨多次 chat_stream 调用残留状态，
+        # 导致新对话起始 prompt 错误地变成"以上是工具执行结果"。
 
         # V2: 智能路由模块
         self._router = router or get_intelligent_router()
@@ -110,6 +112,13 @@ class UnifiedAgentLoop:
         written_files: list[str] = []
         tool_success_count: int = 0  # V2: 追踪成功工具调用数
         tool_failure_count: int = 0  # V2: 追踪失败工具调用数
+
+        # FIX(自循环): 每次对话独立的局部状态
+        last_iteration_had_tools: bool = False  # 上一轮是否真正执行了工具
+        consecutive_empty_count: int = 0  # 连续空响应计数（>2 即终止）
+        consecutive_no_tool_count: int = 0  # 连续无工具调用计数（>3 即终止）
+        MAX_CONSECUTIVE_EMPTY = 2  # 连续 2 次空响应直接终止
+        MAX_CONSECUTIVE_NO_TOOL = 3  # 连续 3 轮无工具调用直接终止
 
         start_time = time.monotonic()
 
@@ -255,6 +264,10 @@ class UnifiedAgentLoop:
         response_text = ""
 
         for iteration in range(1, max_iterations + 1):
+            # FIX(自循环): 协作式取消检查点 — 让外部 task.cancel() 能及时生效
+            if asyncio.current_task() is not None and asyncio.current_task().cancelled():
+                return
+
             pct = int(iteration / max_iterations * 100)
             yield {
                 "type": "status",
@@ -267,7 +280,7 @@ class UnifiedAgentLoop:
             # 1. LLM 调用
             if iteration == 1:
                 prompt = analysis_prompt
-            elif self._last_iteration_had_tools:
+            elif last_iteration_had_tools:
                 prompt = (
                     "以上是工具执行结果。如需继续请输出 JSON 工具调用。" "已完成请直接输出总结。"
                 )
@@ -322,17 +335,38 @@ class UnifiedAgentLoop:
                 return
 
             if not response_text:
-                # LLM 返回空响应 — 向桥接注入提示，避免下一轮再次空返回
-                bridge.add_message(
-                    "assistant",
-                    "（注意：上一轮 LLM 返回了空响应，请尝试用不同方式完成任务或确认是否已完成。）",
-                )
+                # FIX(自循环): 连续空响应计数 + 提前终止，避免无限消耗迭代
+                consecutive_empty_count += 1
+                # 不再用 assistant 角色注入提示（会污染上下文让 LLM 误以为自己说过）
                 logger.warning(
-                    "agent_loop_empty_response iteration=%d/%d",
+                    "agent_loop_empty_response iteration=%d/%d consecutive=%d",
                     iteration,
                     max_iterations,
+                    consecutive_empty_count,
                 )
+                if consecutive_empty_count >= MAX_CONSECUTIVE_EMPTY:
+                    yield {
+                        "type": "agent_result",
+                        "status": "done",
+                        "summary": (
+                            "## ⚠️ 任务终止：LLM 连续返回空响应\n"
+                            f"已连续 {consecutive_empty_count} 次空响应，"
+                            "可能是模型异常或上下文过大。请重试或切换模型。"
+                        ),
+                        "iterations": iteration,
+                        "tool_count": len(all_tool_calls),
+                        "files_written": written_files,
+                    }
+                    return
+                # 用 user 角色注入提示，明确告知这是系统消息而非助手自述
+                bridge.add_message(
+                    "user",
+                    "（系统提示：上一轮 LLM 返回了空响应，请尝试用不同方式完成任务或确认是否已完成。）",
+                )
+                last_iteration_had_tools = False
                 continue
+            else:
+                consecutive_empty_count = 0  # 重置连续空响应计数
 
             # 2. 统一解析
             parsed = parse_response(response_text)
@@ -430,7 +464,10 @@ class UnifiedAgentLoop:
                 # 没有工具调用也没有代码块，检查是否应继续
                 if parsed.file_blocks:
                     # 写了文件但没有工具调用，继续下一轮
+                    last_iteration_had_tools = False
                     continue
+                # FIX(自循环): 连续无工具调用计数
+                consecutive_no_tool_count += 1
                 # P0: 首轮无工具调用 → 注入强制指令继续循环
                 if iteration == 1:
                     p0_msg = (
@@ -441,8 +478,10 @@ class UnifiedAgentLoop:
                         '{"name": "git_status", "params": {}}]}'
                         "这是第一次警告。)"
                     )
-                    bridge.add_message("assistant", p0_msg)
+                    # FIX(自循环): 用 user 角色注入，避免污染 assistant 上下文
+                    bridge.add_message("user", p0_msg)
                     logger.warning("agent_loop_p0_no_json_toolcalls iteration=1")
+                    last_iteration_had_tools = False
                     continue
                 elif iteration == 2:
                     p1_msg = (
@@ -453,9 +492,27 @@ class UnifiedAgentLoop:
                         "不要输出任何文字描述，直接输出 JSON。"
                         "如果第三次仍然不调用工具，任务将标记为失败。)"
                     )
-                    bridge.add_message("assistant", p1_msg)
+                    bridge.add_message("user", p1_msg)
                     logger.warning("agent_loop_p1_no_json_toolcalls iteration=2")
+                    last_iteration_had_tools = False
                     continue
+
+                # FIX(自循环): 连续 MAX_CONSECUTIVE_NO_TOOL 轮无工具调用 → 提前终止
+                if consecutive_no_tool_count >= MAX_CONSECUTIVE_NO_TOOL:
+                    yield {
+                        "type": "agent_result",
+                        "status": "done",
+                        "summary": (
+                            "## ⚠️ 任务终止：连续无工具调用\n"
+                            f"已连续 {consecutive_no_tool_count} 轮未调用工具，"
+                            "判定为对话已偏离 Agent 模式。可重新发起任务或切换模型。"
+                        ),
+                        "iterations": iteration,
+                        "tool_count": len(all_tool_calls),
+                        "files_written": written_files,
+                    }
+                    return
+
                 # 既没有工具也没有代码块，视为完成
                 done_result = {
                     "type": "agent_result",
@@ -483,7 +540,9 @@ class UnifiedAgentLoop:
                 return
 
             # 6. 执行工具
-            self._last_iteration_had_tools = bool(parsed.tool_calls)
+            # FIX(自循环): 改用局部变量，避免跨调用残留状态
+            last_iteration_had_tools = bool(parsed.tool_calls)
+            consecutive_no_tool_count = 0  # 重置连续无工具调用计数
             yield {
                 "type": "status",
                 "status": "executing",
