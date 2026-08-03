@@ -18,6 +18,9 @@ const module_exports = {
       enableEmbeddedAsarIntegrityValidation: false,
       onlyLoadAppFromAsar: true,
     },
+    // 重要: 必须保留 dist/renderer/assets/（vite 生成的 JS/CSS bundle）
+    // 不要添加 /^\/dist\/renderer\/assets\// 之类的 ignore 规则,
+    // 否则浏览器加载 index.html 时所有 bundle 404，React 不挂载 -> 白屏
     ignore: [
       /^\/src/,
       /^\/node_modules\/\.cache/,
