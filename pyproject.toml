@@ -237,6 +237,7 @@ addopts = [
     "--durations-min=0.5",  # 仅显示耗时 >= 0.5s 的测试 (减少噪音)
     "--timeout=60",         # 单测超时 60s (pytest-timeout, 防止单测挂死拖垮整个套件)
     "-n", "auto",           # pytest-xdist 并行执行（按 CPU 核数自动分配）
+    "--dist=loadfile",      # 按文件分配 worker, 避免 sqlite3/线程跨进程崩溃
 ]
 markers = [
     "slow: 慢测试 (长时间运行, CI 默认跳过: pytest -m 'not slow')",
