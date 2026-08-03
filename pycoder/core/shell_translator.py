@@ -397,45 +397,99 @@ class ShellTranslator:
             return self._translate_simple_operators(command, target)
 
         if target == "windows":
-            # → Windows: && 配对展开（含 Linux→Windows 及 Windows→Windows 规范化）
-            # FIX: 使用引号感知分割，避免误切引号内的 && （如 echo "a && b" && ls）
-            if "&&" in command:
-                parts = self._split_top_level(command, "&&")
-                expanded = []
-                for i, part in enumerate(parts):
-                    part = part.strip()
-                    if i == 0:
-                        expanded.append(part)
-                    else:
-                        expanded.append(f"; if ($?) {{ {part} }}")
-                result = " ".join(expanded)
-                if "&&" in command:
-                    mappings_applied.append("&&")
-                # 处理 ||（在已经展开的 && 基础上再展开）
-                if "||" in result:
-                    result = self._expand_or(result, mappings_applied)
-                return result
-            elif "||" in command:
-                return self._expand_or(command, mappings_applied)
+            # → Windows: && 和 || 必须在单次从左到右扫描中同时处理,
+            # 否则先展开 && 会把后续 || 包在 { } 内, 再展开 || 会产生错误嵌套,
+            # 导致语义改变 (如 cmd1 && cmd2 || cmd3 中 cmd3 永不执行).
+            # 扁平 if 链是正确的: $? 始终反映上一条命令结果, 与 bash 短路语义一致.
+            if "&&" in command or "||" in command:
+                return self._expand_chain(command, mappings_applied)
         elif source == "windows":
             # Windows → Linux: 反向展开 (从 ; if (...) { ... } 还原)
             return self._collapse_windows_ifs(command, target, mappings_applied)
 
         return self._translate_simple_operators(command, target)
 
-    def _expand_or(self, command: str, mappings_applied: list[str]) -> str:
-        """展开 || 为 if-else 配对。"""
-        # FIX: 使用引号感知分割，避免误切引号内的 ||
-        parts = self._split_top_level(command, "||")
-        expanded = []
-        for i, part in enumerate(parts):
-            part = part.strip()
-            if i == 0:
-                expanded.append(part)
-            else:
-                expanded.append(f"; if (-not $?) {{ {part} }}")
-        mappings_applied.append("||")
+    def _expand_chain(self, command: str, mappings_applied: list[str]) -> str:
+        """单次从左到右扫描, 将 && 和 || 混合链展开为扁平 PowerShell if 链.
+
+        bash 语义: && / || 同为左结合, 短路求值.
+        PowerShell 扁平 if 链: 每个 if ($?) / if (-not $?) 块独立,
+        $? 始终反映上一条已执行命令的结果, 与 bash 短路语义一致.
+
+        示例:
+            cmd1 && cmd2 || cmd3
+            → cmd1 ; if ($?) { cmd2 } ; if (-not $?) { cmd3 }
+
+            cmd1 || cmd2 && cmd3
+            → cmd1 ; if (-not $?) { cmd2 } ; if ($?) { cmd3 }
+        """
+        # 按顶层 && / || 分割, 记录每段前导操作符
+        segments = self._split_chain_operators(command)
+        if len(segments) <= 1:
+            # 无 && / || (可能都在引号内)
+            return command
+
+        expanded = [segments[0][1].strip()]
+        has_and = False
+        has_or = False
+        for op, segment in segments[1:]:
+            segment = segment.strip()
+            if op == "&&":
+                expanded.append(f"; if ($?) {{ {segment} }}")
+                has_and = True
+            else:  # "||"
+                expanded.append(f"; if (-not $?) {{ {segment} }}")
+                has_or = True
+        if has_and:
+            mappings_applied.append("&&")
+        if has_or:
+            mappings_applied.append("||")
         return " ".join(expanded)
+
+    def _split_chain_operators(self, command: str) -> list[tuple[str, str]]:
+        """同时按顶层 && 和 || 分割命令, 返回 (前导操作符, 段) 列表.
+
+        首段前导操作符为空字符串. 引号内的 && / || 被忽略.
+
+        Returns:
+            [("", "cmd1"), ("&&", "cmd2"), ("||", "cmd3")]
+        """
+        result: list[tuple[str, str]] = []
+        buf: list[str] = []
+        pending_op = ""  # 当前段的前导操作符
+        i = 0
+        n = len(command)
+        in_single = False
+        in_double = False
+        while i < n:
+            ch = command[i]
+            if ch == "'" and not in_double:
+                in_single = not in_single
+                buf.append(ch)
+                i += 1
+                continue
+            if ch == '"' and not in_single:
+                in_double = not in_double
+                buf.append(ch)
+                i += 1
+                continue
+            if not in_single and not in_double:
+                if command.startswith("&&", i):
+                    result.append((pending_op, "".join(buf)))
+                    buf = []
+                    pending_op = "&&"
+                    i += 2
+                    continue
+                if command.startswith("||", i):
+                    result.append((pending_op, "".join(buf)))
+                    buf = []
+                    pending_op = "||"
+                    i += 2
+                    continue
+            buf.append(ch)
+            i += 1
+        result.append((pending_op, "".join(buf)))
+        return result
 
     def _split_top_level(self, command: str, delimiter: str) -> list[str]:
         """按 delimiter 分割字符串，但忽略引号内的分隔符.
