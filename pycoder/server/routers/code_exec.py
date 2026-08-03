@@ -30,6 +30,7 @@ import json
 import logging
 import os
 import re
+import signal
 import subprocess as _subprocess
 import sys
 import time
@@ -239,8 +240,45 @@ _SANDBOX_RUNNER = (
 )
 
 
+def _kill_process_tree(proc: "_subprocess.Popen | None") -> None:
+    """强制杀死整个进程树（包括继承管道的孙进程）。
+
+    subprocess.run/Popen.kill() 只杀直接子进程；若孙进程继承了 stdout 管道，
+    communicate() 会因管道不关闭而永久挂起，导致执行线程泄漏、ThreadPoolExecutor
+    耗尽、服务器假死。此函数按进程组/进程树强杀，确保管道释放。
+    """
+    if proc is None or proc.poll() is not None:
+        return
+    pid = proc.pid
+    try:
+        if sys.platform == "win32":
+            # Windows: taskkill /F /T 杀死整个进程树
+            _subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(pid)],
+                capture_output=True,
+                timeout=5,
+            )
+        else:
+            # Unix: 杀死整个进程组（start_new_session=True 时子进程为组长）
+            try:
+                os.killpg(os.getpgid(pid), signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                proc.kill()
+    except Exception as e:
+        logger.warning("process_tree_kill_failed pid=%s error=%s", pid, e)
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+
 def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
-    """在独立子进程中执行代码，通过 stdin 传递代码，通过 stdout 获取 JSON 结果。"""
+    """在独立子进程中执行代码，通过 stdin 传递代码，通过 stdout 获取 JSON 结果。
+
+    使用 Popen + communicate(timeout=) + 进程树级强杀，确保即使孙进程继承了
+    stdout 管道，超时后管道也能被释放、让 communicate 返回，避免线程永久阻塞
+    导致 ThreadPoolExecutor 耗尽（服务器假死）。
+    """
     # Layer 1: 静态扫描
     violations = pre_scan_code(code)
     if violations:
@@ -280,66 +318,52 @@ def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
         )
 
     start = time.time()
+    sandbox_env = {
+        **os.environ,
+        "PYTHONIOENCODING": "utf-8",
+        "PYTHONPATH": str(_PROJECT_ROOT) + os.pathsep + os.environ.get("PYTHONPATH", ""),
+    }
+    # 创建独立进程组/会话，便于超时时按进程树强杀
+    # （防止孙进程持有 stdout 管道导致 communicate() 永久挂起 → 线程泄漏 → 服务器假死）
+    if sys.platform == "win32":
+        # CREATE_NEW_PROCESS_GROUP(0x00000200) | CREATE_NO_WINDOW(0x08000000)
+        creationflags = 0x00000200 | 0x08000000
+        start_new_session = False
+    else:
+        creationflags = 0
+        start_new_session = True
+
+    proc: _subprocess.Popen | None = None
+    stdout_bytes: bytes = b""
+    stderr_bytes: bytes = b""
+    timed_out = False
     try:
-        # 修复: 子进程需要访问 pycoder 等项目模块 — 注入 PYTHONPATH 和项目 cwd
-        # 用户代码 `import pycoder` 或 `import pycoder.xxx` 才能解析
-        sandbox_env = {
-            **os.environ,
-            "PYTHONIOENCODING": "utf-8",
-            "PYTHONPATH": str(_PROJECT_ROOT) + os.pathsep + os.environ.get("PYTHONPATH", ""),
-        }
-        proc = _subprocess.run(
+        proc = _subprocess.Popen(
             [sys.executable, "-c", _SANDBOX_RUNNER],
-            input=code.encode("utf-8"),
-            capture_output=True,
-            timeout=timeout,
-            cwd=str(_PROJECT_ROOT),  # 之前用 tempfile.gettempdir() — 改为项目根
+            stdin=_subprocess.PIPE,
+            stdout=_subprocess.PIPE,
+            stderr=_subprocess.PIPE,
+            cwd=str(_PROJECT_ROOT),
             env=sandbox_env,
-            # FIX: 禁用危险环境变量
-            creationflags=0x08000000 if sys.platform == "win32" else 0,  # CREATE_NO_WINDOW
+            creationflags=creationflags,
+            start_new_session=start_new_session,
         )
-    except _subprocess.TimeoutExpired as e:
-        # FIX: 之前直接返回空 stdout，丢弃了子进程在超时前已产生的输出。
-        # subprocess.run 在 timeout 时会 kill 子进程，但 e.stdout / e.stderr
-        # 保存了 kill 前已捕获的输出（capture_output=True 时）。
-        # Windows 上 TerminateProcess 是强制终止，子进程的 finally 块可能
-        # 没机会执行，所以 __SANDBOX_RESULT__ 标记可能缺失——但已产生的
-        # print() 输出仍保留在 e.stdout 中，必须提取出来返回给用户。
-        partial_stdout = ""
-        partial_stderr = ""
-        if e.stdout:
-            partial_stdout = e.stdout.decode("utf-8", errors="replace") if isinstance(e.stdout, bytes) else e.stdout
-        if e.stderr:
-            partial_stderr = e.stderr.decode("utf-8", errors="replace") if isinstance(e.stderr, bytes) else e.stderr
-        # 尝试从部分输出中提取 SANDBOX_RESULT 标记
-        idx_s = partial_stdout.find("__SANDBOX_RESULT__")
-        idx_e = partial_stdout.find("__SANDBOX_END__")
-        if idx_s >= 0 and idx_e > idx_s:
-            json_str = partial_stdout[idx_s + 17 : idx_e].strip()
+        try:
+            stdout_bytes, stderr_bytes = proc.communicate(
+                input=code.encode("utf-8"), timeout=timeout
+            )
+        except _subprocess.TimeoutExpired:
+            # communicate 超时不会自动 kill 子进程，也不会返回已读数据；
+            # 必须强杀整个进程树释放管道，再排空剩余输出，否则线程永久阻塞。
+            timed_out = True
+            _kill_process_tree(proc)
             try:
-                data = json.loads(json_str)
-                return ExecutionResult(
-                    success=False,
-                    stdout=data.get("stdout", ""),
-                    stderr=data.get("stderr", ""),
-                    error_type="TimeoutError",
-                    error_message=f"Execution exceeded {timeout} seconds",
-                    traceback=data.get("traceback", ""),
-                    execution_time=time.time() - start,
-                )
-            except json.JSONDecodeError:
-                pass
-        # 没有标记 — 至少返回已捕获的部分输出
-        return ExecutionResult(
-            success=False,
-            stdout=partial_stdout[:MAX_OUTPUT_LENGTH],
-            stderr=partial_stderr[:2000],
-            error_type="TimeoutError",
-            error_message=f"Execution exceeded {timeout} seconds",
-            traceback="",
-            execution_time=time.time() - start,
-        )
+                stdout_bytes, stderr_bytes = proc.communicate(timeout=5)
+            except Exception:
+                stdout_bytes, stderr_bytes = b"", b""
     except Exception as e:
+        if proc is not None:
+            _kill_process_tree(proc)
         return ExecutionResult(
             success=False,
             stdout="",
@@ -351,10 +375,38 @@ def _run_in_subprocess(code: str, timeout: int) -> ExecutionResult:
         )
 
     elapsed = time.time() - start
+    stdout_text = stdout_bytes.decode("utf-8", errors="replace") if stdout_bytes else ""
+    stderr_text = stderr_bytes.decode("utf-8", errors="replace") if stderr_bytes else ""
 
-    # 解析 stdout 中的 JSON 结果
-    stdout_text = proc.stdout.decode("utf-8", errors="replace") if proc.stdout else ""
-    stderr_text = proc.stderr.decode("utf-8", errors="replace") if proc.stderr else ""
+    if timed_out:
+        # 尝试从部分输出中提取 SANDBOX_RESULT 标记
+        idx_s = stdout_text.find("__SANDBOX_RESULT__")
+        idx_e = stdout_text.find("__SANDBOX_END__")
+        if idx_s >= 0 and idx_e > idx_s:
+            json_str = stdout_text[idx_s + 17 : idx_e].strip()
+            try:
+                data = json.loads(json_str)
+                return ExecutionResult(
+                    success=False,
+                    stdout=data.get("stdout", ""),
+                    stderr=data.get("stderr", ""),
+                    error_type="TimeoutError",
+                    error_message=f"Execution exceeded {timeout} seconds",
+                    traceback=data.get("traceback", ""),
+                    execution_time=elapsed,
+                )
+            except json.JSONDecodeError:
+                pass
+        # 没有标记 — 至少返回已捕获的部分输出
+        return ExecutionResult(
+            success=False,
+            stdout=stdout_text[:MAX_OUTPUT_LENGTH],
+            stderr=stderr_text[:2000],
+            error_type="TimeoutError",
+            error_message=f"Execution exceeded {timeout} seconds",
+            traceback="",
+            execution_time=elapsed,
+        )
 
     # 从 stdout 提取 SANDBOX_RESULT
     marker_start = "__SANDBOX_RESULT__"
@@ -534,8 +586,28 @@ async def execute_code(req: CodeExecRequest):
             detail=f"Code too long (max {max_code} chars)",
         )
 
-    # 使用 asyncio.to_thread 避免阻塞事件循环
-    result = await asyncio.to_thread(_run_in_subprocess, req.code, timeout)
+    # 使用 asyncio.to_thread 避免阻塞事件循环；外层再加 wait_for 硬超时兜底，
+    # 防止子进程管道被孙进程持有导致 communicate 永久阻塞（线程泄漏→池耗尽→服务器假死）
+    hard_timeout = timeout + 10  # 给进程树强杀留出缓冲
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(_run_in_subprocess, req.code, timeout),
+            timeout=hard_timeout,
+        )
+    except asyncio.TimeoutError:
+        logger.error(
+            "exec_watchdog_timeout code_len=%d timeout=%d hard=%d",
+            len(req.code), timeout, hard_timeout,
+        )
+        result = ExecutionResult(
+            success=False,
+            stdout="",
+            stderr="",
+            error_type="WatchdogTimeout",
+            error_message=f"Execution watchdog timed out after {hard_timeout}s (subprocess unresponsive)",
+            traceback="",
+            execution_time=float(hard_timeout),
+        )
 
     return CodeExecResponse(
         success=result.success,

@@ -26,6 +26,9 @@ import platform
 import signal
 import subprocess
 import sys
+import time
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -33,6 +36,34 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# ── 终端读取专用线程池 ──
+# 独立于默认 ThreadPoolExecutor：即使某个读取线程因阻塞系统调用未能立即退出，
+# 也不会耗尽全局线程池导致整个服务器假死（这是终端任务卡死的主因）。
+# 非阻塞读取已从根本上消除长期阻塞，专用池作为额外隔离兜底。
+_TERMINAL_EXECUTOR = ThreadPoolExecutor(
+    max_workers=16, thread_name_prefix="pty-reader"
+)
+
+# ── 终端会话注册表（观测/排查卡死）──
+# session_id -> {"started_at": float, "shell": str, "pid": int|None, "remote": str}
+_TERMINAL_SESSIONS: dict[str, dict] = {}
+
+# WebSocket 空闲超时：被遗弃/半开连接在此时间无任何输入后清理，防止进程与线程长期占用。
+_WS_IDLE_TIMEOUT = 3600  # 1 小时（交互式终端，用户可能长时间只看输出不输入）
+
+
+def list_terminal_sessions() -> list[dict]:
+    """返回活跃终端会话列表（用于观测和排查卡死）。"""
+    now = time.time()
+    return [
+        {
+            "id": sid,
+            "uptime_sec": round(now - info["started_at"], 1),
+            **{k: v for k, v in info.items() if k != "started_at"},
+        }
+        for sid, info in _TERMINAL_SESSIONS.items()
+    ]
 
 
 WORKSPACE_ROOT: Path = Path(
@@ -100,6 +131,15 @@ async def terminal_ws(websocket: WebSocket):
     process = None
     master_fd = None
     use_pty = True
+    stop_event = asyncio.Event()
+    session_id = uuid.uuid4().hex[:12]
+    _TERMINAL_SESSIONS[session_id] = {
+        "started_at": time.time(),
+        "shell": shell,
+        "pid": None,
+        "remote": websocket.client.host if websocket.client else "unknown",
+    }
+    logger.info("terminal_ws_connect session=%s remote=%s", session_id, _TERMINAL_SESSIONS[session_id]["remote"])
 
     try:
         if _is_windows():
@@ -154,6 +194,15 @@ async def terminal_ws(websocket: WebSocket):
                 preexec_fn=os.setsid,
             )
             os.close(slave_fd)
+            # 设置 master_fd 为非阻塞，使 os.read 在无数据时立即抛 BlockingIOError，
+            # 读取协程可定期让出并检查 stop_event，从根本上消除阻塞读取线程泄漏
+            # （否则客户端断连时 reader 线程永久卡在 os.read → 线程池耗尽 → 服务器假死）
+            import fcntl
+
+            flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
+            fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+            if process.pid:
+                _TERMINAL_SESSIONS[session_id]["pid"] = process.pid
 
             await websocket.send_json(
                 {
@@ -186,38 +235,67 @@ async def terminal_ws(websocket: WebSocket):
         return
 
     async def _read_output():
-        """持续读取终端输出并推送到 WebSocket"""
+        """持续读取终端输出并推送到 WebSocket（非阻塞、可取消）。
+
+        关键：所有读取均通过 _TERMINAL_EXECUTOR 调度且非阻塞/限时，
+        循环每轮检查 stop_event，确保客户端断连或会话结束时能立即退出，
+        不再因阻塞 read 系统调用泄漏线程导致线程池耗尽、服务器假死。
+        """
+        loop = asyncio.get_running_loop()
         try:
             if use_pty:
                 if _is_windows():
-                    loop = asyncio.get_running_loop()
-                    while True:
+                    # Windows winpty: 非阻塞轮询
+                    while not stop_event.is_set():
                         try:
-                            data = await loop.run_in_executor(None, lambda: pty.read(blocking=True))
+                            data = await loop.run_in_executor(
+                                _TERMINAL_EXECUTOR, lambda: pty.read(blocking=False)
+                            )
                         except (OSError, RuntimeError) as e:
                             logger.debug("terminal_pty_read_failed error=%s", e)
                             break
-                        if not data:
-                            break
-
-                        try:
-                            await websocket.send_json(
-                                {
-                                    "type": "output",
-                                    "data": data,
-                                    "has_color": True,
-                                }
-                            )
                         except Exception as e:
-                            logger.debug("terminal_ws_send_failed error=%s", e)
+                            logger.debug("terminal_pty_read_unexpected error=%s", e)
                             break
+                        if data:
+                            try:
+                                await websocket.send_json(
+                                    {"type": "output", "data": data, "has_color": True}
+                                )
+                            except Exception as e:
+                                logger.debug("terminal_ws_send_failed error=%s", e)
+                                break
+                        else:
+                            # 无数据，短暂让出并重新检查 stop_event
+                            await asyncio.sleep(0.05)
                 else:
-                    loop = asyncio.get_running_loop()
-                    while True:
+                    # Unix master_fd 已设为非阻塞：os.read 无数据时抛 BlockingIOError
+                    while not stop_event.is_set():
                         try:
                             data = await loop.run_in_executor(
-                                None, lambda: os.read(master_fd, 4096)
+                                _TERMINAL_EXECUTOR, lambda: os.read(master_fd, 4096)
                             )
+                        except BlockingIOError:
+                            # 无数据可读：检查进程是否退出，否则短暂让出
+                            if process and process.poll() is not None:
+                                # 进程已退出：尝试读取剩余输出后结束
+                                try:
+                                    tail = await loop.run_in_executor(
+                                        _TERMINAL_EXECUTOR, lambda: os.read(master_fd, 4096)
+                                    )
+                                    if tail:
+                                        await websocket.send_json(
+                                            {
+                                                "type": "output",
+                                                "data": tail.decode("utf-8", errors="replace"),
+                                                "has_color": True,
+                                            }
+                                        )
+                                except (OSError, BlockingIOError):
+                                    pass
+                                break
+                            await asyncio.sleep(0.05)
+                            continue
                         except OSError:
                             break
                         if not data:
@@ -225,21 +303,35 @@ async def terminal_ws(websocket: WebSocket):
                         text = data.decode("utf-8", errors="replace")
                         try:
                             await websocket.send_json(
-                                {
-                                    "type": "output",
-                                    "data": text,
-                                    "has_color": True,
-                                }
+                                {"type": "output", "data": text, "has_color": True}
                             )
                         except Exception as e:
                             logger.debug("terminal_ws_send_failed error=%s", e)
                             break
             else:
-                loop = asyncio.get_running_loop()
-                while True:
+                # 非 pty subprocess（winpty 不可用时回退）：用 wait_for 限时读取，
+                # 避免 readline 永久阻塞；超时后检查 stop_event 与进程退出
+                while not stop_event.is_set():
+                    stdout_data = ""
+                    stderr_data = ""
                     try:
-                        stdout_data = await loop.run_in_executor(None, process.stdout.readline)
-                        stderr_data = await loop.run_in_executor(None, process.stderr.readline)
+                        stdout_data = await asyncio.wait_for(
+                            loop.run_in_executor(_TERMINAL_EXECUTOR, process.stdout.readline),
+                            timeout=1.0,
+                        )
+                    except asyncio.TimeoutError:
+                        pass
+                    except (OSError, ValueError) as e:
+                        logger.debug("terminal_process_read_failed error=%s", e)
+                        break
+
+                    try:
+                        stderr_data = await asyncio.wait_for(
+                            loop.run_in_executor(_TERMINAL_EXECUTOR, process.stderr.readline),
+                            timeout=1.0,
+                        )
+                    except asyncio.TimeoutError:
+                        pass
                     except (OSError, ValueError) as e:
                         logger.debug("terminal_process_read_failed error=%s", e)
                         break
@@ -247,11 +339,7 @@ async def terminal_ws(websocket: WebSocket):
                     if stdout_data:
                         try:
                             await websocket.send_json(
-                                {
-                                    "type": "output",
-                                    "data": stdout_data,
-                                    "has_color": False,
-                                }
+                                {"type": "output", "data": stdout_data, "has_color": False}
                             )
                         except Exception as e:
                             logger.debug("terminal_ws_send_failed error=%s", e)
@@ -260,11 +348,7 @@ async def terminal_ws(websocket: WebSocket):
                     if stderr_data:
                         try:
                             await websocket.send_json(
-                                {
-                                    "type": "output",
-                                    "data": stderr_data,
-                                    "has_color": False,
-                                }
+                                {"type": "output", "data": stderr_data, "has_color": False}
                             )
                         except Exception as e:
                             logger.debug("terminal_ws_send_failed error=%s", e)
@@ -277,10 +361,7 @@ async def terminal_ws(websocket: WebSocket):
         except Exception as e:
             try:
                 await websocket.send_json(
-                    {
-                        "type": "error",
-                        "message": f"输出读取错误: {e}",
-                    }
+                    {"type": "error", "message": f"输出读取错误: {e}"}
                 )
             except Exception as send_err:
                 logger.debug("terminal_ws_error_send_failed error=%s", send_err)
@@ -289,7 +370,18 @@ async def terminal_ws(websocket: WebSocket):
 
     try:
         while True:
-            data = await websocket.receive_json()
+            # 空闲超时：被遗弃/半开连接在 _WS_IDLE_TIMEOUT 内无输入则清理，
+            # 防止进程与读取线程长期占用（卡死诱因之一）
+            try:
+                data = await asyncio.wait_for(
+                    websocket.receive_json(), timeout=_WS_IDLE_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                logger.info(
+                    "terminal_ws_idle_timeout session=%s idle=%ds",
+                    session_id, _WS_IDLE_TIMEOUT,
+                )
+                break
 
             msg_type = data.get("type", "")
 
@@ -386,6 +478,8 @@ async def terminal_ws(websocket: WebSocket):
         except Exception as send_err:
             logger.debug("terminal_ws_error_send_failed error=%s", send_err)
     finally:
+        # 先通知读取协程退出，再取消任务（非阻塞读取使其能即时响应）
+        stop_event.set()
         if reader_task:
             reader_task.cancel()
             try:
@@ -439,3 +533,6 @@ async def terminal_ws(websocket: WebSocket):
             )
         except Exception as send_err:
             logger.debug("terminal_ws_exit_send_failed error=%s", send_err)
+        finally:
+            _TERMINAL_SESSIONS.pop(session_id, None)
+            logger.info("terminal_ws_disconnect session=%s", session_id)

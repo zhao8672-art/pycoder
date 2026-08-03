@@ -36,6 +36,10 @@ from pycoder.server.session_store import get_session_store  # noqa: E402
 # 前端发送 {type: "stop"} 时，设置对应事件通知正在运行的流停止
 _cancel_events: dict[str, asyncio.Event] = {}
 
+# WebSocket 空闲超时：被遗弃/半开聊天连接在此时间无输入后清理，
+# 防止会话资源长期占用。聊天会话可能长时间只看输出不输入，故设为 2 小时。
+_WS_IDLE_TIMEOUT = 7200
+
 
 async def websocket_chat_v2(ws: WebSocket):
     """V2 WebSocket 处理器 — AI-Centric 架构入口
@@ -83,7 +87,12 @@ async def websocket_chat_v2(ws: WebSocket):
 
     try:
         while True:
-            data = await ws.receive_text()
+            # 空闲超时：被遗弃/半开连接在 _WS_IDLE_TIMEOUT 内无输入则清理
+            try:
+                data = await asyncio.wait_for(ws.receive_text(), timeout=_WS_IDLE_TIMEOUT)
+            except asyncio.TimeoutError:
+                log.info("ws_v2_idle_timeout", extra={"session_id": session_id, "idle": _WS_IDLE_TIMEOUT})
+                break
             msg = json.loads(data)
             msg_type = msg.get("type", "message")
 
