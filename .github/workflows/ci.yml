@@ -20,6 +20,17 @@ on:
   push: { branches: [main, master] }
   pull_request: { branches: [main, master] }
 
+# ── 最小权限原则: 显式声明 GITHUB_TOKEN 所需权限 ──────────
+# contents: read   — 检出代码
+# checks: write    — 创建测试结果 check run
+# actions: read    — 读取 workflow 运行状态 (用于缓存和权限检查)
+# statuses: write  — 提交 commit status
+permissions:
+  contents: read
+  checks: write
+  actions: read
+  statuses: write
+
 # 取消同一 PR 的旧运行，节省 CI 资源
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -53,6 +64,29 @@ jobs:
           python-version: ${{ matrix.python-version }}
           # Python 3.14 可能需要预发布版本支持
           allow-prereleases: true
+
+      # ── 权限预检查: 验证 GITHUB_TOKEN 具备所需权限 ──────
+      # 使用 gh_permissions.py 模块验证 token scope
+      # --check-only: 仅检查不刷新 (CI 环境无法交互式刷新)
+      # --json: 输出结构化结果, 便于日志解析
+      # --no-interactive: CI 模式
+      - name: 验证 GITHUB_TOKEN 权限
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=== GITHUB_TOKEN 权限预检查 ==="
+          python scripts/gh_permissions.py \
+            --check-only \
+            --json \
+            --no-interactive \
+            --scopes repo workflow \
+            || {
+              echo ""
+              echo "⚠️  GITHUB_TOKEN 权限不足, 但 CI 将继续执行"
+              echo "    (GITHUB_TOKEN 使用 permissions: 块控制, 非 PAT scope)"
+              echo "    如需完整 scope 检查, 请使用 PAT 配置 GH_TOKEN secret"
+            }
+          echo ""
 
       # FIX #6: 添加 pip 缓存, 加速依赖安装
       - name: 缓存 pip 依赖

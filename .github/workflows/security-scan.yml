@@ -10,6 +10,13 @@ on:
         branches: [master, main]
     workflow_dispatch:  # 允许手动触发 (setup_branch_protection.sh 自动调用)
 
+# ── 最小权限原则: 显式声明 GITHUB_TOKEN 所需权限 ──────────
+# contents: read          — 检出代码
+# security-events: write  — 上传安全扫描结果到 GitHub Security tab
+permissions:
+    contents: read
+    security-events: write
+
 jobs:
     security:
         runs-on: ubuntu-latest
@@ -20,6 +27,24 @@ jobs:
               uses: actions/setup-python@v5
               with:
                   python-version: "3.13"
+
+            # ── 权限预检查: 验证 GITHUB_TOKEN 具备所需权限 ──────
+            - name: 验证 GITHUB_TOKEN 权限
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  echo "=== GITHUB_TOKEN 权限预检查 ==="
+                  python scripts/gh_permissions.py \
+                    --check-only \
+                    --json \
+                    --no-interactive \
+                    --scopes repo workflow \
+                    || {
+                      echo ""
+                      echo "⚠️  GITHUB_TOKEN 权限不足, 但 CI 将继续执行"
+                      echo "    (GITHUB_TOKEN 使用 permissions: 块控制, 非 PAT scope)"
+                    }
+                  echo ""
 
             - name: Install dependencies
               run: |
