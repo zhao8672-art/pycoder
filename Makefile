@@ -5,7 +5,7 @@
 # ============================================================================
 
 .PHONY: help install install-all install-dev install-browser install-help install-playwright \
-        dev test test-fast lint format type-check security clean clean-pyc clean-cache \
+        dev test test-fast stress lint format type-check security clean clean-pyc clean-cache \
         run server setup status scan evolve docs electron pre-commit all
 
 PYTHON ?= python
@@ -61,6 +61,9 @@ test:  ## 运行全部测试
 
 test-fast:  ## 仅运行快速测试 (跳过慢测试)
 	$(PYTHON) -m pytest -m "not slow" -x --timeout=60
+
+stress:  ## 运行高并发 fixture 竞争压测 (4 阶段: xdist/隔离/线程/泄漏)
+	$(PYTHON) scripts/stress_fixture_concurrency.py --workers 8 --rounds 2
 
 # ── 质量 ─────────────────────────────────────────────────
 lint:  ## 运行 ruff + bandit
