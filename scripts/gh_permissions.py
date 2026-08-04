@@ -325,12 +325,14 @@ class GitHubPermissionChecker:
         """
         result = PermissionResult(required_scopes=list(self.required_scopes))
         total_attempts = self.max_retries + 1  # 初始检查 + 重试次数
+        was_refreshed = False  # 跨迭代追踪刷新状态
 
         for attempt in range(1, total_attempts + 1):
             logger.debug(f"权限检查 [尝试 {attempt}/{total_attempts}]...")
 
             result = self.check()
             result.refresh_attempts = attempt - 1
+            result.refreshed = was_refreshed  # 继承前序刷新状态
 
             if result.ok:
                 return result
@@ -349,7 +351,7 @@ class GitHubPermissionChecker:
                     f"尝试刷新缺失 scope (第 {attempt}/{self.max_retries} 次)..."
                 )
                 if self.refresh(result.missing_scopes):
-                    result.refreshed = True
+                    was_refreshed = True
                     # 刷新成功, 循环回去重新检查
                     continue
                 # 刷新失败
