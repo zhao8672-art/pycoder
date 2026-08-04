@@ -9,7 +9,8 @@
 #  前置条件:
 #    1. 已安装 GitHub CLI (gh): https://cli.github.com/
 #    2. 已认证: gh auth login
-#    3. 对仓库有 admin 权限
+#    3. token 需包含 scope: repo + workflow (缺失时自动尝试 gh auth refresh)
+#    4. 对仓库有 admin 权限
 #
 #  用法:
 #    bash scripts/setup_branch_protection.sh                          # 交互式
@@ -195,15 +196,188 @@ if ! command -v jq &>/dev/null; then
 fi
 debug "jq 路径: $(command -v jq)"
 
-# 检查认证状态
-debug "检查 gh CLI 认证状态..."
-AUTH_STATUS=$(gh auth status 2>&1) || true
-if ! echo "$AUTH_STATUS" | grep -q "Logged in"; then
-  error "gh CLI 未认证, 请运行: gh auth login"
-  debug "auth status 输出: ${AUTH_STATUS}"
+# ── 检查 gh CLI 认证状态和 token 权限 (带重试) ────────────
+# 本脚本需要以下 token scope:
+#   repo      — 仓库访问、分支保护 API、读取 workflow 运行状态
+#   workflow  — 触发 workflow (gh workflow run, 需 workflow_dispatch)
+#
+# 权限不足时自动尝试 gh auth refresh 补充 scope (最多 2 次)
+# --no-confirm 模式下跳过交互式 refresh, 仅报告缺失
+
+# 脚本所需的 GitHub token scope 列表
+REQUIRED_SCOPES=("repo" "workflow")
+
+# 检查 gh CLI 认证状态和 token scope
+# 返回值: 0=全部具备, 1=缺失部分 scope, 2=未认证
+check_gh_permissions() {
+  local missing_scopes=()
+
+  # 1. 检查是否已认证
+  debug "检查 gh CLI 认证状态..."
+  AUTH_STATUS=$(gh auth status 2>&1) || true
+  if ! echo "$AUTH_STATUS" | grep -q "Logged in"; then
+    error "gh CLI 未认证, 请运行: gh auth login"
+    debug "auth status 输出: ${AUTH_STATUS}"
+    return 2
+  fi
+  debug "认证状态: $(echo "$AUTH_STATUS" | head -1)"
+
+  # 2. 解析 token scope
+  # gh auth status 输出格式: "Token scopes: 'repo', 'read:org', 'workflow'"
+  local token_scopes
+  token_scopes=$(echo "$AUTH_STATUS" | grep -i "Token scopes" | sed "s/.*Token scopes: //" | tr -d "'" | tr ',' '\n' | sed 's/^ *//' || echo "")
+  debug "当前 token scope: $(echo "$token_scopes" | tr '\n' ' ')"
+
+  # 3. 逐项检查必需 scope
+  for scope in "${REQUIRED_SCOPES[@]}"; do
+    if echo "$token_scopes" | grep -qw "$scope"; then
+      debug "scope '${scope}': ✓"
+    else
+      debug "scope '${scope}': ✗ (缺失)"
+      missing_scopes+=("$scope")
+    fi
+  done
+
+  # 4. 检查 token 有效性 (API 调用测试)
+  debug "验证 token 有效性..."
+  local token_test
+  token_test=$(gh api user --jq '.login' 2>&1) || true
+  if [[ -z "$token_test" ]] || echo "$token_test" | grep -q "Bad credentials\|401"; then
+    error "token 无效或已过期, 请重新认证: gh auth login"
+    debug "API 测试响应: ${token_test}"
+    return 2
+  fi
+  debug "token 有效, 用户: ${token_test}"
+
+  # 5. 报告结果
+  if [[ ${#missing_scopes[@]} -gt 0 ]]; then
+    warn "缺失 token scope: ${missing_scopes[*]}"
+    warn "当前 scope: $(echo "$token_scopes" | tr '\n' ' ')"
+    # 将缺失 scope 写入全局变量供 refresh 使用
+    MISSING_SCOPES_STR="${missing_scopes[*]}"
+    return 1
+  fi
+
+  success "gh CLI 权限检查通过 (scope: $(echo "$token_scopes" | tr '\n' ' '))"
+  return 0
+}
+
+# 尝试通过 gh auth refresh 补充缺失的 token scope
+# 返回值: 0=刷新成功, 1=刷新失败/用户拒绝
+refresh_gh_permissions() {
+  local missing=("$@")
+
+  if [[ ${#missing[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  echo ""
+  warn "检测到缺失 scope: ${missing[*]}"
+  echo "  这些权限是脚本运行的必需条件:"
+  echo "    repo      — 访问仓库、配置分支保护、读取 workflow 状态"
+  echo "    workflow  — 触发 workflow (gh workflow run)"
+  echo ""
+
+  if [[ "$NO_CONFIRM" == "true" ]]; then
+    error "--no-confirm 模式下无法交互式刷新权限"
+    warn "请手动执行: gh auth refresh -s ${missing[*]}"
+    return 1
+  fi
+
+  # 交互式确认
+  info "即将执行: gh auth refresh -s ${missing[*]}"
+  echo "  这会打开浏览器请求你重新授权 GitHub CLI, 补充缺失的 scope。"
+  read -rp "确认刷新权限? (y/N): " confirm_refresh
+  if [[ "${confirm_refresh,,}" != "y" ]]; then
+    warn "用户取消权限刷新"
+    warn "请手动执行: gh auth refresh -s ${missing[*]}"
+    return 1
+  fi
+
+  # 执行刷新
+  info "正在刷新 token scope (添加: ${missing[*]})..."
+  local refresh_output
+  refresh_output=$(gh auth refresh -s "${missing[@]}" 2>&1) || true
+
+  # gh auth refresh 可能返回非 0 即使成功 (因为交互式流程)
+  # 通过重新检查 scope 来验证
+  debug "refresh 输出: ${refresh_output:0:300}"
+
+  # 重新检查权限
+  local recheck_auth
+  recheck_auth=$(gh auth status 2>&1) || true
+  local recheck_scopes
+  recheck_scopes=$(echo "$recheck_auth" | grep -i "Token scopes" | sed "s/.*Token scopes: //" | tr -d "'" | tr ',' '\n' | sed 's/^ *//' || echo "")
+
+  local all_present=true
+  for scope in "${missing[@]}"; do
+    if ! echo "$recheck_scopes" | grep -qw "$scope"; then
+      all_present=false
+    fi
+  done
+
+  if [[ "$all_present" == "true" ]]; then
+    success "权限刷新成功, 已补充 scope: ${missing[*]}"
+    debug "刷新后 scope: $(echo "$recheck_scopes" | tr '\n' ' ')"
+    return 0
+  else
+    error "权限刷新后仍缺失部分 scope"
+    warn "当前 scope: $(echo "$recheck_scopes" | tr '\n' ' ')"
+    warn "请手动执行: gh auth refresh -s ${missing[*]}"
+    return 1
+  fi
+}
+
+# ── 权限检查主逻辑 (带重试) ────────────────────────────────
+PERMISSION_RETRY_MAX=2
+permission_attempt=0
+permission_ok=false
+MISSING_SCOPES_STR=""
+
+while [[ $permission_attempt -le $PERMISSION_RETRY_MAX ]]; do
+  ((permission_attempt++))
+  debug "权限检查 [尝试 ${permission_attempt}/${PERMISSION_RETRY_MAX}]..."
+
+  check_gh_permissions
+  local_check_result=$?
+
+  case $local_check_result in
+    0)
+      permission_ok=true
+      break
+      ;;
+    1)
+      # 缺失部分 scope, 尝试刷新
+      if [[ $permission_attempt -le $PERMISSION_RETRY_MAX ]]; then
+        # 将 MISSING_SCOPES_STR 转为数组
+        read -ra missing_array <<< "$MISSING_SCOPES_STR"
+        if refresh_gh_permissions "${missing_array[@]}"; then
+          # 刷新成功, 循环回去重新检查
+          continue
+        else
+          # 刷新失败
+          if [[ $permission_attempt -lt $PERMISSION_RETRY_MAX ]]; then
+            warn "权限刷新失败 (${permission_attempt}/${PERMISSION_RETRY_MAX}), 准备重试..."
+            sleep 2
+          fi
+        fi
+      fi
+      ;;
+    2)
+      # 未认证, 无法通过 refresh 解决
+      error "gh CLI 未认证或 token 无效, 需要重新登录"
+      warn "请执行: gh auth login -s ${REQUIRED_SCOPES[*]}"
+      exit 2
+      ;;
+  esac
+done
+
+if [[ "$permission_ok" != "true" ]]; then
+  error "权限检查失败, 已达最大重试次数 (${PERMISSION_RETRY_MAX})"
+  warn "请手动执行: gh auth refresh -s ${REQUIRED_SCOPES[*]}"
+  warn "或重新登录: gh auth login -s ${REQUIRED_SCOPES[*]}"
   exit 2
 fi
-debug "认证状态: $(echo "$AUTH_STATUS" | head -1)"
 
 # 检查 API 速率限制
 debug "检查 GitHub API 速率限制..."
