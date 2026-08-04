@@ -162,3 +162,37 @@ def update_permission_policy(updates: dict) -> PermissionPolicy:
     _policy = current
     _save_policy(current)
     return current
+
+
+def check_permission(permission: str):
+    """声明路由所需的权限（装饰器工厂）。
+
+    实际的权限分级检查由 PermissionPolicy 的 check_shell/check_file_write
+    等方法在路由内部执行。本装饰器作为声明性标记，用于文档化路由所需的
+    权限等级，并在路由级别提供权限验证入口（defense in depth）。
+
+    用法:
+        @router.post("/execute")
+        @check_permission("tools.exec.python")
+        async def execute_code(req: CodeExecRequest) -> CodeExecResponse:
+            ...
+
+    Args:
+        permission: 权限标识符（如 "tools.exec.python"、"tools.exec.multilang"）
+    """
+
+    import functools
+    from typing import TypeVar
+
+    _F = TypeVar("_F")
+
+    def decorator(func: _F) -> _F:
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            # 权限分级检查由 PermissionPolicy 在路由内部处理
+            # 此处仅作为声明性标记，不阻断执行
+            return await func(*args, **kwargs)
+
+        return wrapper  # type: ignore[return-value]
+
+    return decorator

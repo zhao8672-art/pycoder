@@ -75,6 +75,9 @@ _tmp_*
 _cleanup.*
 _disk_*
 _startup.log
+
+# === 归档目录（根目录整理时归档的临时/调试/产物文件）===
+archived/
 backend.log
 backend_stderr.log
 backend_stdout.log

@@ -12,6 +12,7 @@ import sys
 import tempfile
 import time
 import traceback
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,23 @@ from pycoder.server.permission_policy import check_permission
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/code-exec", tags=["code-exec"])
+
+
+# ──────────────────────────────────────────────────────────
+# 沙箱配置 — 供 app._create_sandbox 与 rest_routes 共用
+# ──────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class SandboxConfig:
+    """子进程沙箱配置（只读）"""
+
+    default_timeout: int = 30
+    max_timeout: int = 120
+    max_output_chars: int = 10000
+
+
+_sandbox_config = SandboxConfig()
 
 
 # ──────────────────────────────────────────────────────────
