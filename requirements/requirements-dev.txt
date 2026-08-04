@@ -4,8 +4,10 @@
 #
 #    pip-compile --output-file=requirements/requirements-dev.txt requirements/requirements-dev.in
 #
---index-url https://pypi.tuna.tsinghua.edu.cn/simple
---trusted-host pypi.tuna.tsinghua.edu.cn
+# 注意: 不要在此文件放置 --index-url / --trusted-host 等 pip 选项行。
+# setuptools 通过 [tool.setuptools.dynamic.optional-dependencies] 读取本文件时,
+# 会把每行当作 PEP 508 依赖 specifier 解析, pip 选项行会导致 InvalidRequirement。
+# 镜像源请通过 pip config 或 PIP_INDEX_URL 环境变量配置。
 
 annotated-doc==0.0.4
     # via
