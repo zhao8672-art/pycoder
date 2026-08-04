@@ -1,3 +1,7 @@
+# -e . 让 pip-compile 尊重 pyproject.toml 依赖约束, 避免版本冲突。
+# 重新生成后需删除输出中的 -e . 行 (setuptools 无法解析)。
+-e .
+
 llama-index-embeddings-huggingface
 
 # NumPy 2.x adds Python 3.14 wheels, but dropped Python 3.10.
