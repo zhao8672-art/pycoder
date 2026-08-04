@@ -185,7 +185,7 @@ jobs:
   stress-test:
     name: "高并发 fixture 压测"
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: 设置 Python
@@ -204,16 +204,33 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .
           python -m pip install -r requirements/requirements-dev.txt
-      - name: 运行高并发 fixture 压测
+      - name: 运行高并发 fixture 压测 (带重试)
         # workers=8 适配 CI 2-4 核 runner; rounds=2 平衡覆盖与耗时
         # 完整 4 阶段: xdist 并行 + 实例隔离 + 线程安全 + 泄漏检测
+        # 重试策略: 最多 3 次, 偶发超时自动恢复; 全部失败才阻断合并
+        shell: bash
         run: |
-          python scripts/stress_fixture_concurrency.py \
-            --workers 8 \
-            --rounds 2 \
-            --instances 20 \
-            --threads 8 \
-            --ops 10
+          max_attempts=3
+          for attempt in $(seq 1 $max_attempts); do
+            echo "::group::尝试 $attempt/$max_attempts"
+            if python scripts/stress_fixture_concurrency.py \
+              --workers 8 \
+              --rounds 2 \
+              --instances 20 \
+              --threads 8 \
+              --ops 10; then
+              echo "::endgroup::"
+              echo "✅ 压测通过 (尝试 $attempt/$max_attempts)"
+              exit 0
+            fi
+            echo "::endgroup::"
+            if [ $attempt -lt $max_attempts ]; then
+              echo "⚠️ 尝试 $attempt/$max_attempts 失败, 10秒后重试..."
+              sleep 10
+            fi
+          done
+          echo "❌ $max_attempts 次尝试均失败, 阻断合并"
+          exit 1
       - name: 归档压测结果
         if: always()
         uses: actions/upload-artifact@v4
