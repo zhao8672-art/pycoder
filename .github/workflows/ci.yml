@@ -81,9 +81,14 @@ jobs:
 
       - name: 运行测试 + 覆盖率
         # CI 策略: 跳过 slow/integration 测试，单测超时 60s，并行执行
+        # --dist=loadfile: 按文件分配 worker, 避免 sqlite3/线程跨进程崩溃
+        # --ignore=tests/e2e_test.py: 脚本式文件, 非 pytest 测试
+        # architecture 测试单独用 -n 0 运行, 避免 xdist worker 崩溃
         run: |
           python -m pytest tests/ \
             -m "not slow and not integration" \
+            --ignore=tests/e2e_test.py \
+            --ignore=tests/architecture \
             --cov=pycoder \
             --cov-report=xml \
             --cov-report=term-missing \
@@ -92,7 +97,23 @@ jobs:
             --tb=short \
             --durations=10 \
             --timeout=60 \
-            -n auto
+            -n auto \
+            --dist=loadfile
+
+      - name: 运行架构测试 (串行)
+        # architecture 测试含 sqlite3 连接, xdist 并行会导致 worker 崩溃
+        run: |
+          python -m pytest tests/architecture/ \
+            -m "not slow and not integration" \
+            --cov=pycoder \
+            --cov-append \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            -ra \
+            --tb=short \
+            --durations=10 \
+            --timeout=120 \
+            -n 0
 
       - name: 上传覆盖率报告到 Codecov
         if: matrix.os == 'ubuntu-latest'
@@ -130,9 +151,11 @@ jobs:
         run: |
           python -m pytest tests/ \
             -m "slow or integration" \
+            --ignore=tests/e2e_test.py \
             -ra --tb=short --durations=10 \
             --timeout=180 \
-            -n auto
+            -n auto \
+            --dist=loadfile
 
   # ── 构建验证 (仅 Ubuntu, 快速检查打包) ──────────────────────────
   build:
