@@ -13,8 +13,13 @@
 #  4. 关键依赖 (fastapi/pydantic/httpx) 使用 ~= 锁定兼容版本
 #
 #  ─── 修改依赖的流程 ───
-#  a) 编辑 requirements/requirements.in (或对应 .in)
-#  b) 重新生成 .txt:  uv pip compile requirements/requirements.in -o requirements.txt
+#  a) 编辑 requirements/requirements-dev.in (或对应 .in)
+#  b) 重新生成 .txt:
+#       pip-compile --no-emit-options --resolver=backtracking \
+#         --output-file requirements/requirements-dev.txt \
+#         requirements/requirements-dev.in
+#     注意: .in 中的 -e . 让 pip-compile 尊重 pyproject.toml 约束,
+#     但生成的 -e . 行需手动删除 (setuptools 无法解析)。
 #  c) 测试:            python -m pip install -e ".[dev]"
 #  d) 验证:            python scripts/check_readme_consistency.py
 #

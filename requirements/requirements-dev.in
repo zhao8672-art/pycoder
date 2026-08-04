@@ -1,3 +1,7 @@
+# 包含项目自身依赖 (-e .), 确保锁文件版本与 pyproject.toml 的 ~= 范围一致,
+# 避免 pip install -e ".[dev]" 时 ResolutionImpossible 冲突。
+-e .
+
 pytest
 pytest-cov
 pytest-env
