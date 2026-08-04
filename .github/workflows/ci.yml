@@ -66,89 +66,18 @@ jobs:
           allow-prereleases: true
 
       # ── 权限预检查: 验证 GITHUB_TOKEN 具备所需权限 ──────
-      # 使用 gh_permissions.py 模块验证 token scope
-      # 记录检查耗时、当前 scope、缺失 scope 等详细信息
+      # 使用 gh_permissions 包的 --format ci 模式
+      # 自动生成含耗时、scope 详情的 CI 风格报告 (替代 80+ 行内联脚本)
       - name: 验证 GITHUB_TOKEN 权限
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "═══════════════════════════════════════════════════"
-          echo "  GITHUB_TOKEN 权限预检查"
-          echo "═══════════════════════════════════════════════════"
-          START_TIME=$(date +%s)
-
-          # 运行权限检查, 捕获 JSON 输出
-          CHECK_OUTPUT=$(python scripts/gh_permissions.py \
+          PYTHONPATH=scripts python -m gh_permissions \
             --check-only \
-            --json \
+            --format ci \
+            --scopes repo workflow \
             --no-interactive \
-            --scopes repo workflow 2>&1) || true
-
-          END_TIME=$(date +%s)
-          ELAPSED=$((END_TIME - START_TIME))
-
-          # 解析 JSON 并打印详细 scope 信息
-          echo ""
-          echo "── 检查结果 ──────────────────────────────────────"
-          echo "$CHECK_OUTPUT" | python -c "
-          import sys, json
-          lines = sys.stdin.read()
-          # 提取 JSON 部分 (跳过日志行)
-          start = lines.find('{')
-          if start == -1:
-              print('  (无法解析输出, 原始输出:)')
-              print(f'  {lines[:300]}')
-              sys.exit(0)
-          try:
-              data = json.loads(lines[start:])
-          except json.JSONDecodeError as e:
-              print(f'  (JSON 解析失败: {e})')
-              print(f'  原始输出: {lines[start:start+300]}')
-              sys.exit(0)
-
-          ok = data.get('ok', False)
-          print(f\"  通过:           {'✅' if ok else '❌'}\")
-          print(f\"  已认证:         {'✅' if data.get('authenticated') else '❌'}\")
-          print(f\"  Token 有效:     {'✅' if data.get('token_valid') else '❌'}\")
-          if data.get('username'):
-              print(f\"  用户名:         {data['username']}\")
-          current = data.get('current_scopes', [])
-          print(f\"  当前 scope ({len(current)}): {', '.join(current) if current else '(无)'}\")
-          required = data.get('required_scopes', [])
-          print(f\"  必需 scope ({len(required)}): {', '.join(required)}\")
-          missing = data.get('missing_scopes', [])
-          if missing:
-              print(f\"  缺失 scope ({len(missing)}): {', '.join(missing)}\")
-          else:
-              print(f\"  缺失 scope:     (无)\")
-          if data.get('error'):
-              print(f\"  错误信息:       {data['error']}\")
-          " 2>/dev/null || echo "  (JSON 解析失败, 原始输出: ${CHECK_OUTPUT:0:300})"
-
-          echo ""
-          echo "── 耗时 ──────────────────────────────────────────"
-          echo "  开始时间: $(date -d @${START_TIME} '+%Y-%m-%d %H:%M:%S UTC' 2>/dev/null || echo ${START_TIME})"
-          echo "  结束时间: $(date -d @${END_TIME} '+%Y-%m-%d %H:%M:%S UTC' 2>/dev/null || echo ${END_TIME})"
-          echo "  检查耗时: ${ELAPSED}s"
-          echo ""
-
-          # 判断最终结果
-          if echo "$CHECK_OUTPUT" | python -c "
-          import sys, json
-          lines = sys.stdin.read()
-          start = lines.find('{')
-          if start >= 0:
-              data = json.loads(lines[start:])
-              sys.exit(0 if data.get('ok') else 1)
-          sys.exit(1)
-          " 2>/dev/null; then
-            echo "✅ 权限检查通过 (耗时 ${ELAPSED}s)"
-          else
-            echo "⚠️  GITHUB_TOKEN 权限不足, 但 CI 将继续执行"
-            echo "    (GITHUB_TOKEN 使用 permissions: 块控制, 非 PAT scope)"
-            echo "    如需完整 scope 检查, 请使用 PAT 配置 GH_TOKEN secret"
-          fi
-          echo "═══════════════════════════════════════════════════"
+            || true
 
       # FIX #6: 添加 pip 缓存, 加速依赖安装
       - name: 缓存 pip 依赖
