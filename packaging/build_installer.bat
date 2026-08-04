@@ -75,7 +75,7 @@ xcopy /E /I /Y /Q pycoder\electron\dist dist\PyCoder-win32-x64\resources\app\dis
 REM ★ 创建包装 package.json: Electron 从 asar 根读取 main，指向 dist/main/index.js
 echo {"name":"pycoder","version":"1.0.0","main":"dist/main/index.js"} > dist\PyCoder-win32-x64\resources\app\package.json
 pushd dist\PyCoder-win32-x64\resources
-call npx --prefix "%~dp0..\..\pycoder\electron" asar pack app app.asar
+call npx --prefix "%~dp0..\pycoder\electron" asar pack app app.asar
 if !errorlevel! neq 0 (
     echo   [X] asar 打包失败
     popd
