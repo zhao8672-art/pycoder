@@ -440,6 +440,7 @@ trigger_workflow() {
 
 # ── 等待 workflow 最近一次运行完成 ─────────────────────────
 # 轮询 gh run list 直到运行完成或超时
+# 超时/失败时打印详细诊断信息: job 状态、失败步骤、run URL
 wait_for_workflow() {
   local workflow_file="$1"
   local elapsed=0
@@ -464,23 +465,54 @@ wait_for_workflow() {
 
   if [[ -z "$run_id" ]]; then
     warn "未找到 ${workflow_file} 的运行记录 (可能触发失败)"
+    warn "可能原因:"
+    warn "  1. workflow_dispatch 触发器未生效 (检查 YAML 语法)"
+    warn "  2. gh CLI 权限不足 (需要 repo + workflow scope)"
+    warn "  3. workflow 文件不在默认分支 (workflow_dispatch 仅从默认分支读取)"
+    warn "手动检查: gh run list --workflow ${workflow_file} --repo ${REPO}"
     return 1
   fi
 
+  # 获取运行 URL (用于超时/失败时引导用户查看)
+  local run_url=""
+  run_url=$(gh run view "$run_id" --repo "$REPO" --json url --jq '.url' 2>/dev/null || echo "")
+  debug "运行 URL: ${run_url:-未知}"
+
   # 轮询运行状态
   while [[ $elapsed -lt $TRIGGER_TIMEOUT ]]; do
-    local status conclusion
-    status=$(gh run view "$run_id" --repo "$REPO" --json status --jq '.status' 2>/dev/null || echo "unknown")
-    conclusion=$(gh run view "$run_id" --repo "$REPO" --json conclusion --jq '.conclusion // empty' 2>/dev/null || echo "")
+    # 一次性获取完整运行状态 (status + conclusion + jobs)
+    local run_json
+    run_json=$(gh run view "$run_id" --repo "$REPO" --json status,conclusion,jobs 2>/dev/null || echo "{}")
 
-    debug "运行 ${run_id}: status=${status}, conclusion=${conclusion:-pending}, elapsed=${elapsed}s"
+    local status conclusion
+    status=$(echo "$run_json" | jq -r '.status // "unknown"')
+    conclusion=$(echo "$run_json" | jq -r '.conclusion // "pending"')
+
+    # 计算进度百分比
+    local progress=0
+    if [[ $TRIGGER_TIMEOUT -gt 0 ]]; then
+      progress=$((elapsed * 100 / TRIGGER_TIMEOUT))
+    fi
+
+    # 统计 job 状态
+    local total_jobs running_jobs queued_jobs completed_jobs failed_jobs
+    total_jobs=$(echo "$run_json" | jq -r '.jobs | length' 2>/dev/null || echo "0")
+    running_jobs=$(echo "$run_json" | jq -r '[.jobs[] | select(.status == "in_progress")] | length' 2>/dev/null || echo "0")
+    queued_jobs=$(echo "$run_json" | jq -r '[.jobs[] | select(.status == "queued")] | length' 2>/dev/null || echo "0")
+    completed_jobs=$(echo "$run_json" | jq -r '[.jobs[] | select(.status == "completed")] | length' 2>/dev/null || echo "0")
+    failed_jobs=$(echo "$run_json" | jq -r '[.jobs[] | select(.conclusion != "success" and .conclusion != null)] | length' 2>/dev/null || echo "0")
+
+    debug "[${progress}%] 运行 ${run_id}: status=${status}, jobs=${completed_jobs}/${total_jobs} 完成, ${running_jobs} 运行中, ${queued_jobs} 排队, ${failed_jobs} 失败, elapsed=${elapsed}s"
 
     if [[ "$status" == "completed" ]]; then
       if [[ "$conclusion" == "success" ]]; then
-        success "${workflow_file} 运行完成 (成功)"
+        success "${workflow_file} 运行完成 (成功, 耗时 ${elapsed}s)"
         return 0
       else
+        # 运行失败 — 打印详细诊断
+        echo ""
         warn "${workflow_file} 运行完成 (结论: ${conclusion:-unknown})"
+        print_run_diagnostics "$run_id" "$run_json" "$run_url" "$workflow_file"
         return 1
       fi
     fi
@@ -489,8 +521,135 @@ wait_for_workflow() {
     elapsed=$((elapsed + poll_interval))
   done
 
-  warn "等待 ${workflow_file} 超时 (${TRIGGER_TIMEOUT}s), 运行 ${run_id} 仍在进行中"
+  # ── 超时处理: 打印当前完整状态 ──
+  echo ""
+  warn "等待 ${workflow_file} 超时 (${TRIGGER_TIMEOUT}s), 运行仍在进行中"
+
+  # 获取超时时刻的完整状态快照
+  local timeout_json
+  timeout_json=$(gh run view "$run_id" --repo "$REPO" --json status,conclusion,jobs,url,createdAt,startedAt,updatedAt 2>/dev/null || echo "{}")
+
+  print_run_diagnostics "$run_id" "$timeout_json" "$run_url" "$workflow_file" "timeout"
+
   return 1
+}
+
+# ── 打印运行诊断信息 ──────────────────────────────────────
+# 显示 job 级别状态、失败步骤、时间信息和 run URL
+print_run_diagnostics() {
+  local run_id="$1"
+  local run_json="$2"
+  local run_url="$3"
+  local workflow_file="$4"
+  local context="${5:-failure}"  # "failure" 或 "timeout"
+
+  local status conclusion created started updated
+  status=$(echo "$run_json" | jq -r '.status // "unknown"')
+  conclusion=$(echo "$run_json" | jq -r '.conclusion // "pending"')
+  created=$(echo "$run_json" | jq -r '.createdAt // "unknown"')
+  started=$(echo "$run_json" | jq -r '.startedAt // "unknown"')
+  updated=$(echo "$run_json" | jq -r '.updatedAt // "unknown"')
+
+  echo ""
+  warn "═══════════════════════════════════════════════════"
+  if [[ "$context" == "timeout" ]]; then
+    warn "  超时诊断 — ${workflow_file}"
+  else
+    warn "  失败诊断 — ${workflow_file}"
+  fi
+  warn "═══════════════════════════════════════════════════"
+
+  # 基本信息
+  echo ""
+  info "运行信息:"
+  echo "  Run ID:        ${run_id}"
+  echo "  状态:          ${status}"
+  echo "  结论:          ${conclusion}"
+  echo "  创建时间:      ${created}"
+  echo "  开始时间:      ${started}"
+  echo "  最后更新:      ${updated}"
+  if [[ -n "$run_url" ]]; then
+    echo "  Run URL:       ${run_url}"
+  fi
+
+  # Job 级别状态
+  local total_jobs
+  total_jobs=$(echo "$run_json" | jq -r '.jobs | length' 2>/dev/null || echo "0")
+
+  if [[ "$total_jobs" -gt 0 ]] 2>/dev/null; then
+    echo ""
+    info "Job 状态 (${total_jobs} 个):"
+    echo "$run_json" | jq -r '.jobs[] | "  \(.status // "?") | \(.conclusion // "pending") | \(.name)"' 2>/dev/null || echo "  (无法解析 job 信息)"
+
+    # 失败 job 的详细步骤
+    local failed_job_count
+    failed_job_count=$(echo "$run_json" | jq -r '[.jobs[] | select(.conclusion != "success" and .conclusion != null and .conclusion != "pending")] | length' 2>/dev/null || echo "0")
+
+    if [[ "$failed_job_count" -gt 0 ]] 2>/dev/null; then
+      echo ""
+      warn "失败 Job 详情 (${failed_job_count} 个):"
+      echo "$run_json" | jq -r '
+        .jobs[] |
+        select(.conclusion != "success" and .conclusion != null and .conclusion != "pending") |
+        "  ✗ \(.name) [\(.conclusion)]"
+      ' 2>/dev/null || echo "  (无法解析)"
+
+      # 失败步骤
+      echo ""
+      warn "失败步骤:"
+      echo "$run_json" | jq -r '
+        .jobs[] |
+        select(.conclusion != "success" and .conclusion != null and .conclusion != "pending") |
+        . as $job |
+        (.steps[]? | select(.conclusion != "success" and .conclusion != null) |
+          "  ✗ \($job.name) → \(.name) [\(.conclusion)]"
+        )
+      ' 2>/dev/null || echo "  (无法解析步骤信息)"
+    fi
+
+    # 超时模式下显示仍在运行的 job
+    if [[ "$context" == "timeout" ]]; then
+      local running_count
+      running_count=$(echo "$run_json" | jq -r '[.jobs[] | select(.status == "in_progress" or .status == "queued")] | length' 2>/dev/null || echo "0")
+
+      if [[ "$running_count" -gt 0 ]] 2>/dev/null; then
+        echo ""
+        warn "仍在运行的 Job (${running_count} 个):"
+        echo "$run_json" | jq -r '
+          .jobs[] |
+          select(.status == "in_progress" or .status == "queued") |
+          "  ⏳ \(.status) | \(.name) (已运行 \((.steps | map(.number) | length)) 步)"
+        ' 2>/dev/null || echo "  (无法解析)"
+      fi
+    fi
+  fi
+
+  # 建议
+  echo ""
+  if [[ "$context" == "timeout" ]]; then
+    info "超时可能原因:"
+    echo "  1. runner 资源不足 (GitHub 免费层并发数有限)"
+    echo "  2. workflow 本身执行时间超过 ${TRIGGER_TIMEOUT}s (可用 --max-retries 无法解决, 需增大超时)"
+    echo "  3. workflow 卡在排队等待 (queued 状态)"
+    echo ""
+    info "建议操作:"
+    echo "  • 查看 Run URL 实时日志: ${run_url:-未获取到}"
+    echo "  • 增大超时: 修改脚本中 TRIGGER_TIMEOUT 值"
+    echo "  • 手动检查: gh run view ${run_id} --repo ${REPO} --log"
+    echo "  • 取消运行: gh run cancel ${run_id} --repo ${REPO}"
+  else
+    info "失败可能原因:"
+    echo "  1. workflow 配置错误 (YAML 语法、依赖安装失败)"
+    echo "  2. 测试失败 (代码 bug 或测试本身问题)"
+    echo "  3. 权限不足 (GITHUB_TOKEN 缺少所需 scope)"
+    echo ""
+    info "建议操作:"
+    echo "  • 查看失败日志: gh run view ${run_id} --repo ${REPO} --log-failed"
+    echo "  • 查看 Run URL: ${run_url:-未获取到}"
+    echo "  • 重新触发: gh run rerun ${run_id} --repo ${REPO} --failed"
+    echo "  • 修复后重试: 修改代码后 push, workflow 自动触发"
+  fi
+  warn "═══════════════════════════════════════════════════"
 }
 
 # ── 自动触发缺失的 workflow 并重新配置 ─────────────────────
