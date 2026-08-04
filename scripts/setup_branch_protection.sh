@@ -19,14 +19,15 @@
 #    bash scripts/setup_branch_protection.sh --log-file /tmp/bp.log   # 输出日志到文件
 #
 #  选项:
-#    --dry-run       预览配置内容, 不实际执行 API 调用
-#    --no-confirm    跳过确认提示 (适合 CI/CD 自动化)
-#    --verbose       显示 DEBUG 级别日志
-#    --log-file PATH 同时将日志写入指定文件
-#    --max-retries N API 调用最大重试次数 (默认 3)
-#    --repo REPO     指定仓库 (等同于 REPO 环境变量)
-#    --branch BRANCH 指定分支 (默认 master)
-#    -h, --help      显示帮助
+#    --dry-run         预览配置内容, 不实际执行 API 调用
+#    --no-confirm      跳过确认提示 (适合 CI/CD 自动化)
+#    --verbose         显示 DEBUG 级别日志
+#    --log-file PATH   同时将日志写入指定文件
+#    --max-retries N   API 调用最大重试次数 (默认 3)
+#    --no-auto-trigger 缺失检查时不自动触发 workflow (仅警告)
+#    --repo REPO       指定仓库 (等同于 REPO 环境变量)
+#    --branch BRANCH   指定分支 (默认 master)
+#    -h, --help        显示帮助
 #
 #  退出码:
 #    0  成功
@@ -49,6 +50,8 @@ NO_CONFIRM=false
 VERBOSE=false
 LOG_FILE=""
 MAX_RETRIES=3
+NO_AUTO_TRIGGER=false
+TRIGGER_TIMEOUT=600  # 等待 workflow 完成的超时秒数 (默认 10 分钟)
 REPO="${REPO:-}"
 BRANCH="${BRANCH:-master}"
 
@@ -131,6 +134,7 @@ parse_args() {
       --verbose)       VERBOSE=true; shift ;;
       --log-file)      LOG_FILE="$2"; shift 2 ;;
       --max-retries)   MAX_RETRIES="$2"; shift 2 ;;
+      --no-auto-trigger) NO_AUTO_TRIGGER=true; shift ;;
       --repo)          REPO="$2"; shift 2 ;;
       --branch)        BRANCH="$2"; shift 2 ;;
       -h|--help)
@@ -256,6 +260,17 @@ info "必需状态检查 (${#REQUIRED_CHECKS[@]} 项):"
 for check in "${REQUIRED_CHECKS[@]}"; do
   echo "  • ${check}"
 done
+
+# ── 检查名 → workflow 文件映射 ────────────────────────────
+# 用于缺失检查时自动触发对应 workflow
+declare -A CHECK_TO_WORKFLOW=(
+  ["ubuntu-latest / py3.14"]="ci.yml"
+  ["windows-latest / py3.14"]="ci.yml"
+  ["慢测试 / 集成测试"]="ci.yml"
+  ["构建验证 (wheel)"]="ci.yml"
+  ["高并发 fixture 压测"]="stress-test.yml"
+  ["security"]="security-scan.yml"
+)
 
 # ── 构建 JSON payload ────────────────────────────────────
 debug "构建 JSON payload..."
@@ -402,6 +417,164 @@ gh_api_with_retry() {
   return 1
 }
 
+# ── 触发 workflow (手动触发) ──────────────────────────────
+# 使用 gh workflow run 触发指定 workflow, 需该 workflow 支持 workflow_dispatch
+trigger_workflow() {
+  local workflow_file="$1"
+  debug "触发 workflow: ${workflow_file}"
+
+  local trigger_result
+  trigger_result=$(gh workflow run "$workflow_file" --repo "$REPO" 2>&1) || {
+    warn "触发 ${workflow_file} 失败: ${trigger_result}"
+    # 检查是否因缺少 workflow_dispatch 触发器
+    if echo "$trigger_result" | grep -qi "workflow_dispatch\|does not have"; then
+      warn "${workflow_file} 未配置 workflow_dispatch 触发器, 无法手动触发"
+      warn "解决: 为该 workflow 添加 'workflow_dispatch:' 到 on: 段, 或 push 一个空 commit 触发"
+    fi
+    return 1
+  }
+
+  debug "触发成功: ${trigger_result}"
+  return 0
+}
+
+# ── 等待 workflow 最近一次运行完成 ─────────────────────────
+# 轮询 gh run list 直到运行完成或超时
+wait_for_workflow() {
+  local workflow_file="$1"
+  local elapsed=0
+  local poll_interval=15
+
+  info "等待 ${workflow_file} 运行完成 (超时 ${TRIGGER_TIMEOUT}s)..."
+
+  # 获取最近的运行 ID
+  local run_id=""
+  while [[ $elapsed -lt $TRIGGER_TIMEOUT ]]; do
+    run_id=$(gh run list --workflow "$workflow_file" --repo "$REPO" --limit 1 --json databaseId,status,conclusion --jq '.[0].databaseId // empty' 2>/dev/null || echo "")
+
+    if [[ -n "$run_id" ]]; then
+      debug "找到运行 ID: ${run_id}"
+      break
+    fi
+
+    debug "等待运行开始... (${elapsed}s/${TRIGGER_TIMEOUT}s)"
+    sleep "$poll_interval"
+    elapsed=$((elapsed + poll_interval))
+  done
+
+  if [[ -z "$run_id" ]]; then
+    warn "未找到 ${workflow_file} 的运行记录 (可能触发失败)"
+    return 1
+  fi
+
+  # 轮询运行状态
+  while [[ $elapsed -lt $TRIGGER_TIMEOUT ]]; do
+    local status conclusion
+    status=$(gh run view "$run_id" --repo "$REPO" --json status --jq '.status' 2>/dev/null || echo "unknown")
+    conclusion=$(gh run view "$run_id" --repo "$REPO" --json conclusion --jq '.conclusion // empty' 2>/dev/null || echo "")
+
+    debug "运行 ${run_id}: status=${status}, conclusion=${conclusion:-pending}, elapsed=${elapsed}s"
+
+    if [[ "$status" == "completed" ]]; then
+      if [[ "$conclusion" == "success" ]]; then
+        success "${workflow_file} 运行完成 (成功)"
+        return 0
+      else
+        warn "${workflow_file} 运行完成 (结论: ${conclusion:-unknown})"
+        return 1
+      fi
+    fi
+
+    sleep "$poll_interval"
+    elapsed=$((elapsed + poll_interval))
+  done
+
+  warn "等待 ${workflow_file} 超时 (${TRIGGER_TIMEOUT}s), 运行 ${run_id} 仍在进行中"
+  return 1
+}
+
+# ── 自动触发缺失的 workflow 并重新配置 ─────────────────────
+auto_trigger_missing() {
+  local -n missing_ref=$1
+  local triggered_workflows=()
+  local failed_workflows=()
+
+  echo ""
+  warn "检测到 ${#missing_ref[@]} 项缺失检查, 尝试自动触发对应 workflow..."
+
+  # 收集需要触发的唯一 workflow 文件
+  local workflows_to_trigger=()
+  for missing_check in "${missing_ref[@]}"; do
+    local wf="${CHECK_TO_WORKFLOW[$missing_check]:-}"
+    if [[ -n "$wf" ]]; then
+      # 去重
+      local already_in=false
+      for existing in "${workflows_to_trigger[@]:-}"; do
+        if [[ "$existing" == "$wf" ]]; then
+          already_in=true
+          break
+        fi
+      done
+      if [[ "$already_in" == "false" ]]; then
+        workflows_to_trigger+=("$wf")
+        info "缺失检查「${missing_check}」→ 触发 ${wf}"
+      fi
+    else
+      warn "缺失检查「${missing_check}」无对应 workflow 映射, 跳过"
+    fi
+  done
+
+  if [[ ${#workflows_to_trigger[@]} -eq 0 ]]; then
+    warn "无可触发的 workflow, 请手动 push 一个空 commit: git commit --allow-empty -m 'ci: trigger workflows'"
+    return 1
+  fi
+
+  # 逐个触发
+  echo ""
+  info "触发 ${#workflows_to_trigger[@]} 个 workflow..."
+  for wf in "${workflows_to_trigger[@]}"; do
+    if trigger_workflow "$wf"; then
+      triggered_workflows+=("$wf")
+    else
+      failed_workflows+=("$wf")
+    fi
+  done
+
+  # 等待已触发的 workflow 完成
+  if [[ ${#triggered_workflows[@]} -gt 0 ]]; then
+    echo ""
+    info "等待 ${#triggered_workflows[@]} 个 workflow 完成..."
+    for wf in "${triggered_workflows[@]}"; do
+      wait_for_workflow "$wf" || warn "${wf} 未在超时内完成, 状态检查可能仍未出现"
+    done
+  fi
+
+  # 重新配置分支保护
+  if [[ ${#triggered_workflows[@]} -gt 0 ]]; then
+    echo ""
+    info "重新配置分支保护规则 (使新出现的状态检查生效)..."
+    local reconfigure_result
+    reconfigure_result=$(gh_api_with_retry PUT "repos/${REPO}/branches/${BRANCH}/protection" "$PAYLOAD")
+    if [[ -n "$reconfigure_result" ]]; then
+      success "分支保护规则已重新配置"
+    else
+      warn "重新配置失败, 请稍后手动重新运行本脚本"
+    fi
+  fi
+
+  # 报告失败项
+  if [[ ${#failed_workflows[@]} -gt 0 ]]; then
+    echo ""
+    warn "${#failed_workflows[@]} 个 workflow 触发失败:"
+    for fw in "${failed_workflows[@]}"; do
+      echo "  ✗ ${fw}"
+    done
+    warn "请手动检查这些 workflow 是否已配置 workflow_dispatch 触发器"
+  fi
+
+  return 0
+}
+
 # ── 配置分支保护 ──────────────────────────────────────────
 info "正在配置分支保护规则..."
 API_PATH="repos/${REPO}/branches/${BRANCH}/protection"
@@ -448,8 +621,46 @@ if [[ -n "$PROTECTION" ]]; then
       for missing in "${missing_checks[@]}"; do
         echo "  ✗ ${missing}"
       done
-      warn "可能原因: 对应 workflow 尚未运行过, GitHub 未生成状态检查记录"
-      warn "解决: push 一个 commit 触发所有 workflow, 然后重新运行本脚本"
+
+      if [[ "$NO_AUTO_TRIGGER" == "true" ]]; then
+        warn "可能原因: 对应 workflow 尚未运行过, GitHub 未生成状态检查记录"
+        warn "解决: push 一个 commit 触发所有 workflow, 然后重新运行本脚本"
+        warn "(或去掉 --no-auto-trigger 选项让脚本自动触发)"
+      else
+        # ── 自动触发缺失的 workflow ──
+        auto_trigger_missing missing_checks
+
+        # 重新验证
+        echo ""
+        info "重新验证配置..."
+        PROTECTION=$(gh_api_with_retry GET "repos/${REPO}/branches/${BRANCH}/protection" "" || echo "")
+        if [[ -n "$PROTECTION" ]]; then
+          CONFIGURED_CHECKS=$(echo "$PROTECTION" | jq -r '.required_status_checks.contexts[]?' 2>/dev/null || echo "")
+          remaining_missing=()
+          for expected in "${REQUIRED_CHECKS[@]}"; do
+            if ! echo "$CONFIGURED_CHECKS" | grep -qF "$expected"; then
+              remaining_missing+=("$expected")
+            fi
+          done
+
+          if [[ ${#remaining_missing[@]} -eq 0 ]]; then
+            success "全部 ${#REQUIRED_CHECKS[@]} 项检查已配置"
+          else
+            echo ""
+            info "已配置的必需状态检查 (重新验证后):"
+            while IFS= read -r actual_check; do
+              echo "  • ${actual_check}"
+            done <<< "$CONFIGURED_CHECKS"
+            echo ""
+            warn "仍有 ${#remaining_missing[@]} 项检查缺失:"
+            for missing in "${remaining_missing[@]}"; do
+              echo "  ✗ ${missing}"
+            done
+            warn "可能原因: workflow 运行失败或超时, 请在 GitHub Actions 页面确认"
+            warn "手动解决: gh workflow run <workflow.yml> --repo ${REPO}, 然后重新运行本脚本"
+          fi
+        fi
+      fi
     fi
   else
     warn "未读取到必需状态检查 (可能权限不足或配置未生效)"

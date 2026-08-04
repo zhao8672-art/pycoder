@@ -8,6 +8,7 @@ on:
         branches: [master, main]
     pull_request:
         branches: [master, main]
+    workflow_dispatch:  # 允许手动触发 (setup_branch_protection.sh 自动调用)
 
 jobs:
     security:

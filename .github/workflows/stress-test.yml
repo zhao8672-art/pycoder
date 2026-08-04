@@ -21,6 +21,7 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  workflow_dispatch:  # 允许手动触发 (setup_branch_protection.sh 自动调用)
 
 # 取消同一 PR 的旧运行，节省 CI 资源
 concurrency:
