@@ -3,14 +3,14 @@
 #
 #  触发条件: push / PR 到 main/master 分支
 #  矩阵策略: ubuntu-latest × windows-latest, Python 3.14
-#  质量门禁:
+#  质量门禁 (阻塞合并):
 #    - ruff check (错误阈值 < 50)
 #    - pytest + coverage (覆盖率 >= 80%, 合并所有测试步骤)
-#    - mypy 类型检查 (宽松模式, 仅报告不阻塞)
-#    - 构建验证 (wheel + import 检查)
+#    - 慢测试 / 集成测试 (阻塞)
+#    - 高并发 fixture 压测 (阻塞)
+#    - 构建验证 (wheel + import 检查, needs: 全部测试 job)
 #  非阻塞检查:
-#    - 慢测试 / 集成测试 (continue-on-error)
-#    - 高并发 fixture 压测 (continue-on-error, 稳定后可升级为门禁)
+#    - mypy 类型检查 (宽松模式, 仅报告不阻塞)
 # ════════════════════════════════════════════════════════════════════════════
 
 name: PyCoder CI
@@ -144,12 +144,11 @@ jobs:
           path: coverage.xml
           retention-days: 7
 
-  # ── 慢测试分片 (独立 job, 不阻塞主 CI 门禁) ──────────────────────
+  # ── 慢测试分片 (阻塞门禁: 失败阻断合并) ──────────────────────────
   slow-tests:
     name: "慢测试 / 集成测试"
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: 设置 Python
@@ -179,17 +178,14 @@ jobs:
             -n auto \
             --dist=loadfile
 
-  # ── 高并发 fixture 竞争压测 (独立 job, 与主 CI 并行) ──────────────
+  # ── 高并发 fixture 竞争压测 (阻塞门禁: 失败阻断合并) ──────────────
   # 验证 fresh_store fixture 修复 (tmp_path 隔离) 在高并发下的稳定性。
   # 4 阶段: xdist 进程级并行 / 实例隔离 / 单例线程安全 / 残留物泄漏检测
   # CI 参数保守 (8 workers × 2 轮), 适配 2-4 核 runner; 本地可加大压力。
-  # continue-on-error: 压测对 runner 负载敏感, 初期不阻塞合并;
-  #   稳定后可改为 false 使其成为硬门禁。
   stress-test:
     name: "高并发 fixture 压测"
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: 设置 Python
@@ -227,9 +223,10 @@ jobs:
           retention-days: 7
 
   # ── 构建验证 (仅 Ubuntu, 快速检查打包) ──────────────────────────
+  # needs: 全部测试 job 通过后才构建, 确保测试失败直接阻断合并
   build:
     name: "构建验证 (wheel)"
-    needs: [ci]
+    needs: [ci, slow-tests, stress-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
