@@ -1,5 +1,7 @@
 """一键提交+推送 — 由 AI 助手在完成任务后调用"""
-import subprocess, sys, os
+import os
+import subprocess
+import sys
 from datetime import datetime
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -22,8 +24,9 @@ if __name__ == "__main__":
     print(f"📦 提交: {msg}")
     print("=" * 50)
 
-    # 1. git add
-    run(["git", "add", "-A"], "ADD")
+    # 1. git add (-u 仅暂存已跟踪文件的修改/删除, 避免误提交未跟踪的
+    #    敏感文件如 .env / credentials; 新文件需显式 `git add <file>`)
+    run(["git", "add", "-u"], "ADD")
 
     # 2. git status (简短)
     r = run(["git", "status", "--short"], "STATUS")
@@ -34,6 +37,12 @@ if __name__ == "__main__":
             print(f"      {f}")
         if len(files) > 10:
             print(f"      ... 还有 {len(files)-10} 个")
+        # 提示未跟踪文件 (git add -u 不会暂存这些, 需手动 git add)
+        untracked = [f for f in files if f.startswith("??")]
+        if untracked:
+            print(f"    ℹ️  检测到 {len(untracked)} 个未跟踪文件未提交 (需手动 `git add`):")
+            for f in untracked[:5]:
+                print(f"      {f}")
 
     # 3. git commit
     r = run(["git", "commit", "-m", msg], "COMMIT")
@@ -49,3 +58,4 @@ if __name__ == "__main__":
     else:
         print()
         print("⚠️  推送失败，hook 可能已自动重试")
+        sys.exit(1)

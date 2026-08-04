@@ -68,19 +68,34 @@ def client() -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture(scope="function")
-def fresh_store():
-    """Get a fresh in-memory session store for each test."""
-    from pycoder.server.session_store import get_session_store
+def fresh_store(tmp_path):
+    """每个测试获得独立隔离的 SessionStore 实例。
 
-    store = get_session_store()
-    # Use in-memory store for tests
-    store_path = Path(__file__).parent / "test_data"
-    store_path.mkdir(exist_ok=True)
-    yield store
-    # Cleanup
-    for f in store_path.glob("*.db"):
-        f.unlink()
-    store_path.rmdir()
+    使用 pytest 内置 tmp_path (每个测试唯一临时目录, xdist 安全)
+    创建独立 SessionStore, 避免并行执行时多 worker 共享固定
+    test_data 目录导致的数据竞争与 rmdir 失败。
+
+    同时 patch 全局单例 _store, 使测试期间通过 get_session_store()
+    获取的也是同一隔离实例, 测试结束后恢复原状。
+    """
+    import pycoder.server.session_store as ss_module
+
+    db_path = tmp_path / "sessions.db"
+    # 重置类级 _db_initialized 标志, 确保新实例在临时 db 路径上建表
+    ss_module.SessionStore._db_initialized = False
+    store = ss_module.SessionStore(db_path=str(db_path))
+    original_store = ss_module._store
+    ss_module._store = store
+    try:
+        yield store
+    finally:
+        try:
+            store.close()
+        except Exception:
+            pass
+        ss_module._store = original_store
+        if original_store is not None:
+            ss_module.SessionStore._db_initialized = True
 
 
 @pytest.fixture(scope="session")

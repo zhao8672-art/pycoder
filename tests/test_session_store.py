@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sqlite3
+
 
 def test_create_session(fresh_store):
     store = fresh_store
@@ -76,5 +78,5 @@ def test_add_message_to_invalid_session(fresh_store):
     store = fresh_store
     try:
         store.add_message("nonexistent-id", "user", "test")
-    except (KeyError, RuntimeError, AttributeError):
+    except (KeyError, RuntimeError, AttributeError, sqlite3.IntegrityError):
         pass

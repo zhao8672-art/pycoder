@@ -55,11 +55,12 @@ evolve:  ## 启动自我进化
 	$(PYTHON) -m pycoder --evolve
 
 # ── 测试 ─────────────────────────────────────────────────
+# --timeout 防止单测挂死拖垮整个套件 (与 pyproject.toml addopts 一致)
 test:  ## 运行全部测试
-	$(PYTHON) -m pytest
+	$(PYTHON) -m pytest --timeout=60
 
 test-fast:  ## 仅运行快速测试 (跳过慢测试)
-	$(PYTHON) -m pytest -m "not slow" -x
+	$(PYTHON) -m pytest -m "not slow" -x --timeout=60
 
 # ── 质量 ─────────────────────────────────────────────────
 lint:  ## 运行 ruff + bandit
