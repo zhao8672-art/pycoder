@@ -1,0 +1,16 @@
+# gh-permissions 依赖声明
+#
+# 本包无外部依赖, 仅使用 Python 标准库:
+#   - argparse      (CLI 参数解析)
+#   - dataclasses   (数据模型)
+#   - json          (JSON 输出)
+#   - logging       (日志)
+#   - re            (正则表达式, scope 解析)
+#   - shutil        (gh CLI 路径查找)
+#   - subprocess    (gh CLI 调用)
+#   - sys           (标准输入/输出)
+#   - time          (耗时统计)
+#
+# 可选开发依赖 (不在运行时 requirements.txt 中):
+#   pip install build twine     # 构建和发布
+#   pip install pytest          # 运行测试
