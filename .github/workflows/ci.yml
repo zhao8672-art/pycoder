@@ -7,8 +7,9 @@
 #    - ruff check (错误阈值 < 50)
 #    - pytest + coverage (覆盖率 >= 80%, 合并所有测试步骤)
 #    - 慢测试 / 集成测试 (阻塞)
-#    - 高并发 fixture 压测 (阻塞)
-#    - 构建验证 (wheel + import 检查, needs: 全部测试 job)
+#    - 构建验证 (wheel + import 检查, needs: ci + slow-tests)
+#  独立 workflow (并行触发, 需 Branch Protection 配置为必需检查):
+#    - .github/workflows/stress-test.yml — 高并发 fixture 压测 (带重试)
 #  非阻塞检查:
 #    - mypy 类型检查 (宽松模式, 仅报告不阻塞)
 # ════════════════════════════════════════════════════════════════════════════
@@ -178,72 +179,11 @@ jobs:
             -n auto \
             --dist=loadfile
 
-  # ── 高并发 fixture 竞争压测 (阻塞门禁: 失败阻断合并) ──────────────
-  # 验证 fresh_store fixture 修复 (tmp_path 隔离) 在高并发下的稳定性。
-  # 4 阶段: xdist 进程级并行 / 实例隔离 / 单例线程安全 / 残留物泄漏检测
-  # CI 参数保守 (8 workers × 2 轮), 适配 2-4 核 runner; 本地可加大压力。
-  stress-test:
-    name: "高并发 fixture 压测"
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - name: 设置 Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-          allow-prereleases: true
-      - name: 缓存 pip 依赖
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: stress-pip-${{ hashFiles('pyproject.toml') }}
-          restore-keys: stress-pip-
-      - name: 安装依赖
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .
-          python -m pip install -r requirements/requirements-dev.txt
-      - name: 运行高并发 fixture 压测 (带重试)
-        # workers=8 适配 CI 2-4 核 runner; rounds=2 平衡覆盖与耗时
-        # 完整 4 阶段: xdist 并行 + 实例隔离 + 线程安全 + 泄漏检测
-        # 重试策略: 最多 3 次, 偶发超时自动恢复; 全部失败才阻断合并
-        shell: bash
-        run: |
-          max_attempts=3
-          for attempt in $(seq 1 $max_attempts); do
-            echo "::group::尝试 $attempt/$max_attempts"
-            if python scripts/stress_fixture_concurrency.py \
-              --workers 8 \
-              --rounds 2 \
-              --instances 20 \
-              --threads 8 \
-              --ops 10; then
-              echo "::endgroup::"
-              echo "✅ 压测通过 (尝试 $attempt/$max_attempts)"
-              exit 0
-            fi
-            echo "::endgroup::"
-            if [ $attempt -lt $max_attempts ]; then
-              echo "⚠️ 尝试 $attempt/$max_attempts 失败, 10秒后重试..."
-              sleep 10
-            fi
-          done
-          echo "❌ $max_attempts 次尝试均失败, 阻断合并"
-          exit 1
-      - name: 归档压测结果
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: stress-test-results
-          path: stress-fixture-results.json
-          retention-days: 7
-
   # ── 构建验证 (仅 Ubuntu, 快速检查打包) ──────────────────────────
-  # needs: 全部测试 job 通过后才构建, 确保测试失败直接阻断合并
+  # needs: ci + slow-tests 通过后才构建 (stress-test 在独立 workflow)
   build:
     name: "构建验证 (wheel)"
-    needs: [ci, slow-tests, stress-test]
+    needs: [ci, slow-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
