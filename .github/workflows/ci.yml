@@ -5,9 +5,9 @@
 #  矩阵策略: ubuntu-latest × windows-latest, Python 3.14
 #  质量门禁:
 #    - ruff check (错误阈值 < 50)
-#    - pytest + coverage (覆盖率 >= 80%)
-#    - mypy 类型检查 (宽松模式)
-#    - 构建验证 (wheel)
+#    - pytest + coverage (覆盖率 >= 80%, 合并所有测试步骤)
+#    - mypy 类型检查 (宽松模式, 仅报告不阻塞)
+#    - 构建验证 (wheel + import 检查)
 # ════════════════════════════════════════════════════════════════════════════
 
 name: PyCoder CI
@@ -26,7 +26,8 @@ jobs:
   ci:
     name: "${{ matrix.os }} / py${{ matrix.python-version }}"
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    # FIX #3: 15→25 分钟, 新增 architecture 串行步骤需要更多时间
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -49,50 +50,47 @@ jobs:
           # Python 3.14 可能需要预发布版本支持
           allow-prereleases: true
 
+      # FIX #6: 添加 pip 缓存, 加速依赖安装
+      - name: 缓存 pip 依赖
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~\AppData\Local\pip\Cache
+          key: ${{ matrix.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: ${{ matrix.os }}-pip-
+
       - name: 安装依赖
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
+      # FIX #5: Ruff 检查改用 ruff 原生 exit code, 不再内联 Python 解析 JSON
       - name: Ruff 代码检查
         run: |
-          python -m pip install ruff
-          ruff check pycoder/ tests/ --output-format=json > ruff-report.json
-          python -c "
-          import json, sys
-          with open('ruff-report.json') as f:
-              data = json.load(f)
-          count = len(data)
-          threshold = 50
-          print(f'Ruff 发现 {count} 个问题 (阈值: {threshold})')
-          if count >= threshold:
-              print(f'❌ Ruff 错误超过阈值: {count} >= {threshold}')
-              # 打印前 10 个问题帮助定位
-              for item in data[:10]:
-                  print(f'  {item[\"filename\"]}:{item[\"location\"][\"row\"]} {item[\"code\"]} {item[\"message\"]}')
-              sys.exit(1)
-          print(f'✅ Ruff 检查通过 ({count} < {threshold})')
-          "
+          ruff check pycoder/ tests/ --output-format=concise --exit-non-zero-on-error
+          echo "✅ Ruff 检查通过"
 
+      # FIX #4: Mypy 不再用 || true 吞错, 改为 warning 级别 (不阻塞但可见)
       - name: Mypy 类型检查
-        # 类型检查在 Windows 上容易因 C 扩展缺失而失败，使用宽松模式
+        continue-on-error: true
         run: |
-          python -m mypy pycoder/ --ignore-missing-imports --show-error-codes || true
+          python -m mypy pycoder/ --ignore-missing-imports --show-error-codes
 
-      - name: 运行测试 + 覆盖率
+      - name: 运行测试 + 覆盖率 (并行)
         # CI 策略: 跳过 slow/integration 测试，单测超时 60s，并行执行
         # --dist=loadfile: 按文件分配 worker, 避免 sqlite3/线程跨进程崩溃
         # --ignore=tests/e2e_test.py: 脚本式文件, 非 pytest 测试
         # architecture 测试单独用 -n 0 运行, 避免 xdist worker 崩溃
+        # FIX #1: --cov-fail-under 移至最终步骤, 避免排除 architecture 后误报
+        # FIX #2: 不在此步骤生成 xml 报告, 仅积累 .coverage 数据
         run: |
           python -m pytest tests/ \
             -m "not slow and not integration" \
             --ignore=tests/e2e_test.py \
             --ignore=tests/architecture \
             --cov=pycoder \
-            --cov-report=xml \
             --cov-report=term-missing \
-            --cov-fail-under=80 \
             -ra \
             --tb=short \
             --durations=10 \
@@ -102,12 +100,12 @@ jobs:
 
       - name: 运行架构测试 (串行)
         # architecture 测试含 sqlite3 连接, xdist 并行会导致 worker 崩溃
+        # FIX #2: --cov-append 追加数据, 不在此生成 xml, 统一在最终步骤生成
         run: |
           python -m pytest tests/architecture/ \
             -m "not slow and not integration" \
             --cov=pycoder \
             --cov-append \
-            --cov-report=xml \
             --cov-report=term-missing \
             -ra \
             --tb=short \
@@ -115,12 +113,20 @@ jobs:
             --timeout=120 \
             -n 0
 
+      # FIX #1 + #2: 统一生成覆盖率报告 + 阈值检查
+      # 合并两个测试步骤的 .coverage 数据后, 一次性生成 xml 并检查阈值
+      - name: 生成覆盖率报告 + 阈值检查
+        run: |
+          python -m coverage report --fail-under=80
+          python -m coverage xml -o coverage.xml
+
+      # FIX #7: 所有平台都上传 Codecov (Windows 代码路径也需要覆盖)
       - name: 上传覆盖率报告到 Codecov
-        if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage.xml
           fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: 归档覆盖率报告
         if: always()
@@ -143,6 +149,13 @@ jobs:
         with:
           python-version: "3.14"
           allow-prereleases: true
+      # FIX #6: 添加 pip 缓存
+      - name: 缓存 pip 依赖
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: slow-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: slow-pip-
       - name: 安装依赖
         run: |
           python -m pip install --upgrade pip
@@ -175,3 +188,9 @@ jobs:
         run: |
           python -m pip install build
           python -m build --wheel
+
+      # FIX: 添加 import 验证, 确保打出的包可正常导入
+      - name: 验证 wheel 可导入
+        run: |
+          python -m pip install dist/*.whl
+          python -c "import pycoder; print(f'pycoder {pycoder.__version__} 导入成功')"
