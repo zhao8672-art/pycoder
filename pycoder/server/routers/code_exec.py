@@ -27,6 +27,31 @@ router = APIRouter(prefix="/api/code-exec", tags=["code-exec"])
 
 
 # ──────────────────────────────────────────────────────────
+# 写范围冲突检测 — 同一工作目录禁止并发执行
+# 借鉴 LoopX task_lease 的写范围冲突检测思路：并发执行若写同一目录
+# 可能互相覆盖文件，执行前先"认领" working_dir，冲突则拒绝。
+# ──────────────────────────────────────────────────────────
+
+_active_exec_dirs: set[str] = set()
+_active_exec_dirs_lock = asyncio.Lock()
+
+
+async def _try_lock_working_dir(working_dir: str) -> bool:
+    """尝试认领工作目录的执行权。返回 False 表示已被其他执行占用（冲突）。"""
+    async with _active_exec_dirs_lock:
+        if working_dir in _active_exec_dirs:
+            return False
+        _active_exec_dirs.add(working_dir)
+        return True
+
+
+async def _unlock_working_dir(working_dir: str) -> None:
+    """释放工作目录的执行权。"""
+    async with _active_exec_dirs_lock:
+        _active_exec_dirs.discard(working_dir)
+
+
+# ──────────────────────────────────────────────────────────
 # 沙箱配置 — 供 app._create_sandbox 与 rest_routes 共用
 # ──────────────────────────────────────────────────────────
 
@@ -202,6 +227,13 @@ async def _run_in_subprocess(req: CodeExecRequest) -> CodeExecResponse:
             error=f"不支持的语言: {req.language}，支持: {', '.join(dispatch.keys())}",
         )
 
+    # 写范围冲突检测：同一工作目录禁止并发执行，避免相互覆盖文件
+    if not await _try_lock_working_dir(working_dir):
+        return CodeExecResponse(
+            success=False,
+            error=f"工作目录正被其他执行占用（写范围冲突），请等待完成后再试: {working_dir}",
+        )
+
     try:
         result = await asyncio.wait_for(executor(), timeout=req.timeout + 10)
     except asyncio.TimeoutError:
@@ -213,6 +245,8 @@ async def _run_in_subprocess(req: CodeExecRequest) -> CodeExecResponse:
     except Exception as e:
         logger.exception("code_exec_failed language=%s error=%s", req.language, e)
         return CodeExecResponse(success=False, error=str(e))
+    finally:
+        await _unlock_working_dir(working_dir)
 
     return CodeExecResponse(
         success=result.get("exit_code", -1) == 0,

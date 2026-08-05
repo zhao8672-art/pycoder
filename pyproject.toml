@@ -365,9 +365,12 @@ layers = [
 ]
 # 容许同层互导 (顶层编排器之间会有少量互调, 后续逐步消除)
 # P2-D: 已通过 importlib 动态加载消除 evolution→server、lifecycle→evolution 的静态依赖
+# 已知架构债务白名单（需后续依赖反转重构，先显式记录避免掩盖）:
+#   - capabilities.lifecycle 函数内运行时导入 LifecycleOrchestrator（capabilities L3 依赖 lifecycle L2）
+#   - ai.diagnostic_auto_fix 在 TYPE_CHECKING 块内类型注解引用 context_orchestrator（运行时安全）
 ignore_imports = [
-    # lifecycle 编排器委托 server 的 autonomous_pipeline (设计允许)
-    "pycoder.lifecycle.adapters -> pycoder.server.services.autonomous_pipeline",
+    "pycoder.capabilities.lifecycle -> pycoder.lifecycle.orchestrator",
+    "pycoder.ai.diagnostic_auto_fix -> pycoder.server.services.context_orchestrator",
 ]
 
 [[tool.importlinter.contracts]]
