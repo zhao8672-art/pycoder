@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import timedelta
 
@@ -76,6 +77,9 @@ class CostController:
         self.budget = budget or TokenBudget()
         self._session = UsageAccumulator()
         self._hourly = UsageAccumulator()
+        # 滑动窗口：记录最近 1 小时内的 (timestamp, tokens)，精确统计而非整点重置
+        self._hourly_window: deque[tuple[float, int]] = deque()
+        self._window_seconds: float = timedelta(hours=1).total_seconds()
         # 复用已有的 CostTracker 单例记录 USD 计费
         self._cost_tracker = cost_tracker
 
@@ -101,8 +105,8 @@ class CostController:
                 f"(限制 {self.budget.per_session_limit})"
             )
 
-        # 3. 小时累计限制（先尝试重置）
-        self._maybe_reset_hourly()
+        # 3. 小时滑动窗口限制（先裁剪过期记录）
+        self._prune_hourly()
         if self._hourly.used_tokens + estimated_tokens > self.budget.per_hour_limit:
             return False, (
                 f"小时累计 token {self._hourly.used_tokens} 即将超限 "
@@ -110,6 +114,34 @@ class CostController:
             )
 
         return True, ""
+
+    def preview(self, estimated_tokens: int) -> dict:
+        """dry-run 预览：不修改任何状态，预估本次调用后的用量与是否超限。
+
+        借鉴 LoopX 的 dry-run 预览语义：调用前先算账，再决定是否真正发起调用。
+        """
+        self._prune_hourly()
+        projected_session = self._session.used_tokens + estimated_tokens
+        projected_hourly = self._hourly.used_tokens + estimated_tokens
+        throttled = (
+            estimated_tokens > self.budget.per_request_limit
+            or projected_session > self.budget.per_session_limit
+            or projected_hourly > self.budget.per_hour_limit
+        )
+        return {
+            "would_throttle": throttled,
+            "request": estimated_tokens,
+            "session": {
+                "used": self._session.used_tokens,
+                "projected": projected_session,
+                "limit": self.budget.per_session_limit,
+            },
+            "hourly": {
+                "used": self._hourly.used_tokens,
+                "projected": projected_hourly,
+                "limit": self.budget.per_hour_limit,
+            },
+        }
 
     def record_usage(self, input_tokens: int, output_tokens: int, model: str = "") -> None:
         """记录实际使用量（调用 LLM 后）
@@ -121,8 +153,9 @@ class CostController:
         # 更新会话与小时计数器
         self._session.used_tokens += total
         self._session.request_count += 1
-        self._hourly.used_tokens += total
-        self._hourly.request_count += 1
+        # 滑动窗口：追加本次记录，裁剪过期后重算
+        self._hourly_window.append((time.time(), total))
+        self._prune_hourly()
 
         # 委托 CostTracker 记录 USD 计费
         if self._cost_tracker is not None:
@@ -146,14 +179,22 @@ class CostController:
             self._hourly.used_tokens,
         )
 
-    def _maybe_reset_hourly(self) -> None:
-        """超过 1 小时则重置小时计数器"""
-        if time.time() - self._hourly.last_reset > timedelta(hours=1).total_seconds():
-            self._hourly = UsageAccumulator()
+    def _prune_hourly(self) -> None:
+        """裁剪滑动窗口中超过 1 小时的记录，并重算累计值。
+
+        相比旧的整点重置（可能在高频/低频切换时误判），滑动窗口
+        只统计"最近 1 小时"内的真实用量。
+        """
+        cutoff = time.time() - self._window_seconds
+        while self._hourly_window and self._hourly_window[0][0] < cutoff:
+            self._hourly_window.popleft()
+        self._hourly.used_tokens = sum(t for _, t in self._hourly_window) or 0
+        self._hourly.request_count = len(self._hourly_window)
+        self._hourly.last_reset = cutoff
 
     def get_usage_report(self) -> dict:
         """获取用量报告"""
-        self._maybe_reset_hourly()
+        self._prune_hourly()
         return {
             "session": {
                 "tokens": self._session.used_tokens,
@@ -175,6 +216,7 @@ class CostController:
     def reset_hourly(self) -> None:
         """强制重置小时计数（测试用）"""
         self._hourly = UsageAccumulator()
+        self._hourly_window.clear()
 
 
 # ══════════════════════════════════════════════════════════

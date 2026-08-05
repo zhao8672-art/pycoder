@@ -24,9 +24,15 @@ TaskTracker — 任务定义与追踪模块
 from __future__ import annotations
 
 import hashlib
+import json
+import logging
+import os
 import time
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class TaskPhase(Enum):
@@ -100,7 +106,7 @@ class TaskTracker:
     不依赖 LLM——所有状态由调用方显式更新。
     """
 
-    def __init__(self):
+    def __init__(self, persist_path: str | None = None):
         self._task_id: str = ""
         self._goal: str = ""
         self._parameters: dict = {}
@@ -112,6 +118,55 @@ class TaskTracker:
         self._drift_warnings: list[str] = []
         self._start_time: float = 0.0
         self._decisions: list[tuple[str, str]] = []  # (timestamp, decision)
+        # 持久化：append-only JSONL 快照（借鉴 LoopX 事件账本），进程重启后可恢复
+        self._persist_path = Path(
+            persist_path
+            or os.environ.get("PYCODER_TASK_STATE_DB", str(Path.home() / ".pycoder" / "task_states.jsonl"))
+        )
+
+    # ══════════════════════════════════════════════════════
+    # 持久化（append-only JSONL，失败不阻断主流程）
+    # ══════════════════════════════════════════════════════
+
+    def _persist(self) -> None:
+        """把当前完整状态追加写为一条 JSONL 快照（不可变账本）。"""
+        try:
+            self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+            status = self.get_status()
+            status["persist_ts"] = time.time()
+            with open(self._persist_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(status, ensure_ascii=False) + "\n")
+        except (OSError, ValueError, TypeError) as e:
+            logger.debug("task_persist_failed: %s", e)
+
+    def restore(self) -> bool:
+        """从持久化文件恢复最近一次任务状态（最后一条快照）。
+
+        Returns:
+            True 恢复成功；False 无快照或恢复失败
+        """
+        try:
+            if not self._persist_path.exists():
+                return False
+            last = None
+            with open(self._persist_path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        last = json.loads(line)
+            if not last:
+                return False
+            self._task_id = last.get("task_id", "")
+            self._goal = last.get("goal", "")
+            self._phase = TaskPhase(last.get("phase", TaskPhase.IDLE.value))
+            self._completed_steps = last.get("completed_steps", [])
+            self._next_step = last.get("next_step", "")
+            self._last_decision = last.get("last_decision", "")
+            self._drift_warnings = last.get("drift_warnings", [])
+            return True
+        except (OSError, ValueError, TypeError, KeyError) as e:
+            logger.debug("task_restore_failed: %s", e)
+            return False
 
     # ══════════════════════════════════════════════════════
     # 任务初始化
@@ -138,15 +193,18 @@ class TaskTracker:
         self._drift_warnings = []
         self._start_time = time.monotonic()
         self._decisions = []
+        self._persist()
 
         return self.get_anchor()
 
     def set_phase(self, phase: TaskPhase) -> None:
         """手动设置当前阶段"""
         self._phase = phase
+        self._persist()
 
     def set_next_step(self, step_description: str) -> None:
         self._next_step = step_description
+        self._persist()
 
     def record_decision(self, decision: str) -> None:
         """记录关键决策点"""
@@ -157,6 +215,7 @@ class TaskTracker:
                 decision,
             )
         )
+        self._persist()
 
     # ══════════════════════════════════════════════════════
     # 子任务管理
@@ -170,6 +229,7 @@ class TaskTracker:
             priority=priority,
         )
         self._subtasks.append(st)
+        self._persist()
         return st
 
     def start_subtask(self, subtask_id: str) -> None:
@@ -177,6 +237,7 @@ class TaskTracker:
             if st.id == subtask_id:
                 st.status = "active"
                 st.started_at = time.monotonic()
+                self._persist()
                 return
 
     def complete_subtask(self, subtask_id: str, success: bool = True) -> None:
@@ -189,6 +250,7 @@ class TaskTracker:
                 elif st.retries < st.max_retries:
                     st.retries += 1
                     st.status = "pending"  # 重试
+                self._persist()
                 return
 
     # ══════════════════════════════════════════════════════
@@ -236,6 +298,7 @@ class TaskTracker:
         # 最多保留 10 条
         if len(self._drift_warnings) > 10:
             self._drift_warnings = self._drift_warnings[-10:]
+        self._persist()
 
     # ══════════════════════════════════════════════════════
     # 标记完成
@@ -245,6 +308,7 @@ class TaskTracker:
         """标记任务结束"""
         self._phase = TaskPhase.DONE if success else TaskPhase.FAILED
         self._next_step = ""
+        self._persist()
         return self.get_anchor()
 
     # ══════════════════════════════════════════════════════
