@@ -11,6 +11,7 @@ import re
 import sqlite3
 import time
 import uuid
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -25,6 +26,30 @@ if TYPE_CHECKING:
     from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+class ChatErrorCode(str, Enum):
+    """聊天错误分类契约（借鉴 LoopX 类型化路由契约）。
+
+    替代散落的字符串错误码，让前端/调用方可按枚举分支处理，而非解析文本。
+    """
+
+    NO_API_KEY = "no_api_key"            # 未配置 API Key
+    QUOTA_EXCEEDED = "quota_exceeded"    # 成本/配额超限
+    MODEL_NOT_FOUND = "model_not_found"  # 模型不存在/上游 404
+    RATE_LIMITED = "rate_limited"        # 上游限流
+    UPSTREAM_ERROR = "upstream_error"    # 上游其他错误
+    STREAM_ERROR = "stream_error"        # 通用流式错误
+
+
+def _classify_chat_error(content: str) -> str:
+    """把上游错误文本分类为 ChatErrorCode，做粗粒度错误定位。"""
+    low = (content or "").lower()
+    if any(k in low for k in ("does not exist", "model not found", "not found", "code\":404", "code\": 404")):
+        return ChatErrorCode.MODEL_NOT_FOUND.value
+    if any(k in low for k in ("rate limit", "too many", "code\":429", "code\": 429", "throttl")):
+        return ChatErrorCode.RATE_LIMITED.value
+    return ChatErrorCode.UPSTREAM_ERROR.value
 
 
 # =============================================================================
@@ -1079,7 +1104,11 @@ async def _run_chat_stream(
     """通过 ChatBridge 流式聊天，支持可选的 Hermes 结构化模式。"""
     api_key = _get_api_key_for_model(model)
     if not api_key:
-        yield {"type": "error", "message": "No API Key configured"}
+        yield {
+            "type": "error",
+            "code": ChatErrorCode.NO_API_KEY.value,
+            "message": "No API Key configured",
+        }
         return
 
     # H4: 入口成本熔断预检 — 覆盖 agent/hermes 路径，避免历史/上下文加载后才发现超限
@@ -1089,7 +1118,11 @@ async def _run_chat_stream(
         estimated = len(message) // 3 + 500  # 粗估：每 3 字符约 1 token + 系统开销
         ok, reason = get_cost_controller().check_before_call(estimated)
         if not ok:
-            yield {"type": "error", "message": f"成本超限: {reason}"}
+            yield {
+                "type": "error",
+                "code": ChatErrorCode.QUOTA_EXCEEDED.value,
+                "message": f"成本超限: {reason}",
+            }
             return
     except (ImportError, RuntimeError, ValueError, TypeError) as e:
         logger.warning("cost_precheck_failed", extra={"error": str(e)})
@@ -1284,7 +1317,11 @@ async def _run_chat_stream(
                 await _extract_error_patterns(final, message)
                 yield {"type": "done", "content": final, "usage": event.usage}
             elif event.event_type == "error":
-                yield {"type": "error", "message": event.content}
+                yield {
+                    "type": "error",
+                    "code": _classify_chat_error(event.content),
+                    "message": event.content,
+                }
                 return
     finally:
         await bridge.close()

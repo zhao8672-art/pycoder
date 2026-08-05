@@ -9,9 +9,11 @@ BUG-011 修复：ChatRequest.message 改为 Any 字符串以兼容 UTF-8 + emoji
 from __future__ import annotations
 
 import logging
+import time
 
 from fastapi import APIRouter, Request
 
+from pycoder.core.services.audit_logger import AuditLogger
 from pycoder.server.chat_handler import ChatRequest, _resolve_model, _run_chat_stream
 from pycoder.server.session_store import get_session_store
 
@@ -112,11 +114,12 @@ async def _chat_impl(req: ChatRequest):
             session_id, req.message, model, req.system_prompt, req.files, hermes=True
         ):
             if event.get("type") == "error":
-                return {"error": event.get("message")}
+                return {"error": event.get("message"), "route": event.get("code")}
         return {"status": "ok", "hermes_complete": True}
     else:
         collected_content = ""
         usage_info = {}
+        start_t = time.time()
         try:
             async for event in _run_chat_stream(
                 session_id, req.message, model, req.system_prompt, req.files, hermes=False
@@ -126,9 +129,27 @@ async def _chat_impl(req: ChatRequest):
                 elif event.get("type") == "done":
                     usage_info = event.get("usage", {})
                 elif event.get("type") == "error":
-                    return {"error": event.get("message")}
+                    return {"error": event.get("message"), "route": event.get("code")}
         finally:
             pass
+
+        # P0-2: 不可变 run 记录（复用 AuditLogger，append-only JSONL）
+        try:
+            AuditLogger().log(
+                "chat.run",
+                {
+                    "session_id": session_id,
+                    "model": model,
+                    "msg_len": len(req.message),
+                    "reply_len": len(collected_content),
+                    "usage": usage_info,
+                },
+                result="success",
+                duration_ms=round((time.time() - start_t) * 1000, 2),
+                session_id=session_id,
+            )
+        except Exception as e:  # 审计失败不阻断主流程
+            _logger.debug("chat_run_audit_failed: %s", e)
 
         return {
             "reply": collected_content,
