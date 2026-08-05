@@ -46,7 +46,7 @@ def _register_tools(app: FastAPI) -> None:
     app.include_router(diff_list_router)
     app.include_router(git_router)
     app.include_router(search_router)
-    app.include_router(code_exec_router, prefix="/api/code")
+    app.include_router(code_exec_router)  # code_exec.py 自身 prefix=/api/code-exec
     app.include_router(visualize_router)
     app.include_router(db_api_router)  # F6 数据库可视化 /api/db
 

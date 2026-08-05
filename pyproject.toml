@@ -245,6 +245,7 @@ addopts = [
     "--dist=loadfile",      # 按文件分配 worker, 避免 sqlite3/线程跨进程崩溃
 ]
 markers = [
+    "smoke: 冒烟测试 (关键路径快速验证, 运行: pytest -m smoke)",
     "slow: 慢测试 (长时间运行, CI 默认跳过: pytest -m 'not slow')",
     "integration: 集成测试 (需要外部服务)",
     "network: 需要网络连接的测试",

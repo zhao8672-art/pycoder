@@ -164,7 +164,7 @@ async def _run_node(code: str, working_dir: str, env: dict, timeout: int) -> dic
         Path(script_path).unlink(missing_ok=True)
 
 
-async def _run_sync(cmd: list[str], working_dir: str, env: dict, timeout: int) -> dict:
+def _run_sync(cmd: list[str], working_dir: str, env: dict, timeout: int) -> dict:
     """同步执行命令（供 asyncio.to_thread 调用）"""
     start = time.perf_counter()
     try:
